@@ -5,3 +5,5 @@
 验证：255 个测试文件、1747 项测试通过。现有 lint 检查存在 9 项错误与 6 项警告，涉及浏览器测试全局变量及 ProviderSettingsDialog 未使用变量。
 
 macOS 原生分层组件、前端 TypeScript/Vite 构建和 Electron TypeScript 编译通过。验证复用了开发环境依赖，尚未验证全新机器安装及各平台安装包。
+
+公开仓库的发布入口仅进行本地构建和打包，不包含官方 Gitea/manage 商业发布流程。
