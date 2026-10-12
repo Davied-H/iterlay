@@ -1,0 +1,92 @@
+.comic-drama-entry-node {
+  height: 304px;
+  border-color: #303839;
+  border-radius: 10px;
+  color: #fff;
+  background: #0b1213;
+  box-shadow: 0 14px 36px rgb(24 32 35 / 16%), 0 2px 8px rgb(24 32 35 / 12%);
+}
+.comic-drama-entry-node__cover,
+.comic-drama-entry-node__placeholder,
+.comic-drama-entry-node__shade { position: absolute; inset: 0; width: 100%; height: 100%; }
+.comic-drama-entry-node__cover { display: block; object-fit: cover; }
+.comic-drama-entry-node__placeholder { overflow: hidden; background: linear-gradient(145deg, #243235, #0d1618 72%); }
+.comic-drama-entry-node__placeholder span { position: absolute; display: block; border-radius: 50%; background: #6480852b; filter: blur(1px); }
+.comic-drama-entry-node__placeholder span:nth-child(1) { width: 180px; height: 180px; top: -55px; right: -30px; }
+.comic-drama-entry-node__placeholder span:nth-child(2) { width: 110px; height: 110px; bottom: 42px; left: 126px; }
+.comic-drama-entry-node__placeholder span:nth-child(3) { width: 220px; height: 1px; right: 26px; bottom: 93px; border-radius: 0; background: #8da5a82b; }
+.comic-drama-entry-node__shade {
+  background: linear-gradient(0deg, rgb(5 12 13 / 98%) 0%, rgb(7 15 16 / 88%) 31%, transparent 72%), linear-gradient(90deg, rgb(6 14 15 / 72%) 0%, transparent 62%);
+}
+.comic-drama-entry-node__header {
+  position: relative;
+  z-index: 1;
+  height: 52px;
+  flex: 0 0 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px;
+}
+.comic-drama-entry-node__project { display: flex; align-items: center; gap: 8px; color: #bac4c1; font-size: 8px; font-weight: 650; }
+.comic-drama-entry-node__icon { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 7px; color: #14201e; background: #eef4f2; }
+.comic-drama-entry-node__icon svg { width: 15px; height: 15px; }
+.comic-drama-entry-node__status { display: inline-flex; align-items: center; gap: 5px; color: #b8eee6; font-size: 8px; font-weight: 680; }
+.comic-drama-entry-node__status i { width: 6px; height: 6px; border-radius: 50%; background: #55d2c1; box-shadow: 0 0 0 3px rgb(85 210 193 / 15%); }
+.comic-drama-entry-node__header-actions { display: flex; align-items: center; gap: 8px; }
+.comic-drama-entry-node__delete {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  color: #d5dddb;
+  background: rgb(7 15 16 / 54%);
+  opacity: 0;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+.comic-drama-entry-node:hover .comic-drama-entry-node__delete,
+.comic-drama-entry-node:focus-within .comic-drama-entry-node__delete,
+.canvas-workflow-node--selected .comic-drama-entry-node__delete { opacity: 1; }
+.comic-drama-entry-node__delete:hover {
+  border-color: rgb(248 113 113 / 42%);
+  color: #fecaca;
+  background: rgb(127 29 29 / 62%);
+}
+.comic-drama-entry-node__delete:focus-visible { opacity: 1; outline: 2px solid #a8e4d9; outline-offset: 2px; }
+.comic-drama-entry-node__delete svg { width: 13px; height: 13px; }
+.comic-drama-entry-node--empty .comic-drama-entry-node__status { color: #c5cecb; }
+.comic-drama-entry-node--empty .comic-drama-entry-node__status i { background: #9eaaa7; box-shadow: 0 0 0 3px rgb(158 170 167 / 15%); }
+.comic-drama-entry-node__body {
+  position: absolute;
+  right: 17px;
+  bottom: 72px;
+  left: 17px;
+  z-index: 1;
+  display: block;
+  min-width: 0;
+}
+.comic-drama-entry-node__body > span { color: #b7c2bf; font-size: 8px; }
+.comic-drama-entry-node__body h2 { margin: 6px 0 0; overflow: hidden; color: #fff; font-size: 27px; font-weight: 720; line-height: 1.1; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
+.comic-drama-entry-node__body p { margin: 8px 0 0; overflow: hidden; color: #d8dfdd; font-size: 9px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.comic-drama-entry-node__footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  height: 61px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 0 16px;
+  border-top: 1px solid rgb(255 255 255 / 11%);
+  background: rgb(6 14 15 / 84%);
+  backdrop-filter: blur(9px);
+}
+.comic-drama-entry-node__updated { min-width: 0; flex: 1; display: flex; align-items: center; gap: 5px; overflow: hidden; color: #aeb8b5; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.comic-drama-entry-node__updated svg { width: 11px; height: 11px; }
+.comic-drama-entry-node__footer .canvas-generation-run { height: 34px; flex: none; gap: 6px; padding: 0 10px; border-color: #a8e4d9; color: #132320; background: #a8e4d9; font-size: 9px; }
+.comic-drama-entry-node__footer .canvas-generation-run:hover { border-color: #c3eee6; background: #c3eee6; }
+.comic-drama-entry-node__footer .canvas-generation-run svg { width: 12px; height: 12px; }

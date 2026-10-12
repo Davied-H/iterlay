@@ -1,0 +1,215 @@
+.gallery-film-viewport {
+  scrollbar-width: none;
+  touch-action: pan-y;
+  cursor: grab;
+  overscroll-behavior: contain;
+}
+
+.gallery-film-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.gallery-film-viewport[data-dragging="true"] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.gallery-film[data-playing="true"] .gallery-film-frame.is-active .gallery-film-window {
+  animation: gallery-film-projector-gate 190ms steps(2, end) infinite;
+}
+
+.gallery-film-strip {
+  display: flex;
+  min-height: 100%;
+  align-items: center;
+  width: max-content;
+  padding-block: 12px;
+}
+
+.gallery-film-frame {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 30px 8px 28px;
+  border: 0;
+  border-inline-start: 1px solid rgb(255 255 255 / 0.04);
+  background: #151310;
+  color: white;
+  opacity: 0.36;
+  outline: none;
+  transition:
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gallery-film-frame:last-child {
+  border-inline-end: 1px solid rgb(255 255 255 / 0.04);
+}
+
+.gallery-film-frame:hover,
+.gallery-film-frame:focus-visible {
+  opacity: 0.72;
+}
+
+.gallery-film-frame:focus-visible {
+  z-index: 2;
+}
+
+.gallery-film-frame.is-active {
+  z-index: 1;
+  background: #1a1712;
+  opacity: 1;
+}
+
+.gallery-film-window {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  background: #020202;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    0 1px 4px rgb(0 0 0 / 0.7);
+}
+
+.gallery-film-frame.is-active .gallery-film-window {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.18),
+    0 2px 8px rgb(0 0 0 / 0.8);
+}
+
+.gallery-film-window img {
+  pointer-events: none;
+}
+
+.gallery-film-exposure {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 40px 14px 10px;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.78), rgb(0 0 0 / 0));
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.gallery-film-frame.is-active:hover .gallery-film-exposure,
+.gallery-film-frame.is-active:focus-visible .gallery-film-exposure {
+  opacity: 1;
+}
+
+.gallery-film-sprockets {
+  position: absolute;
+  inset-inline: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 18px;
+  pointer-events: none;
+}
+
+.gallery-film-sprockets--top {
+  top: 6px;
+}
+
+.gallery-film-sprockets--bottom {
+  bottom: 5px;
+}
+
+.gallery-film-sprocket {
+  width: clamp(10px, 1.1vw, 16px);
+  height: clamp(7px, 0.72vw, 10px);
+  border-radius: 2px;
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+.gallery-film-stock,
+.gallery-film-frame-number {
+  position: absolute;
+  bottom: 7px;
+  z-index: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  line-height: 1;
+  color: rgb(233 190 94 / 0.5);
+  pointer-events: none;
+}
+
+.gallery-film-stock {
+  left: 13px;
+}
+
+.gallery-film-frame-number {
+  right: 13px;
+  color: rgb(255 255 255 / 0.42);
+}
+
+.gallery-film-transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.gallery-film-scrubber {
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  accent-color: white;
+  cursor: pointer;
+}
+
+.gallery-film-scrubber:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+@media (max-width: 620px) {
+  .gallery-film-frame {
+    padding-block: 24px 23px;
+  }
+
+  .gallery-film-sprockets {
+    height: 14px;
+  }
+
+  .gallery-film-sprockets--top {
+    top: 5px;
+  }
+
+  .gallery-film-sprockets--bottom {
+    bottom: 4px;
+  }
+
+  .gallery-film-stock,
+  .gallery-film-frame-number {
+    bottom: 6px;
+  }
+
+  .gallery-film-transport {
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-film-frame,
+  .gallery-film-exposure {
+    transition: none;
+  }
+
+  .gallery-film[data-playing="true"] .gallery-film-frame.is-active .gallery-film-window {
+    animation: none;
+  }
+}
+
+@keyframes gallery-film-projector-gate {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 0.35px;
+  }
+}

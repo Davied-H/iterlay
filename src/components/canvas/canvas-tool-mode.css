@@ -1,0 +1,12 @@
+.canvas-mode-toolbar{position:absolute;left:18px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px;background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:14px;box-shadow:0 2px 10px #00000008}
+.canvas-mode-toolbar>button,.canvas-mode-toolbar>details>summary{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:hsl(var(--muted-foreground));cursor:pointer;list-style:none}
+.canvas-mode-toolbar>button:hover,.canvas-mode-toolbar>button[aria-pressed=true]{background:hsl(var(--muted));color:hsl(var(--foreground))}
+.canvas-mode-toolbar button:focus-visible,.canvas-mode-toolbar summary:focus-visible{outline:2px solid hsl(var(--focus-accent));outline-offset:2px}
+.canvas-mode-toolbar button:disabled{opacity:.4;cursor:not-allowed}
+.canvas-mode-toolbar svg{width:19px;height:19px;stroke-width:1.65}
+.canvas-mode-toolbar .canvas-tool-divider{height:1px;background:hsl(var(--border));margin:4px}
+.canvas-mode-toolbar details>div{position:absolute;left:54px;bottom:0;min-width:160px;padding:6px;border:1px solid hsl(var(--border));border-radius:9px;background:hsl(var(--popover));box-shadow:0 5px 20px #0001}
+.canvas-mode-toolbar details>div>button{display:flex;width:100%;gap:8px;align-items:center;padding:9px;border-radius:5px;font-size:12px;text-align:left}
+.canvas-mode-toolbar details>div>button:hover{background:hsl(var(--muted))}
+.canvas-mode-pan .react-flow__pane,.canvas-mode-pan .react-flow__node{cursor:grab!important}
+.canvas-mode-pan .react-flow__pane:active{cursor:grabbing!important}

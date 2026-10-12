@@ -1,0 +1,58 @@
+.option-wheel {
+  --ow-text-color: #b7c0cc;
+  --ow-active-color: #eef2f6;
+  --ow-font-size: 3rem;
+  --ow-inset: 80px;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  outline: none;
+}
+
+.option-wheel--dragging {
+  cursor: grabbing;
+}
+
+.option-wheel__item {
+  position: absolute;
+  top: 50%;
+  left: var(--ow-inset);
+  color: color-mix(in srgb, var(--ow-active-color) calc(var(--ow-p, 0) * 100%), var(--ow-text-color));
+  font-size: var(--ow-font-size);
+  font-weight: 200;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transform-origin: left center;
+  will-change: transform, opacity, filter;
+}
+
+.option-wheel--right .option-wheel__item {
+  right: var(--ow-inset);
+  left: auto;
+  transform-origin: right center;
+}
+
+.option-wheel__item--selected {
+  font-weight: 500;
+}
+
+.option-wheel:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option-wheel__item {
+    will-change: auto;
+  }
+}

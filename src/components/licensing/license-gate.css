@@ -1,0 +1,38 @@
+.license-spin {
+  animation: license-spin 0.8s linear infinite;
+}
+
+@keyframes license-spin {
+  to { transform: rotate(360deg); }
+}
+
+.license-banner {
+  position: fixed;
+  z-index: 40;
+  top: 60px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  min-height: 44px;
+  max-width: calc(100vw - 32px);
+  align-items: center;
+  gap: 18px;
+  transform: translateX(-50%);
+  border: 1px solid hsl(var(--favorite) / 45%);
+  border-radius: 7px;
+  background: hsl(var(--popover) / 97%);
+  padding: 6px 7px 6px 14px;
+  box-shadow: 0 12px 34px hsl(var(--foreground) / 14%);
+  color: hsl(var(--popover-foreground));
+  font-size: 13px;
+}
+
+.license-banner button svg {
+  width: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .license-spin {
+    animation: none;
+  }
+}

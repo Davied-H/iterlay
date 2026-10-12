@@ -1,0 +1,4 @@
+interface:
+  display_name: "Iterlay Workspace"
+  short_description: "驱动 Iterlay 画板、图片生成编辑与交付验收"
+  default_prompt: "Use $iterlay-workspace to create or edit Iterlay assets, then validate their actual dimensions, safe areas, and board presentation before delivery."

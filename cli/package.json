@@ -1,0 +1,28 @@
+{
+  "name": "iterlay",
+  "version": "0.1.56",
+  "description": "One-command Iterlay integration for coding agents: installs the Iterlay Skill and MCP configuration for Codex and Claude Code.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "iterlay": "dist/main.js"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "dist/main.js",
+    "skills/**",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "node scripts/sync-skill.mjs && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "esbuild": "^0.25.5",
+    "typescript": "^5.9.3"
+  }
+}

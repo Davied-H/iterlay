@@ -1,0 +1,32 @@
+.text-type {
+  display: inline;
+  white-space: pre-wrap;
+}
+
+.text-type__cursor {
+  display: inline-block;
+  width: 0.07em;
+  height: 0.82em;
+  margin-right: -0.07em;
+  vertical-align: -0.06em;
+  background: currentColor;
+  opacity: 1;
+  transform: translateX(0.1em);
+  animation: text-type-cursor-blink 1s ease-in-out infinite;
+}
+
+.text-type__cursor--hidden {
+  visibility: hidden;
+}
+
+@keyframes text-type-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-type__cursor {
+    animation: none;
+  }
+}

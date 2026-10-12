@@ -1,0 +1,1030 @@
+.welcome-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow: hidden;
+  min-width: 20rem;
+  color: #f4f4f5;
+  background: oklch(0.25 0.012 255);
+  isolation: isolate;
+}
+
+.welcome-tour::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background:
+    radial-gradient(circle at 72% 54%, rgb(53 109 204 / 0.16), transparent 32%),
+    linear-gradient(115deg, transparent 54%, rgb(255 255 255 / 0.025) 54.1%, transparent 54.35%);
+}
+
+.welcome-tour__header,
+.welcome-tour__footer {
+  position: absolute;
+  right: max(2rem, env(safe-area-inset-right));
+  left: max(2rem, env(safe-area-inset-left));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.welcome-tour__header {
+  top: max(1.75rem, env(safe-area-inset-top));
+  justify-content: flex-end;
+}
+
+.welcome-tour__brand {
+  position: absolute;
+  top: max(7rem, 11vh);
+  left: max(7vw, 4rem);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.welcome-tour__icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.45rem;
+}
+
+.welcome-tour__edition,
+.welcome-tour__time {
+  color: rgb(244 244 245 / 0.58);
+  font-size: 0.75rem;
+}
+
+.welcome-tour__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: min(54rem, calc(100vw - 8rem));
+  height: 100%;
+  margin-left: max(7vw, 4rem);
+  align-items: center;
+  transition: width 520ms cubic-bezier(0.22, 1, 0.36, 1), transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome-tour__content-stack {
+  width: 100%;
+}
+
+.welcome-tour__copy {
+  min-height: 13.5rem;
+}
+
+.welcome-tour__demo-copy-shell {
+  min-height: 15.25rem;
+}
+
+.welcome-tour--demo .welcome-tour__content {
+  width: min(42vw, 44rem);
+}
+
+.welcome-tour--demo .welcome-tour__content-stack {
+  display: flex;
+  height: min(35.25vw, 40.5rem);
+  flex-direction: column;
+}
+
+.welcome-tour--demo .welcome-tour__actions {
+  margin-top: auto;
+}
+
+.welcome-tour__actions--demo {
+  justify-content: flex-start;
+}
+
+.welcome-tour__skip-demo {
+  gap: 0.4rem;
+  padding-right: 0.75rem;
+}
+
+.welcome-tour__demo-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: 0.25rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid rgb(244 244 245 / 0.14);
+}
+
+.welcome-tour__demo-nav {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.5rem;
+  color: rgb(244 244 245 / 0.76);
+  background: rgb(255 255 255 / 0.08);
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome-tour__demo-nav:hover:not(:disabled) {
+  color: #ffffff;
+  background: rgb(255 255 255 / 0.14);
+  transform: translateY(-1px);
+}
+
+.welcome-tour__demo-nav:focus-visible {
+  outline: 2px solid #78a4ff;
+  outline-offset: 3px;
+}
+
+.welcome-tour__demo-nav:disabled {
+  color: rgb(244 244 245 / 0.24);
+  background: rgb(255 255 255 / 0.035);
+  cursor: not-allowed;
+}
+
+.welcome-tour--choice .welcome-tour__content {
+  width: min(40vw, 40rem);
+}
+
+.welcome-tour__choice-copy {
+  max-width: 36rem;
+}
+
+.welcome-tour__choice-title {
+  margin: 0;
+  color: #fafafa;
+  font-size: 3.5rem;
+  font-weight: 560;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.welcome-tour__choice-title > span {
+  white-space: nowrap;
+}
+
+.welcome-tour__choice-rotating {
+  width: max-content;
+  max-width: 100%;
+  min-height: 1.12em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.welcome-tour__choice-description {
+  max-width: 30rem;
+  margin: 1.25rem 0 0;
+  color: rgb(244 244 245 / 0.68);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.welcome-tour__choice-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 2rem;
+}
+
+.welcome-tour__choice-primary,
+.welcome-tour__choice-secondary {
+  display: inline-flex;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0 1rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome-tour__choice-primary {
+  color: #0a0a0b;
+  background: #78a4ff;
+}
+
+.welcome-tour__choice-primary:hover {
+  background: #8db3ff;
+  transform: translateY(-1px);
+}
+
+.welcome-tour__choice-secondary {
+  color: #f4f4f5;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.welcome-tour__choice-secondary:hover {
+  background: rgb(255 255 255 / 0.13);
+  transform: translateY(-1px);
+}
+
+.welcome-tour__choice-primary:focus-visible,
+.welcome-tour__choice-secondary:focus-visible {
+  outline: 2px solid #78a4ff;
+  outline-offset: 3px;
+}
+
+.welcome-tour__choice-primary:active,
+.welcome-tour__choice-secondary:active {
+  transform: translateY(0);
+}
+
+.welcome-tour__choice-primary:disabled,
+.welcome-tour__choice-secondary:disabled {
+  pointer-events: none;
+  opacity: 0.56;
+}
+
+.welcome-tour__choice-note {
+  display: block;
+  margin-top: 1rem;
+  color: rgb(244 244 245 / 0.46);
+  font-size: 0.6875rem;
+}
+
+.welcome-tour__setup-panel {
+  position: absolute;
+  top: 50%;
+  right: 5vw;
+  z-index: 1;
+  width: min(43vw, 40rem);
+  padding: 1.25rem;
+  border: 1px solid rgb(244 244 245 / 0.13);
+  border-radius: 0.75rem;
+  background: oklch(0.29 0.014 255);
+  translate: 0 -50%;
+}
+
+.welcome-tour__setup-heading {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: space-between;
+  color: #f4f4f5;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.welcome-tour__setup-step {
+  color: rgb(244 244 245 / 0.5);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.welcome-tour__service-option {
+  display: grid;
+  width: 100%;
+  min-height: 7.25rem;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 1.25rem;
+  align-items: center;
+  gap: 0.875rem;
+  margin-top: 0.75rem;
+  border: 1px solid rgb(244 244 245 / 0.13);
+  border-radius: 0.625rem;
+  padding: 1rem;
+  color: #f4f4f5;
+  background: rgb(255 255 255 / 0.025);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome-tour__service-option--official {
+  border-color: rgb(120 164 255 / 0.35);
+  background: rgb(120 164 255 / 0.075);
+}
+
+.welcome-tour__service-option:hover:not(:disabled) {
+  border-color: rgb(244 244 245 / 0.3);
+  background: rgb(255 255 255 / 0.065);
+  transform: translateY(-1px);
+}
+
+.welcome-tour__service-option--official:hover:not(:disabled) {
+  border-color: rgb(120 164 255 / 0.58);
+  background: rgb(120 164 255 / 0.11);
+}
+
+.welcome-tour__service-option:focus-visible {
+  outline: 2px solid #78a4ff;
+  outline-offset: 3px;
+}
+
+.welcome-tour__service-option:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.welcome-tour__service-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.welcome-tour__service-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.5rem;
+  color: rgb(244 244 245 / 0.78);
+  background: rgb(255 255 255 / 0.08);
+}
+
+.welcome-tour__service-option--official .welcome-tour__service-icon {
+  color: #78a4ff;
+  background: rgb(120 164 255 / 0.12);
+}
+
+.welcome-tour__service-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.welcome-tour__service-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.welcome-tour__service-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: #fafafa;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.welcome-tour__recommended {
+  border-radius: 99px;
+  padding: 0.15rem 0.4rem;
+  color: #b8ccff;
+  background: rgb(120 164 255 / 0.12);
+  font-size: 0.625rem;
+  font-weight: 650;
+}
+
+.welcome-tour__service-description {
+  color: rgb(244 244 245 / 0.66);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.welcome-tour__service-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: rgb(244 244 245 / 0.48);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.welcome-tour__service-meta svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.welcome-tour__service-arrow {
+  width: 1rem;
+  height: 1rem;
+  color: rgb(244 244 245 / 0.42);
+}
+
+.welcome-tour__license-row {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid rgb(244 244 245 / 0.1);
+  padding-top: 0.75rem;
+  color: rgb(244 244 245 / 0.66);
+  font-size: 0.75rem;
+}
+
+.welcome-tour__license-row > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.welcome-tour__license-row svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+}
+
+.welcome-tour__license-row button {
+  height: 2rem;
+  flex: none;
+  border: 0;
+  border-radius: 0.375rem;
+  padding: 0 0.625rem;
+  color: #f4f4f5;
+  background: rgb(255 255 255 / 0.09);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.welcome-tour__license-row button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.welcome-tour__license-row button:focus-visible {
+  outline: 2px solid #78a4ff;
+  outline-offset: 2px;
+}
+
+.welcome-tour__license-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.welcome-tour__setup-note {
+  margin: 0.625rem 0 0;
+  color: rgb(244 244 245 / 0.4);
+  font-size: 0.625rem;
+  line-height: 1.45;
+}
+
+.welcome-tour__title {
+  width: 13ch;
+  min-height: 1.12em;
+  margin: 0;
+  color: #fafafa;
+  font-size: 4rem;
+  font-weight: 560;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.welcome-tour__title .text-type__cursor {
+  color: #78a4ff;
+  font-weight: 400;
+}
+
+.welcome-tour__title.welcome-tour__title--opening {
+  width: 9.5em;
+  max-width: 100%;
+  min-height: 1.12em;
+  white-space: nowrap;
+}
+
+.welcome-tour__title--opening .text-type {
+  white-space: nowrap;
+}
+
+.welcome-tour__description {
+  max-width: 34rem;
+  margin: 1.4rem 0 0;
+  color: rgb(244 244 245 / 0.67);
+  font-size: 1rem;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.welcome-tour__title--narration {
+  width: 13ch;
+  min-height: 2.2em;
+  font-size: 3.25rem;
+  text-wrap: wrap;
+  white-space: pre-line;
+}
+
+.welcome-tour__narration-points {
+  display: grid;
+  max-width: 30rem;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-tour__narration-points li {
+  display: grid;
+  min-height: 3.5rem;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: rgb(255 255 255 / 0.035);
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.welcome-tour__narration-points li[data-state="active"] {
+  color: #f4f4f5;
+  background: rgb(120 164 255 / 0.11);
+}
+
+.welcome-tour__narration-points li[data-state="done"] {
+  color: rgb(244 244 245 / 0.76);
+}
+
+.welcome-tour__narration-points li[data-state="upcoming"] {
+  color: rgb(244 244 245 / 0.6);
+}
+
+.welcome-tour__narration-index {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 0.375rem;
+  color: rgb(244 244 245 / 0.66);
+  background: rgb(255 255 255 / 0.07);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+[data-state="active"] .welcome-tour__narration-index {
+  color: #091b3f;
+  background: #78a4ff;
+}
+
+.welcome-tour__narration-content {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+  line-height: 1.35;
+}
+
+.welcome-tour__narration-content strong {
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.welcome-tour__narration-content > span {
+  color: rgb(244 244 245 / 0.6);
+  font-size: 0.75rem;
+}
+
+[data-state="active"] .welcome-tour__narration-content > span {
+  color: rgb(244 244 245 / 0.76);
+}
+
+.welcome-tour__demo-progress {
+  display: flex;
+  width: 11.5rem;
+  gap: 0.375rem;
+  margin-bottom: 1.4rem;
+}
+
+.welcome-tour__demo-progress span {
+  min-width: 0;
+  height: 0.1875rem;
+  flex: 1;
+  border-radius: 99px;
+  background: rgb(244 244 245 / 0.18);
+  transition: background-color 180ms ease;
+}
+
+.welcome-tour__demo-progress span[data-active="true"] {
+  background: #78a4ff;
+}
+
+.welcome-tour__footer {
+  bottom: max(1.75rem, env(safe-area-inset-bottom));
+  justify-content: flex-end;
+}
+
+.welcome-tour__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.welcome-tour__primary,
+.welcome-tour__skip {
+  display: inline-flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0 0.9rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome-tour__primary {
+  gap: 0.5rem;
+  color: #0a0a0b;
+  background: #f4f4f5;
+}
+
+.welcome-tour__primary:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.welcome-tour__skip {
+  color: rgb(244 244 245 / 0.72);
+  background: transparent;
+}
+
+.welcome-tour__skip:hover {
+  color: #ffffff;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.welcome-tour__primary:focus-visible,
+.welcome-tour__skip:focus-visible {
+  outline: 2px solid #78a4ff;
+  outline-offset: 3px;
+}
+
+.welcome-tour__primary:active {
+  transform: translateY(0);
+}
+
+.welcome-tour__primary:disabled,
+.welcome-tour__skip:disabled {
+  pointer-events: none;
+  opacity: 0.56;
+}
+
+.welcome-tour__art {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.welcome-tour__demo {
+  position: absolute;
+  top: 50%;
+  right: 3.5vw;
+  z-index: 1;
+  width: min(47vw, 54rem);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: 0.625rem;
+  background: oklch(0.27 0.012 255);
+  contain: layout paint;
+  translate: 0 -50%;
+}
+
+.welcome-tour__demo-loading {
+  width: 100%;
+  height: 100%;
+  background: oklch(0.27 0.012 255);
+}
+
+.welcome-tour__frame {
+  position: absolute;
+  overflow: visible;
+  margin: 0;
+  background: oklch(0.31 0.014 255);
+}
+
+.welcome-tour__frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.4rem;
+  object-fit: cover;
+  user-select: none;
+}
+
+.welcome-tour__frame--concept {
+  top: -4.5rem;
+  right: 18%;
+  width: 11rem;
+  height: 14rem;
+  opacity: 0.74;
+}
+
+.welcome-tour__frame--portrait {
+  top: 13%;
+  right: -2.5rem;
+  width: 19rem;
+  height: 23rem;
+}
+
+.welcome-tour__frame--style {
+  bottom: 12%;
+  left: -4.5rem;
+  width: 12.5rem;
+  height: 15rem;
+  opacity: 0.72;
+}
+
+.welcome-tour__frame--selected {
+  right: 17%;
+  bottom: -8.5rem;
+  width: 22rem;
+  height: 22rem;
+}
+
+.welcome-tour__selection {
+  position: absolute;
+  inset: -0.5rem;
+  border: 1px solid rgb(120 164 255 / 0.78);
+  border-radius: 0.15rem;
+}
+
+.welcome-tour__selection::before,
+.welcome-tour__selection::after {
+  position: absolute;
+  width: 0.42rem;
+  top: -0.24rem;
+  bottom: -0.24rem;
+  content: "";
+  background:
+    linear-gradient(#78a4ff, #78a4ff) top / 0.42rem 0.42rem no-repeat,
+    linear-gradient(#78a4ff, #78a4ff) bottom / 0.42rem 0.42rem no-repeat;
+}
+
+.welcome-tour__selection::before {
+  left: -0.24rem;
+}
+
+.welcome-tour__selection::after {
+  right: -0.24rem;
+}
+
+@media (max-width: 64rem) {
+  .welcome-tour__brand {
+    left: 2.5rem;
+  }
+
+  .welcome-tour__content {
+    width: calc(100vw - 5rem);
+    margin-left: 2.5rem;
+  }
+
+  .welcome-tour__title {
+    width: 12ch;
+    min-height: 2.3em;
+    font-size: 3.25rem;
+  }
+
+  .welcome-tour--demo .welcome-tour__content {
+    width: 42vw;
+  }
+
+  .welcome-tour--demo .welcome-tour__content-stack {
+    height: 37.5vw;
+  }
+
+  .welcome-tour--demo .welcome-tour__title {
+    min-height: 2.2em;
+    font-size: 2.75rem;
+  }
+
+  .welcome-tour__demo {
+    right: 2.5vw;
+    width: 50vw;
+  }
+
+  .welcome-tour__frame--portrait {
+    right: -6rem;
+    width: 16rem;
+    height: 20rem;
+    opacity: 0.8;
+  }
+
+  .welcome-tour__frame--selected {
+    right: 7%;
+    width: 18rem;
+    height: 18rem;
+  }
+
+  .welcome-tour--choice .welcome-tour__content {
+    width: 42vw;
+  }
+
+  .welcome-tour__setup-panel {
+    right: 2.5vw;
+    width: 49vw;
+  }
+
+  .welcome-tour__choice-title {
+    font-size: 2.75rem;
+  }
+}
+
+@media (max-width: 42rem) {
+  .welcome-tour--choice {
+    overflow-y: auto;
+  }
+
+  .welcome-tour__header,
+  .welcome-tour__footer {
+    right: max(1.25rem, env(safe-area-inset-right));
+    left: max(1.25rem, env(safe-area-inset-left));
+  }
+
+  .welcome-tour__header {
+    top: max(1.25rem, env(safe-area-inset-top));
+  }
+
+  .welcome-tour__brand {
+    top: max(1.25rem, env(safe-area-inset-top));
+    left: max(1.25rem, env(safe-area-inset-left));
+  }
+
+  .welcome-tour__content {
+    width: calc(100vw - 2.5rem);
+    margin-left: 1.25rem;
+    align-items: flex-start;
+    padding-top: 31vh;
+  }
+
+  .welcome-tour--demo .welcome-tour__content {
+    width: calc(100vw - 2.5rem);
+    transform: translateY(11vh);
+  }
+
+  .welcome-tour--demo .welcome-tour__content-stack {
+    height: auto;
+  }
+
+  .welcome-tour--demo .welcome-tour__actions {
+    margin-top: 2rem;
+  }
+
+  .welcome-tour__title {
+    width: 10ch;
+    min-height: 1.12em;
+    font-size: 2.5rem;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+  }
+
+  .welcome-tour__title--opening {
+    font-size: 2.25rem;
+  }
+
+  .welcome-tour__description {
+    max-width: 19rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .welcome-tour__footer {
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+    align-items: flex-end;
+  }
+
+  .welcome-tour__primary,
+  .welcome-tour__skip {
+    min-width: 8.5rem;
+  }
+
+  .welcome-tour__frame--concept {
+    top: 4.4rem;
+    right: 26%;
+    width: 6.5rem;
+    height: 8rem;
+  }
+
+  .welcome-tour__frame--portrait {
+    top: 5.3rem;
+    right: -1.8rem;
+    width: 8.5rem;
+    height: 10.5rem;
+  }
+
+  .welcome-tour__frame--style {
+    display: none;
+  }
+
+  .welcome-tour__frame--selected {
+    right: -2.4rem;
+    bottom: 3.4rem;
+    width: 9rem;
+    height: 9rem;
+    opacity: 0.72;
+  }
+
+  .welcome-tour__demo {
+    top: 4.75rem;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    max-height: 32vh;
+    translate: 0;
+  }
+
+  .welcome-tour--demo .welcome-tour__title {
+    width: 12ch;
+    min-height: 2.3em;
+    font-size: 2.25rem;
+  }
+
+  .welcome-tour--choice .welcome-tour__content {
+    width: calc(100vw - 2.5rem);
+    height: auto;
+    margin-left: 1.25rem;
+    padding: 2rem 0;
+    transform: none;
+  }
+
+  .welcome-tour__setup-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    width: calc(100vw - 2rem);
+    max-height: none;
+    margin: 4.75rem 1rem 0;
+    padding: 0.875rem;
+    translate: 0;
+  }
+
+  .welcome-tour__service-option {
+    min-height: 5.75rem;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 1rem;
+    gap: 0.625rem;
+    padding: 0.75rem;
+  }
+
+  .welcome-tour__service-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .welcome-tour__choice-title {
+    max-width: 11ch;
+    font-size: 2.25rem;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+  }
+
+  .welcome-tour__choice-description {
+    max-width: 20rem;
+    margin-top: 0.875rem;
+    font-size: 0.8125rem;
+  }
+
+  .welcome-tour__choice-actions {
+    margin-top: 1.25rem;
+  }
+
+  .welcome-tour__choice-primary,
+  .welcome-tour__choice-secondary {
+    min-width: 8.75rem;
+  }
+
+  .welcome-tour__license-row {
+    min-height: 2.5rem;
+  }
+
+  .welcome-tour--choice .welcome-tour__footer {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    padding: 0 1.25rem 1.25rem;
+  }
+}
+
+@media (max-width: 22rem) {
+  .welcome-tour__title--opening {
+    font-size: 1.875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-tour__content {
+    transition: none;
+  }
+
+  .welcome-tour__primary,
+  .welcome-tour__skip,
+  .welcome-tour__demo-nav,
+  .welcome-tour__service-option,
+  .welcome-tour__choice-primary,
+  .welcome-tour__choice-secondary {
+    transition: none;
+  }
+}

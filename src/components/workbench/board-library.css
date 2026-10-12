@@ -1,0 +1,48 @@
+/* Local presentation only: shared library navigation and tokens remain unchanged. */
+.board-library.library-content { container-type: inline-size; background: hsl(var(--background)); }
+.board-library > header { height: 64px; padding-inline: 28px; gap: 12px; }
+.board-library > header > span:first-child { font-size: 16px; }
+.board-library section { background: transparent; }
+.board-library [data-board-controls] { padding: 20px 28px 24px; }
+.board-library-tools { margin-left: auto; }
+.board-library-search { width: 220px; height: 34px; }
+.board-library [data-board-controls] [role="group"][aria-label="画板筛选"] { flex-shrink: 0; }
+.board-library [aria-label="画板筛选"] { border: 0; background: transparent; padding: 0; gap: 4px; }
+.board-library [aria-label="画板筛选"] button { height: 34px; font-weight: 500; }
+.board-library [aria-label="画板筛选"] button[aria-pressed="true"] { color: hsl(var(--foreground)); font-weight: 600; }
+.board-library [aria-label="画板筛选"] button > span:first-child:not(:last-child) { background: hsl(var(--muted)); box-shadow: none; }
+.board-library [aria-label="画板筛选"] [data-filter-count] { color: hsl(var(--muted-foreground)); opacity: 1; font-size: 11px; margin-left: 8px; }
+.board-library [aria-label="画板视图"] button[aria-label="卡片模式"] { order: -1; }
+.board-library-search kbd { border: 0; background: transparent; box-shadow: none; }
+.board-library-empty { min-height: 340px; height: 75%; }
+.board-library [data-board-card-item] > button > span:not([data-board-card]) { background: hsl(var(--background)); color: hsl(var(--foreground)); box-shadow: none; font-size: 11px; }
+.board-library [data-board-card-item] > button > [data-board-generation-badge] { color: hsl(var(--helper-line)); }
+.board-library section > .overflow-y-auto { padding: 0 28px 32px; }
+.board-library [data-board-card-grid] { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 28px 20px; }
+.board-library [data-board-card-item] > button {
+  box-shadow: none; border: 1px solid hsl(var(--foreground) / .1);
+  transform: none; transition: border-color 150ms ease;
+}
+.board-library [data-board-card-item] > button:hover { border-color: hsl(var(--foreground) / .35); box-shadow: none; transform: none; }
+.board-library [data-board-card-item] > button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.board-library [data-board-card-item][data-tour="library-current-board"] > button { border-color: hsl(var(--ring) / .55); }
+.board-library [data-board-card-item] > div { margin-top: 10px; }
+.board-library [data-board-row] strong { font-size: 14px; line-height: 20px; }
+.board-library [data-board-row] .tabular-nums { font-size: 12px; }
+.board-library [data-board-card-item]:focus-within button { opacity: 1; }
+.board-library [data-board-list-header] { margin-inline: 28px; padding-inline: 8px; background: transparent; font-size: 12px; }
+.board-library [data-board-row]:not([data-board-card-item]) { min-height: 82px; border-radius: 0; border-bottom: 1px solid hsl(var(--border)); margin: 0; }
+.board-library [data-board-drop-overlay] { top: 64px; }
+@container (max-width: 920px) {
+  .board-library > header { padding-inline: 20px; }
+  .board-library [data-board-controls] { flex-direction: column; align-items: stretch; padding: 16px 20px 20px; gap: 14px; }
+  .board-library [data-board-controls] > [role="group"] { align-self: flex-start; }
+  .board-library-tools { width: 100%; margin: 0; }
+  .board-library-search { flex: 1; width: auto; }
+  .board-library section > .overflow-y-auto { padding-inline: 20px; }
+  .board-library [data-board-list-header] { margin-inline: 20px; }
+  .board-library [data-board-card-grid] { gap: 24px 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-library [data-board-card-item] > button { transition: none; }
+}

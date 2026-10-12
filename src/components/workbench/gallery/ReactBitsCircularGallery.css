@@ -1,0 +1,24 @@
+.circular-gallery {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: hsl(var(--background));
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+.circular-gallery:active {
+  cursor: grabbing;
+}
+
+.circular-gallery:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.42);
+  outline-offset: -8px;
+}
+
+.circular-gallery__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

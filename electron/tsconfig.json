@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "../dist-electron",
+    "rootDir": "..",
+    "baseUrl": "..",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
+  },
+  "include": ["./**/*.ts", "../shared/**/*.ts", "../test/electron/**/*.ts"]
+}
