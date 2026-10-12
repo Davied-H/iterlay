@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.56",
+  "version": "0.1.57",
   "private": true,
   "type": "module",
   "engines": {
@@ -132,6 +132,18 @@
           "ffmpeg.exe",
           "ffprobe.exe"
         ]
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "resources/licenses",
+        "to": "licenses"
       }
     ],
     "mac": {
@@ -141,7 +153,9 @@
         "en",
         "zh_CN"
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "identity": null,
+      "notarize": false
     },
     "win": {
       "target": "nsis",

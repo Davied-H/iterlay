@@ -38,7 +38,7 @@ pnpm build
 pnpm package
 ```
 
-`pnpm package` 生成未分发的应用目录，产物位于 `release/`。`pnpm release` 依次执行构建与本地打包，不上传安装包，不需要官方管理密钥，不提交或推送 Git。
+`pnpm package` 生成未分发的应用目录，产物位于 `release/`。`pnpm release` 在 macOS Apple 芯片机器上构建未签名、未经公证的 ARM64 DMG，并校验内置 FFmpeg。不上传安装包，不需要官方管理密钥，不提交或推送 Git。其他平台尚未配置完整打包依赖。
 
 当前 FFmpeg 自动资源准备仅支持 macOS ARM64。制作其他平台安装包前，需要配置相应 FFmpeg 资源。签名、公证及安装包分发由各自维护者自行配置；本仓库不包含官方商业发布配置或签名私钥。
 
@@ -47,3 +47,5 @@ pnpm package
 [开源官网](https://davied-h.github.io/iterlay/) · [下载页](https://davied-h.github.io/iterlay/#/download) · [GitHub Releases](https://github.com/Davied-H/iterlay/releases)
 
 网站源码与本地开发说明见 [website/README.md](website/README.md)。
+
+未签名 DMG 构建会从固定版本源码编译 FFmpeg 与 x264（不含 nonfree），需要 `brew install pkgconf` 和 Xcode Command Line Tools。
