@@ -1,0 +1,8 @@
+.brand-link { display:flex; align-items:center; gap:10px; color:white; font-weight:650; }
+.release-text { white-space:pre-wrap; overflow-wrap:anywhere; }
+.skip-link { position:absolute; top:-100px; background:white; padding:12px; z-index:100; }
+.skip-link:focus { top:8px; }
+a:focus-visible, button:focus-visible { outline:3px solid #486df4; outline-offset:4px; }
+::selection { background:#d9e1ff; color:#111416; }
+@media(max-width:600px) { .public-header-inner { padding-inline:16px; } .public-nav { gap:14px; } .download-platform-picker { flex-wrap:wrap; } .download-platform-option { min-height:44px; } .release-history-item { display:flex; flex-direction:column; align-items:flex-start; } }
+@media(prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
