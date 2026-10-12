@@ -1546,6 +1546,22 @@ export function ProviderSettingsDialog({
                   </Button>
                   <h2 className="truncate text-sm font-semibold text-foreground">模型管理</h2>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto shrink-0 gap-1.5"
+                  disabled={disableEditing}
+                  aria-label={`添加${selectedKind === "image" ? "图片" : selectedKind === "video" ? "视频" : "助手"}模型`}
+                  onClick={() => {
+                    if (selectedKind === "video") addVideoProvider();
+                    else if (selectedKind === "text") addTextProvider();
+                    else addProvider();
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  添加模型
+                </Button>
               </div>
               <div className="grid grid-cols-3 gap-1 border-b border-border/80 p-2" role="tablist" aria-label="模型类型">
                 <button

@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.57",
+  "version": "0.1.58",
   "description": "One-command Iterlay integration for coding agents: installs the Iterlay Skill and MCP configuration for Codex and Claude Code.",
   "type": "module",
   "license": "MIT",
