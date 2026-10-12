@@ -1,259 +1,254 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { X } from "lucide-react";
-import { generateTemplateVerification } from "@/lib/template-verification";
-import type {
-  AppSettings,
-  AppSettingsPatch,
-  AssistantIntentSuggestionCount,
-  AssetLibraryItem,
-  AssetComment,
-  AssetReference,
-  BoardDetail,
-  BoardComicDramaEntryNode,
-  BoardConnection,
-  BoardEnterOrigin,
-  BoardGenerationNode,
-  BoardMutationPlan,
-  BoardMutationResult,
-  ComicCharacterNode,
-  ComicDramaBoardNode,
-  ComicDramaBoardSnapshot,
-  BoardNode,
-  BoardNodeSnapshot,
-  BoardTextNode,
-  BoardVideoGenerationNode,
-  BoardVideoNode,
-  BoardVideoSequenceEntryNode,
-  BoardSummary,
-  BoardViewport,
-  CollaborateSceneRequest,
-  CollaborateSceneResult,
-  CopyImageFormat,
-  CreditStatus,
-  EditInfoMode,
-  GenerateButtonStyle,
-  GenerateImageInput,
-  GenerateResponse,
-  GenerationJob,
-  ImageCropRect,
-  ImageDoubleClickAction,
-  ImageWorkflowMode,
-  MemoryUsageLevel,
-  PromptSpec,
-  ProviderApiMode,
-  ProviderConfig,
-  ReferenceImagePayload,
-  ReferenceImageRole,
-  RestoreTrashedBoardImageResult,
-  SceneTemplateImportResult,
-  SliceSubjectDetection,
-  TemplateSubmissionResult,
-  TextProviderConfig,
-  VideoProviderConfig,
-  UiDesignBrief,
-  VersionSeparationMode,
-  VideoGenerationInput,
-  VideoGenerationJob,
-  VideoSequenceTask,
-  VideoSequence as PersistedVideoSequence,
-  VideoSequenceTemplate
-} from "@shared/types";
-import { DEFAULT_VIDEO_PROVIDER_CONFIG, DEFAULT_VIDEO_PROVIDER_ID } from "@shared/types";
+import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
 import {
-  IMAGE_CREDIT_COST,
-  OFFICIAL_PROVIDER_CONFIG,
-  OFFICIAL_PROVIDER_ID,
-  OFFICIAL_TEXT_PROVIDER_CONFIG,
-  OFFICIAL_TEXT_PROVIDER_ID,
-  isBoardGenerationNode,
-  isBoardImageNode,
-  isBoardTextNode,
-  isBoardVideoGenerationNode,
-  isBoardVideoNode
-} from "@shared/types";
-import { isComicDramaNode } from "@shared/comic-drama";
-import { getDefaultQuality, getDefaultUseCase, parseGptImageSize } from "@shared/workflow";
-import { selectProviderModel } from "@shared/provider-models";
-import type { VideoProviderModelOption } from "@shared/types";
-import { promoteRecentlyUsedBoard, sortBoardsByRecentUse } from "@shared/board-order";
-import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
-import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "framer-motion";
+duplicateClipboardImages,
+type CanvasClipboardItem
+} from "@/components/canvas/canvas-clipboard";
+import { centerNodeAtDrop,type CanvasDropPoint } from "@/components/canvas/canvas-drop";
 import type {
-  CanvasNodeLayout,
-  CanvasRestoreSnapshot,
-  CanvasSelectionSnapshot
+CanvasNodeLayout,
+CanvasRestoreSnapshot,
+CanvasSelectionSnapshot
 } from "@/components/canvas/canvas-history";
+import {
+VIDEO_GENERATION_NODE_HEIGHT,
+VIDEO_NODE_HEIGHT,
+VIDEO_NODE_WIDTH
+} from "@/components/canvas/canvas-node-layout";
 import type { EmptyCanvasMode } from "@/components/canvas/EmptyCanvasStart";
 import {
-  duplicateClipboardImages,
-  type CanvasClipboardItem
-} from "@/components/canvas/canvas-clipboard";
-import { centerNodeAtDrop, type CanvasDropPoint } from "@/components/canvas/canvas-drop";
-import {
-  placeGenerationReferenceImages,
-  type GenerationReferencePlacementTarget
+placeGenerationReferenceImages,
+type GenerationReferencePlacementTarget
 } from "@/components/canvas/generation-reference-paste";
 import {
-  IMAGE_NODE_WIDTH,
-  getPendingEditCount,
-  imageKey,
-  type GeneratedImage,
-  type ImageVersion,
-  type VersionSeparationPlacement
+getPendingEditCount,
+IMAGE_NODE_WIDTH,
+imageKey,
+type GeneratedImage,
+type ImageVersion,
+type VersionSeparationPlacement
 } from "@/components/canvas/image-node-model";
 import {
-  VIDEO_GENERATION_NODE_HEIGHT,
-  VIDEO_NODE_HEIGHT,
-  VIDEO_NODE_WIDTH
-} from "@/components/canvas/canvas-node-layout";
-import {
-  VIDEO_MAX_REFERENCE_IMAGES,
-  type GeneratedVideo,
-  type VideoReferenceInput
-} from "@/components/canvas/video-node-model";
-import { resolveVideoGenerationImageInputs } from "@/components/canvas/video-generation-image-inputs";
-import type { AssistantDockLayout } from "@/lib/assistant-panel-docking";
-import {
-  copyImageVersions,
-  createDetachedVersionImage,
-  extractImageVersion,
-  separateImageVersions
+copyImageVersions,
+createDetachedVersionImage,
+extractImageVersion,
+separateImageVersions
 } from "@/components/canvas/image-versions";
 import type { SliceSelection } from "@/components/canvas/ImageSliceDialog";
+import { ParticleBurst,type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
 import { getSliceResultCell } from "@/components/canvas/slice-result-layout";
-import { ParticleBurst, type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
+import { resolveVideoGenerationImageInputs } from "@/components/canvas/video-generation-image-inputs";
+import {
+VIDEO_MAX_REFERENCE_IMAGES,
+type GeneratedVideo,
+type VideoReferenceInput
+} from "@/components/canvas/video-node-model";
+import { useLicense } from "@/components/licensing/license-context";
 import type { TourDefinition } from "@/components/onboarding/FeatureTour";
 import {
-  BOARD_TOUR,
-  EDIT_TOUR,
-  GALLERY_TOUR,
-  LIBRARY_TOUR,
-  TOUR_DEMO_IMAGE_ID,
-  TOUR_DEMO_PROMPT
+BOARD_TOUR,
+EDIT_TOUR,
+GALLERY_TOUR,
+LIBRARY_TOUR,
+TOUR_DEMO_IMAGE_ID,
+TOUR_DEMO_PROMPT
 } from "@/components/onboarding/tours";
-import { hasGalleryTourContent } from "@/lib/gallery-onboarding";
-import { collectGalleryPreloadPaths, preloadGalleryThumbnails } from "@/lib/gallery-preload";
-import { getProviderMaxImageCount } from "@/lib/provider-image-count";
-import { providerSupportsTransparentBackground } from "@/lib/provider-transparent-background";
-import {
-  hydrateBoardNodeImageLayout,
-  hydrateGeneratedImage,
-  serializeGeneratedImage
-} from "@/lib/board-node-image";
-import { resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
-import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-notification";
-import {
-  clearTourSeen,
-  hasSeenDemoStart,
-  hasSeenTour,
-  initializeOnboardingPersistence,
-  markDemoStartSeen,
-  markTourSeen
-} from "@/lib/onboarding";
-import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
-import type { AssistantGenerationRequest } from "@/components/workbench/PromptDock";
-import type {
-  CreateChatGenerationPlan,
-  CreateChatResult
-} from "@/components/workbench/CreateChatPage";
-import { ReferralInviteDialog } from "@/components/workbench/ReferralInviteDialog";
-import { PiTemplateAgentStatus } from "@/components/workbench/PiTemplateAgentStatus";
-import { ProviderStatusNotice } from "@/components/workbench/ProviderStatusNotice";
-import { Toaster } from "@/components/ui/sonner";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { StartupLoading } from "@/components/system/StartupLoading";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
+Dialog,
+DialogContent,
+DialogDescription,
+DialogFooter,
+DialogHeader,
+DialogTitle
 } from "@/components/ui/dialog";
+import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { Toaster } from "@/components/ui/sonner";
+import { Textarea } from "@/components/ui/textarea";
+import type {
+CreateChatGenerationPlan,
+CreateChatResult
+} from "@/components/workbench/CreateChatPage";
+import { PiTemplateAgentStatus } from "@/components/workbench/PiTemplateAgentStatus";
+import type { AssistantGenerationRequest } from "@/components/workbench/PromptDock";
+import { ProviderStatusNotice } from "@/components/workbench/ProviderStatusNotice";
+import { ReferralInviteDialog } from "@/components/workbench/ReferralInviteDialog";
+import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
+import type { AssistantDockLayout } from "@/lib/assistant-panel-docking";
+import { BoardDetailCache } from "@/lib/board-detail-cache";
+import { createEmptyPromptSpec,resetBoardDraft } from "@/lib/board-draft";
 import {
-  getImageWorkbenchApi,
-  getWorkbenchErrorMessage,
-  hasImageWorkbenchApi,
-  missingImageWorkbenchMessage
-} from "@/lib/image-workbench-api";
+hydrateBoardNodeImageLayout,
+hydrateGeneratedImage,
+serializeGeneratedImage
+} from "@/lib/board-node-image";
+import { createComicDramaMutationPlan } from "@/lib/comic-drama-assistant";
+import { DataUrlLruCache } from "@/lib/data-url-lru-cache";
+import { hasGalleryTourContent } from "@/lib/gallery-onboarding";
+import { collectGalleryPreloadPaths,preloadGalleryThumbnails } from "@/lib/gallery-preload";
+import { createMissingGenerationOutputConnections } from "@/lib/generation-output-connections";
+import {
+centerGenerationOutputs,
+removeGeneratedPlaceholders,
+settleGeneratedPlaceholders
+} from "@/lib/generation-placeholders";
+import { GenerationQueue } from "@/lib/generation-queue";
 import { GENERATION_ESTIMATE_MS } from "@/lib/generation-timing";
 import {
-  centerGenerationOutputs,
-  removeGeneratedPlaceholders,
-  settleGeneratedPlaceholders
-} from "@/lib/generation-placeholders";
-import { resolveEditSmartSuggestionsEnabled } from "@/lib/smart-suggestions";
-import { isSendEnter } from "@/lib/send-on-enter";
-import { selectStartupBoard } from "@/lib/startup-board";
-import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
-import { createMissingGenerationOutputConnections } from "@/lib/generation-output-connections";
-import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
-import { mergeOfficialVideoCatalog, mergeVideoProviderModelCatalogs } from "@/lib/official-video-models";
-import { DataUrlLruCache } from "@/lib/data-url-lru-cache";
-import { BoardDetailCache } from "@/lib/board-detail-cache";
-import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
-import { GenerationQueue } from "@/lib/generation-queue";
-import { createEmptyPromptSpec, resetBoardDraft } from "@/lib/board-draft";
-import { createComicDramaMutationPlan } from "@/lib/comic-drama-assistant";
+getImageWorkbenchApi,
+getWorkbenchErrorMessage,
+hasImageWorkbenchApi,
+missingImageWorkbenchMessage
+} from "@/lib/image-workbench-api";
+import { mergeVideoProviderModelCatalogs } from "@/lib/official-video-models";
+import {
+clearTourSeen,
+hasSeenDemoStart,
+hasSeenTour,
+initializeOnboardingPersistence,
+markDemoStartSeen,
+markTourSeen
+} from "@/lib/onboarding";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
+import { getProviderMaxImageCount } from "@/lib/provider-image-count";
+import { providerSupportsTransparentBackground } from "@/lib/provider-transparent-background";
 import { startSceneCollaborationStream } from "@/lib/scene-collaboration-stream";
-import { useLicense } from "@/components/licensing/license-context";
-import { StartupLoading } from "@/components/system/StartupLoading";
-import { ActivationNotice } from "@/components/licensing/ActivationNotice";
-import { preloadBoardImages } from "@/lib/board-preload";
-import {
-  DEFAULT_BOARD_ENTRY_VISIBLE_PRELOAD_LIMIT,
-  selectBoardEntryPreload
-} from "@/lib/board-entry-preload";
-import { removeImageBackground } from "@/lib/remove-image-background";
-import {
-  isShortcutHelpCommand,
-  MAX_BOARD_SHORTCUTS,
-  resolveBoardShortcutIndex
-} from "@/lib/board-shortcuts";
-import {
-  createCustomScene,
-  createCustomSceneFromScene,
-  findSceneForMode,
-  parseSceneFields,
-  PRESET_SCENES,
-  readCustomScenes,
-  readFavoriteSceneIds,
-  updateCustomScene,
-  writeCustomScenes,
-  writeFavoriteSceneIds,
-  type NewSceneInput,
-  type SceneDefinition
-} from "@/lib/scene-library";
-import {
-  buildTemplateExtractionInstruction,
-  buildTemplatePreviewInstruction,
-  createTemplateExtractionFromAssistant,
-  createTemplatePromptSet,
-  parseTemplateExtractionItems,
-  retargetTemplateExtractionContext,
-  type TemplateExtractionScenario,
-  type TemplateExtractionResult,
-  type TemplatePromptSet
-} from "@/lib/template-workflow";
-import {
-  buildUiDesignBriefInstruction,
-  createUiDesignBrief,
-  inferUiMaterialRole
-} from "@/lib/ui-design-workflow";
+import { isSendEnter } from "@/lib/send-on-enter";
+import { resolveEditSmartSuggestionsEnabled } from "@/lib/smart-suggestions";
+import { selectStartupBoard } from "@/lib/startup-board";
+import { generateTemplateVerification } from "@/lib/template-verification";
+import { resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
+import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
+import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-notification";
+import { promoteRecentlyUsedBoard,sortBoardsByRecentUse } from "@shared/board-order";
+import { isComicDramaNode } from "@shared/comic-drama";
+import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
+import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
+import { selectProviderModel } from "@shared/provider-models";
 import type {
-  TemplateExtractionSaveDecision,
-  TemplateExtractionSource
+AppSettings,
+AppSettingsPatch,
+AssetComment,
+AssetLibraryItem,
+AssetReference,
+AssistantIntentSuggestionCount,
+BoardComicDramaEntryNode,
+BoardConnection,
+BoardDetail,
+BoardEnterOrigin,
+BoardGenerationNode,
+BoardMutationPlan,
+BoardMutationResult,
+BoardNode,
+BoardNodeSnapshot,
+BoardSummary,
+BoardTextNode,
+BoardVideoGenerationNode,
+BoardVideoNode,
+BoardVideoSequenceEntryNode,
+BoardViewport,
+CollaborateSceneRequest,
+CollaborateSceneResult,
+ComicCharacterNode,
+ComicDramaBoardNode,
+ComicDramaBoardSnapshot,
+CopyImageFormat,
+CreditStatus,
+EditInfoMode,
+GenerateButtonStyle,
+GenerateImageInput,
+GenerateResponse,
+GenerationJob,
+ImageCropRect,
+ImageDoubleClickAction,
+ImageWorkflowMode,
+MemoryUsageLevel,
+VideoSequence as PersistedVideoSequence,
+PromptSpec,
+ProviderApiMode,
+ProviderConfig,
+ReferenceImagePayload,
+ReferenceImageRole,
+RestoreTrashedBoardImageResult,
+SceneTemplateImportResult,
+SliceSubjectDetection,
+TemplateSubmissionResult,
+TextProviderConfig,
+UiDesignBrief,
+VersionSeparationMode,
+VideoGenerationInput,
+VideoGenerationJob,
+VideoProviderConfig,
+VideoProviderModelOption,
+VideoSequenceTask,
+VideoSequenceTemplate
+} from "@shared/types";
+import {
+DEFAULT_VIDEO_PROVIDER_CONFIG,DEFAULT_VIDEO_PROVIDER_ID,IMAGE_CREDIT_COST,isBoardGenerationNode,
+isBoardImageNode,
+isBoardTextNode,
+isBoardVideoGenerationNode,
+isBoardVideoNode
+} from "@shared/types";
+import { getDefaultQuality,getDefaultUseCase,parseGptImageSize } from "@shared/workflow";
+import { AnimatePresence,motion,useAnimationControls,useReducedMotion } from "framer-motion";
+import { X } from "lucide-react";
+import { lazy,memo,Suspense,useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { toast } from "sonner";
+import { COMMUNITY_IMAGE_PROVIDER,COMMUNITY_TEXT_PROVIDER } from '../shared/community-providers';
+
+import type {
+VideoSequence as EditorVideoSequence,
+VideoSequenceExportOptions,
+VideoSequenceTaskState
+} from "@/components/video-sequence";
+import type {
+TemplateExtractionSaveDecision,
+TemplateExtractionSource
 } from "@/components/workbench/TemplateExtractionDialog";
 import { useI18n } from "@/i18n";
-import { parseIterlayDeepLink, type IterlayDeepLink } from "@shared/deep-link";
-import type {
-  VideoSequence as EditorVideoSequence,
-  VideoSequenceExportOptions,
-  VideoSequenceTaskState
-} from "@/components/video-sequence";
+import {
+DEFAULT_BOARD_ENTRY_VISIBLE_PRELOAD_LIMIT,
+selectBoardEntryPreload
+} from "@/lib/board-entry-preload";
+import { preloadBoardImages } from "@/lib/board-preload";
+import {
+isShortcutHelpCommand,
+MAX_BOARD_SHORTCUTS,
+resolveBoardShortcutIndex
+} from "@/lib/board-shortcuts";
+import { removeImageBackground } from "@/lib/remove-image-background";
+import {
+createCustomScene,
+createCustomSceneFromScene,
+findSceneForMode,
+parseSceneFields,
+PRESET_SCENES,
+readCustomScenes,
+readFavoriteSceneIds,
+updateCustomScene,
+writeCustomScenes,
+writeFavoriteSceneIds,
+type NewSceneInput,
+type SceneDefinition
+} from "@/lib/scene-library";
+import {
+buildTemplateExtractionInstruction,
+buildTemplatePreviewInstruction,
+createTemplateExtractionFromAssistant,
+createTemplatePromptSet,
+parseTemplateExtractionItems,
+retargetTemplateExtractionContext,
+type TemplateExtractionResult,
+type TemplateExtractionScenario,
+type TemplatePromptSet
+} from "@/lib/template-workflow";
+import {
+buildUiDesignBriefInstruction,
+createUiDesignBrief,
+inferUiMaterialRole
+} from "@/lib/ui-design-workflow";
+import { parseIterlayDeepLink,type IterlayDeepLink } from "@shared/deep-link";
 import type { McpSkillUpgradeDetail } from "@shared/mcp-integration";
 
 const CanvasBoard = lazy(() =>
@@ -392,7 +387,7 @@ const IS_MAC_PLATFORM = /Mac|iPhone|iPad|iPod/u.test(navigator.platform);
 type UiTheme = AppSettings["theme"];
 type LibraryInitialTab = "boards" | "assets" | "scenes" | "trash" | "inspiration";
 
-const defaultProvider: ProviderConfig = { ...OFFICIAL_PROVIDER_CONFIG };
+const defaultProvider: ProviderConfig = { ...COMMUNITY_IMAGE_PROVIDER };
 
 const initialPromptSpec: PromptSpec = createEmptyPromptSpec();
 
@@ -402,7 +397,7 @@ const initialInput: GenerateImageInput = {
   useCase: "ads-marketing",
   promptSpec: initialPromptSpec,
   prompt: "",
-  model: OFFICIAL_PROVIDER_CONFIG.model,
+  model: COMMUNITY_IMAGE_PROVIDER.model,
   size: "auto",
   n: 1,
   quality: "high",
@@ -746,13 +741,12 @@ export default function App(): React.ReactElement {
   } = useLicense();
   const [providers, setProviders] = useState<ProviderConfig[]>([defaultProvider]);
   const [activeProviderId, setActiveProviderId] = useState<string>(defaultProvider.id);
-  const [textProviders, setTextProviders] = useState<TextProviderConfig[]>([{ ...OFFICIAL_TEXT_PROVIDER_CONFIG }]);
-  const [activeTextProviderId, setActiveTextProviderId] = useState<string>(OFFICIAL_TEXT_PROVIDER_ID);
+  const [textProviders, setTextProviders] = useState<TextProviderConfig[]>([{ ...COMMUNITY_TEXT_PROVIDER }]);
+  const [activeTextProviderId, setActiveTextProviderId] = useState<string>(COMMUNITY_TEXT_PROVIDER.id);
   const [videoProviders, setVideoProviders] = useState<VideoProviderConfig[]>([{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }]);
   const [activeVideoProviderId, setActiveVideoProviderId] = useState<string>(DEFAULT_VIDEO_PROVIDER_ID);
   const [providerKeyStatus, setProviderKeyStatus] = useState<Record<string, boolean>>({});
   const [creditStatus, setCreditStatus] = useState<CreditStatus | null>(null);
-  const creditStatusRef = useRef<CreditStatus | null>(null);
   const [creditLoading, setCreditLoading] = useState(false);
   const [creditError, setCreditError] = useState<string | null>(null);
   const [setupComplete, setSetupComplete] = useState(false);
@@ -1028,7 +1022,6 @@ export default function App(): React.ReactElement {
   // 启动时"上次是否停留在库页"：首帧读一次，后续启动流程始终以这个快照为准。
   const restoreLibraryOpenRef = useRef(libraryOpen);
   const startupTaskRef = useRef<Promise<void> | null>(null);
-  const officialRecoveryStartedRef = useRef(false);
 
   useEffect(() => () => boardDetailCacheRef.current.clear(), []);
 
@@ -1125,47 +1118,11 @@ export default function App(): React.ReactElement {
     if (advancedEditOpen) setAssistantDockLayout(null);
   }, [advancedEditOpen]);
 
-  useEffect(() => {
-    const api = getWorkbenchApi();
-    if (!api) return;
-    let cancelled = false;
-    setCreditLoading(true);
-    setCreditError(null);
-    void api.getCreditStatus()
-      .then((status) => {
-        if (!cancelled) {
-          creditStatusRef.current = status;
-          setCreditStatus(status);
-          setVideoProviders((current) => mergeOfficialVideoCatalog(current, status));
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setCreditError(getWorkbenchErrorMessage(error, "暂时无法读取官方余额。"));
-      })
-      .finally(() => {
-        if (!cancelled) setCreditLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [getWorkbenchApi, licenseStatus?.state]);
+  useEffect(() => { setCreditLoading(false); setCreditError(null); }, []);
 
   // Credits 独立于当前路由常驻刷新，保证模型菜单里的官方余额始终可见。
   const refreshCreditStatusRef = useRef<() => void>(() => {});
-  refreshCreditStatusRef.current = (): void => {
-    const api = getWorkbenchApi();
-    if (!api) return;
-    void api.getCreditStatus()
-      .then((status) => {
-        creditStatusRef.current = status;
-        setCreditStatus(status);
-        setVideoProviders((current) => mergeOfficialVideoCatalog(current, status));
-        setCreditError(null);
-      })
-      .catch(() => {
-        // 静默失败：下一次生成或打开设置时仍会重新拉取。
-      });
-  };
+  refreshCreditStatusRef.current = (): void => {};
   const refreshCreditStatus = useCallback((): void => {
     refreshCreditStatusRef.current();
   }, []);
@@ -1988,7 +1945,7 @@ export default function App(): React.ReactElement {
         setActiveProviderId(settings.activeProviderId);
         setTextProviders(settings.textProviders);
         setActiveTextProviderId(settings.activeTextProviderId);
-        const initialVideoProviders = mergeOfficialVideoCatalog(settings.videoProviders, creditStatusRef.current);
+        const initialVideoProviders = settings.videoProviders;
         setVideoProviders(initialVideoProviders);
         void hydrateVideoProviderCatalogs(initialVideoProviders).then(setVideoProviders);
         setActiveVideoProviderId(settings.activeVideoProviderId);
@@ -2070,41 +2027,7 @@ export default function App(): React.ReactElement {
     };
   }, [getWorkbenchApi, hydrateVideoProviderCatalogs, openBoard, refreshHistory, reportWorkbenchError, setLanguage]);
 
-  useEffect(() => {
-    if (startupLoading || officialRecoveryStartedRef.current) return;
-    const api = getWorkbenchApi();
-    if (!api) return;
-    officialRecoveryStartedRef.current = true;
-    let active = true;
-    let retryTimer: number | undefined;
-    const recover = async (): Promise<void> => {
-      try {
-        const result = await api.recoverOfficialGenerations();
-        if (!active) return;
-        await refreshHistory();
-        const activeBoardId = activeBoardRef.current?.id;
-        if (activeBoardId && result.boardIds.includes(activeBoardId)) {
-          if (boardSaveTimerRef.current) {
-            clearTimeout(boardSaveTimerRef.current);
-            boardSaveTimerRef.current = null;
-          }
-          if (boardSaveInFlightRef.current) await boardSaveInFlightRef.current;
-          boardDetailCacheRef.current.delete(activeBoardId);
-          await openBoard(activeBoardId, undefined, { forceReload: true });
-        }
-        if (active && result.pending > 0) {
-          retryTimer = window.setTimeout(() => void recover(), 3_000);
-        }
-      } catch {
-        // 离线时保留历史 running 状态，下次启动继续恢复。
-      }
-    };
-    void recover();
-    return () => {
-      active = false;
-      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
-    };
-  }, [getWorkbenchApi, openBoard, refreshHistory, startupLoading]);
+
 
   useEffect(() => {
     if (startupLoading) return;
@@ -2297,9 +2220,7 @@ export default function App(): React.ReactElement {
     setInput((current) => ({
       ...current,
       model: nextTarget.model,
-      size: nextTarget.type === "official" && !["auto", "1024x1024", "1536x1024", "1024x1536"].includes(current.size)
-        ? "auto"
-        : current.size
+      size: current.size
     }));
     persistSettingsPatch({ providers: nextProviders, activeProviderId: id });
   }
@@ -2362,7 +2283,7 @@ export default function App(): React.ReactElement {
       setActiveProviderId(fresh.activeProviderId);
       setTextProviders(fresh.textProviders);
       setActiveTextProviderId(fresh.activeTextProviderId);
-      const freshVideoProviders = mergeOfficialVideoCatalog(fresh.videoProviders, creditStatusRef.current);
+      const freshVideoProviders = fresh.videoProviders;
       setVideoProviders(await hydrateVideoProviderCatalogs(freshVideoProviders));
       setActiveVideoProviderId(fresh.activeVideoProviderId);
       setProviderKeyStatus(fresh.providerKeyStatus);
@@ -2646,6 +2567,7 @@ export default function App(): React.ReactElement {
     boardId: string,
     settingVersionId?: string
   ): Promise<PreparedCharacterGeneration> {
+    void boardId; void settingVersionId;
     const version = character.versions.find((item) => item.versionId === character.activeVersionId) ?? character.versions[0];
     const prompt = [
       character.name,
@@ -2655,23 +2577,8 @@ export default function App(): React.ReactElement {
       ...version.fields.appearanceAnchors
     ].filter(Boolean).join("，");
     const provider = activeProvider;
-    const inputFingerprint = await generationFingerprint({
-      boardId,
-      characterId: character.id,
-      characterVersionId: character.activeVersionId,
-      prompt,
-      settingVersionId
-    });
-    const metadata: Partial<GenerateImageInput> = provider.type === "official"
-      ? await paidGenerationMetadata(inputFingerprint, "character", {
-          kind: "image",
-          providerId: provider.id,
-          boardId,
-          requestScope: character.id,
-          operation: "image:generate",
-          imageCount: 1
-        })
-      : {};
+
+    const metadata: Partial<GenerateImageInput> = {};
     return {
       character,
       prompt,
@@ -3755,10 +3662,7 @@ export default function App(): React.ReactElement {
       const selectedImageProvider = providers.find((provider) => provider.id === (node.providerId ?? activeProvider.id)) ?? activeProvider;
       const model = node.model?.trim() || selectedImageProvider.model;
       const count = Math.min(Math.max(1, node.count ?? 1), getProviderMaxImageCount(selectedImageProvider));
-      const inputFingerprint = await generationFingerprint({ boardId: originBoardId, nodeId: node.id, prompt: resolved.prompt, model, size: node.size || "auto", count, references: resolved.images.map((image) => ({ id: image.id, jobId: image.jobId, path: image.path })) });
-      const metadata: Partial<GenerateImageInput> = selectedImageProvider.type === "official"
-        ? await paidGenerationMetadata(inputFingerprint, node.comicFrameRole ?? "first-frame", { kind: "image", providerId: selectedImageProvider.id, boardId: originBoardId ?? "global", requestScope: node.id, operation: "image:generate", imageCount: count })
-        : {};
+      const metadata: Partial<GenerateImageInput> = {};
       const costLabel = metadata.priceSnapshot?.amount ? metadata.priceSnapshot.amount + " Credit" : "由 Provider 计费";
       const confirmed = await requestGenerationConfirmation({
         title: node.comicFrameRole === "first-frame" ? "确认生成首帧" : node.comicFrameRole === "last-frame" ? "确认生成尾帧" : "确认生成图片",
@@ -3890,23 +3794,13 @@ export default function App(): React.ReactElement {
       toast.error(message);
       return;
     }
-    if (selectedVideoProvider?.type === "official") {
-      const requiredGoldBeans = Math.max(1, node.duration ?? 5) * (creditStatus?.videoGoldBeanCostPerSecond ?? 1);
-      const goldBeanBalance = creditStatus?.goldBeans?.balance;
-      if (goldBeanBalance !== undefined && goldBeanBalance < requiredGoldBeans) {
-        toast.error(`金豆余额不足，本次需要 ${requiredGoldBeans} 金豆，请联系管理员添加金豆。`);
-        return;
-      }
-    }
+
     if (resolved.requiresFirstLastFrame && (!resolved.startFrame || !resolved.endFrame)) {
       toast.error("请先分别采用首帧和尾帧，并保持固定版本连接。");
       return;
     }
     if (paidSubmissionInFlightRef.current.has(node.id)) return;
-    const inputFingerprint = await generationFingerprint({ boardId, nodeId: node.id, prompt, model: node.model?.trim() || selectedVideoProvider.model, duration: node.duration ?? 5, aspectRatio: node.aspectRatio || "16:9", resolution: node.resolution || "720p", generateAudio: node.generateAudio ?? false, firstFrame: resolved.startFrame ? { id: resolved.startFrame.id, versionId: resolved.startFrame.jobId, path: resolved.startFrame.path } : undefined, lastFrame: resolved.endFrame ? { id: resolved.endFrame.id, versionId: resolved.endFrame.jobId, path: resolved.endFrame.path } : undefined, references: resolved.referenceImages.map((image) => ({ id: image.id, versionId: image.jobId, path: image.path })) });
-    const metadata: Partial<VideoGenerationInput> = selectedVideoProvider.type === "official"
-      ? await paidGenerationMetadata(inputFingerprint, "video", { kind: "video", providerId: selectedVideoProvider.id, boardId, requestScope: node.id, operation: "video:start", durationSeconds: Math.max(1, node.duration ?? 5), model: node.model?.trim() || selectedVideoProvider.model, resolution: node.resolution || "720p", generateAudio: node.generateAudio ?? false })
-      : {};
+    const metadata: Partial<VideoGenerationInput> = {};
     const videoCostLabel = metadata.priceSnapshot?.amount ? metadata.priceSnapshot.amount + " 金豆" : "由 Provider 计费";
     const confirmed = await requestGenerationConfirmation({
       title: "确认生成视频",
@@ -4089,7 +3983,7 @@ export default function App(): React.ReactElement {
       toast.error(message);
     } finally {
       paidSubmissionInFlightRef.current.delete(node.id);
-      if (selectedVideoProvider?.type === "official") refreshCreditStatus();
+
     }
   }
 
@@ -6962,47 +6856,10 @@ export default function App(): React.ReactElement {
       durationSeconds: segment.config.durationSeconds ?? current.defaults.durationSeconds
     }));
     const inputFingerprint = await generationFingerprint(fingerprintItems);
-    const officialItems = fingerprintItems.filter((item) => videoProviders.find((provider) => provider.id === (item.providerId ?? activeVideoProviderId))?.type === "official");
-    let metadata: Partial<GenerateImageInput> = {};
-    if (officialItems.length > 0) {
-      const generationAttemptId = crypto.randomUUID();
-      const quote = await getImageWorkbenchApi().quotePaidMedia({
-        kind: "video-sequence",
-        clientRequestId: generationAttemptId,
-        inputFingerprint,
-        boardId: current.boardId,
-        requestScope: current.id,
-        operation: "videoSequence:run",
-        videoItems: officialItems.map((item) => ({
-          clientRequestId: `${generationAttemptId}:${item.id}`,
-          providerId: item.providerId ?? activeVideoProviderId,
-          model: selected.find((segment) => segment.id === item.id)?.config.model ?? current.defaults.model,
-          durationSeconds: item.durationSeconds,
-          resolution: selected.find((segment) => segment.id === item.id)?.config.resolution ?? current.defaults.resolution,
-          generateAudio: selected.find((segment) => segment.id === item.id)?.config.generateAudio ?? current.defaults.generateAudio
-        })),
-        stage: "video"
-      });
-      metadata = {
-        generationAttemptId,
-        inputFingerprint,
-        quoteId: quote.quoteId,
-        quoteExpiresAt: quote.expiresAt,
-        idempotencyKey: [generationAttemptId, inputFingerprint, quote.quoteId].join(":"),
-        priceSnapshot: quote.priceSnapshot,
-        quoteBoardId: current.boardId,
-        quoteRequestScope: current.id,
-        quotePurpose: "video",
-        quoteOperation: "videoSequence:run"
-      };
-    }
+    const metadata: Partial<GenerateImageInput> = { inputFingerprint };
     const confirmationItems = selected.map((segment) => {
-      const provider = videoProviders.find((item) => item.id === (segment.config.providerId ?? current.defaults.providerId ?? activeVideoProviderId));
       const duration = segment.config.durationSeconds ?? current.defaults.durationSeconds;
-      const official = provider?.type === "official";
-      const cost = official && creditStatus?.videoGoldBeanCostPerSecond !== undefined
-        ? `${Math.ceil(duration * creditStatus.videoGoldBeanCostPerSecond)} 金豆`
-        : "Provider 计费";
+      const cost = "Provider 计费";
       return {
         id: segment.id,
         label: `片段 ${segment.order + 1}`,
@@ -7358,20 +7215,6 @@ export default function App(): React.ReactElement {
           />
         ) : null}
 
-        {licenseStatus &&
-        !commentMode &&
-        !libraryOpen &&
-        !galleryOpen &&
-        !settingsOpen &&
-        (licenseStatus.state === "UNACTIVATED" || licenseStatus.state === "TRIAL_ACTIVE") ? (
-          <ActivationNotice
-            state={licenseStatus.state}
-            creditBalance={creditStatus?.credits.balance}
-            creditLoading={creditLoading}
-            creditError={creditError}
-            onActivate={openLicenseActivation}
-          />
-        ) : null}
 
         {/* 画板铺满窗口，顶栏以毛玻璃浮层叠在画板上方。 */}
         <motion.div
@@ -8147,7 +7990,7 @@ export default function App(): React.ReactElement {
               onStepEnter={handleTourStepEnter}
               welcomeCreditBalance={creditStatus?.credits.balance}
               welcomeLicenseState={licenseStatus?.state}
-              onWelcomeUseOfficial={() => selectActiveProvider(OFFICIAL_PROVIDER_ID)}
+              onWelcomeUseOfficial={() => openProviderSetup()}
               onWelcomeConnectProvider={openProviderSetup}
               onWelcomeOpenLicense={openLicenseActivation}
             />

@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { VideoGenerationInput, VideoGenerationJob } from "../shared/types.js";
+import { beforeEach,describe,expect,it,vi } from "vitest";
+import { registerVideoIpc } from "../electron/ipc.js";
+import { PaidMediaQuoteService } from "../electron/paid-media-quote.js";
 import type { VideoRemoteTask } from "../electron/providers/video-types.js";
 import { VideoTaskServiceError } from "../electron/video-generation-service.js";
-import { PaidMediaQuoteService } from "../electron/paid-media-quote.js";
-import { registerVideoIpc } from "../electron/ipc.js";
+import type { VideoGenerationInput,VideoGenerationJob } from "../shared/types.js";
 
 const electronMocks = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
@@ -205,9 +205,9 @@ describe("video IPC", () => {
     registration.dispose();
   });
 
-  it("atomically returns one job for concurrent same-key paid video IPC submissions", async () => {
+  it("atomically returns one job for concurrent same-key external video IPC submissions", async () => {
     const { registerVideoIpc } = await import("../electron/ipc.js");
-    const harness = makeHarness({ provider: "official" });
+    const harness = makeHarness({ provider: "ark" });
     const quotes = new PaidMediaQuoteService();
     harness.paidMediaQuotes = quotes as never;
     const generationAttemptId = crypto.randomUUID();
@@ -373,32 +373,19 @@ describe("video IPC", () => {
     registration.dispose();
   });
 
-  it("accepts a server-advertised official model that is not in persisted local settings", async () => {
+  it("rejects legacy official providers before any remote submission", async () => {
     const { registerVideoIpc } = await import("../electron/ipc.js");
     const harness = makeHarness({ provider: "official" });
     const registration = registerVideoIpc(harness as never);
-    const start = electronMocks.handlers.get("video:start");
-    if (!start) throw new Error("video:start was not registered");
-
-    await start({}, {
-      ...input,
-      model: "bytedance/seedance-2.0/image-to-video"
-    });
-
-    expect(harness.paidMediaQuotes.consume).toHaveBeenCalledOnce();
-    expect(harness.service.submit).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "bytedance/seedance-2.0/image-to-video" }),
-      expect.objectContaining({
-        provider: "official",
-        model: "bytedance/seedance-2.0/image-to-video"
-      })
-    );
+    await expect(electronMocks.handlers.get("video:start")!({}, input)).rejects.toThrow("官方 Provider 已移除");
+    expect(harness.service.submit).not.toHaveBeenCalled();
     registration.dispose();
   });
 
-  it("supplies the image-to-video default prompt for an official Seedance request", async () => {
+
+  it("supplies the image-to-video default prompt for a fal Seedance request", async () => {
     const { registerVideoIpc } = await import("../electron/ipc.js");
-    const harness = makeHarness({ provider: "official" });
+    const harness = makeHarness({ provider: "fal" });
     const registration = registerVideoIpc(harness as never);
     const start = electronMocks.handlers.get("video:start");
     if (!start) throw new Error("video:start was not registered");

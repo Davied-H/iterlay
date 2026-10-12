@@ -1,9 +1,8 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp,rm,writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { normalizeProvider, SettingsStore } from "../electron/storage/settings-store.js";
-import { OFFICIAL_PROVIDER_ID } from "../shared/types.js";
+import { describe,expect,it } from "vitest";
+import { normalizeProvider,SettingsStore } from "../electron/storage/settings-store.js";
 
 describe("SettingsStore provider normalization", () => {
   it("migrates the legacy board-only Agent switch to the global assistant switch", async () => {
@@ -93,20 +92,20 @@ describe("SettingsStore provider normalization", () => {
     }
   });
 
-  it("uses the built-in official provider for a new install", async () => {
+  it("requires a self-configured provider for a new install", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
     try {
       const settings = new SettingsStore(directory).getSettings();
-      expect(settings.activeProviderId).toBe(OFFICIAL_PROVIDER_ID);
+      expect(settings.activeProviderId).toBe("openai-compatible");
       expect(settings.providers).toEqual([
-        expect.objectContaining({ id: OFFICIAL_PROVIDER_ID, type: "official", name: "Iterlay 官方" })
+        expect.objectContaining({ id: "openai-compatible", type: "openai-compatible", name: "OpenAI Compatible" })
       ]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
   });
 
-  it("keeps the official provider when settings are saved without it", async () => {
+  it("does not inject official providers when saving", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
     try {
       const store = new SettingsStore(directory);
@@ -115,13 +114,13 @@ describe("SettingsStore provider normalization", () => {
       store.saveSettings({ ...defaults, providers: [custom], activeProviderId: custom.id });
       const saved = new SettingsStore(directory).getSettings();
       expect(saved.activeProviderId).toBe(custom.id);
-      expect(saved.providers.map((provider) => provider.id)).toEqual([OFFICIAL_PROVIDER_ID, custom.id]);
+      expect(saved.providers.map((provider) => provider.id)).toEqual([custom.id]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
   });
 
-  it("adds the official provider during upgrade without changing the active custom provider", async () => {
+  it("preserves the active custom provider during upgrade", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
     try {
       await writeFile(
@@ -143,7 +142,7 @@ describe("SettingsStore provider normalization", () => {
       );
       const settings = new SettingsStore(directory).getSettings();
       expect(settings.activeProviderId).toBe("existing-custom");
-      expect(settings.providers.map((provider) => provider.id)).toEqual([OFFICIAL_PROVIDER_ID, "existing-custom"]);
+      expect(settings.providers.map((provider) => provider.id)).toEqual(["existing-custom"]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

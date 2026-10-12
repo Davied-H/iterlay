@@ -1,22 +1,21 @@
 import type { VideoProviderModelOption } from "../shared/types.js";
 import {
-  findVideoProviderModelOption,
-  videoProviderModelOptionFromCapability
+findVideoProviderModelOption,
+videoProviderModelOptionFromCapability
 } from "../shared/video-provider-models.js";
-import { ProviderError, normalizeProviderError } from "./providers/errors.js";
+import { ProviderError,normalizeProviderError } from "./providers/errors.js";
 import { ArkVideoProvider } from "./providers/video-ark.js";
 import { FalVideoProvider } from "./providers/video-fal.js";
-import { OfficialVideoProvider } from "./providers/video-official.js";
-import { OpenRouterVideoProvider } from "./providers/video-openrouter.js";
 import { MiniMaxVideoProvider } from "./providers/video-minimax.js";
+import { OpenRouterVideoProvider } from "./providers/video-openrouter.js";
 import type {
-  DownloadedVideo,
-  VideoCancelResult,
-  VideoProvider,
-  VideoProviderConfig,
-  VideoRemoteOutput,
-  VideoRemoteTask,
-  VideoSubmitInput
+DownloadedVideo,
+VideoCancelResult,
+VideoProvider,
+VideoProviderConfig,
+VideoRemoteOutput,
+VideoRemoteTask,
+VideoSubmitInput
 } from "./providers/video-types.js";
 
 export interface WaitForVideoOptions {
@@ -119,8 +118,8 @@ export class VideoGenerationService {
   }
 }
 
-export function defaultVideoProviders(official?: OfficialVideoProvider): VideoProvider[] {
-  return [...(official ? [official] : []), new ArkVideoProvider(), new FalVideoProvider(), new OpenRouterVideoProvider(), new MiniMaxVideoProvider()];
+export function defaultVideoProviders(): VideoProvider[] {
+  return [new ArkVideoProvider(), new FalVideoProvider(), new OpenRouterVideoProvider(), new MiniMaxVideoProvider()];
 }
 
 function taskError(error: unknown, task: VideoRemoteTask, forceRecoverable = false): VideoTaskServiceError {

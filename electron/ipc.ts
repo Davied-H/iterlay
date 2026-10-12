@@ -1,221 +1,215 @@
-import {
-  app,
-  BrowserWindow,
-  clipboard,
-  dialog,
-  ipcMain,
-  nativeImage,
-  nativeTheme,
-  net,
-  shell,
-  type IpcMainInvokeEvent,
-  type NativeImage
-} from "electron";
-import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { mergeAssistantToolCall, type AssistantToolCall } from "../shared/assistant-display.js";
 import { writePsdBuffer } from "ag-psd";
-import { buildBoardArchive, parseBoardArchive } from "./board-archive.js";
-import { buildSceneArchive, parseSceneArchive } from "./scene-archive.js";
 import {
-  buildAssetArchive,
-  buildNamedArchive,
-  type AssetArchiveItem,
-  type NamedArchiveItem
-} from "./asset-archive.js";
-import { runTaskPool } from "./task-pool.js";
-import { getProviderModels } from "../shared/provider-models.js";
-import { isComicDramaNode } from "../shared/comic-drama.js";
-import { resolveVideoModelCapability, videoProviderModelOptionFromCapability } from "../shared/video-provider-models.js";
+app,
+BrowserWindow,
+clipboard,
+dialog,
+ipcMain,
+nativeImage,
+nativeTheme,
+net,
+shell,
+type IpcMainInvokeEvent,
+type NativeImage
+} from "electron";
+import { access,mkdir,readFile,stat,writeFile } from "node:fs/promises";
+import path from "node:path";
+import { mergeAssistantToolCall,type AssistantToolCall } from "../shared/assistant-display.js";
 import {
-  isBoardImageNode,
-  isBoardVideoGenerationNode,
-  isBoardVideoNode,
-  type BoardConnection,
-  type BoardData,
-  type BoardNode,
-  type BoardVideoNode,
-  AppIconPreference,
-  UploadAppIconRequest,
-  AppSettings,
-  AssetComment,
-  AssistantConversationHistoryQuery,
-  AssistantConversationMessage,
-  AssistantConversationRecord,
-  AssetDetailData,
-  AssetLibraryItem,
-  AssetLibraryPage,
-  AssetReference,
-  AssetVersion,
-  JobPromptInfo,
-  CollaborateSceneRequest,
-  CollaborateSceneResult,
-  CollaborateSceneStreamEvent,
-  CodexAuthStatus,
-  EnhancePromptRequest,
-  EnhancePromptResult,
-  FalModelCategory,
-  FalModelOption,
-  GenerateImageInput,
-  GenerateResponse,
-  GenerationJob,
-  VideoGenerationInput,
-  VideoGenerationJob,
-  OnlineShareImportData,
-  ProviderConfig,
-  ProviderGenerateInput,
-  ProviderModelOption,
-  VideoProviderModelOption,
-  ProviderTestResult,
-  SceneCoverFocus,
-  SceneAssistantInteraction,
-  SceneMediaSummary,
-  SceneTemplateData,
-  SceneTemplateImportResult,
-  SaveWechatStickerPackageRequest,
-  SaveWechatStickerPackageResult,
-  SuggestAssistantIntentsRequest,
-  SuggestAssistantIntentsResult,
-  SuggestImageEditsRequest,
-  SuggestImageEditsResult,
-  TemplateExtractionScenario,
-  TemplateSubmissionResult,
-  WriteClipboardImageRequest
-} from "../shared/types.js";
-import type {
-  FeedbackDetail,
-  FeedbackHistoryPage,
-  FeedbackSubmitRequest,
-  FeedbackSubmissionResult
-} from "../shared/feedback.js";
-import {
-  SCENE_COLLABORATION_CANCEL_CHANNEL,
-  SCENE_COLLABORATION_EVENT_CHANNEL,
-  SCENE_COLLABORATION_INTERACTION_RESPONSE_CHANNEL,
-  SCENE_COLLABORATION_START_CHANNEL,
-  type SceneCollaborationInteractionResponsePayload,
-  type StartSceneCollaborationPayload
+SCENE_COLLABORATION_CANCEL_CHANNEL,
+SCENE_COLLABORATION_EVENT_CHANNEL,
+SCENE_COLLABORATION_INTERACTION_RESPONSE_CHANNEL,
+SCENE_COLLABORATION_START_CHANNEL,
+type SceneCollaborationInteractionResponsePayload,
+type StartSceneCollaborationPayload
 } from "../shared/assistant.js";
-import { IMAGE_CREDIT_COST, type CreditLedgerEntry, type CreditStatus, type PaidMediaQuoteRequest, type TextProviderConfig, type VideoProviderConfig } from "../shared/types.js";
-import {
-  constrainReferenceImageDimensions,
-  formatReferenceImageLimitMessage,
-  getAssistantReferenceByteBudget,
-  getReferenceImageLimitViolation
-} from "../shared/reference-image-limits.js";
-import { resolveWindowsTitleBarOverlay } from "./window-chrome.js";
-import { normalizeProviderError, ProviderError } from "./providers/errors.js";
-import {
-  collaborateSceneAgentStreamWith,
-  collaborateSceneAgentWith,
-  collaborateSceneStreamWith,
-  collaborateSceneWith,
-  enhancePromptWith,
-  extractAssistantMemoriesWith,
-  OfficialTextTransport,
-  OpenAICompatibleTextTransport,
-  suggestAssistantIntentsWith,
-  suggestImageEditsWith,
-  type TextTransport
-} from "./providers/text-assistant.js";
-import { BailianImageProvider } from "./providers/bailian.js";
-import { ArkImageProvider } from "./providers/ark.js";
-import { FalImageProvider } from "./providers/fal.js";
-import { OfficialImageProvider } from "./providers/official.js";
-import { Sub2ApiImageProvider } from "./providers/sub2api.js";
-import { CodexOAuthImageProvider, CodexOAuthTextTransport } from "./providers/codex-oauth.js";
-import { CodexOAuthService } from "./auth/codex-oauth.js";
-import { createIterlayAgentTools } from "./pi-agent-tools.js";
-import { callMcpBridge } from "./mcp-bridge.js";
-import {
-  COMIC_DRAMA_AGENT_TOOL_NAMES,
-  createComicDramaAgentTools,
-  type ComicMediaOperation,
-  type ComicMediaQuote
-} from "./comic-drama-agent-tools.js";
-import { discoverPiAgentResources } from "./pi-agent-resources.js";
-import {
-  listAssistantSkills,
-  readAssistantSkill,
-  resetAssistantSkillOverride,
-  resolveAssistantSkillPaths,
-  saveAssistantSkillOverride
-} from "./assistant-skills.js";
-import { AssetMetaStore } from "./storage/asset-meta-store.js";
-import {
-  AssetStore,
-  audioMimeFromExtension,
-  decodeImageBase64,
-  decodeImageDataUrl,
-  MAX_MANAGED_IMAGE_BYTES,
-  extensionFromMime,
-  mimeFromExtension,
-  videoMimeFromExtension
-} from "./storage/asset-store.js";
-import { AssistantConversationStore } from "./storage/assistant-conversation-store.js";
-import { ThumbHashStore, type ThumbHashEntry } from "./storage/thumbhash-store.js";
-import type { ThumbHashResult } from "./thumbhash-encoder.js";
-import { registerBoardIpc } from "./board-ipc.js";
-import { registerAssetIoIpc } from "./asset-io-ipc.js";
-import { registerComicDramaIpc } from "./comic-drama-ipc.js";
-import { BoardStore } from "./storage/board-store.js";
-import { BoardImageTrashStore } from "./storage/board-image-trash-store.js";
-import { CommentStore } from "./storage/comment-store.js";
-import { HistoryStore } from "./storage/history-store.js";
-import { MemoryStore, type MemoryEventInput } from "./storage/memory-store.js";
-import { OnboardingStore } from "./storage/onboarding-store.js";
-import { SceneMediaStore, type StoredSceneMedia } from "./storage/scene-media-store.js";
-import { SettingsStore } from "./storage/settings-store.js";
-import { registerSettingsIpc } from "./settings-ipc.js";
-import { registerSharingIpc } from "./sharing-ipc.js";
-import { VideoTaskStore } from "./storage/video-task-store.js";
-import { VideoSequenceStore } from "./storage/video-sequence-store.js";
-import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-store.js";
-import { VideoGenerationService, VideoTaskServiceError } from "./video-generation-service.js";
-import { FfmpegService } from "./media/ffmpeg-service.js";
-import { paidProviderClientRequestId, paidVideoPricingKey, PaidMediaQuoteService, type PaidMediaQuoteMetadata } from "./paid-media-quote.js";
-import { VideoSequenceScheduler } from "./video/video-sequence-scheduler.js";
-import { registerVideoSequenceIpc } from "./video/video-sequence-ipc.js";
-import type { VideoProviderConfig as RuntimeVideoProviderConfig, VideoRemoteStatus, VideoRemoteTask } from "./providers/video-types.js";
-import { normalizeFalVideoPrompt } from "./providers/video-fal.js";
-import { OpenRouterVideoProvider, openRouterVideoApiRoot } from "./providers/video-openrouter.js";
-import { MiniMaxVideoProvider } from "./providers/video-minimax.js";
-import type { LicenseService } from "./licensing/service.js";
-import { applyAppIcon, createCustomAppIcon, normalizeAppIcon } from "./app-icon.js";
-import { resolveAssetFileCreatedAt, sortAssetsNewestFirst } from "./asset-library-order.js";
-import { ImageTaskQueue, ImageWorkerClient } from "./image-worker-client.js";
-import {
-  openSystemNotificationSettings,
-  showGenerationCompletedNotification,
-  showVideoGenerationNotification,
-  showTestSystemNotification
-} from "./system-notification.js";
-import { ManagerPublicShareClient } from "./public-share-client.js";
-import { ManagerReferralClient } from "./referral-client.js";
-import { ManagerTemplateClient } from "./template-client.js";
-import { ManagerProductAnalyticsClient } from "./product-analytics-client.js";
-import { ManagerFeedbackClient } from "./feedback-client.js";
-import { ManagerInspirationClient } from "./inspiration-client.js";
-import {
-  configureMcpClient,
-  getMcpIntegrationStatus,
-  installMcpSkill,
-  removeMcpIntegration,
-  setSkillAutoInstallDeclined,
-  syncMcpSkills,
-  uninstallMcpClient,
-  uninstallMcpSkill,
-  upgradeInstalledMcpSkills,
-  type McpClientId
-} from "./mcp-integration.js";
-import { buildMcpPluginPackage, mcpPluginPackageFileName } from "./mcp-plugin-package.js";
-import { MasterGoBridge } from "./mastergo-bridge.js";
-import { PiAgentLogStore } from "./pi-agent-log.js";
+import { isComicDramaNode } from "../shared/comic-drama.js";
 import type {
-  MasterGoReconstructionRequest,
-  PrepareMasterGoReconstructionRequest
+FeedbackDetail,
+FeedbackHistoryPage,
+FeedbackSubmissionResult,
+FeedbackSubmitRequest
+} from "../shared/feedback.js";
+import type {
+MasterGoReconstructionRequest,
+PrepareMasterGoReconstructionRequest
 } from "../shared/mastergo-reconstruction.js";
 import { PI_AGENT_LOG_EVENT_CHANNEL } from "../shared/pi-agent-log.js";
+import { getProviderModels } from "../shared/provider-models.js";
+import {
+constrainReferenceImageDimensions,
+getAssistantReferenceByteBudget
+} from "../shared/reference-image-limits.js";
+import {
+AppIconPreference,
+AppSettings,
+AssetComment,
+AssetDetailData,
+AssetLibraryItem,
+AssetLibraryPage,
+AssetReference,
+AssetVersion,
+AssistantConversationHistoryQuery,
+AssistantConversationMessage,
+AssistantConversationRecord,
+CodexAuthStatus,
+CollaborateSceneRequest,
+CollaborateSceneResult,
+CollaborateSceneStreamEvent,
+EnhancePromptRequest,
+EnhancePromptResult,
+FalModelCategory,
+FalModelOption,
+GenerateImageInput,
+GenerateResponse,
+GenerationJob,
+isBoardImageNode,
+isBoardVideoGenerationNode,
+isBoardVideoNode,
+JobPromptInfo,
+OnlineShareImportData,
+ProviderConfig,
+ProviderGenerateInput,
+ProviderModelOption,
+ProviderTestResult,
+SaveWechatStickerPackageRequest,
+SaveWechatStickerPackageResult,
+SceneAssistantInteraction,
+SceneCoverFocus,
+SceneMediaSummary,
+SceneTemplateData,
+SceneTemplateImportResult,
+SuggestAssistantIntentsRequest,
+SuggestAssistantIntentsResult,
+SuggestImageEditsRequest,
+SuggestImageEditsResult,
+TemplateExtractionScenario,
+TemplateSubmissionResult,
+UploadAppIconRequest,
+VideoGenerationInput,
+VideoGenerationJob,
+VideoProviderModelOption,
+WriteClipboardImageRequest,
+type BoardConnection,
+type BoardData,
+type BoardNode,
+type BoardVideoNode,
+type PaidMediaQuoteRequest,type TextProviderConfig,type VideoProviderConfig
+} from "../shared/types.js";
+import { resolveVideoModelCapability,videoProviderModelOptionFromCapability } from "../shared/video-provider-models.js";
+import { applyAppIcon,createCustomAppIcon,normalizeAppIcon } from "./app-icon.js";
+import {
+buildAssetArchive,
+buildNamedArchive,
+type AssetArchiveItem,
+type NamedArchiveItem
+} from "./asset-archive.js";
+import { registerAssetIoIpc } from "./asset-io-ipc.js";
+import { resolveAssetFileCreatedAt,sortAssetsNewestFirst } from "./asset-library-order.js";
+import {
+listAssistantSkills,
+readAssistantSkill,
+resetAssistantSkillOverride,
+resolveAssistantSkillPaths,
+saveAssistantSkillOverride
+} from "./assistant-skills.js";
+import { CodexOAuthService } from "./auth/codex-oauth.js";
+import { buildBoardArchive,parseBoardArchive } from "./board-archive.js";
+import { registerBoardIpc } from "./board-ipc.js";
+import {
+COMIC_DRAMA_AGENT_TOOL_NAMES,
+createComicDramaAgentTools,
+type ComicMediaOperation,
+type ComicMediaQuote
+} from "./comic-drama-agent-tools.js";
+import { registerComicDramaIpc } from "./comic-drama-ipc.js";
+import { ManagerFeedbackClient } from "./feedback-client.js";
+import { ImageTaskQueue,ImageWorkerClient } from "./image-worker-client.js";
+import { ManagerInspirationClient } from "./inspiration-client.js";
+import type { LicenseService } from "./licensing/service.js";
+import { MasterGoBridge } from "./mastergo-bridge.js";
+import { callMcpBridge } from "./mcp-bridge.js";
+import {
+configureMcpClient,
+getMcpIntegrationStatus,
+installMcpSkill,
+removeMcpIntegration,
+setSkillAutoInstallDeclined,
+syncMcpSkills,
+uninstallMcpClient,
+uninstallMcpSkill,
+upgradeInstalledMcpSkills,
+type McpClientId
+} from "./mcp-integration.js";
+import { buildMcpPluginPackage,mcpPluginPackageFileName } from "./mcp-plugin-package.js";
+import { FfmpegService } from "./media/ffmpeg-service.js";
+import { PaidMediaQuoteService,paidProviderClientRequestId } from "./paid-media-quote.js";
+import { PiAgentLogStore } from "./pi-agent-log.js";
+import { discoverPiAgentResources } from "./pi-agent-resources.js";
+import { createIterlayAgentTools } from "./pi-agent-tools.js";
+import { ManagerProductAnalyticsClient } from "./product-analytics-client.js";
+import { ArkImageProvider } from "./providers/ark.js";
+import { BailianImageProvider } from "./providers/bailian.js";
+import { CodexOAuthImageProvider,CodexOAuthTextTransport } from "./providers/codex-oauth.js";
+import { normalizeProviderError,ProviderError } from "./providers/errors.js";
+import { FalImageProvider } from "./providers/fal.js";
+import { Sub2ApiImageProvider } from "./providers/sub2api.js";
+import {
+collaborateSceneAgentStreamWith,
+collaborateSceneAgentWith,
+collaborateSceneStreamWith,
+collaborateSceneWith,
+enhancePromptWith,
+extractAssistantMemoriesWith,
+OpenAICompatibleTextTransport,
+suggestAssistantIntentsWith,
+suggestImageEditsWith,
+type TextTransport
+} from "./providers/text-assistant.js";
+import { normalizeFalVideoPrompt } from "./providers/video-fal.js";
+import { MiniMaxVideoProvider } from "./providers/video-minimax.js";
+import { openRouterVideoApiRoot,OpenRouterVideoProvider } from "./providers/video-openrouter.js";
+import type { VideoProviderConfig as RuntimeVideoProviderConfig,VideoRemoteStatus,VideoRemoteTask } from "./providers/video-types.js";
+import { ManagerPublicShareClient } from "./public-share-client.js";
+import { buildSceneArchive,parseSceneArchive } from "./scene-archive.js";
+import { registerSettingsIpc } from "./settings-ipc.js";
+import { registerSharingIpc } from "./sharing-ipc.js";
+import { AssetMetaStore } from "./storage/asset-meta-store.js";
+import {
+AssetStore,
+audioMimeFromExtension,
+decodeImageBase64,
+decodeImageDataUrl,
+extensionFromMime,
+MAX_MANAGED_IMAGE_BYTES,
+mimeFromExtension,
+videoMimeFromExtension
+} from "./storage/asset-store.js";
+import { AssistantConversationStore } from "./storage/assistant-conversation-store.js";
+import { BoardImageTrashStore } from "./storage/board-image-trash-store.js";
+import { BoardStore } from "./storage/board-store.js";
+import { CommentStore } from "./storage/comment-store.js";
+import { HistoryStore } from "./storage/history-store.js";
+import { MemoryStore,type MemoryEventInput } from "./storage/memory-store.js";
+import { OnboardingStore } from "./storage/onboarding-store.js";
+import { SceneMediaStore,type StoredSceneMedia } from "./storage/scene-media-store.js";
+import { SettingsStore } from "./storage/settings-store.js";
+import { ThumbHashStore,type ThumbHashEntry } from "./storage/thumbhash-store.js";
+import { VideoSequenceStore } from "./storage/video-sequence-store.js";
+import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-store.js";
+import { VideoTaskStore } from "./storage/video-task-store.js";
+import {
+openSystemNotificationSettings,
+showGenerationCompletedNotification,
+showTestSystemNotification,
+showVideoGenerationNotification
+} from "./system-notification.js";
+import { ManagerTemplateClient } from "./template-client.js";
+import type { ThumbHashResult } from "./thumbhash-encoder.js";
+import { VideoGenerationService,VideoTaskServiceError } from "./video-generation-service.js";
+import { registerVideoSequenceIpc } from "./video/video-sequence-ipc.js";
+import { VideoSequenceScheduler } from "./video/video-sequence-scheduler.js";
+import { resolveWindowsTitleBarOverlay } from "./window-chrome.js";
 
 function updateWindowChromeTheme(event: IpcMainInvokeEvent, theme: AppSettings["theme"]): void {
   if (process.platform !== "win32") return;
@@ -372,20 +366,19 @@ export function registerVideoIpc({
   boards,
   videoTasks,
   videoService,
-  paidMediaQuotes,
   onAssetsChanged
 }: VideoIpcDependencies): VideoIpcRegistration {
   const activeRuns = new Map<string, { controller: AbortController; promise: Promise<void> }>();
-  const quotes = paidMediaQuotes;
 
   function providerConfig(input: VideoGenerationInput): { config: RuntimeVideoProviderConfig; providerId: string; providerName: string } {
     const current = settings.getSettings();
     const providerId = input.providerId || current.activeVideoProviderId;
     const provider = current.videoProviders.find((candidate) => candidate.id === providerId);
     if (!provider) throw new ProviderError("INVALID_CONFIG", "视频 Provider 不存在或已被删除。");
+    if (provider.type === "official") throw new ProviderError("INVALID_CONFIG", "官方 Provider 已移除，请配置自有服务商。");
     const model = input.model.trim() || provider.model.trim();
     if (!model) throw new ProviderError("INVALID_CONFIG", "请填写视频模型 ID。");
-    if (provider.type !== "official" && !getProviderModels(provider).includes(model)) {
+    if (!getProviderModels(provider).includes(model)) {
       throw new ProviderError("INVALID_CONFIG", "所选视频模型不属于当前 Provider，请重新选择模型。");
     }
     const connection = settings.resolveVideoProviderConnection(provider);
@@ -413,7 +406,7 @@ export function registerVideoIpc({
             ? "failed"
             : "running";
     const configuredType = settings.getSettings().videoProviders.find((candidate) => candidate.id === job.providerId)?.type;
-    const provider = configuredType === "official" || configuredType === "ark" || configuredType === "fal" || configuredType === "openrouter" || configuredType === "minimax" ? configuredType : "ark";
+    const provider = configuredType === "ark" || configuredType === "fal" || configuredType === "openrouter" || configuredType === "minimax" ? configuredType : "ark";
     return {
       provider,
       id: job.remoteTaskId,
@@ -608,7 +601,8 @@ export function registerVideoIpc({
   });
   ipcMain.handle("video:clear", (_event, boardId: string) => videoTasks.clearJobsByBoard(boardId));
   ipcMain.handle("video:get", (_event, jobId: string) => videoTasks.getJob(jobId));
-  ipcMain.handle("video:start", async (_event, input: VideoGenerationInput): Promise<VideoGenerationJob> => {
+  const pendingVideoStarts = new Map<string, Promise<VideoGenerationJob>>();
+  const startVideo = async (_event: unknown, input: VideoGenerationInput): Promise<VideoGenerationJob> => {
     const hasMediaInput = Boolean(
       input?.firstFramePath
       || input?.lastFramePath
@@ -641,7 +635,7 @@ export function registerVideoIpc({
       }
     }
     const hasImageInput = Boolean(input.firstFramePath || input.lastFramePath || input.referenceImagePaths.length);
-    const effectivePrompt = resolved.config.provider === "fal" || resolved.config.provider === "official"
+    const effectivePrompt = resolved.config.provider === "fal"
       ? normalizeFalVideoPrompt(input.prompt, resolved.config.model, hasImageInput)
       : input.prompt.trim();
     if (input.boardId && input.generationNodeId) {
@@ -675,27 +669,7 @@ export function registerVideoIpc({
       return created;
     };
     let persistedCreated: VideoGenerationJob;
-    if (resolved.config.provider === "official") {
-      if (!quotes) throw new ProviderError("INVALID_REQUEST", "主进程付费媒体报价服务不可用。");
-      persistedCreated = await quotes.consume(input as PaidMediaQuoteMetadata, {
-        clientRequestId: input.generationAttemptId ?? "",
-        inputFingerprint: input.inputFingerprint ?? "",
-        providerKey: resolved.providerId,
-        amount: input.priceSnapshot?.amount ?? Number.NaN,
-        currency: "gold-bean",
-        pricingKey: paidVideoPricingKey([{
-          providerId: resolved.providerId,
-          model: input.model,
-          durationSeconds: input.durationSeconds,
-          resolution: input.resolution,
-          generateAudio: input.generateAudio
-        }]),
-        boardId: input.boardId ?? "global",
-        requestScope: input.quoteRequestScope ?? "",
-        purpose: input.priceSnapshot?.stage ?? "",
-        operation: "video:start"
-      }, persistCreated).catch((error) => { throw new ProviderError("INVALID_REQUEST", error instanceof Error ? error.message : "视频报价校验失败。"); });
-    } else {
+    {
       persistedCreated = await persistCreated();
     }
     if (persistedCreated.id !== created.id) return persistedCreated;
@@ -766,6 +740,13 @@ export function registerVideoIpc({
       const normalized = normalizeProviderError(error);
       return finishFailedJob(created, normalized.message);
     }
+  };
+  ipcMain.handle("video:start", (_event, input: VideoGenerationInput) => {
+    const key = input?.idempotencyKey;
+    if (key && pendingVideoStarts.has(key)) return pendingVideoStarts.get(key)!;
+    const promise = startVideo(_event, input).finally(() => { if (key) pendingVideoStarts.delete(key); });
+    if (key) pendingVideoStarts.set(key, promise);
+    return promise;
   });
   ipcMain.handle("video:recover", async () => {
     const allJobs = await videoTasks.listJobs();
@@ -895,7 +876,8 @@ interface IpcDependencies {
   masterGoBridge: MasterGoBridge;
   piAgentLogs: PiAgentLogStore;
   license: LicenseService;
-  officialProvider: OfficialImageProvider;
+  /** Older integration fixtures may pass this field; it is never used. */
+  officialProvider?: unknown;
   provider: Sub2ApiImageProvider;
   codexProvider: CodexOAuthImageProvider;
   codexAuth: CodexOAuthService;
@@ -927,7 +909,6 @@ export function registerIpc({
   masterGoBridge,
   piAgentLogs,
   license,
-  officialProvider,
   provider,
   codexProvider,
   codexAuth,
@@ -972,11 +953,6 @@ export function registerIpc({
     managerApiBaseUrl,
     (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
   );
-  const referralClient = new ManagerReferralClient(
-    license,
-    managerApiBaseUrl,
-    (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
-  );
   const templateClient = new ManagerTemplateClient(
     license,
     managerApiBaseUrl,
@@ -1009,8 +985,9 @@ export function registerIpc({
   void analytics.track("app.opened");
   const getProviderAdapter = (
     config: ProviderConfig
-  ): Sub2ApiImageProvider | CodexOAuthImageProvider | FalImageProvider | BailianImageProvider | ArkImageProvider | OfficialImageProvider => {
-    if (config.type === "official") return officialProvider;
+  ): Sub2ApiImageProvider | CodexOAuthImageProvider | FalImageProvider | BailianImageProvider | ArkImageProvider => {
+
+    if (config.type === "official") throw new Error("官方 Provider 已移除，请配置自有服务商。");
     if (config.type === "codex-oauth") return codexProvider;
     if (config.type === "fal") return falProvider;
     if (config.type === "bailian") return bailianProvider;
@@ -1118,13 +1095,13 @@ export function registerIpc({
     if (!textProvider) {
       throw new ProviderError("INVALID_CONFIG", "请先在设置中配置文本 Provider。");
     }
-    if (textProvider.type !== "official") {
+    {
       license.assertCapability(capability);
     }
     return textProvider;
   };
   const getTextTransport = (config: TextProviderConfig): TextTransport => {
-    if (config.type === "official") return new OfficialTextTransport(officialProvider);
+
     if (config.type === "codex-oauth") {
       return new CodexOAuthTextTransport(codexAuth, config.authProviderId || config.id, config.model);
     }
@@ -1136,16 +1113,7 @@ export function registerIpc({
   ): Promise<boolean> => {
     if (!settings.getSettings().assistantAgentModeEnabled && request.agentMode !== true) return false;
     if (!request.assistantSurface) return false;
-    if (textProvider.type === "official") {
-      const status = await officialProvider.getCreditStatus();
-      if (!status.textFunctionCallingAvailable) {
-        throw new ProviderError(
-          "AGENT_MODE_UNAVAILABLE",
-          "当前官方文本模型未声明支持 Function Calling，请在 Manager 中确认模型能力。"
-        );
-      }
-      return true;
-    }
+
 
     if (textProvider.type === "codex-oauth") {
       const status = codexAuth.getStatus(textProvider.authProviderId || textProvider.id);
@@ -2206,77 +2174,12 @@ export function registerIpc({
     return library;
   });
 
-  const issuePaidMediaQuote = async (input: PaidMediaQuoteRequest) => {
-    if (!input || typeof input !== "object") throw new ProviderError("INVALID_REQUEST", "付费媒体报价请求无效。");
-    const current = settings.getSettings();
-    let amount = 0;
-    let balance = 0;
-    let currency = "credit";
-    let providerKey = "";
-    let pricingKey = "";
-    if (input.kind === "image") {
-      const provider = current.providers.find((item) => item.id === (input.providerId ?? current.activeProviderId));
-      if (!provider || provider.type !== "official") throw new ProviderError("INVALID_REQUEST", "只有官方图片 Provider 使用 Iterlay 余额报价。");
-      amount = Math.max(1, Math.trunc(input.imageCount ?? 1)) * IMAGE_CREDIT_COST;
-      const status = await officialProvider.getCreditStatus();
-      balance = status.credits.balance;
-      providerKey = provider.id;
-      pricingKey = JSON.stringify({ kind: "image", providerId: provider.id, count: Math.max(1, Math.trunc(input.imageCount ?? 1)) });
-    } else {
-      const items = input.kind === "video-sequence"
-        ? input.videoItems ?? []
-        : [{
-            clientRequestId: input.clientRequestId,
-            providerId: input.providerId,
-            model: input.model,
-            durationSeconds: input.durationSeconds ?? 0,
-            resolution: input.resolution,
-            generateAudio: input.generateAudio
-          }];
-      const officialItems = items.filter((item) => {
-        const id = item.providerId ?? current.activeVideoProviderId;
-        return current.videoProviders.find((provider) => provider.id === id)?.type === "official";
-      });
-      if (officialItems.length === 0) throw new ProviderError("INVALID_REQUEST", "本次视频提交不使用 Iterlay 官方余额。");
-      const status = await officialProvider.getCreditStatus();
-      const rate = status.videoGoldBeanCostPerSecond ?? 1;
-      amount = officialItems.reduce((sum, item) => sum + Math.max(1, item.durationSeconds) * rate, 0);
-      balance = status.goldBeans?.balance ?? 0;
-      currency = "gold-bean";
-      providerKey = officialItems.map((item) => item.providerId ?? current.activeVideoProviderId).sort().join(",");
-      pricingKey = paidVideoPricingKey(officialItems.map((item) => ({
-        providerId: item.providerId ?? current.activeVideoProviderId,
-        model: item.model,
-        durationSeconds: item.durationSeconds,
-        resolution: item.resolution,
-        generateAudio: item.generateAudio
-      })));
-    }
-    return paidMediaQuotes.issue({
-      clientRequestId: input.clientRequestId,
-      inputFingerprint: input.inputFingerprint,
-      providerKey,
-      stage: input.stage,
-      amount,
-      currency,
-      balance,
-      pricingKey,
-      boardId: input.boardId,
-      requestScope: input.requestScope,
-      purpose: input.stage,
-      operation: input.operation
-    });
-  };
-  ipcMain.handle("media:quote", async (_event, input: PaidMediaQuoteRequest) => issuePaidMediaQuote(input));
-  ipcMain.handle("credits:getStatus", (): Promise<CreditStatus> => officialProvider.getCreditStatus());
-  ipcMain.handle("credits:listTransactions", (_event, limit?: number): Promise<CreditLedgerEntry[]> =>
-    officialProvider.listCreditTransactions(limit)
-  );
-  ipcMain.handle("referrals:getOverview", () => referralClient.getOverview());
-  ipcMain.handle("giftActivations:getOverview", () => referralClient.getGiftActivationOverview());
-  ipcMain.handle("giftActivations:recordShare", (_event, codeId: unknown) =>
-    referralClient.recordGiftActivationShare(typeof codeId === "string" ? codeId : "")
-  );
+  const issuePaidMediaQuote = async (input: PaidMediaQuoteRequest): Promise<never> => { void input; throw new Error("开源版不提供官方付费模型。"); };
+  ipcMain.handle("media:quote", (_event, input: PaidMediaQuoteRequest) => issuePaidMediaQuote(input));
+  ipcMain.handle("credits:getStatus", () => { throw new Error("开源版无需 Credits。"); });
+  ipcMain.handle("credits:listTransactions", () => []);
+  ipcMain.handle("referrals:getOverview", () => { throw new Error("开源版无需邀请奖励。"); });
+
   ipcMain.handle("feedback:submit", async (event, value: unknown): Promise<FeedbackSubmissionResult> => {
     const request = validateFeedbackRequest(value);
     const screenshot = await captureFeedbackScreenshot(event);
@@ -2324,17 +2227,7 @@ export function registerIpc({
     "textProvider:testConnection",
     async (_event, config: TextProviderConfig, apiKeyOverride?: string): Promise<ProviderTestResult> => {
       try {
-        if (config.type === "official") {
-          const status = await officialProvider.getCreditStatus();
-          if (!status.textAvailable) {
-            return { ok: false, message: "官方文本助手暂时不可用，请稍后重试。" };
-          }
-          return {
-            ok: true,
-            message: `官方文本助手可用（${status.textModel || "已配置模型"}）。`,
-            functionCalling: status.textFunctionCallingAvailable ? "supported" : "unsupported"
-          };
-        }
+
         if (config.type === "codex-oauth") {
           await new CodexOAuthTextTransport(
             codexAuth,
@@ -2504,18 +2397,14 @@ export function registerIpc({
     if (!currentProvider) {
       throw new Error("请先在设置中添加并保存一个 Provider。");
     }
-    // Keep MCP calls and stale UI state compatible with the official backend,
-    // which currently accepts opaque PNG output only.
     const effectiveBackground =
-      currentProvider.type === "official" && input.background === "transparent"
-        ? "auto"
-        : input.background;
-    if (currentProvider.type !== "official") {
+      input.background;
+    {
       await license.ensureCapability(input.workflowMode === "edit" ? "edit" : "generate", true);
     }
     const apiKey = settings.getApiKey(currentProvider.id);
     const selectedProvider = getProviderAdapter(currentProvider);
-    if (currentProvider.type !== "official" && currentProvider.type !== "codex-oauth" && !apiKey) {
+    if (currentProvider.type !== "codex-oauth" && !apiKey) {
       throw new Error("请先为该 Provider 保存 API Key。");
     }
     if (input.workflowMode === "edit" && input.referenceImages.length === 0) {
@@ -2546,21 +2435,7 @@ export function registerIpc({
     if (totalReferenceBytes > MAX_MANAGED_IMAGE_BYTES * 4) {
       throw new Error("参考图总大小不能超过 100 MB。");
     }
-    if (currentProvider.type === "official") {
-      await Promise.all(decodedReferences.map((reference, index) => imageTasks.run(() => {
-        const image = nativeImage.createFromBuffer(reference.bytes);
-        if (image.isEmpty()) {
-          throw new ProviderError("INVALID_REFERENCE_IMAGE", `第 ${index + 1} 张参考图无法解析，请更换图片后重试。`);
-        }
-        const { width, height } = image.getSize();
-        if (getReferenceImageLimitViolation(width, height)) {
-          throw new ProviderError(
-            "REFERENCE_PIXELS_TOO_LARGE",
-            formatReferenceImageLimitMessage(width, height, index)
-          );
-        }
-      })));
-    }
+
     const references = input.sceneOnly ? [] : await assets.saveReferenceImageBytes(decodedReferences);
     const model =
       currentProvider.type === "fal" && input.referenceImages.length > 0
@@ -2607,20 +2482,7 @@ export function registerIpc({
       return jobBase;
     };
     let persistedCreated: GenerationJob;
-    if (currentProvider.type === "official") {
-      persistedCreated = await paidMediaQuotes.consume(input as PaidMediaQuoteMetadata, {
-        clientRequestId: input.generationAttemptId ?? "",
-        inputFingerprint: input.inputFingerprint ?? "",
-        providerKey: currentProvider.id,
-        amount: input.n * IMAGE_CREDIT_COST,
-        currency: "credit",
-        pricingKey: JSON.stringify({ kind: "image", providerId: currentProvider.id, count: input.n }),
-        boardId: input.boardId ?? "global",
-        requestScope: input.quoteRequestScope ?? "",
-        purpose: input.priceSnapshot?.stage ?? "",
-        operation: "image:generate"
-      }, persistCreated).catch((error) => { throw new ProviderError("INVALID_REQUEST", error instanceof Error ? error.message : "图片报价校验失败。"); });
-    } else {
+    {
       persistedCreated = await persistCreated();
     }
     if (persistedCreated.id !== jobBase.id) {
@@ -2651,12 +2513,7 @@ export function registerIpc({
           bytes: image.bytes
         }))
       };
-      const result = currentProvider.type === "official"
-        ? await officialProvider.generate(providerInput, currentProvider, apiKey, async (acceptedJobId) => {
-            remoteJobId = acceptedJobId;
-            if (!input.sceneOnly) await history.updateJob({ ...jobBase, remoteJobId: acceptedJobId });
-          })
-        : await selectedProvider.generate(providerInput, currentProvider, apiKey);
+      const result = await selectedProvider.generate(providerInput, currentProvider, apiKey);
       const completedAt = new Date().toISOString();
       const sceneResults = input.sceneOnly
         ? await sceneMedia.saveGeneration(
@@ -2694,8 +2551,6 @@ export function registerIpc({
             jobId,
             nodes: generatedNodes
           });
-        } else if (currentProvider.type === "official") {
-          await boards.appendNodes(input.boardId, generatedNodes);
         }
       }
       recordMemory({
@@ -3226,57 +3081,7 @@ export function registerIpc({
 
   ipcMain.handle("history:list", async () => history.listJobs());
 
-  ipcMain.handle("official:recoverGenerations", async () => {
-    const jobs = await history.listJobs();
-    let recovered = 0;
-    const boardIds = new Set<string>();
-    const pending = jobs.filter((job) => (
-      job.status === "running" && job.providerId === "iterlay-official" && Boolean(job.remoteJobId)
-    ));
-    await runTaskPool(pending, 4, async (job) => {
-      try {
-        const remote = await officialProvider.getGenerationStatus(job.remoteJobId!, AbortSignal.timeout(8_000));
-        if (remote.status === "running") return;
-        if (remote.status === "failed") {
-          await history.updateJob({ ...job, status: "failed", completedAt: new Date().toISOString(), error: "官方图片任务生成失败。" });
-          if (job.boardId && job.input.generationNodeId) {
-            await boards.finishGenerationNode(job.boardId, job.input.generationNodeId, {
-              error: "官方图片任务生成失败。"
-            });
-            boardIds.add(job.boardId);
-          }
-          return;
-        }
-        const outputs = (remote.images ?? []).flatMap((image) => (
-          image.dataBase64 && image.mimeType?.startsWith("image/")
-            ? [{ bytes: Buffer.from(image.dataBase64, "base64"), mimeType: image.mimeType }]
-            : []
-        ));
-        if (outputs.length === 0) return;
-        const outputImagePaths = await assets.saveOutputs(job.id, outputs);
-        await history.updateJob({ ...job, status: "succeeded", completedAt: new Date().toISOString(), outputImagePaths });
-        if (job.boardId) {
-          const generatedNodes = await createGeneratedBoardNodes(outputImagePaths, job.id);
-          if (job.input.generationNodeId) {
-            await boards.finishGenerationNode(job.boardId, job.input.generationNodeId, {
-              jobId: job.id,
-              nodes: generatedNodes
-            });
-          } else {
-            await boards.appendNodes(job.boardId, generatedNodes);
-          }
-          boardIds.add(job.boardId);
-        }
-        recovered += 1;
-      } catch {
-        // Network and bridge outages are transient; preserve the running job for the next startup.
-      }
-    });
-    const remaining = (await history.listJobs()).filter((job) => (
-      job.status === "running" && job.providerId === "iterlay-official" && Boolean(job.remoteJobId)
-    ));
-    return { recovered, pending: remaining.length, boardIds: [...boardIds] };
-  });
+  ipcMain.handle("official:recoverGenerations", () => ({ recovered: 0, pending: 0, boardIds: [] }));
 
   ipcMain.handle("history:clear", async (_event, boardId: string) => {
     if (typeof boardId !== "string" || !boardId.trim()) throw new Error("缺少要清空历史的画板 ID。");

@@ -23,7 +23,7 @@ pnpm build
 
 本仓库包含 Electron 桌面端、画布界面、AI 集成和 CLI。AI 功能需要自行配置对应服务商的 API Key，调用费用由服务商收取。
 
-当前客户端保留试用与激活逻辑，默认连接 Iterlay 官方服务。授权、账户及更新服务端不包含在本仓库中；源码采用 MIT 许可证，官方服务的访问资格与源码许可证分别管理。开发时可通过 `ITERLAY_LICENSE_API_URL` 和 `ITERLAY_UPDATE_API_URL` 指定兼容服务地址。
+Iterlay 永久免费，所有功能无需激活或试用。客户端不提供 Iterlay 官方模型服务、积分或购买入口；请配置自己的模型 Provider（API Key 或 Codex 账号），模型调用费用由对应服务商收取。更新与安装包通过 GitHub Releases 提供。
 
 源码支持开发与构建，不代表各平台安装包均已验证。当前 FFmpeg 自动准备脚本仅配置 macOS ARM64 资源，其他平台打包需要补齐对应资源配置。
 

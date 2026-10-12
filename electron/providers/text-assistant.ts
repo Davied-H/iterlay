@@ -1,50 +1,49 @@
-import type {
-  CollaborateSceneRequest,
-  CollaborateSceneResult,
-  SceneAssistantAction,
-  SceneAssistantInteraction,
-  EnhancePromptRequest,
-  ImageCropRect,
-  ProviderModelOption,
-  SliceSubjectDetection,
-  SuggestAssistantIntentsRequest,
-  SuggestAssistantIntentsResult,
-  SuggestImageEditsResult,
-  TextProviderConfig
-} from "../../shared/types.js";
-import { buildEnhanceMessages } from "../../shared/workflow.js";
-import { sanitizeAssistantToolDetails } from "../../shared/assistant-display.js";
-import { ProviderError } from "./errors.js";
-import { Semaphore } from "./concurrency.js";
-import type { OfficialImageProvider } from "./official.js";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
 import {
-  ModelRuntime,
-  SessionManager,
-  createAgentSession,
-  type ToolDefinition
-} from "@earendil-works/pi-coding-agent";
-import {
-  fauxAssistantMessage as codingFauxAssistantMessage,
-  fauxProvider,
-  fauxText as codingFauxText,
-  fauxToolCall as codingFauxToolCall,
-  type FauxContentBlock as CodingFauxContentBlock,
-  type FauxResponseFactory as CodingFauxResponseFactory
+fauxAssistantMessage as codingFauxAssistantMessage,
+fauxText as codingFauxText,
+fauxToolCall as codingFauxToolCall,
+fauxProvider,
+type FauxContentBlock as CodingFauxContentBlock,
+type FauxResponseFactory as CodingFauxResponseFactory
 } from "@earendil-works/pi-ai";
-import { Type } from "typebox";
-import { Check, Errors } from "typebox/value";
-import { assistantResultSchema } from "../assistant-result-schema.js";
-import type { PiAgentLogInput } from "../../shared/pi-agent-log.js";
 import {
-  convertPiContextToCompletionMessages,
-  parsePiAgentDecision
-} from "../mastergo-bridge.js";
+ModelRuntime,
+SessionManager,
+createAgentSession,
+type ToolDefinition
+} from "@earendil-works/pi-coding-agent";
+import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { parse as parseHtml } from "node-html-parser";
 import path from "node:path";
-import type { AppSettings } from "../../shared/types.js";
-import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
+import { Type } from "typebox";
+import { Check,Errors } from "typebox/value";
+import { sanitizeAssistantToolDetails } from "../../shared/assistant-display.js";
+import type { PiAgentLogInput } from "../../shared/pi-agent-log.js";
+import type {
+AppSettings,
+CollaborateSceneRequest,
+CollaborateSceneResult,
+EnhancePromptRequest,
+ImageCropRect,
+ProviderModelOption,
+SceneAssistantAction,
+SceneAssistantInteraction,
+SliceSubjectDetection,
+SuggestAssistantIntentsRequest,
+SuggestAssistantIntentsResult,
+SuggestImageEditsResult,
+TextProviderConfig
+} from "../../shared/types.js";
+import { buildEnhanceMessages } from "../../shared/workflow.js";
+import { assistantResultSchema } from "../assistant-result-schema.js";
 import { createAssistantUiExtension } from "../assistant-ui-extension.js";
+import {
+convertPiContextToCompletionMessages,
+parsePiAgentDecision
+} from "../mastergo-bridge.js";
+import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
+import { Semaphore } from "./concurrency.js";
+import { ProviderError } from "./errors.js";
 
 /**
  * AI 智能辅助（润色扩写、场景大师、修改建议、主体识别）的统一实现。
@@ -871,28 +870,6 @@ export class OpenAICompatibleTextTransport implements TextTransport {
         signal?.removeEventListener("abort", abortFromCaller);
       }
     });
-  }
-}
-
-/** 官方文本传输：走签名接口 /official/text/generate，后台按次扣 1 Credit。 */
-export class OfficialTextTransport implements TextTransport {
-  constructor(private readonly official: Pick<OfficialImageProvider, "completeText">) {}
-
-  async complete(messages: readonly unknown[], opts: TextCompletionOptions, signal?: AbortSignal): Promise<string> {
-    const result = await this.official.completeText(messages, opts, signal);
-    return result.content;
-  }
-
-  async completeStream(
-    messages: readonly unknown[],
-    opts: TextCompletionOptions,
-    onRaw: (chunk: string) => void,
-    signal?: AbortSignal
-  ): Promise<string> {
-    // 官方接口不做 SSE 透传：整段完成后一次性回调，事件契约与流式实现一致。
-    const content = await this.complete(messages, opts, signal);
-    onRaw(content);
-    return content;
   }
 }
 

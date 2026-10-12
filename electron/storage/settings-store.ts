@@ -1,37 +1,38 @@
 import { safeStorage } from "electron";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync,mkdirSync,readFileSync,writeFileSync } from "node:fs";
 import path from "node:path";
-import type {
-  AppIconPreference,
-  AppIconLibrary,
-  AppSettings,
-  AppSettingsPatch,
-  AssistantIntentSuggestionCount,
-  BoardTrashRetentionDays,
-  CopyImageFormat,
-  CustomAppIcon,
-  GenerateButtonStyle,
-  ImageDoubleClickAction,
-  MemoryUsageLevel,
-  PiAgentBuiltinToolName,
-  ProviderConfig,
-  TextProviderConfig,
-  VideoProviderConfig,
-  VersionSeparationMode
-} from "../../shared/types.js";
-import { normalizeAppLanguage, type AppLanguage } from "../../shared/i18n.js";
-import {
-  OFFICIAL_PROVIDER_CONFIG,
-  OFFICIAL_PROVIDER_ID,
-  OFFICIAL_TEXT_PROVIDER_CONFIG,
-  OFFICIAL_TEXT_PROVIDER_ID,
-  OFFICIAL_VIDEO_PROVIDER_CONFIG,
-  OFFICIAL_VIDEO_PROVIDER_ID,
-  PI_AGENT_DEFAULT_ITERLAY_TOOLS,
-  DEFAULT_VIDEO_PROVIDER_CONFIG,
-  DEFAULT_VIDEO_PROVIDER_ID
-} from "../../shared/types.js";
+import { COMMUNITY_IMAGE_PROVIDER,COMMUNITY_TEXT_PROVIDER } from '../../shared/community-providers.js';
+import { normalizeAppLanguage,type AppLanguage } from "../../shared/i18n.js";
 import { getProviderModels } from "../../shared/provider-models.js";
+import type {
+AppIconLibrary,
+AppIconPreference,
+AppSettings,
+AppSettingsPatch,
+AssistantIntentSuggestionCount,
+BoardTrashRetentionDays,
+CopyImageFormat,
+CustomAppIcon,
+GenerateButtonStyle,
+ImageDoubleClickAction,
+MemoryUsageLevel,
+PiAgentBuiltinToolName,
+ProviderConfig,
+TextProviderConfig,
+VersionSeparationMode,
+VideoProviderConfig
+} from "../../shared/types.js";
+import {
+DEFAULT_VIDEO_PROVIDER_CONFIG,
+DEFAULT_VIDEO_PROVIDER_ID,
+OFFICIAL_PROVIDER_CONFIG,
+OFFICIAL_PROVIDER_ID,
+OFFICIAL_TEXT_PROVIDER_CONFIG,
+OFFICIAL_TEXT_PROVIDER_ID,
+OFFICIAL_VIDEO_PROVIDER_CONFIG,
+OFFICIAL_VIDEO_PROVIDER_ID,
+PI_AGENT_DEFAULT_ITERLAY_TOOLS
+} from "../../shared/types.js";
 
 interface SettingsSchema {
   providers: ProviderConfig[];
@@ -189,9 +190,9 @@ export class SettingsStore {
     return {
       providers: current.providers.map((p) => ({ ...p, models: p.models ? [...p.models] : undefined })),
       activeProviderId: current.activeProviderId,
-      textProviders: (current.textProviders ?? [{ ...OFFICIAL_TEXT_PROVIDER_CONFIG }]).map((p) => ({ ...p })),
-      activeTextProviderId: current.activeTextProviderId ?? OFFICIAL_TEXT_PROVIDER_ID,
-      videoProviders: ensureOfficialVideoProvider(
+      textProviders: (current.textProviders ?? [{ ...COMMUNITY_TEXT_PROVIDER }]).map((p) => ({ ...p })),
+      activeTextProviderId: current.activeTextProviderId ?? COMMUNITY_TEXT_PROVIDER.id,
+      videoProviders: ensureVideoProviders(
         (current.videoProviders ?? [{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }]).map((p) => ({ ...p, models: p.models ? [...p.models] : undefined }))
       ),
       activeVideoProviderId: current.activeVideoProviderId ?? DEFAULT_VIDEO_PROVIDER_ID,
@@ -246,19 +247,19 @@ export class SettingsStore {
 
   saveSettings(settings: AppSettings): void {
     const current = this.readSettings();
-    const providers = ensureOfficialProvider(
+    const providers = ensureImageProviders(
       settings.providers.length > 0 ? settings.providers.map((p) => normalizeProvider(p)) : []
     );
     const activeProviderId = providers.some((p) => p.id === settings.activeProviderId)
       ? settings.activeProviderId
       : providers[0].id;
-    const textProviders = ensureCodexTextBindings(providers, ensureOfficialTextProvider(
+    const textProviders = ensureCodexTextBindings(providers, ensureTextProviders(
       (settings.textProviders ?? []).map((p) => normalizeTextProvider(p))
     ));
     const activeTextProviderId = textProviders.some((p) => p.id === settings.activeTextProviderId)
       ? settings.activeTextProviderId
       : textProviders[0].id;
-    const videoProviders = ensureOfficialVideoProvider(
+    const videoProviders = ensureVideoProviders(
       (settings.videoProviders?.length ? settings.videoProviders : [DEFAULT_VIDEO_PROVIDER_CONFIG])
         .map((provider) => normalizeVideoProvider(provider))
     );
@@ -465,10 +466,10 @@ export class SettingsStore {
     if (this.cached) return cloneSettings(this.cached);
     if (!this.saved) {
       return cloneSettings({
-        providers: [{ ...OFFICIAL_PROVIDER_CONFIG }],
-        activeProviderId: OFFICIAL_PROVIDER_ID,
-        textProviders: [{ ...OFFICIAL_TEXT_PROVIDER_CONFIG }],
-        activeTextProviderId: OFFICIAL_TEXT_PROVIDER_ID,
+        providers: [{ ...COMMUNITY_IMAGE_PROVIDER }],
+        activeProviderId: COMMUNITY_IMAGE_PROVIDER.id,
+        textProviders: [{ ...COMMUNITY_TEXT_PROVIDER }],
+        activeTextProviderId: COMMUNITY_TEXT_PROVIDER.id,
         videoProviders: [{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }],
         activeVideoProviderId: DEFAULT_VIDEO_PROVIDER_ID,
         language: "system",
@@ -540,13 +541,14 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     activeProviderId = defaultProvider.id;
   }
 
-  providers = ensureOfficialProvider(providers);
+  providers = ensureImageProviders(providers);
+  if (!providers.some(p => p.id === activeProviderId)) activeProviderId = providers[0].id;
 
   // 文本 Provider：优先取新 schema；否则从旧 provider.promptModel 派生（含 key 拷贝）。
   let textProviders: TextProviderConfig[];
   let activeTextProviderId: string;
   if (Array.isArray(parsed.textProviders) && parsed.textProviders.length > 0) {
-    textProviders = ensureOfficialTextProvider(parsed.textProviders.map((p) => normalizeTextProvider(p)));
+    textProviders = ensureTextProviders(parsed.textProviders.map((p) => normalizeTextProvider(p)));
     activeTextProviderId = textProviders.some((p) => p.id === parsed.activeTextProviderId)
       ? (parsed.activeTextProviderId as string)
       : textProviders[0].id;
@@ -555,7 +557,7 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
       Array.isArray(parsed.providers) ? (parsed.providers as LegacyProviderEntry[]) : parsed.provider ? [parsed.provider as LegacyProviderEntry] : [],
       encryptedApiKeys
     );
-    textProviders = ensureOfficialTextProvider(derived);
+    textProviders = ensureTextProviders(derived);
     const preferred = `text-${activeProviderId}`;
     activeTextProviderId = textProviders.some((p) => p.id === preferred) ? preferred : textProviders[0].id;
   }
@@ -576,10 +578,10 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     : legacyVideoProviders.length > 0
       ? legacyVideoProviders
       : [{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }];
-  const videoProviders = ensureOfficialVideoProvider(customVideoProviders);
+  const videoProviders = ensureVideoProviders(customVideoProviders);
   const activeVideoProviderId = videoProviders.some((provider) => provider.id === parsed.activeVideoProviderId)
     ? parsed.activeVideoProviderId as string
-    : customVideoProviders[0]?.id ?? OFFICIAL_VIDEO_PROVIDER_ID;
+    : videoProviders[0].id;
 
   // 仅保留仍存在的 provider（图片、文本与视频）的 key。
   const validIds = new Set([...providers.map((p) => p.id), ...textProviders.map((p) => p.id), ...videoProviders.map((p) => p.id)]);
@@ -774,9 +776,9 @@ function normalizeVideoModels(model: string | undefined, models: string[] | unde
   });
 }
 
-function ensureOfficialVideoProvider(providers: VideoProviderConfig[]): VideoProviderConfig[] {
+function ensureVideoProviders(providers: VideoProviderConfig[]): VideoProviderConfig[] {
   const custom = providers.filter((provider) => provider.id !== OFFICIAL_VIDEO_PROVIDER_ID && provider.type !== "official");
-  return [{ ...OFFICIAL_VIDEO_PROVIDER_CONFIG }, ...custom];
+  return custom.length ? custom : [{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }];
 }
 
 function normalizeProviderInternal(provider?: Partial<ProviderConfig>): ProviderConfig {
@@ -842,9 +844,9 @@ function normalizeProviderInternal(provider?: Partial<ProviderConfig>): Provider
   };
 }
 
-function ensureOfficialProvider(providers: ProviderConfig[]): ProviderConfig[] {
+function ensureImageProviders(providers: ProviderConfig[]): ProviderConfig[] {
   const custom = providers.filter((provider) => provider.id !== OFFICIAL_PROVIDER_ID && provider.type !== "official");
-  return [{ ...OFFICIAL_PROVIDER_CONFIG }, ...custom];
+  return custom.length ? custom : [{ ...COMMUNITY_IMAGE_PROVIDER }];
 }
 
 export function normalizeTextProvider(provider?: Partial<TextProviderConfig>): TextProviderConfig {
@@ -871,11 +873,11 @@ export function normalizeTextProvider(provider?: Partial<TextProviderConfig>): T
   };
 }
 
-function ensureOfficialTextProvider(providers: TextProviderConfig[]): TextProviderConfig[] {
+function ensureTextProviders(providers: TextProviderConfig[]): TextProviderConfig[] {
   const custom = providers.filter(
     (provider) => provider.id !== OFFICIAL_TEXT_PROVIDER_ID && provider.type !== "official"
   );
-  return [{ ...OFFICIAL_TEXT_PROVIDER_CONFIG }, ...custom];
+  return custom.length ? custom : [{ ...COMMUNITY_TEXT_PROVIDER }];
 }
 
 function ensureCodexTextBindings(

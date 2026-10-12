@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ComponentProps, type ReactNode } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import type { LicenseStatusSnapshot } from "../shared/licensing";
+import { act,createElement,type ComponentProps,type ReactNode } from "react";
+import { createRoot,type Root } from "react-dom/client";
+import { afterEach,describe,expect,it,vi } from "vitest";
 import type { UpdateStateSnapshot } from "../shared/app-update";
+import type { LicenseStatusSnapshot } from "../shared/licensing";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -153,7 +153,7 @@ describe("LibraryShell license entry", () => {
     const footerButtons = [...(footer?.querySelectorAll<HTMLButtonElement>(":scope > button") ?? [])];
     expect(footerButtons[0]?.textContent?.trim()).toBe("在线分享管理");
     expect(footerButtons[1]?.textContent?.trim()).toBe("回收站");
-    expect(footerButtons[2]?.getAttribute("aria-label")).toMatch(/^授权：/);
+    expect(footer?.querySelector('button[aria-label^="授权："]')).toBeNull();
     expect(footerButtons.some((button) => button.textContent?.trim() === "更多")).toBe(false);
     expect(container.querySelector("#library-more-actions")).toBeNull();
 
@@ -161,7 +161,7 @@ describe("LibraryShell license entry", () => {
       (button) => button.textContent?.trim() === "邀请好友"
     );
     await act(async () => referralButton?.click());
-    expect(onOpenReferralInvite).toHaveBeenCalledOnce();
+    expect(onOpenReferralInvite).not.toHaveBeenCalled();
   });
 
   it("shows trial time in the sidebar and opens the license center", async () => {
@@ -218,18 +218,10 @@ describe("LibraryShell license entry", () => {
     );
     const updateButton = container.querySelector<HTMLButtonElement>('button[aria-label="检查更新"]');
 
-    expect(licenseButton).toBeDefined();
-    expect(licenseButton?.textContent).toContain("授权");
-    expect(licenseButton?.textContent).toContain("试用 · 2小时");
-    expect(licenseButton?.nextElementSibling).toBe(referralButton);
-    expect(referralButton?.nextElementSibling).toBe(updateButton);
+    expect(licenseButton).toBeUndefined();
+    expect(referralButton).toBeUndefined();
     expect(updateButton?.nextElementSibling).toBe(settingsButton);
-
-    await act(async () => licenseButton?.click());
-    expect(openCenter).toHaveBeenCalledOnce();
-
-    await act(async () => vi.advanceTimersByTime(2 * 60 * 60 * 1_000));
-    expect(licenseButton?.textContent).toContain("试用 · 30分钟");
+    expect(openCenter).not.toHaveBeenCalled();
   });
 
   it("moves update status into the library footer and opens the update center", async () => {
@@ -290,8 +282,8 @@ describe("LibraryShell license entry", () => {
     );
     expect([...container.querySelectorAll("button")].some((button) => button.textContent?.trim() === "更多")).toBe(false);
     const licenseButton = container.querySelector<HTMLButtonElement>('button[aria-label^="授权："]');
-    expect(licenseButton?.nextElementSibling).toBe(referralButton);
-    expect(referralButton?.nextElementSibling).toBe(updateButton);
+    expect(licenseButton).toBeNull();
+    expect(referralButton).toBeUndefined();
 
     await act(async () => updateButton?.click());
     expect(openUpdateCenter).toHaveBeenCalledOnce();

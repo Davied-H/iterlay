@@ -1,110 +1,108 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { ASSISTANT_WIDTHS, setAssistantWidth, useAssistantWidth, type AssistantWidth } from "@/lib/assistant-width";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BellRing,
-  Bot,
-  Check,
-  CheckCircle2,
-  ChevronRight,
-  ChevronsUpDown,
-  Eye,
-  EyeOff,
-  FolderOpen,
-  Image as ImageIcon,
-  LayoutDashboard,
-  Languages,
-  KeyRound,
-  LogIn,
-  LogOut,
-  Loader2,
-  Monitor,
-  Moon,
-  MessageSquareText,
-  Video,
-  Pencil,
-  Plug,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  Settings2,
-  Sparkles,
-  Sun,
-  Terminal,
-  Trash2,
-  UserRound,
-  ShieldCheck,
-  XCircle,
-} from "lucide-react";
-import type {
-  AssistantMemoryStats,
-  AssistantIntentSuggestionCount,
-  AssistantSkillDetail,
-  AssistantSkillSummary,
-  AppIconPreference,
-  AppSettings,
-  CodexAuthStatus,
-  CopyImageFormat,
-  CustomAppIcon,
-  EditInfoMode,
-  FalModelCategory,
-  FalModelOption,
-  FalModelPrice,
-  FalReferenceInput,
-  FalSizeMode,
-  GenerateButtonStyle,
-  ImageDoubleClickAction,
-  MemoryUsageLevel,
-  PiAgentBuiltinToolName,
-  PiAgentResourceInventory,
-  ProviderApiMode,
-  ProviderConfig,
-  ProviderModelOption,
-  ProviderType,
-  TextProviderConfig,
-  VideoProviderConfig,
-  VersionSeparationMode
-} from "@shared/types";
-import { OFFICIAL_TEXT_PROVIDER_CONFIG, OFFICIAL_VIDEO_PROVIDER_CONFIG } from "@shared/types";
-import { getProviderModels, selectProviderModel } from "@shared/provider-models";
-import { Button } from "@/components/ui/button";
-import { useLicense } from "@/components/licensing/license-context";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
-import { Field } from "@/components/workbench/Field";
-import { MemoryManagerDialog } from "@/components/workbench/MemoryManagerDialog";
-import { AppIconPickerDialog } from "@/components/workbench/AppIconPickerDialog";
-import { GenerateActionButton } from "@/components/workbench/PromptDock";
-import { useUpdateCenter } from "@/components/update/update-context";
 import appIconDefault from "@/assets/app-icon-default.png";
 import appIconMascot from "@/assets/app-icon-mascot.png";
-import { cn } from "@/lib/utils";
-import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
-import { addCodexProvider, createCodexProvider } from "@/lib/provider-settings";
-import { useI18n, type MessageKey } from "@/i18n";
-import { LicenseSettingsPanel } from "@/components/workbench/settings/LicenseSettingsPanel";
+import { Button } from "@/components/ui/button";
+import {
+Dialog,
+DialogContent,
+DialogDescription,
+DialogHeader,
+DialogTitle
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Popover,PopoverContent,PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
+import {
+Select,
+SelectContent,
+SelectItem,
+SelectTrigger,
+SelectValue
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useUpdateCenter } from "@/components/update/update-context";
+import { AppIconPickerDialog } from "@/components/workbench/AppIconPickerDialog";
+import { Field } from "@/components/workbench/Field";
+import { MemoryManagerDialog } from "@/components/workbench/MemoryManagerDialog";
+import { GenerateActionButton } from "@/components/workbench/PromptDock";
 import { McpIntegrationPanel } from "@/components/workbench/settings/McpIntegrationPanel";
 import { PiAgentSettingsPanel } from "@/components/workbench/settings/PiAgentSettingsPanel";
+import { useI18n,type MessageKey } from "@/i18n";
+import { ASSISTANT_WIDTHS,setAssistantWidth,useAssistantWidth,type AssistantWidth } from "@/lib/assistant-width";
+import { getImageWorkbenchApi,getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
+import { addCodexProvider,createCodexProvider } from "@/lib/provider-settings";
+import { cn } from "@/lib/utils";
+import { getProviderModels,selectProviderModel } from "@shared/provider-models";
+import type {
+AppIconPreference,
+AppSettings,
+AssistantIntentSuggestionCount,
+AssistantMemoryStats,
+AssistantSkillDetail,
+AssistantSkillSummary,
+CodexAuthStatus,
+CopyImageFormat,
+CustomAppIcon,
+EditInfoMode,
+FalModelCategory,
+FalModelOption,
+FalModelPrice,
+FalReferenceInput,
+FalSizeMode,
+GenerateButtonStyle,
+ImageDoubleClickAction,
+MemoryUsageLevel,
+PiAgentBuiltinToolName,
+PiAgentResourceInventory,
+ProviderApiMode,
+ProviderConfig,
+ProviderModelOption,
+ProviderType,
+TextProviderConfig,
+VersionSeparationMode,
+VideoProviderConfig
+} from "@shared/types";
+import {
+ArrowLeft,
+ArrowRight,
+BellRing,
+Bot,
+Check,
+CheckCircle2,
+ChevronRight,
+ChevronsUpDown,
+Eye,
+EyeOff,
+FolderOpen,
+Image as ImageIcon,
+KeyRound,
+Languages,
+LayoutDashboard,
+Loader2,
+LogIn,
+LogOut,
+MessageSquareText,
+Monitor,
+Moon,
+Pencil,
+Plug,
+Plus,
+RefreshCw,
+RotateCcw,
+Search,
+Settings2,
+ShieldCheck,
+Sparkles,
+Sun,
+Terminal,
+Trash2,
+UserRound,
+Video,
+XCircle,
+} from "lucide-react";
+import { useEffect,useId,useMemo,useRef,useState,type ReactNode } from "react";
+import { COMMUNITY_TEXT_PROVIDER } from '../../../shared/community-providers';
 
 interface ProviderSettingsDialogProps {
   open: boolean;
@@ -198,7 +196,7 @@ interface ProviderSettingsDialogProps {
   }) => Promise<void> | void;
 }
 
-type Section = "provider" | "system" | "board" | "ai" | "pi-agent" | "agent" | "license";
+type Section = "provider" | "system" | "board" | "ai" | "pi-agent" | "agent";
 type TestState = { ok: boolean; message: string } | null;
 type NotificationTestState = { ok: boolean; message: string } | null;
 type ProviderView = "overview" | "connections";
@@ -276,7 +274,7 @@ function createVideoProvider(index: number): VideoProviderConfig {
 }
 
 function videoProviderDefaults(type: VideoProviderConfig["type"]): Pick<VideoProviderConfig, "name" | "baseUrl" | "model" | "models"> {
-  if (type === "official") return { ...OFFICIAL_VIDEO_PROVIDER_CONFIG };
+
   const defaults = type === "fal"
     ? { name: "fal.ai", baseUrl: "https://queue.fal.run", model: "fal-ai/kling-video/v2.1/standard/text-to-video" }
     : type === "openrouter"
@@ -512,7 +510,6 @@ export function ProviderSettingsDialog({
   const segmentedControlId = useId();
   const assistantWidth = useAssistantWidth();
   const updateCenter = useUpdateCenter();
-  const license = useLicense();
   const [section, setSection] = useState<Section>("board");
   const [list, setList] = useState<ProviderConfig[]>(providers);
   const [activeId, setActiveId] = useState(activeProviderId);
@@ -616,7 +613,7 @@ export function ProviderSettingsDialog({
     const setupProvider = shouldStartProviderSetup ? createProvider(seed.length + 1) : null;
     setList(setupProvider ? [...seed, setupProvider] : seed);
     setActiveId(activeProviderId || seed[0].id);
-    const textSeed = textProviders.length > 0 ? textProviders : [{ ...OFFICIAL_TEXT_PROVIDER_CONFIG }];
+    const textSeed = textProviders.length > 0 ? textProviders : [{ ...COMMUNITY_TEXT_PROVIDER }];
     setTextList(textSeed);
     setActiveTextId(activeTextProviderId || textSeed[0].id);
     const videoSeed = videoProviders.length > 0 ? videoProviders : [createVideoProvider(1)];
@@ -970,13 +967,13 @@ export function ProviderSettingsDialog({
   }
 
   function isVideoProviderReady(provider: VideoProviderConfig): boolean {
-    if (provider.type === "official") return true;
+
     const connectionId = videoConnectionId(provider);
     return Boolean(providerKeyStatus[connectionId]) || Boolean(keyDrafts[connectionId]?.trim());
   }
 
   function isImageProviderReady(provider: ProviderConfig): boolean {
-    if (provider.type === "official") return true;
+
     if (provider.type === "codex-oauth") {
       return ["connected", "refreshing"].includes(
         (codexStatuses[provider.id] ?? SIGNED_OUT_CODEX_STATUS).state
@@ -986,7 +983,7 @@ export function ProviderSettingsDialog({
   }
 
   function isTextProviderReady(provider: TextProviderConfig): boolean {
-    if (provider.type === "official") return true;
+
     if (provider.type === "codex-oauth") {
       return ["connected", "refreshing"].includes(
         (codexStatuses[textAuthProviderId(provider)] ?? SIGNED_OUT_CODEX_STATUS).state
@@ -999,9 +996,7 @@ export function ProviderSettingsDialog({
     id: provider.id,
     name: provider.name || "未命名服务",
     model: provider.model || "默认图片模型",
-    detail: provider.type === "official"
-      ? "无需配置"
-      : provider.type === "codex-oauth"
+    detail: provider.type === "codex-oauth"
         ? (codexStatuses[provider.id]?.email || "Codex / ChatGPT 账号")
         : hostOf(provider.baseUrl),
     ready: isImageProviderReady(provider)
@@ -1009,10 +1004,8 @@ export function ProviderSettingsDialog({
   const textRouteOptions = textList.map<AiRouteOption>((provider) => ({
     id: provider.id,
     name: provider.name || "未命名服务",
-    model: provider.model || (provider.type === "official" ? "官方助手" : "默认文本模型"),
-    detail: provider.type === "official"
-      ? "无需配置"
-      : provider.type === "codex-oauth"
+    model: provider.model || ("默认文本模型"),
+    detail: provider.type === "codex-oauth"
         ? (codexStatuses[textAuthProviderId(provider)]?.email || "Codex / ChatGPT 账号")
         : hostOf(provider.baseUrl),
     ready: isTextProviderReady(provider)
@@ -1021,7 +1014,7 @@ export function ProviderSettingsDialog({
     id: provider.id,
     name: provider.name || "未命名服务",
     model: provider.model || "默认视频模型",
-    detail: provider.type === "official" ? "无需配置" : hostOf(
+    detail: hostOf(
       (provider.type === "fal" || provider.type === "openrouter") && provider.connectionProviderId
         ? list.find((candidate) => candidate.id === provider.connectionProviderId)?.baseUrl || provider.baseUrl
         : provider.baseUrl
@@ -1136,8 +1129,8 @@ export function ProviderSettingsDialog({
   }
 
   function changeProviderType(type: ProviderType): void {
-    if (!selected || type === selected.type) return;
-    if (type === "official") return;
+    if (!selected || type === selected.type || type === "official") return;
+
     if (selected.type === "codex-oauth" && type !== "codex-oauth") {
       removeLinkedTextProviders(selected.id);
     }
@@ -1310,7 +1303,7 @@ export function ProviderSettingsDialog({
   }
 
   function removeVideoProvider(id: string): void {
-    if (videoList.find((provider) => provider.id === id)?.type === "official") return;
+
     if (videoList.length <= 1) return;
     setVideoList((current) => {
       const next = current.filter((provider) => provider.id !== id);
@@ -1342,7 +1335,7 @@ export function ProviderSettingsDialog({
 
   function removeTextProvider(id: string): void {
     const target = textList.find((provider) => provider.id === id);
-    if (target?.type === "official") return;
+
     if (target?.type === "codex-oauth" && list.some((provider) =>
       provider.type === "codex-oauth" && provider.id === textAuthProviderId(target)
     )) return;
@@ -1368,7 +1361,7 @@ export function ProviderSettingsDialog({
       ).map((provider) => provider.id));
       if (removedIds.size === 0) return current;
       const next = current.filter((provider) => !removedIds.has(provider.id));
-      if (removedIds.has(activeTextId)) setActiveTextId(next[0]?.id ?? OFFICIAL_TEXT_PROVIDER_CONFIG.id);
+      if (removedIds.has(activeTextId)) setActiveTextId(next[0]?.id ?? COMMUNITY_TEXT_PROVIDER.id);
       if (selectedKind === "text" && removedIds.has(selectedId)) setSelectedId(next[0]?.id ?? "");
       setKeyDrafts((drafts) => Object.fromEntries(
         Object.entries(drafts).filter(([id]) => !removedIds.has(id))
@@ -1379,7 +1372,7 @@ export function ProviderSettingsDialog({
 
   function removeProvider(id: string): void {
     const target = list.find((provider) => provider.id === id);
-    if (target?.type === "official") return;
+
     if (list.length <= 1) return;
     if (target?.type === "codex-oauth") removeLinkedTextProviders(target.id);
     setList((current) => {
@@ -1530,7 +1523,6 @@ export function ProviderSettingsDialog({
                 }}
               />
               <NavItem icon={Terminal} label="Coding Agent" active={section === "agent"} onClick={() => setSection("agent")} />
-              <NavItem icon={KeyRound} label="授权与激活" active={section === "license"} onClick={() => setSection("license")} />
               <NavItem icon={Settings2} label={t("settings.system.title")} active={section === "system"} onClick={() => setSection("system")} />
             </nav>
 
@@ -1662,7 +1654,7 @@ export function ProviderSettingsDialog({
                       <ModelConnectionListItem
                         key={provider.id}
                         name={provider.name || "未命名服务"}
-                        model={provider.model || (provider.type === "official" ? "官方助手" : "默认文本模型")}
+                        model={provider.model || ("默认文本模型")}
                         type={provider.type}
                         selected={provider.id === selectedId}
                         active={provider.id === activeTextId}
@@ -1692,7 +1684,7 @@ export function ProviderSettingsDialog({
                       key={provider.id}
                       name={provider.name || "未命名服务"}
                       model={provider.model || "默认视频模型"}
-                      type={provider.type === "official" ? "official" : "openai-compatible"}
+                      type={"openai-compatible"}
                       selected={provider.id === selectedId}
                       active={provider.id === activeVideoId}
                       ready={isVideoProviderReady(provider)}
@@ -1741,18 +1733,11 @@ export function ProviderSettingsDialog({
               <>
                 <DialogHeader className="min-h-[64px] justify-center border-b border-border/80 bg-background/85 py-2.5 pl-6 pr-14">
                   <DialogTitle className="truncate">{selectedVideo.name || "未命名视频服务"}</DialogTitle>
-                  <DialogDescription className="mt-1 truncate text-xs leading-5">{selectedVideo.type === "official" ? "Iterlay 官方" : selectedVideo.type === "fal" ? "fal.ai" : selectedVideo.type === "openrouter" ? "OpenRouter" : selectedVideo.type === "minimax" ? "MiniMax" : "火山方舟"} 视频生成 · {selectedVideo.model}</DialogDescription>
+                  <DialogDescription className="mt-1 truncate text-xs leading-5">{selectedVideo.type === "fal" ? "fal.ai" : selectedVideo.type === "openrouter" ? "OpenRouter" : selectedVideo.type === "minimax" ? "MiniMax" : "火山方舟"} 视频生成 · {selectedVideo.model}</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="min-h-0 flex-1">
                   <div className="flex w-full flex-col gap-6 px-6 py-5">
-                    {selectedVideo.type === "official" ? (
-                      <FormSection title="官方视频服务">
-                        <div className="rounded-md border border-border/80 bg-muted/25 p-4">
-                          <div className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4" />无需配置 API Key</div>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">由 Iterlay 托管视频模型与任务队列，每生成 1 秒视频消耗 1 金豆。金豆与 Credit 独立，激活前后均不会赠送，只能由管理员在后台添加。</p>
-                        </div>
-                      </FormSection>
-                    ) : <>
+                    {<>
                     <FormSection title="连接信息">
                       <Field label="服务类型">
                         <div className="grid grid-cols-2 gap-2 min-[900px]:grid-cols-4">
@@ -1821,7 +1806,7 @@ export function ProviderSettingsDialog({
                   </div>
                 </ScrollArea>
                 <div className="flex min-h-[64px] items-center justify-between gap-3 border-t border-border/80 bg-background/85 px-6 py-3">
-                  <TestStatus bridgeError={bridgeError} testing={testing} result={testResult} hasKey={isVideoProviderReady(selectedVideo)} credential={selectedVideo.type === "official" ? "managed" : "key"} />
+                  <TestStatus bridgeError={bridgeError} testing={testing} result={testResult} hasKey={isVideoProviderReady(selectedVideo)} credential={"key"} />
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={() => void handleTest()} disabled={disableEditing || testing || saving}>{testing ? <Loader2 className="h-4 w-4 animate-spin" /> : "测试连接"}</Button>
                     <Button onClick={() => void handleSave()} disabled={disableEditing || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "保存"}</Button>
@@ -1837,12 +1822,10 @@ export function ProviderSettingsDialog({
                         <DialogTitle className="truncate">
                           {textSetupFlow?.providerId === selectedText.id ? "添加 AI 助手服务" : selectedText.name || "未命名服务"}
                         </DialogTitle>
-                        <TypeBadge label={selectedText.type === "official" ? "官方" : selectedText.type === "codex-oauth" ? "Codex 账号" : "OpenAI Compatible"} />
+                        <TypeBadge label={selectedText.type === "codex-oauth" ? "Codex 账号" : "OpenAI Compatible"} />
                       </div>
                       <DialogDescription className="mt-1 truncate text-xs leading-5">
-                        {selectedText.type === "official"
-                          ? "Iterlay 托管的 AI 文本辅助服务，无需配置 API Key。"
-                          : selectedText.type === "codex-oauth"
+                        {selectedText.type === "codex-oauth"
                             ? "使用 Codex / ChatGPT 账号提供 AI 智能辅助；可与图片模型共享登录。"
                             : `${selectedText.model || "未选择模型"} · ${hostOf(selectedText.baseUrl)}`}
                       </DialogDescription>
@@ -1890,19 +1873,7 @@ export function ProviderSettingsDialog({
                 <>
                 <ScrollArea className="min-h-0 flex-1">
                   <div className="flex w-full flex-col gap-6 px-6 py-5">
-                    {selectedText.type === "official" ? (
-                      <div className="flex items-start gap-3 rounded-lg bg-card p-4 ring-1 ring-border/80">
-                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">官方文本助手已内置</p>
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            提示词润色、场景大师、修改建议、主体识别等 AI 辅助每次调用消耗 1 Credit，失败不会扣费；与图片生成共用同一 Credit 余额。
-                          </p>
-                        </div>
-                      </div>
-                    ) : selectedText.type === "codex-oauth" ? (
+                    {selectedText.type === "codex-oauth" ? (
                       <>
                         <CodexAccountPanel
                           status={codexStatuses[textAuthProviderId(selectedText)] ?? SIGNED_OUT_CODEX_STATUS}
@@ -2003,7 +1974,7 @@ export function ProviderSettingsDialog({
                     testing={testing}
                     result={testResult}
                     hasKey={selectedHasKey}
-                    credential={selectedText.type === "official" ? "managed" : selectedText.type === "codex-oauth" ? "account" : "key"}
+                    credential={selectedText.type === "codex-oauth" ? "account" : "key"}
                   />
                   <div className="flex gap-2">
                     <Button
@@ -2035,8 +2006,6 @@ export function ProviderSettingsDialog({
                       <DialogDescription className="mt-1 truncate text-xs leading-5">
                         {setupFlow?.providerId === selected.id
                           ? "选择服务并完成连接，技术参数会按服务自动配置。"
-                          : selected.type === "official"
-                          ? "Iterlay 托管的图片生成与 AI 文本辅助服务，无需配置 API Key。"
                           : selected.type === "codex-oauth"
                             ? "使用本机保存的 Codex / ChatGPT 登录状态直接生成图片。"
                           : `${selected.model || "未选择模型"} · ${hostOf(selected.baseUrl)}`}
@@ -2075,19 +2044,7 @@ export function ProviderSettingsDialog({
                 <>
                 <ScrollArea className="min-h-0 flex-1">
                   <div className="flex w-full flex-col gap-6 px-6 py-5">
-                    {selected.type === "official" ? (
-                      <div className="flex items-start gap-3 rounded-lg bg-card p-4 ring-1 ring-border/80">
-                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">官方服务已内置</p>
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            新设备包含 100 Credit，首次激活授权再赠送 1000 Credit。每张图片生成或编辑消耗 100 积分，AI 文本辅助（润色、场景大师、修改建议等）每次消耗 1 Credit，失败不会扣费。
-                          </p>
-                        </div>
-                      </div>
-                    ) : selected.type === "codex-oauth" ? (
+                    {selected.type === "codex-oauth" ? (
                       <>
                       <CodexAccountPanel
                         status={codexStatuses[selected.id] ?? SIGNED_OUT_CODEX_STATUS}
@@ -2450,7 +2407,7 @@ export function ProviderSettingsDialog({
                     testing={testing}
                     result={testResult}
                     hasKey={selectedHasKey}
-                    credential={selected.type === "official" ? "managed" : selected.type === "codex-oauth" ? "account" : "key"}
+                    credential={selected.type === "codex-oauth" ? "account" : "key"}
                   />
                   <div className="flex gap-2">
                     <Button
@@ -2477,14 +2434,7 @@ export function ProviderSettingsDialog({
                     "flex w-full flex-col",
                     section === "pi-agent" ? "min-h-full" : "gap-8 px-6 py-7"
                   )}>
-                  {section === "license" ? (
-                  <LicenseSettingsPanel
-                    status={license.status}
-                    busy={license.busy}
-                    onOpenCenter={license.openCenter}
-                    onActivate={license.openActivation ?? license.openCenter}
-                  />
-                  ) : section === "pi-agent" ? (
+                  {section === "pi-agent" ? (
                   <PiAgentSettingsPanel
                     available={boardAssistantAgentModeAvailable}
                     enabled={boardAssistantAgentModeEnabled}

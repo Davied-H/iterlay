@@ -18,4 +18,4 @@ npm run build
 
 `.github/workflows/pages.yml` 使用 GitHub Actions 部署。需将仓库 Settings → Pages → Source 设为 GitHub Actions。工作流自动使用 Pages base path，也可通过 `PAGES_BASE_PATH` 设置本地构建前缀。
 
-网站去除商业入口不会改变桌面客户端现有授权逻辑；当前客户端仍保留官方服务依赖，详情见根目录 README。
+桌面客户端永久免费，无需激活，使用自有模型 Provider。下载与更新由 GitHub Releases 提供。

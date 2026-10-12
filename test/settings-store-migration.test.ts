@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync,rmSync,writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { DEFAULT_VIDEO_PROVIDER_ID, OFFICIAL_TEXT_PROVIDER_ID, OFFICIAL_VIDEO_PROVIDER_ID } from "../shared/types.js";
+import { afterEach,describe,expect,it,vi } from "vitest";
+import { DEFAULT_VIDEO_PROVIDER_ID,OFFICIAL_TEXT_PROVIDER_ID } from "../shared/types.js";
 
 vi.mock("electron", () => ({
   safeStorage: {
@@ -12,7 +12,7 @@ vi.mock("electron", () => ({
   }
 }));
 
-import { normalizeProvider, SettingsStore } from "../electron/storage/settings-store.js";
+import { normalizeProvider,SettingsStore } from "../electron/storage/settings-store.js";
 
 const tempDirs: string[] = [];
 
@@ -33,13 +33,13 @@ afterEach(() => {
 });
 
 describe("SettingsStore 文本 Provider 迁移", () => {
-  it("fresh install exposes the built-in official text provider", () => {
+  it("fresh install offers a self-configured text provider", () => {
     const store = new SettingsStore(makeDataDir());
     const settings = store.getSettings();
     expect(settings.textProviders).toHaveLength(1);
-    expect(settings.textProviders[0].id).toBe(OFFICIAL_TEXT_PROVIDER_ID);
-    expect(settings.activeTextProviderId).toBe(OFFICIAL_TEXT_PROVIDER_ID);
-    expect(settings.videoProviders.map((provider) => provider.id)).toEqual([OFFICIAL_VIDEO_PROVIDER_ID, DEFAULT_VIDEO_PROVIDER_ID]);
+    expect(settings.textProviders[0].id).toBe("text-openai-compatible");
+    expect(settings.activeTextProviderId).toBe("text-openai-compatible");
+    expect(settings.videoProviders.map((provider) => provider.id)).toEqual([DEFAULT_VIDEO_PROVIDER_ID]);
     expect(settings.activeVideoProviderId).toBe(DEFAULT_VIDEO_PROVIDER_ID);
   });
 
@@ -257,7 +257,7 @@ describe("SettingsStore 文本 Provider 迁移", () => {
     const store = new SettingsStore(dir);
     const settings = store.getSettings();
 
-    expect(settings.textProviders[0].id).toBe(OFFICIAL_TEXT_PROVIDER_ID);
+    expect(settings.textProviders[0].id).toBe("text-sub2api");
     const derived = settings.textProviders.find((p) => p.id === "text-sub2api");
     expect(derived).toMatchObject({
       type: "openai-compatible",
@@ -276,7 +276,7 @@ describe("SettingsStore 文本 Provider 迁移", () => {
     expect(store.getApiKey("text-sub2api")).toBe("sk-legacy");
     expect(store.getApiKey("text-bailian")).toBe("sk-bailian");
     expect(store.getKeyStatus()["text-sub2api"]).toBe(true);
-    expect(store.getKeyStatus()[OFFICIAL_TEXT_PROVIDER_ID]).toBe(true);
+    expect(store.getKeyStatus()[OFFICIAL_TEXT_PROVIDER_ID]).toBeUndefined();
     // 图片 provider 不再携带 promptModel。
     expect(settings.providers.find((p) => p.id === "sub2api")).not.toHaveProperty("promptModel", "gpt-4o-mini");
   });
@@ -296,7 +296,7 @@ describe("SettingsStore 文本 Provider 迁移", () => {
     store.setApiKey("text-custom", "sk-text");
 
     const reloaded = new SettingsStore(dir).getSettings();
-    expect(reloaded.textProviders.map((p) => p.id)).toEqual([OFFICIAL_TEXT_PROVIDER_ID, "text-custom"]);
+    expect(reloaded.textProviders.map((p) => p.id)).toEqual(["text-openai-compatible", "text-custom"]);
     expect(reloaded.textProviders[1].baseUrl).toBe("https://text.example.com");
     expect(reloaded.activeTextProviderId).toBe("text-custom");
     expect(new SettingsStore(dir).getApiKey("text-custom")).toBe("sk-text");
@@ -331,12 +331,12 @@ describe("SettingsStore 文本 Provider 迁移", () => {
     });
   });
 
-  it("clamps a stale activeTextProviderId back to the official entry", () => {
+  it("clamps a stale activeTextProviderId to an existing provider", () => {
     const dir = makeDataDir();
     const store = new SettingsStore(dir);
     const base = store.getSettings();
     store.saveSettings({ ...base, activeTextProviderId: "missing-id" });
-    expect(new SettingsStore(dir).getSettings().activeTextProviderId).toBe(OFFICIAL_TEXT_PROVIDER_ID);
+    expect(new SettingsStore(dir).getSettings().activeTextProviderId).toBe("text-openai-compatible");
   });
 
   it("automatically binds a Codex text provider to every Codex image provider", () => {

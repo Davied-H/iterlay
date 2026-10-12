@@ -1,97 +1,93 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { toast } from "sonner";
-import {
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Download,
-  Gift,
-  History,
-  Images,
-  Loader2,
-  MoreHorizontal,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Pencil,
-  Plus,
-  RadioTower,
-  RefreshCw,
-  Settings,
-  ShieldCheck,
-  Trash2
-} from "lucide-react";
-import type { LicenseState } from "@shared/licensing";
-import type {
-  AssetComment,
-  BoardEnterOrigin,
-  BoardSummary,
-  BoardTrashRetentionDays,
-  CollaborateSceneRequest,
-  CollaborateSceneResult,
-  GenerationJob,
-  GptImageUseCase,
-  ImageWorkflowMode,
-  PromptSpec,
-  TemplateSubmissionResult,
-  TrashedBoardSummary
-} from "@shared/types";
-import { cn } from "@/lib/utils";
+import appIconDefault from "@/assets/app-icon-default.png";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
+Dialog,
+DialogContent,
+DialogDescription,
+DialogFooter,
+DialogHeader,
+DialogTitle
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
+DropdownMenu,
+DropdownMenuContent,
+DropdownMenuItem,
+DropdownMenuSeparator,
+DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip,TooltipContent,TooltipProvider,TooltipTrigger } from "@/components/ui/tooltip";
+import { useUpdateCenter } from "@/components/update/update-context";
 import { AssetLibrary } from "@/components/workbench/AssetLibrary";
+import { BoardGenerationStatus } from "@/components/workbench/BoardGenerationStatus";
 import { BoardLibrary } from "@/components/workbench/BoardLibrary";
 import { BoardTrash } from "@/components/workbench/BoardTrash";
+import {
+CreateChatPage,
+type CreateChatGenerationPlan,
+type CreateChatResult
+} from "@/components/workbench/CreateChatPage";
+import { InspirationSources } from "@/components/workbench/InspirationSources";
+import { LibraryNavCanvasIcon,type LibraryNavIconKind } from "@/components/workbench/LibraryNavCanvasIcon";
+import { OnlineShareManagerDialog } from "@/components/workbench/OnlineShareManagerDialog";
 import { SceneLibraryPage } from "@/components/workbench/SceneLibrary";
-import appIconDefault from "@/assets/app-icon-default.png";
-import type { NewSceneInput, SceneDefinition } from "@/lib/scene-library";
+import {
+groupActiveBoardGenerations,
+type ActiveBoardGeneration
+} from "@/lib/active-board-generation";
+import { getImageWorkbenchApi,getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
+import {
+DEFAULT_LIBRARY_SIDEBAR_SIZE,
+LIBRARY_SIDEBAR_MAX_WIDTH,
+LIBRARY_SIDEBAR_MIN_WIDTH,
+createLibrarySidebarPreference,
+getAdjacentLibrarySidebarPreset,
+getClosestLibrarySidebarPreset,
+readLibrarySidebarSize,
+resolveLibrarySidebarSnap,
+writeLibrarySidebarSize,
+type LibrarySidebarPreset,
+type LibrarySidebarSizePreference
+} from "@/lib/library-sidebar-size";
+import type { NewSceneInput,SceneDefinition } from "@/lib/scene-library";
 import type { SceneGenerationDefaults } from "@/lib/scene-media";
 import type { GenerateTemplateVerification } from "@/lib/template-verification";
-import { getLicenseStatusLabel, useLicense } from "@/components/licensing/license-context";
-import { useUpdateCenter } from "@/components/update/update-context";
-import { LibraryNavCanvasIcon, type LibraryNavIconKind } from "@/components/workbench/LibraryNavCanvasIcon";
-import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
+import { cn } from "@/lib/utils";
+import type {
+AssetComment,
+BoardEnterOrigin,
+BoardSummary,
+BoardTrashRetentionDays,
+CollaborateSceneRequest,
+CollaborateSceneResult,
+GenerationJob,
+GptImageUseCase,
+ImageWorkflowMode,
+PromptSpec,
+TemplateSubmissionResult,
+TrashedBoardSummary
+} from "@shared/types";
+import { AnimatePresence,motion,useReducedMotion } from "framer-motion";
 import {
-  groupActiveBoardGenerations,
-  type ActiveBoardGeneration
-} from "@/lib/active-board-generation";
-import { BoardGenerationStatus } from "@/components/workbench/BoardGenerationStatus";
-import { OnlineShareManagerDialog } from "@/components/workbench/OnlineShareManagerDialog";
-import { InspirationSources } from "@/components/workbench/InspirationSources";
-import {
-  CreateChatPage,
-  type CreateChatGenerationPlan,
-  type CreateChatResult
-} from "@/components/workbench/CreateChatPage";
-import {
-  DEFAULT_LIBRARY_SIDEBAR_SIZE,
-  LIBRARY_SIDEBAR_MAX_WIDTH,
-  LIBRARY_SIDEBAR_MIN_WIDTH,
-  createLibrarySidebarPreference,
-  getAdjacentLibrarySidebarPreset,
-  getClosestLibrarySidebarPreset,
-  readLibrarySidebarSize,
-  resolveLibrarySidebarSnap,
-  writeLibrarySidebarSize,
-  type LibrarySidebarPreset,
-  type LibrarySidebarSizePreference
-} from "@/lib/library-sidebar-size";
+ChevronDown,
+ChevronRight,
+Copy,
+Download,
+History,
+Images,
+Loader2,
+MoreHorizontal,
+PanelLeftClose,
+PanelLeftOpen,
+Pencil,
+Plus,
+RadioTower,
+RefreshCw,
+Settings,
+Trash2
+} from "lucide-react";
+import { useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { toast } from "sonner";
 
 export type LibraryTab = "create" | "boards" | "assets" | "scenes" | "inspiration" | "trash";
 
@@ -153,7 +149,7 @@ interface LibraryShellProps {
   onUseSceneHistoryAsReference: (imagePath: string) => void;
   loadSceneThumbnail: (path: string) => Promise<string | undefined>;
   onLocateOnlineShare: (boardId: string, nodeIds: string[]) => void;
-  onOpenReferralInvite: () => void;
+  onOpenReferralInvite?: () => void;
   onOpenSettings: () => void;
   onClose: () => void;
 }
@@ -190,8 +186,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
     openingBoardId,
     onOpenBoard,
     onPrefetchBoard,
-    onOpenReferralInvite,
-    onOpenSettings,
+      onOpenSettings,
     onClose
   } = props;
   const { comments, onAddComment, onDeleteComment, onLocateAsset, onCopyText, onReusePrompt, onEditAsset, onUseReference, onDeleteAsset } = props;
@@ -812,7 +807,6 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             trashedBoardCount={trashedBoards.length}
             trashActive={tab === "trash"}
             onOpenTrash={() => setTab("trash")}
-            onOpenReferralInvite={onOpenReferralInvite}
             onOpenSettings={onOpenSettings}
           />
           <CompactSidebarTooltip compact={true} label="展开侧边栏">
@@ -1291,31 +1285,16 @@ function SidebarUtilityEntries({
   trashedBoardCount,
   trashActive,
   onOpenTrash,
-  onOpenReferralInvite,
   onOpenSettings
 }: {
   compact: boolean;
   trashedBoardCount: number;
   trashActive: boolean;
   onOpenTrash: () => void;
-  onOpenReferralInvite: () => void;
+  onOpenReferralInvite?: () => void;
   onOpenSettings: () => void;
 }): React.ReactElement {
-  const license = useLicense();
   const updateCenter = useUpdateCenter();
-  const [now, setNow] = useState(() => Date.now());
-  const licenseState = license.status?.state ?? null;
-
-  useEffect(() => {
-    if (licenseState !== "TRIAL_ACTIVE") return;
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
-  }, [licenseState]);
-
-  const licenseStatusLabel = licenseState === "TRIAL_ACTIVE"
-    ? `试用 · ${compactLicenseRemaining(license.status?.offlineValidUntil, now)}`
-    : getLicenseStatusLabel(licenseState);
   const phase = updateCenter.state?.phase;
   const isChecking = updateCenter.checking || phase === "checking";
   const isDownloading = phase === "downloading";
@@ -1346,19 +1325,6 @@ function SidebarUtilityEntries({
         <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">回收站</span>
         {trashedBoardCount > 0 ? <span className="text-[11px] tabular-nums text-muted-foreground">{trashedBoardCount}</span> : null}
-      </button>
-    </CompactSidebarTooltip>
-    {licenseState !== "LICENSED" ? <CompactSidebarTooltip compact={compact} label={`授权：${licenseStatusLabel}`}>
-      <button type="button" data-sidebar-utility aria-label={`授权：${licenseStatusLabel}`} onClick={license.openCenter} className={utilityClass()}>
-        <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">授权</span>
-        <span className={cn("library-sidebar-label max-w-24 truncate text-[11px]", licenseStateBadgeClass(licenseState))}>{licenseStatusLabel}</span>
-      </button>
-    </CompactSidebarTooltip> : null}
-    <CompactSidebarTooltip compact={compact} label="邀请好友">
-      <button type="button" data-sidebar-utility onClick={onOpenReferralInvite} className={utilityClass()}>
-        <Gift className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">邀请好友</span>
       </button>
     </CompactSidebarTooltip>
     <CompactSidebarTooltip compact={compact} label={updateLabel}>
@@ -1395,28 +1361,6 @@ function formatSidebarRelativeTime(value: string): string {
   const elapsedDays = Math.floor(elapsedHours / 24);
   if (elapsedDays < 7) return `${elapsedDays} 天前`;
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(timestamp);
-}
-
-function compactLicenseRemaining(value: string | undefined, now: number): string {
-  if (!value) return "即将结束";
-  const remainingMinutes = Math.ceil((new Date(value).getTime() - now) / 60_000);
-  if (!Number.isFinite(remainingMinutes) || remainingMinutes <= 0) return "已结束";
-  const days = Math.floor(remainingMinutes / (24 * 60));
-  if (days > 0) return `${days}天`;
-  const hours = Math.floor(remainingMinutes / 60);
-  if (hours > 0) return `${hours}小时`;
-  return `${remainingMinutes}分钟`;
-}
-
-function licenseStateBadgeClass(state: LicenseState | null): string {
-  if (state === "LICENSED") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
-  if (state === "TRIAL_ACTIVE" || state === "OFFLINE_GRACE") {
-    return "bg-amber-500/10 text-amber-800 dark:text-amber-300";
-  }
-  if (state === "RESTRICTED" || state === "REVOKED" || state === "VERSION_BLOCKED") {
-    return "bg-destructive/10 text-destructive";
-  }
-  return "bg-foreground/[0.055] text-muted-foreground";
 }
 
 function NavItem({

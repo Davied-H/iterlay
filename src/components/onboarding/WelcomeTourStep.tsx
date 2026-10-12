@@ -1,19 +1,16 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Coins,
-  KeyRound,
-  PlayCircle,
-  Plug,
-  RotateCcw,
-  Sparkles
-} from "lucide-react";
-import type { LicenseState } from "@shared/licensing";
 import appIconUrl from "@/assets/app-icon-default.png";
 import lampImageUrl from "@/assets/tour-demo-lamp.jpg";
+import type { LicenseState } from "@shared/licensing";
+import { AnimatePresence,motion } from "framer-motion";
+import {
+ArrowRight,
+ChevronLeft,
+ChevronRight,
+PlayCircle,
+Plug,
+RotateCcw
+} from "lucide-react";
+import { lazy,Suspense,useEffect,useRef,useState } from "react";
 import RotatingText from "./RotatingText";
 import { TextType } from "./TextType";
 import type { WelcomeDemoPlayerHandle } from "./WelcomeDemoPlayer";
@@ -129,11 +126,7 @@ export function WelcomeTourStep({
   title,
   description,
   reduceMotion,
-  creditBalance,
-  licenseState,
-  onContinue,
   onConnectProvider,
-  onOpenLicense
 }: WelcomeTourStepProps): React.ReactElement {
   const [leaving, setLeaving] = useState(false);
   const [stage, setStage] = useState<WelcomeStage>(reduceMotion ? "choice" : "art");
@@ -307,29 +300,9 @@ export function WelcomeTourStep({
             <span className="welcome-tour__setup-step">最后一步</span>
           </div>
           <button
-            ref={continueButtonRef}
-            type="button"
-            className="welcome-tour__service-option welcome-tour__service-option--official"
-            disabled={leaving}
-            onClick={() => leave(onContinue)}
-          >
-            <span className="welcome-tour__service-icon"><Sparkles aria-hidden /></span>
-            <span className="welcome-tour__service-copy">
-              <span className="welcome-tour__service-title">
-                使用 Iterlay 官方服务
-                <span className="welcome-tour__recommended">推荐</span>
-              </span>
-              <span className="welcome-tour__service-description">无需 API Key，打开画板即可开始生成</span>
-              <span className="welcome-tour__service-meta">
-                <Coins aria-hidden />
-                {typeof creditBalance === "number" ? `当前 ${creditBalance} Credits` : "新设备包含赠送 Credits"}
-              </span>
-            </span>
-            <ArrowRight aria-hidden className="welcome-tour__service-arrow" />
-          </button>
-          <button
             type="button"
             className="welcome-tour__service-option"
+            ref={continueButtonRef}
             disabled={leaving || !onConnectProvider}
             onClick={() => onConnectProvider && leave(onConnectProvider)}
           >
@@ -341,20 +314,7 @@ export function WelcomeTourStep({
             </span>
             <ArrowRight aria-hidden className="welcome-tour__service-arrow" />
           </button>
-          <div className="welcome-tour__license-row">
-            <span>
-              <KeyRound aria-hidden />
-              {licenseState === "LICENSED" ? "Iterlay 已激活" : "已有 Iterlay 授权？"}
-            </span>
-            <button
-              type="button"
-              disabled={leaving || !onOpenLicense}
-              onClick={() => onOpenLicense && leave(onOpenLicense)}
-            >
-              {licenseState === "LICENSED" ? "管理授权" : "输入激活码"}
-            </button>
-          </div>
-          <p className="welcome-tour__setup-note">连接自有模型服务不会替代 Iterlay 软件授权。</p>
+          <p className="welcome-tour__setup-note">Iterlay 永久免费，连接自己的模型服务即可生成。</p>
         </motion.div>
       ) : null}
 
@@ -465,7 +425,7 @@ export function WelcomeTourStep({
                   />
                 </h1>
                 <p id={descriptionId} className="welcome-tour__choice-description">
-                  选择一种生成方式。官方服务无需配置，也可以连接你已有的账号或 API Key。
+                  连接你已有的账号或 API Key，开始生成。
                 </p>
                 <div className="welcome-tour__choice-actions">
                   <button

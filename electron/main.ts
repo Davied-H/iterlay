@@ -1,83 +1,81 @@
-import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell } from "electron";
-import { RuntimeLog, exportLogArchive } from "./runtime-log.js";
+import { app,BrowserWindow,dialog,Menu,nativeImage,nativeTheme,net,shell } from "electron";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
-import { registerAssetProtocol } from "./asset-protocol.js";
-import { applyAppIcon, loadAppIcon } from "./app-icon.js";
+import { removeConnectedBackground } from "../shared/background-removal.js";
+import { extractIterlayDeepLinks,ITERLAY_DEEP_LINK_SCHEME } from "../shared/deep-link.js";
+import { resolveAppLocale,type ResolvedAppLocale } from "../shared/i18n.js";
 import type {
-  AppIconPreference,
-  CustomAppIcon,
-  ProviderConfig,
-  ProviderGenerateInput
+AppIconPreference,
+CustomAppIcon,
+ProviderConfig,
+ProviderGenerateInput
 } from "../shared/types.js";
+import { VIDEO_SEQUENCE_EVENT_CHANNEL } from "../shared/video-sequence.js";
+import { applyAppIcon,loadAppIcon } from "./app-icon.js";
+import { buildApplicationMenuTemplate } from "./application-menu.js";
+import { registerAssetProtocol } from "./asset-protocol.js";
+import { CodexOAuthService } from "./auth/codex-oauth.js";
+import { dispatchDeepLink,registerDeepLinkIpc } from "./deep-link.js";
 import { ensureInitialDemoBoard } from "./demo-board.js";
 import { registerIpc } from "./ipc.js";
-import { buildApplicationMenuTemplate } from "./application-menu.js";
-import { migrateLegacyWorkspace } from "./workspace-migration.js";
-import { BUILTIN_GRANT_KEYS, LicenseService, registerLicenseIpc } from "./licensing/index.js";
+import { LicenseService,registerLicenseIpc } from "./licensing/index.js";
+import { MasterGoBridge } from "./mastergo-bridge.js";
+import { startMcpBridge } from "./mcp-bridge.js";
+import { runElectronMcpServer } from "./mcp-stdio.js";
+import { FfmpegService } from "./media/ffmpeg-service.js";
 import {
-  AppUpdateService,
-  DirectDownloadDriver,
-  HttpUpdateApiClient,
-  registerUpdateIpc,
-  UPDATE_STATE_CHANNEL,
-  UpdatePreferenceStore
-} from "./updater/index.js";
-import { BailianImageProvider } from "./providers/bailian.js";
+extractChromaticPhotoSubject,
+extractConnectedPhotoSubject,
+fillPhotoLayerInterior,
+hasLostProtectedOpaqueEdge,
+inpaintPhotoBackground,
+intersectPhotoLayerMask,
+measureOpaqueBounds,
+measureOpaqueEdgeFractions,
+measureOpaqueFraction,
+segmentPhotoLayer,
+subtractPhotoLayerMask
+} from "./photo-layer-segmentation.js";
+import { PiAgentEvolutionStore } from "./pi-agent-evolution.js";
+import { PiAgentLogStore } from "./pi-agent-log.js";
 import { ArkImageProvider } from "./providers/ark.js";
-import { FalImageProvider } from "./providers/fal.js";
-import { OfficialImageProvider } from "./providers/official.js";
-import { Sub2ApiImageProvider } from "./providers/sub2api.js";
+import { BailianImageProvider } from "./providers/bailian.js";
 import { CodexOAuthImageProvider } from "./providers/codex-oauth.js";
-import { CodexOAuthService } from "./auth/codex-oauth.js";
+import { FalImageProvider } from "./providers/fal.js";
+import { Sub2ApiImageProvider } from "./providers/sub2api.js";
+import type { VideoProviderConfig as RuntimeVideoProviderConfig } from "./providers/video-types.js";
+import { exportLogArchive,RuntimeLog } from "./runtime-log.js";
+import { buildStartupPage } from "./startup-page.js";
 import { AssetMetaStore } from "./storage/asset-meta-store.js";
-import { ThumbHashStore } from "./storage/thumbhash-store.js";
 import { AssetStore } from "./storage/asset-store.js";
 import { AssistantConversationStore } from "./storage/assistant-conversation-store.js";
-import { BoardStore } from "./storage/board-store.js";
 import { BoardImageTrashStore } from "./storage/board-image-trash-store.js";
+import { BoardStore } from "./storage/board-store.js";
 import { CommentStore } from "./storage/comment-store.js";
 import { HistoryStore } from "./storage/history-store.js";
-import { VideoTaskStore } from "./storage/video-task-store.js";
-import { VideoSequenceStore } from "./storage/video-sequence-store.js";
-import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-store.js";
-import { defaultVideoProviders, VideoGenerationService } from "./video-generation-service.js";
-import { createVideoSubmitInputNormalizer } from "./video-reference-image.js";
-import { FfmpegService } from "./media/ffmpeg-service.js";
-import { VideoSequenceScheduler } from "./video/video-sequence-scheduler.js";
-import type { VideoSequenceTask } from "./video-sequence-types.js";
-import type { VideoProviderConfig as RuntimeVideoProviderConfig } from "./providers/video-types.js";
-import { OfficialVideoProvider } from "./providers/video-official.js";
 import { MemoryStore } from "./storage/memory-store.js";
 import { OnboardingStore } from "./storage/onboarding-store.js";
 import { SceneMediaStore } from "./storage/scene-media-store.js";
 import { SettingsStore } from "./storage/settings-store.js";
-import { buildStartupPage } from "./startup-page.js";
-import { resolveAppLocale, type ResolvedAppLocale } from "../shared/i18n.js";
-import { resolveWindowFrameOptions, resolveWindowsTitleBarOverlay } from "./window-chrome.js";
-import { extractIterlayDeepLinks, ITERLAY_DEEP_LINK_SCHEME } from "../shared/deep-link.js";
-import { dispatchDeepLink, registerDeepLinkIpc } from "./deep-link.js";
-import { runElectronMcpServer } from "./mcp-stdio.js";
-import { startMcpBridge } from "./mcp-bridge.js";
-import { MasterGoBridge } from "./mastergo-bridge.js";
-import { PiAgentLogStore } from "./pi-agent-log.js";
-import { PiAgentEvolutionStore } from "./pi-agent-evolution.js";
-import { removeConnectedBackground } from "../shared/background-removal.js";
-import { VIDEO_SEQUENCE_EVENT_CHANNEL } from "../shared/video-sequence.js";
+import { ThumbHashStore } from "./storage/thumbhash-store.js";
+import { VideoSequenceStore } from "./storage/video-sequence-store.js";
+import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-store.js";
+import { VideoTaskStore } from "./storage/video-task-store.js";
+import { GitHubUpdateApiClient } from "./updater/github-api-client.js";
 import {
-  extractConnectedPhotoSubject,
-  extractChromaticPhotoSubject,
-  fillPhotoLayerInterior,
-  hasLostProtectedOpaqueEdge,
-  inpaintPhotoBackground,
-  intersectPhotoLayerMask,
-  measureOpaqueBounds,
-  measureOpaqueEdgeFractions,
-  measureOpaqueFraction,
-  segmentPhotoLayer,
-  subtractPhotoLayerMask
-} from "./photo-layer-segmentation.js";
+AppUpdateService,
+DirectDownloadDriver,
+registerUpdateIpc,
+UPDATE_STATE_CHANNEL,
+UpdatePreferenceStore
+} from "./updater/index.js";
+import { defaultVideoProviders,VideoGenerationService } from "./video-generation-service.js";
+import { createVideoSubmitInputNormalizer } from "./video-reference-image.js";
+import type { VideoSequenceTask } from "./video-sequence-types.js";
+import { VideoSequenceScheduler } from "./video/video-sequence-scheduler.js";
+import { resolveWindowFrameOptions,resolveWindowsTitleBarOverlay } from "./window-chrome.js";
+import { migrateLegacyWorkspace } from "./workspace-migration.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_NAME = "Iterlay";
@@ -382,16 +380,10 @@ if (isMcpMode) {
   const assetMeta = new AssetMetaStore(dataDir);
   const thumbHashes = new ThumbHashStore(dataDir);
   const sceneMedia = new SceneMediaStore(dataDir);
-  const license = new LicenseService({
-    dataDir,
-    apiBaseUrl: process.env.ITERLAY_LICENSE_API_URL ?? "https://iterlay.daived.com:31243/api/v1",
-    keyring: BUILTIN_GRANT_KEYS
-  });
+  const license = new LicenseService();
   const manageApiBaseUrl = process.env.ITERLAY_LICENSE_API_URL ?? "https://iterlay.daived.com:31243/api/v1";
-  const officialImageProvider = new OfficialImageProvider(license, manageApiBaseUrl);
-  const officialVideoProvider = new OfficialVideoProvider(license, manageApiBaseUrl, (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init));
   const videoService = new VideoGenerationService(
-    defaultVideoProviders(officialVideoProvider),
+    defaultVideoProviders(),
     createVideoSubmitInputNormalizer((bytes) => nativeImage.createFromBuffer(bytes))
   );
   const ffmpeg = new FfmpegService(dataDir, app.isPackaged ? process.resourcesPath : undefined);
@@ -409,9 +401,7 @@ if (isMcpMode) {
       const connection = settings.resolveVideoProviderConnection(provider);
       const model = task.input.model.trim() || provider.model.trim();
       if (!model) throw new Error("视频模型 ID 不能为空。");
-      const config: RuntimeVideoProviderConfig = provider.type === "official"
-        ? { provider: "official", model }
-        : { provider: provider.type, model, apiKey: connection.apiKey, ...(connection.baseUrl.trim() ? { baseUrl: connection.baseUrl.trim() } : {}) };
+      const config: RuntimeVideoProviderConfig = { provider: provider.type, model, apiKey: connection.apiKey, ...(connection.baseUrl.trim() ? { baseUrl: connection.baseUrl.trim() } : {}) };
       return { config, providerName: provider.name };
     },
     onChange: (task) => {
@@ -439,7 +429,7 @@ if (isMcpMode) {
     if (!config?.supportsReferenceImages) {
       throw new Error("当前图片模型不支持参考图编辑。");
     }
-    if (config.type !== "official") await license.ensureCapability("edit", true);
+    await license.ensureCapability("edit", true);
     const apiKey = settings.getApiKey(config.id);
     if (config.type !== "official" && config.type !== "codex-oauth" && !apiKey) {
       throw new Error("当前图片 Provider 尚未配置 API Key。");
@@ -461,9 +451,7 @@ if (isMcpMode) {
         bytes: reference
       }]
     };
-    const generation = config.type === "official"
-      ? officialImageProvider.generate(input, config, apiKey)
-      : config.type === "codex-oauth"
+    const generation = config.type === "codex-oauth"
         ? codexImageProvider.generate(input, config, apiKey)
         : config.type === "fal"
           ? falImageProvider.generate(input, config, apiKey)
@@ -494,7 +482,7 @@ if (isMcpMode) {
     currentVersion: app.getVersion(),
     platform: updatePlatform,
     arch: process.arch === "arm64" ? "arm64" : "x64",
-    apiClient: new HttpUpdateApiClient(process.env.ITERLAY_UPDATE_API_URL ?? manageApiBaseUrl),
+    apiClient: new GitHubUpdateApiClient((input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)),
     driver: new DirectDownloadDriver({
       downloadDir: path.join(app.getPath("userData"), "updates"),
       platform: updatePlatform,
@@ -938,7 +926,6 @@ if (isMcpMode) {
     masterGoBridge,
     piAgentLogs,
     license,
-    officialProvider: officialImageProvider,
     provider: compatibleImageProvider,
     codexProvider: codexImageProvider,
     codexAuth,
