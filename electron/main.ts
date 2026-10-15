@@ -24,6 +24,9 @@ import { MasterGoBridge } from "./mastergo-bridge.js";
 import { startMcpBridge } from "./mcp-bridge.js";
 import { runElectronMcpServer } from "./mcp-stdio.js";
 import { FfmpegService } from "./media/ffmpeg-service.js";
+import { MediaToolsManager } from "./media/media-tools-manager.js";
+import { registerMediaToolsIpc } from "./media/media-tools-ipc.js";
+import { MEDIA_TOOLS_STATE_CHANNEL } from "../shared/media-tools.js";
 import {
 extractChromaticPhotoSubject,
 extractConnectedPhotoSubject,
@@ -386,7 +389,23 @@ if (isMcpMode) {
     defaultVideoProviders(),
     createVideoSubmitInputNormalizer((bytes) => nativeImage.createFromBuffer(bytes))
   );
-  const ffmpeg = new FfmpegService(dataDir, app.isPackaged ? process.resourcesPath : undefined);
+  let resumeMediaTasks: (() => void) | undefined;
+  const mediaTools = new MediaToolsManager({
+    userDataPath: app.getPath("userData"),
+    resourcesPath: app.isPackaged ? process.resourcesPath : undefined,
+    fetcher: (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
+    onStateChange: (state) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send(MEDIA_TOOLS_STATE_CHANNEL, state);
+      }
+      if (state.status === "ready") resumeMediaTasks?.();
+    }
+  });
+  const disposeMediaToolsIpc = registerMediaToolsIpc(mediaTools, {
+    appFile: path.join(__dirname, "../../dist/index.html"),
+    developmentUrl: app.isPackaged ? undefined : process.env.VITE_DEV_SERVER_URL
+  });
+  const ffmpeg = new FfmpegService(dataDir, undefined, () => mediaTools.requireReady());
   const videoSequenceScheduler = new VideoSequenceScheduler({
     store: videoSequences,
     assets,
@@ -410,8 +429,8 @@ if (isMcpMode) {
       }
     }
   });
+  resumeMediaTasks = () => videoSequenceScheduler.resumeWaitingForTools();
   void videoSequenceScheduler.recover().catch((error) => console.warn("恢复视频序列任务失败。", error));
-  void ffmpeg.selfCheck().catch((error) => console.warn("FFmpeg 不可用，视频序列导出将不可用。", error));
   const compatibleImageProvider = new Sub2ApiImageProvider();
   const codexImageProvider = new CodexOAuthImageProvider(codexAuth);
   const falImageProvider = new FalImageProvider();
@@ -952,6 +971,8 @@ if (isMcpMode) {
   }
 
   app.once("will-quit", () => {
+    mediaTools.cancel();
+    disposeMediaToolsIpc();
     disposeMcpBridge();
     disposeIpcResources();
     videoSequenceScheduler.dispose();

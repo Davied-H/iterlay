@@ -19,6 +19,33 @@ vi.mock("electron", () => ({
 }));
 
 describe("imageWorkbench preload", () => {
+  it("keeps media tool status, installation, cancellation and events separate", async () => {
+    await import("../electron/preload/preload.js");
+    electronMocks.invoke.mockClear();
+    electronMocks.on.mockClear();
+    electronMocks.removeListener.mockClear();
+    const api = electronMocks.exposeInMainWorld.mock.calls[0][1] as {
+      getMediaToolsState: () => Promise<unknown>;
+      installMediaTools: () => Promise<unknown>;
+      cancelMediaToolsDownload: () => Promise<void>;
+      onMediaToolsState: (listener: (state: unknown) => void) => () => void;
+    };
+    await api.getMediaToolsState();
+    expect(electronMocks.invoke.mock.calls).toEqual([["mediaTools:getState"]]);
+    await api.installMediaTools();
+    await api.cancelMediaToolsDownload();
+    expect(electronMocks.invoke.mock.calls).toEqual([["mediaTools:getState"], ["mediaTools:install"], ["mediaTools:cancel"]]);
+    const listener = vi.fn();
+    const unsubscribe = api.onMediaToolsState(listener);
+    const [channel, handler] = electronMocks.on.mock.calls[0];
+    expect(channel).toBe("mediaTools:state");
+    const state = { status: "downloading", transferredBytes: 5 };
+    handler({}, state);
+    expect(listener).toHaveBeenCalledWith(state);
+    unsubscribe();
+    expect(electronMocks.removeListener).toHaveBeenCalledWith(channel, handler);
+  });
+
   it("opens only a registered inspiration source through IPC", async () => {
     await import("../electron/preload/preload.js");
     electronMocks.invoke.mockClear();

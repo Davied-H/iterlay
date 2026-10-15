@@ -52,7 +52,7 @@ describe("VideoSequenceScheduler snapshots", () => {
         waitForCompletion,
         download: vi.fn(async () => ({ bytes: Buffer.from("video"), mimeType: "video/mp4", sourceUrl: "remote" }))
       },
-      ffmpeg: { probe: vi.fn(async () => ({ mimeType: "video/mp4", width: 1280, height: 720, durationMs: 5_000 })) },
+      ffmpeg: { ensureReady: vi.fn().mockResolvedValue({}), probe: vi.fn(async () => ({ mimeType: "video/mp4", width: 1280, height: 720, durationMs: 5_000 })) },
       resolveProvider: () => ({ config: { provider: "ark", model: "model", apiKey: "key", baseUrl: "https://example.test" }, providerName: "Ark" })
     } as never);
     scheduler.enqueue([task.id]);

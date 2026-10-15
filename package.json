@@ -12,18 +12,20 @@
     "preelectron:dev": "pnpm native:build",
     "dev": "vite --host 127.0.0.1 --port 5180 --strictPort",
     "clean:electron": "node -e \"require('node:fs').rmSync('dist-electron',{recursive:true,force:true})\"",
-    "electron:dev": "pnpm clean:electron && tsc -p electron/tsconfig.json && concurrently -k -n vite,tsc,electron -c cyan,yellow,green \"vite --host 127.0.0.1 --port 5180 --strictPort\" \"tsc -p electron/tsconfig.json --watch --preserveWatchOutput\" \"wait-on http-get://127.0.0.1:5180 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5180 nodemon --watch dist-electron --ext js --delay 800ms --exec 'electron .'\"",
+    "electron:dev": "pnpm clean:electron && tsc -p electron/tsconfig.json && node scripts/copy-media-tools-manifest.mjs && concurrently -k -n vite,tsc,electron -c cyan,yellow,green \"vite --host 127.0.0.1 --port 5180 --strictPort\" \"tsc -p electron/tsconfig.json --watch --preserveWatchOutput\" \"wait-on http-get://127.0.0.1:5180 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5180 nodemon --watch dist-electron --ext js --delay 800ms --exec 'electron .'\"",
     "prebuild": "pnpm native:build",
-    "build": "tsc -p tsconfig.json && vite build && pnpm clean:electron && tsc -p electron/tsconfig.json",
+    "build": "tsc -p tsconfig.json && vite build && pnpm clean:electron && tsc -p electron/tsconfig.json && node scripts/copy-media-tools-manifest.mjs",
     "test": "vitest run",
     "test:electron:smoke": "ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-smoke.mjs",
     "pretest:electron:photo-layers": "pnpm build",
     "test:electron:photo-layers": "ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-photo-layers.mjs",
     "test:electron:generate-photo-fixtures": "ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-generate-photo-fixtures.mjs",
     "lint": "eslint . --ext .ts,.tsx",
-    "package": "electron-builder --dir && node scripts/verify-packaged-ffmpeg.mjs",
+    "package": "electron-builder --dir && node scripts/verify-package-size.mjs",
     "release": "bash scripts/release.sh",
-    "prepackage": "node scripts/prepare-ffmpeg.mjs"
+    "media-tools:build": "node scripts/prepare-ffmpeg.mjs",
+    "media-tools:verify": "node scripts/verify-packaged-ffmpeg.mjs",
+    "package:verify": "node scripts/verify-package-size.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -61,16 +63,21 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "framer-motion": "^12.23.24",
+    "gifenc": "^1.0.3",
+    "gifuct-js": "^2.1.2",
     "gsap": "^3.15.0",
     "jsdom": "^25.0.1",
+    "libavoid-js": "0.5.0-beta.5",
     "lucide-react": "^0.468.0",
     "motion": "^12.42.2",
     "nodemon": "^3.1.14",
     "ogl": "^1.0.11",
     "playwright": "1.62.1",
     "postcss": "^8.5.6",
+    "qrcode": "^1.5.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "react-icons": "^5.7.0",
     "remotion": "4.0.491",
     "sonner": "^2.0.7",
     "streamdown": "2.5.0",
@@ -79,6 +86,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.185.1",
     "typescript": "^5.9.3",
+    "use-stick-to-bottom": "^1.1.6",
     "vite": "^6.4.1",
     "vitest": "^2.1.9",
     "wait-on": "^8.0.4"
@@ -98,7 +106,10 @@
       "dist/**/*",
       "dist-electron/**/*",
       "package.json",
-      "!**/.v8-cache{,/**}"
+      "!**/.v8-cache{,/**}",
+      "!**/*.js.map",
+      "!**/*.mjs.map",
+      "!**/*.cjs.map"
     ],
     "directories": {
       "output": "release"
@@ -121,16 +132,6 @@
         "to": "native",
         "filter": [
           "photo-layer-segmenter-*"
-        ]
-      },
-      {
-        "from": "resources/ffmpeg",
-        "to": "ffmpeg",
-        "filter": [
-          "ffmpeg",
-          "ffprobe",
-          "ffmpeg.exe",
-          "ffprobe.exe"
         ]
       },
       {
@@ -164,6 +165,9 @@
         "en-US",
         "zh-CN"
       ]
+    },
+    "dmg": {
+      "format": "UDZO"
     }
   },
   "pnpm": {
@@ -183,17 +187,10 @@
     "@modelcontextprotocol/sdk": "1.30.0",
     "adm-zip": "^0.6.0",
     "ag-psd": "^28.5.1",
-    "ai": "^7.0.47",
     "fflate": "^0.8.3",
-    "gifenc": "^1.0.3",
-    "gifuct-js": "^2.1.2",
-    "libavoid-js": "0.5.0-beta.5",
     "node-html-parser": "7.1.0",
-    "qrcode": "^1.5.4",
-    "react-icons": "^5.7.0",
     "thumbhash": "^0.1.1",
-    "typebox": "1.1.24",
-    "use-stick-to-bottom": "^1.1.6"
+    "typebox": "1.1.24"
   },
   "license": "MIT"
 }

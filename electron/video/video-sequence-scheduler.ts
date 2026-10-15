@@ -1,4 +1,5 @@
 import path from "node:path";
+import { isMediaToolsRequiredError } from "../../shared/media-tools.js";
 import type { AssetStore } from "../storage/asset-store.js";
 import { mimeFromExtension } from "../storage/asset-store.js";
 import type { VideoSequenceStore } from "../storage/video-sequence-store.js";
@@ -18,10 +19,15 @@ interface SchedulerDependencies {
   providerConcurrency?: number;
 }
 
+const RUNNABLE_STATUSES = new Set<VideoSequenceTask["status"]>(["pending", "queued", "generating", "downloading", "validating"]);
+
 export class VideoSequenceScheduler {
   private readonly queued = new Set<string>();
+  private readonly waitingForTools = new Set<string>();
+  private readonly cancelled = new Set<string>();
   private readonly running = new Map<string, { controller: AbortController; provider: string }>();
   private pumping = false;
+  private pumpRequested = false;
   private disposed = false;
   private lastSequenceId: string | undefined;
   private readonly globalConcurrency: number;
@@ -45,16 +51,25 @@ export class VideoSequenceScheduler {
   }
 
   enqueue(taskIds: string[]): void {
-    for (const id of taskIds) if (!this.running.has(id)) this.queued.add(id);
+    for (const id of taskIds) if (!this.running.has(id) && !this.cancelled.has(id)) this.queued.add(id);
+    void this.pump();
+  }
+
+  resumeWaitingForTools(): void {
+    for (const id of this.waitingForTools) if (!this.cancelled.has(id)) this.queued.add(id);
+    this.waitingForTools.clear();
     void this.pump();
   }
 
   async cancel(taskId: string): Promise<{ supported: boolean; cancelled: boolean; job: VideoSequenceTask | null }> {
-    const task = await this.deps.store.getTask(taskId);
-    if (!task) return { supported: false, cancelled: false, job: null };
+    // Invalidate selections synchronously, including a pump awaiting store I/O.
+    this.cancelled.add(taskId);
     this.queued.delete(taskId);
+    this.waitingForTools.delete(taskId);
     const run = this.running.get(taskId);
     run?.controller.abort();
+    const task = await this.deps.store.getTask(taskId);
+    if (!task) return { supported: false, cancelled: false, job: null };
     if (!task.remoteTaskId) {
       return { supported: true, cancelled: true, job: await this.update(task.id, { status: "cancelled", error: undefined }) };
     }
@@ -71,12 +86,22 @@ export class VideoSequenceScheduler {
   }
 
   private async pump(): Promise<void> {
-    if (this.pumping || this.disposed) return;
+    if (this.disposed) return;
+    if (this.pumping) {
+      this.pumpRequested = true;
+      return;
+    }
     this.pumping = true;
     try {
       while (!this.disposed && this.running.size < this.globalConcurrency) {
-        const task = await this.nextRunnable();
-        if (!task) break;
+        const selected = await this.nextRunnable();
+        if (!selected) break;
+        if (!this.canRun(selected)) continue;
+        const task = await this.deps.store.getTask(selected.id);
+        if (!task || !this.canRun(task)) {
+          if (!task || !RUNNABLE_STATUSES.has(task.status)) this.queued.delete(selected.id);
+          continue;
+        }
         this.queued.delete(task.id);
         const provider = task.remoteProviderType ?? task.input.providerId ?? "default";
         const controller = new AbortController();
@@ -86,7 +111,13 @@ export class VideoSequenceScheduler {
           void this.pump();
         });
       }
-    } finally { this.pumping = false; }
+    } finally {
+      this.pumping = false;
+      if (this.pumpRequested) {
+        this.pumpRequested = false;
+        void this.pump();
+      }
+    }
   }
 
   private async nextRunnable(): Promise<VideoSequenceTask | null> {
@@ -100,7 +131,13 @@ export class VideoSequenceScheduler {
     const rank = new Map(rotatedIds.map((id, index) => [id, index]));
     ordered.sort((a, b) => (rank.get(a.sequenceId) ?? 0) - (rank.get(b.sequenceId) ?? 0) || a.segmentId.localeCompare(b.segmentId));
     for (const task of ordered) {
-      if (seenSequences.has(task.sequenceId) || await this.deps.store.isPaused(task.sequenceId)) continue;
+      if (!this.canRun(task)) {
+        if (this.cancelled.has(task.id) || !RUNNABLE_STATUSES.has(task.status)) this.queued.delete(task.id);
+        continue;
+      }
+      if (seenSequences.has(task.sequenceId)) continue;
+      const paused = await this.deps.store.isPaused(task.sequenceId);
+      if (paused || !this.canRun(task)) continue;
       seenSequences.add(task.sequenceId);
       const provider = task.remoteProviderType ?? task.input.providerId ?? "default";
       const count = [...this.running.values()].filter((run) => run.provider === provider).length;
@@ -112,6 +149,10 @@ export class VideoSequenceScheduler {
     return null;
   }
 
+  private canRun(task: VideoSequenceTask): boolean {
+    return !this.disposed && this.queued.has(task.id) && !this.cancelled.has(task.id) && !this.running.has(task.id) && RUNNABLE_STATUSES.has(task.status);
+  }
+
   private async run(initial: VideoSequenceTask, controller: AbortController): Promise<void> {
     let task = initial;
     try {
@@ -120,8 +161,11 @@ export class VideoSequenceScheduler {
       if (task.remoteTaskId) {
         remote = remoteFromTask(task, resolved.config.provider);
       } else {
+        await this.deps.ffmpeg.ensureReady();
+        if (controller.signal.aborted) throw new Error("视频任务已取消。");
         const remoteProviderType = supportedRemoteProvider(resolved.config.provider);
-        task = await this.update(task.id, { status: "submitting", providerName: resolved.providerName, remoteProviderType });
+        task = await this.update(task.id, { status: "submitting", providerName: resolved.providerName, remoteProviderType, error: undefined });
+        controller.signal.throwIfAborted();
         const frames = await Promise.all([
           { imagePath: task.input.firstFramePath!, role: "first-frame" as const },
           { imagePath: task.input.lastFramePath!, role: "last-frame" as const }
@@ -130,6 +174,7 @@ export class VideoSequenceScheduler {
           mimeType: mimeFromExtension(frame.imagePath), name: path.basename(frame.imagePath),
           bytes: await this.deps.assets.readManagedBytes(frame.imagePath)
         })));
+        controller.signal.throwIfAborted();
         remote = await this.deps.videoService.submit({
           clientRequestId: task.clientRequestId, prompt: task.input.prompt, mode: "generate", model: task.input.model,
           ratio: task.input.aspectRatio, resolution: task.input.resolution,
@@ -155,7 +200,9 @@ export class VideoSequenceScheduler {
         task = await this.update(task.id, { status: "validating", processingCheckpoint: "downloaded", outputVideoPath });
       }
       const media = await this.deps.ffmpeg.probe(task.outputVideoPath!);
+      controller.signal.throwIfAborted();
       task = await this.update(task.id, { status: "validating", processingCheckpoint: "validated", media });
+      controller.signal.throwIfAborted();
       const snapshot = task.inputSnapshot;
       if (!snapshot) throw new Error("任务缺少提交时冻结的首尾帧快照，无法发布结果。");
       const version: VideoSequenceSegmentVersion = {
@@ -165,10 +212,23 @@ export class VideoSequenceScheduler {
         videoPath: task.outputVideoPath!, createdAt: new Date().toISOString(), ...media
       };
       await this.deps.store.attachSegmentVersion(task, version);
+      controller.signal.throwIfAborted();
       await this.update(task.id, { status: "completed", processingCheckpoint: "published", error: undefined });
     } catch (error) {
       if (controller.signal.aborted && !task.remoteTaskId) await this.update(task.id, { status: "cancelled", error: undefined });
       else if (controller.signal.aborted) await this.update(task.id, { status: "remote_unknown", error: "已停止本地等待，远端任务可能仍在运行并产生费用。" });
+      else if (isMediaToolsRequiredError(error)) {
+        this.waitingForTools.add(task.id);
+        await this.update(task.id, {
+          status: task.remoteTaskId ? "validating" : "pending",
+          error: "MEDIA_TOOLS_REQUIRED: 请安装视频组件后继续处理。"
+        });
+        // Installation can finish while the task is entering this waiting state.
+        // Recheck locally to avoid missing its ready event; never start a download.
+        await this.deps.ffmpeg.ensureReady().then(() => {
+          if (!controller.signal.aborted && !this.cancelled.has(task.id)) this.resumeWaitingForTools();
+        }, () => undefined);
+      }
       else await this.update(task.id, { status: "failed_retryable", error: error instanceof Error ? error.message : "视频任务失败。" });
     }
   }

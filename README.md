@@ -86,9 +86,18 @@ pnpm build
 pnpm package
 ```
 
-`pnpm package` creates an application directory under `release/`. On Apple silicon Macs, `pnpm release` builds an unsigned, unnotarized ARM64 DMG and verifies its bundled FFmpeg. It does not upload installers, require official admin credentials, commit, or push Git changes.
+`pnpm package` creates an application directory under `release/`. On Apple silicon Macs, `pnpm release` builds an unsigned, unnotarized ARM64 DMG using UDZO compression. Both commands audit the packaged app: no renderer-only dependency trees, production JavaScript source maps, or bundled FFmpeg; app and ASAR budgets are 380 MiB and 120 MiB. The report is saved to `output/package-size/report.json`. These commands do not upload installers, require official admin credentials, commit, or push Git changes.
 
-Packaging requires Xcode Command Line Tools and `brew install pkgconf`. FFmpeg and x264 are compiled from pinned sources without nonfree components. Resource preparation currently supports macOS ARM64 only; other platforms lack complete packaging dependencies. Maintainers must configure signing, notarization, and distribution themselves. See [Third-party notices](THIRD_PARTY_NOTICES.md).
+The app downloads its video tools only after asking on the first operation that needs them. The versioned component comes from GitHub Releases, is verified with SHA-256, and is stored under Electron's user-data directory at `tools/ffmpeg/ffmpeg6-r1/darwin-arm64/`. Once installed, it works offline and survives app updates. A failed or cancelled download prevents a new sequence generation from being submitted or charged. Image work and ordinary startup do not download the component.
+
+Maintainers build the component separately on an Apple silicon Mac with Xcode Command Line Tools and `brew install pkgconf`:
+
+```bash
+pnpm media-tools:build --version ffmpeg6-r2
+pnpm media-tools:verify
+```
+
+This compiles pinned FFmpeg 6.0 and x264 sources without nonfree components and retains the existing codec configuration. The archive under `output/media-tools/<version>-darwin-arm64/` contains both executables, licenses, matching source archives, and build information. The build writes exact archive/file hashes into `shared/media-tools-manifest.json`. Component revisions are immutable: use a new `--version` for each changed build. With no arguments, the command verifies and reuses a matching local archive; `--rebuild` writes an isolated diagnostic candidate and refuses to change a pinned version's hashes. The current `ffmpeg6-r1` asset is `iterlay-media-tools-ffmpeg6-r1-darwin-arm64.zip` on GitHub Release `media-tools-ffmpeg6-r1`. Publish each new component before shipping an app that references it; publishing is a separate maintainer action. Other platforms lack complete packaging dependencies. Maintainers must configure signing, notarization, and distribution themselves. See [Third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## License
 

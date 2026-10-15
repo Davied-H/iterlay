@@ -1,0 +1,68 @@
+import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
+import { afterEach, describe, expect, it } from "vitest";
+
+const run = promisify(execFile);
+const require = createRequire(import.meta.url);
+const builderRequire = createRequire(require.resolve("electron-builder/package.json"));
+const appBuilderRequire = createRequire(builderRequire.resolve("app-builder-lib/package.json"));
+const asar = appBuilderRequire("@electron/asar") as { createPackage: (source: string, archive: string) => Promise<void> };
+const temporary: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(temporary.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+});
+
+async function fixture(files: Record<string, string>) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-package-audit-"));
+  temporary.push(directory);
+  const source = path.join(directory, "source");
+  const appPath = path.join(directory, "Iterlay.app");
+  const resources = path.join(appPath, "Contents", "Resources");
+  await mkdir(resources, { recursive: true });
+  for (const [name, contents] of Object.entries(files)) {
+    const destination = path.join(source, name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, contents);
+  }
+  await asar.createPackage(source, path.join(resources, "app.asar"));
+  const report = path.join(directory, "report.json");
+  const inspect = () => run(process.execPath, ["scripts/verify-package-size.mjs", "--app-path", appPath, "--report", report]);
+  return { resources, report, inspect };
+}
+
+describe("packaged application audit", () => {
+  it("accepts runtime TypeScript and binary assets inside an actual ASAR", async () => {
+    const packaged = await fixture({
+      "package.json": "{}",
+      "node_modules/runtime/index.ts": "export const runtime = true;",
+      "node_modules/runtime/engine.wasm": "wasm-fixture",
+      "dist/index.js": "console.log('bundled renderer');"
+    });
+    await packaged.inspect();
+    const report = JSON.parse(await readFile(packaged.report, "utf8")) as { violations: string[]; appBytes: number; asarBytes: number };
+    expect(report.violations).toEqual([]);
+    expect(report.appBytes).toBeGreaterThan(0);
+    expect(report.asarBytes).toBeGreaterThan(0);
+  });
+
+  it("rejects nested renderer dependency trees, JavaScript maps and bundled FFmpeg", async () => {
+    const packaged = await fixture({
+      "node_modules/runtime/node_modules/react-icons/index.js": "export {};",
+      "node_modules/runtime/index.js.map": "{}",
+      "dist/renderer.mjs.map": "{}",
+      "dist/preload.cjs.map": "{}"
+    });
+    await mkdir(path.join(packaged.resources, "ffmpeg"));
+    await writeFile(path.join(packaged.resources, "ffmpeg", "ffmpeg"), "binary-fixture");
+    await expect(packaged.inspect()).rejects.toThrow();
+    const report = JSON.parse(await readFile(packaged.report, "utf8")) as { violations: string[] };
+    expect(report.violations).toContain("Renderer-only dependency: react-icons");
+    expect(report.violations.filter((item) => item.startsWith("Production JavaScript source map:"))).toHaveLength(3);
+    expect(report.violations).toContain("Bundled ffmpeg resource directory");
+  });
+});

@@ -95,7 +95,7 @@ describe("video assembly IPC", () => {
     };
     const registration = registerVideoSequenceIpc({
       store, templates: { list: vi.fn().mockResolvedValue([]) }, scheduler: { enqueue: vi.fn() },
-      ffmpeg: { exportSequence }, boards: { getBoard: vi.fn().mockResolvedValue(board), saveBoard: vi.fn() },
+      ffmpeg: { ensureReady: vi.fn().mockResolvedValue({}), exportSequence }, boards: { getBoard: vi.fn().mockResolvedValue(board), saveBoard: vi.fn() },
       assets: { readManagedBytes: vi.fn(async (value: string) => Buffer.from(value)), toAssetUrl: (value: string) => `asset:${value}`, exportAsset: vi.fn() },
       settings: { getSettings: () => ({ videoProviders: [] }) }, paidMediaQuotes: {}
     } as never);

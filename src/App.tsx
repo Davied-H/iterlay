@@ -1,3 +1,5 @@
+import { MediaToolsDialog, MediaToolsNotice } from "@/features/media-tools/MediaToolsDialog";
+import { useMediaTools } from "@/features/media-tools/use-media-tools";
 import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
 import {
 duplicateClipboardImages,
@@ -768,6 +770,10 @@ export default function App(): React.ReactElement {
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [videoCompare, setVideoCompare] = useState<{ left: GeneratedVideo; right: GeneratedVideo } | null>(null);
   const [activeVideoSequence, setActiveVideoSequence] = useState<(PersistedVideoSequence & { mediaUrls: Record<string, string>; sequenceTasks?: VideoSequenceTask[] }) | null>(null);
+  const activeVideoSequenceRef = useRef(activeVideoSequence);
+  activeVideoSequenceRef.current = activeVideoSequence;
+  const mediaTools = useMediaTools();
+  const { ensureMediaToolsReady } = mediaTools;
   const [videoSequenceTemplates, setVideoSequenceTemplates] = useState<VideoSequenceTemplate[]>([]);
   const [videoSequenceSaving, setVideoSequenceSaving] = useState(false);
   const [videoSequenceSaveError, setVideoSequenceSaveError] = useState<string>();
@@ -6844,10 +6850,27 @@ export default function App(): React.ReactElement {
     });
   }, [activeVideoSequence, mutateActiveVideoSequence]);
 
+  const prepareActiveVideoSequence = useCallback(async () => {
+    const current = activeVideoSequenceRef.current;
+    if (!current || !await ensureMediaToolsReady()) return null;
+    try {
+      const latest = await getImageWorkbenchApi().getVideoSequence({ boardId: current.boardId, sequenceId: current.id });
+      if (!latest) throw new Error("视频序列不存在或已被删除。");
+      const active = activeVideoSequenceRef.current;
+      if (active?.boardId !== current.boardId || active.id !== current.id) return null;
+      setActiveVideoSequence(latest);
+      return latest;
+    } catch (error) {
+      toast.error(getWorkbenchErrorMessage(error, "无法读取视频序列，请重试。"));
+      return null;
+    }
+  }, [ensureMediaToolsReady]);
+
   const runActiveVideoSequence = useCallback(async (segmentIds?: string[]): Promise<VideoSequenceTask[]> => {
-    const current = activeVideoSequence;
+    const current = await prepareActiveVideoSequence();
     if (!current) return [];
     const selected = current.segments.filter((segment) => !segmentIds || segmentIds.includes(segment.id));
+    if (selected.length === 0) return [];
     const fingerprintItems = selected.map((segment) => ({
       id: segment.id,
       segmentRevision: segment.desiredRevision,
@@ -6891,14 +6914,15 @@ export default function App(): React.ReactElement {
     setActiveVideoSequence((value) => value ? { ...value, sequenceTasks: [...(value.sequenceTasks ?? []), ...result.jobs] } : value);
     await refreshActiveVideoSequence();
     return result.jobs;
-  }, [activeVideoProviderId, activeVideoSequence, creditStatus?.videoGoldBeanCostPerSecond, refreshActiveVideoSequence, requestGenerationConfirmation, videoProviders]);
+  }, [activeVideoProviderId, prepareActiveVideoSequence, refreshActiveVideoSequence, requestGenerationConfirmation, videoProviders]);
 
   const exportActiveVideoSequence = useCallback(async (options: VideoSequenceExportOptions): Promise<void> => {
-    let current = activeVideoSequence;
-    if (!current) return;
     const retry = (): void => { void exportActiveVideoSequence(options); };
-    const toastId = toast.loading(options.updateBeforeExport ? "正在更新待生成片段..." : "正在准备导出...");
+    let toastId: string | number | undefined;
     try {
+      let current = await prepareActiveVideoSequence();
+      if (!current) return;
+      toastId = toast.loading(options.updateBeforeExport ? "正在更新待生成片段..." : "正在准备导出...");
       if (options.updateBeforeExport) {
         const staleIds = current.segments
           .filter((segment) => segment.renderedRevision !== segment.desiredRevision || !segment.activeVersionId)
@@ -6955,7 +6979,7 @@ export default function App(): React.ReactElement {
       const message = getWorkbenchErrorMessage(error, "视频导出失败。");
       toast.error(message, { id: toastId, duration: Infinity, action: { label: "重试", onClick: retry } });
     }
-  }, [activeVideoSequence, refreshActiveVideoSequence, runActiveVideoSequence]);
+  }, [prepareActiveVideoSequence, refreshActiveVideoSequence, runActiveVideoSequence]);
 
   const editorVideoSequence = useMemo(() => activeVideoSequence ? toEditorVideoSequence(activeVideoSequence, activeBoard?.name) : null, [activeBoard?.name, activeVideoSequence]);
 
@@ -7621,7 +7645,9 @@ export default function App(): React.ReactElement {
       </CanvasRoot>
       </Suspense>
       {editorVideoSequence && activeVideoSequence ? (
-        <div className="fixed inset-0 z-[90] bg-background">
+        <div className="fixed inset-0 z-[90] flex flex-col bg-background">
+          <MediaToolsNotice state={mediaTools.state} onInstall={() => { void ensureMediaToolsReady().then((ready) => { if (ready) void refreshActiveVideoSequence(); }); }} />
+          <div className="min-h-0 flex-1">
           <Suspense fallback={<StartupLoading label="正在打开镜头序列" />}>
             <VideoSequenceEditor
               sequence={editorVideoSequence}
@@ -7642,6 +7668,7 @@ export default function App(): React.ReactElement {
               }))}
               saving={videoSequenceSaving}
               saveError={videoSequenceSaveError}
+              onPrepareGeneration={async () => Boolean(await prepareActiveVideoSequence())}
               onChange={updateActiveVideoSequence}
               onGenerateSegment={async (segmentId) => { await runActiveVideoSequence([segmentId]); }}
               onGenerateBatch={async (segmentIds) => { await runActiveVideoSequence(segmentIds); }}
@@ -7667,8 +7694,10 @@ export default function App(): React.ReactElement {
               }}
             />
           </Suspense>
+          </div>
         </div>
       ) : null}
+      <MediaToolsDialog open={mediaTools.dialogOpen} state={mediaTools.state} starting={mediaTools.starting} error={mediaTools.error} onConfirm={() => { void mediaTools.confirmInstall(); }} onCancel={mediaTools.cancel} />
 
       {!libraryOpen ? <PiTemplateAgentStatus /> : null}
 

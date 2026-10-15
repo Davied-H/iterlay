@@ -86,9 +86,18 @@ pnpm build
 pnpm package
 ```
 
-`pnpm package` 生成应用目录，产物位于 `release/`。`pnpm release` 在 macOS Apple 芯片机器上构建未签名、未经公证的 ARM64 DMG，并校验内置 FFmpeg；不上传安装包，不需要官方管理密钥，不提交或推送 Git。
+`pnpm package` 生成应用目录，产物位于 `release/`。`pnpm release` 在 macOS Apple 芯片机器上构建未签名、未经公证的 ARM64 DMG，保持 UDZO 压缩。两条命令都会检查安装后的内容：不含仅用于渲染层的依赖目录、生产 JavaScript source map 或内置 FFmpeg；应用与 ASAR 的体积上限分别为 380 MiB、120 MiB，报告写入 `output/package-size/report.json`。这些命令不上传安装包，不需要官方管理密钥，不提交或推送 Git。
 
-打包需安装 Xcode Command Line Tools 和 `brew install pkgconf`，FFmpeg 与 x264 从固定版本源码编译，不包含 nonfree。当前资源准备仅支持 macOS ARM64，其他平台尚未配置完整打包依赖。签名、公证和安装包分发由维护者自行配置；详见[第三方说明](THIRD_PARTY_NOTICES.md)。
+首次执行需要视频工具的操作时，应用会先提示，确认后才从 GitHub Releases 下载固定版本组件并校验 SHA-256。组件保存在 Electron 用户数据目录的 `tools/ffmpeg/ffmpeg6-r1/darwin-arm64/` 下，安装后可离线复用，更新应用也会保留。下载失败或取消时，不会提交新的序列生成任务或产生对应生成费用；普通启动和图片功能不会下载组件。
+
+维护者在 macOS Apple 芯片机器上单独构建组件，需要 Xcode Command Line Tools 和 `brew install pkgconf`：
+
+```bash
+pnpm media-tools:build --version ffmpeg6-r2
+pnpm media-tools:verify
+```
+
+构建使用固定版本 FFmpeg 6.0 与 x264 源码，不启用 nonfree，保持现有 codec 配置；产物位于 `output/media-tools/<version>-darwin-arm64/`，包含两个工具、许可证、对应源码压缩包和构建信息，并把归档及逐文件的真实哈希写入 `shared/media-tools-manifest.json`。组件版本不可变，修改构建时须用新的 `--version`；无参数会验证并复用本地已匹配的归档，`--rebuild` 只在独立目录生成诊断候选，若哈希不同会拒绝覆盖固定版本。当前 `ffmpeg6-r1` 的资产为 GitHub Release `media-tools-ffmpeg6-r1` 上的 `iterlay-media-tools-ffmpeg6-r1-darwin-arm64.zip`。发布引用新组件的应用前，须先由维护者单独上传对应资产。其他平台尚未配置完整打包依赖。签名、公证和安装包分发由维护者自行配置；详见[第三方说明](THIRD_PARTY_NOTICES.md)。
 
 ## 许可证
 

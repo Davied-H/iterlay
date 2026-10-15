@@ -107,6 +107,8 @@ export interface VideoSequenceEditorProps {
   saving?: boolean;
   saveError?: string;
   onChange: (sequence: VideoSequence) => void;
+  /** Prepare local video tools before displaying any generation cost confirmation. */
+  onPrepareGeneration?: () => Promise<boolean>;
   onGenerateSegment: (segmentId: string) => void | Promise<void>;
   onGenerateBatch: (segmentIds: string[]) => void | Promise<void>;
   onSaveTemplate: (name: string) => void | Promise<void>;

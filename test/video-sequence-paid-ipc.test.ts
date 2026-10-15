@@ -34,7 +34,7 @@ describe("paid video sequence IPC", () => {
       videoProviders: [{ id: "official-video", name: "Official", type: "official", model: sequence.defaults.model }]
     };
     const registration = registerVideoSequenceIpc({
-      store, templates: { list: vi.fn().mockResolvedValue([]) }, scheduler, ffmpeg: {},
+      store, templates: { list: vi.fn().mockResolvedValue([]) }, scheduler, ffmpeg: { ensureReady: vi.fn().mockResolvedValue({}) },
       boards: { getBoard: vi.fn(), saveBoard: vi.fn() },
       assets: { readManagedBytes: vi.fn(async () => Buffer.from("image")), toAssetUrl: (value: string) => `asset:${value}`, exportAsset: vi.fn() },
       settings: { getSettings: () => settings }, paidMediaQuotes: quotes

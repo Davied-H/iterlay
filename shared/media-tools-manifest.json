@@ -1,0 +1,60 @@
+{
+  "version": "ffmpeg6-r1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "url": "https://github.com/Davied-H/iterlay/releases/download/media-tools-ffmpeg6-r1/iterlay-media-tools-ffmpeg6-r1-darwin-arm64.zip",
+  "sha256": "61dfd5b6af36c98fda06c74e98b14cf5b70150538168623759f15b14543570bb",
+  "sizeBytes": 31158225,
+  "files": [
+    {
+      "path": "ffmpeg",
+      "sha256": "9167eff9617fd8eeee4557c6523b257639f53c78fa1c8bc4c2f0fe154f6d274e",
+      "sizeBytes": 21010504
+    },
+    {
+      "path": "ffprobe",
+      "sha256": "270adcc66b8d6f2a353075367cc27f754554216c7fa47516dbdb10640b6f314e",
+      "sizeBytes": 20937784
+    },
+    {
+      "path": "licenses/build-ffmpeg.sh",
+      "sha256": "dc8c712f5cb3618ee8f030e8ec99f3880c24c7b71d28321733bedcd5e8204dc0",
+      "sizeBytes": 2365
+    },
+    {
+      "path": "licenses/build-info.json",
+      "sha256": "a42d795d2d80e910d90b5ad3f90027391f60af96d75c5d4f1e4dc8130f390291",
+      "sizeBytes": 5052
+    },
+    {
+      "path": "licenses/ffmpeg-6.0.tar.xz",
+      "sha256": "57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082",
+      "sizeBytes": 10234012
+    },
+    {
+      "path": "licenses/FFmpeg-GPL-2.0.txt",
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "sizeBytes": 18092
+    },
+    {
+      "path": "licenses/FFmpeg-LICENSE.md",
+      "sha256": "cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2",
+      "sizeBytes": 4376
+    },
+    {
+      "path": "licenses/FFmpeg-README.md",
+      "sha256": "05ba4b92c96605434b1aaae3eedf5a2c280c9607bf78ffca9a5b536d9af2dc6a",
+      "sizeBytes": 1810
+    },
+    {
+      "path": "licenses/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.gz",
+      "sha256": "cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9",
+      "sizeBytes": 1040327
+    },
+    {
+      "path": "licenses/x264-COPYING",
+      "sha256": "32b1062f7da84967e7019d01ab805935caa7ab7321a7ced0e30ebe75e5df1670",
+      "sizeBytes": 17992
+    }
+  ]
+}

@@ -140,6 +140,7 @@ export function registerVideoSequenceIpc(deps: Dependencies): { dispose: () => v
     if (sequence.revision !== input.expectedRevision) throw revisionConflict(sequence);
     const selected = selectSegments(sequence, input.scope);
     const fingerprint = sequenceRunFingerprint(sequence, selected);
+    await deps.ffmpeg.ensureReady();
     const settings = deps.settings.getSettings();
     const official = selected.map((segment) => effectiveSegmentConfig(sequence.defaults, segment.config))
       .filter((config) => settings.videoProviders.find((provider) => provider.id === (config.providerId ?? settings.activeVideoProviderId))?.type === "official");
@@ -178,6 +179,7 @@ export function registerVideoSequenceIpc(deps: Dependencies): { dispose: () => v
       const existing = (await deps.store.listTasks(sequence.id)).filter((task) => task.batchRequestId === input.idempotencyKey);
       if (existing.length > 0) return { sequence: await decorateSequence(sequence, deps.assets), jobs: existing };
     }
+    await deps.ffmpeg.ensureReady();
     const settings = deps.settings.getSettings();
     const official = selected.map((segment) => effectiveSegmentConfig(sequence.defaults, segment.config))
       .filter((config) => settings.videoProviders.find((provider) => provider.id === (config.providerId ?? settings.activeVideoProviderId))?.type === "official");
@@ -212,6 +214,7 @@ export function registerVideoSequenceIpc(deps: Dependencies): { dispose: () => v
     return decorateSequence((await deps.store.getSequence(input.boardId, input.sequenceId))!, deps.assets);
   });
   ipcMain.handle("videoSequence:resume", async (_event, input: { boardId: string; sequenceId: string }) => {
+    await deps.ffmpeg.ensureReady();
     await deps.store.setPaused(input.sequenceId, false);
     const tasks = (await deps.store.listTasks(input.sequenceId)).filter((task) => ["pending", "queued", "generating", "downloading", "validating"].includes(task.status));
     deps.scheduler.enqueue(tasks.map((task) => task.id));
@@ -224,6 +227,7 @@ export function registerVideoSequenceIpc(deps: Dependencies): { dispose: () => v
     if (sequence.revision !== input.expectedRevision) throw revisionConflict(sequence);
     const active = sequence.segments.map((segment) => ({ segment, version: segment.versions.find((version) => version.id === segment.activeVersionId) }));
     if (active.some((item) => !item.version)) throw new Error("仍有片段没有可导出的视频版本。");
+    await deps.ffmpeg.ensureReady();
     const resolution = input.resolution?.trim() || sequence.defaults.resolution;
     const fps = Number.isFinite(input.fps) ? Math.max(1, Math.round(input.fps!)) : sequence.defaults.fps;
     const includeAudio = input.includeAudio !== false;

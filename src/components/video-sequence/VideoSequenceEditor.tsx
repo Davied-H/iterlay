@@ -69,6 +69,11 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
   const videoUrl = currentVersion ? props.mediaUrls[currentVersion.videoPath] : undefined;
   const posterUrl = currentVersion?.posterPath ? props.mediaUrls[currentVersion.posterPath] : currentFrame ? props.mediaUrls[currentFrame.imagePath] : undefined;
   const targets = useMemo(() => segments.filter((item) => segmentNeedsGeneration(item) && !segmentIsBlocked(item) && !ACTIVE_TASKS.has(item.taskState ?? "idle")), [segments]);
+  const onPrepareGeneration = props.onPrepareGeneration;
+  const prepareGeneration = useCallback(async (kind: "generate-batch" | "generate-segment"): Promise<void> => {
+    if (onPrepareGeneration && !await onPrepareGeneration()) return;
+    setDialog(kind);
+  }, [onPrepareGeneration]);
 
   useEffect(() => {
     if (!playing || videoUrl) return;
@@ -87,8 +92,8 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
     if (selection.type !== "segment") return;
     const segment = segments.find((item) => item.id === selection.id);
     if (!segment || ACTIVE_TASKS.has(segment.taskState ?? "idle")) return;
-    setDialog("generate-segment");
-  }, [segments, selection]);
+    void prepareGeneration("generate-segment");
+  }, [prepareGeneration, segments, selection]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -233,13 +238,13 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
   }
 
   return <main className="video-sequence-editor" aria-label={`镜头序列编辑器：${props.sequence.name}`}>
-    <SequenceTopbar {...props} targetCount={targets.length} inspectorOpen={inspectorOpen} onToggleInspector={() => setInspectorOpen((value) => !value)} onGenerate={() => setDialog("generate-batch")} onTemplate={() => setDialog("template")} onExport={() => setDialog("export")} onAssistant={() => setAssistantOpen((value) => !value)} />
+    <SequenceTopbar {...props} targetCount={targets.length} inspectorOpen={inspectorOpen} onToggleInspector={() => setInspectorOpen((value) => !value)} onGenerate={() => { void prepareGeneration("generate-batch"); }} onTemplate={() => setDialog("template")} onExport={() => setDialog("export")} onAssistant={() => setAssistantOpen((value) => !value)} />
     <section className={cn("vse-workspace", !inspectorOpen && "is-wide")}>
       <div className="vse-preview-column">
         <SequencePreview videoRef={playerRef} videoUrl={videoUrl} posterUrl={posterUrl} segment={current} playing={playing} onPlayingChange={setPlaying} onTimeUpdate={(localMs) => setPlayheadMs(Math.min(totalMs, segmentStartMs(segments, props.sequence.defaults.durationSeconds, current?.id) + localMs))} onEnded={() => setPlayheadMs((value) => value >= totalMs - 100 ? 0 : Math.min(totalMs, segmentEndMs(segments, props.sequence.defaults.durationSeconds, current?.id) + 1))} />
         <Transport playing={playing} timeMs={playheadMs} totalMs={totalMs} onPlayingChange={setPlaying} onSeek={setPlayheadMs} />
       </div>
-      {inspectorOpen ? <Inspector {...props} frames={frames} segments={segments} selection={selection} selectedFrame={selectedFrame} selectedSegment={selectedSegment} onSelect={setSelection} onPatch={patchSegment} onReorder={reorder} onGenerate={() => setDialog("generate-segment")} /> : null}
+      {inspectorOpen ? <Inspector {...props} frames={frames} segments={segments} selection={selection} selectedFrame={selectedFrame} selectedSegment={selectedSegment} onSelect={setSelection} onPatch={patchSegment} onReorder={reorder} onGenerate={() => { void prepareGeneration("generate-segment"); }} /> : null}
     </section>
     <SequenceTimeline sequence={props.sequence} mediaUrls={props.mediaUrls} frames={frames} segments={segments} selection={selection} playheadMs={playheadMs} totalMs={totalMs} onSelect={setSelection} onSeek={setPlayheadMs} onReorder={reorder} />
     <GenerationDialog open={dialog === "generate-batch" || dialog === "generate-segment"} sequence={props.sequence} segments={dialog === "generate-segment" && selectedSegment ? [selectedSegment] : targets} credits={props.credits} busy={busy} onClose={() => setDialog(null)} onConfirm={() => run(() => dialog === "generate-segment" && selectedSegment ? props.onGenerateSegment(selectedSegment.id) : props.onGenerateBatch(targets.map((item) => item.id)))} />

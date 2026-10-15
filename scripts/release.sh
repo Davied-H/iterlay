@@ -8,7 +8,7 @@ if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   exit 1
 fi
 export CSC_IDENTITY_AUTO_DISCOVERY=false
+export ELECTRON_BUILDER_COMPRESSION_LEVEL=9
 pnpm build
-node scripts/prepare-ffmpeg.mjs
 pnpm exec electron-builder --mac dmg --arm64 --publish never
-node scripts/verify-packaged-ffmpeg.mjs
+node scripts/verify-package-size.mjs

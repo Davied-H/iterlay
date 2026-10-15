@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { access, mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { MediaToolsPaths } from "../../shared/media-tools.js";
 import type { SequenceMediaMetadata, VideoSequence } from "../video-sequence-types.js";
 
 interface ProbeStream {
@@ -34,7 +35,7 @@ export class FfmpegService {
   private readonly outputDir: string;
   private readonly tempDir: string;
 
-  constructor(dataDir: string, resourcesPath?: string) {
+  constructor(dataDir: string, resourcesPath?: string, private readonly resolveTools?: () => Promise<MediaToolsPaths>) {
     const binaryDir = resourcesPath ? path.join(resourcesPath, "ffmpeg") : undefined;
     const packagedFfmpeg = binaryDir ? path.join(binaryDir, executable("ffmpeg")) : undefined;
     const packagedFfprobe = binaryDir ? path.join(binaryDir, executable("ffprobe")) : undefined;
@@ -46,23 +47,30 @@ export class FfmpegService {
     this.tempDir = path.join(dataDir, "sequence-temp");
   }
 
+  /** Resolve local tools only. Downloads require a separate user-confirmed install. */
+  async ensureReady(): Promise<MediaToolsPaths> {
+    return this.resolveTools ? this.resolveTools() : { ffmpeg: this.ffmpegPath, ffprobe: this.ffprobePath };
+  }
+
   async selfCheck(): Promise<{ ffmpeg: string; ffprobe: string }> {
+    const tools = await this.ensureReady();
     try {
       await Promise.all([
-        runProcess(this.ffmpegPath, ["-version"]),
-        runProcess(this.ffprobePath, ["-version"])
+        runProcess(tools.ffmpeg, ["-version"]),
+        runProcess(tools.ffprobe, ["-version"])
       ]);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      throw new Error(`FFmpeg/ffprobe 不可用（${process.platform}-${process.arch}）。已尝试 ffmpeg=${this.ffmpegPath}，ffprobe=${this.ffprobePath}。请安装系统 FFmpeg 或设置 ITERLAY_FFMPEG_PATH 与 ITERLAY_FFPROBE_PATH。${detail}`);
+      throw new Error(`FFmpeg/ffprobe 不可用（${process.platform}-${process.arch}）。已尝试 ffmpeg=${tools.ffmpeg}，ffprobe=${tools.ffprobe}。请安装系统 FFmpeg 或设置 ITERLAY_FFMPEG_PATH 与 ITERLAY_FFPROBE_PATH。${detail}`);
     }
-    return { ffmpeg: this.ffmpegPath, ffprobe: this.ffprobePath };
+    return tools;
   }
 
   async probe(filePath: string): Promise<SequenceMediaMetadata> {
+    const { ffprobe } = await this.ensureReady();
     const info = await stat(filePath);
     if (!info.isFile() || info.size === 0) throw new Error("视频文件为空或不可读取。");
-    const output = await runProcess(this.ffprobePath, [
+    const output = await runProcess(ffprobe, [
       "-v", "error", "-show_entries", "format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate", "-of", "json", filePath
     ]);
     let parsed: ProbeOutput;
@@ -79,6 +87,7 @@ export class FfmpegService {
 
   async exportSequence(input: SequenceExportInput): Promise<{ path: string; media: SequenceMediaMetadata }> {
     if (input.segments.length === 0) throw new Error("序列没有可导出的片段。");
+    const { ffmpeg } = await this.ensureReady();
     await mkdir(this.outputDir, { recursive: true });
     await mkdir(this.tempDir, { recursive: true });
     const finalPath = path.join(this.outputDir, `${safeName(input.exportFingerprint)}.mp4`);
@@ -102,7 +111,7 @@ export class FfmpegService {
         const inputArgs = !includeAudio || useSourceAudio ? [] : ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"];
         const audioMap = !includeAudio ? ["-an"] : useSourceAudio ? ["-map", "0:a:0"] : ["-map", "1:a:0", "-shortest"];
         const audioCodecArgs = includeAudio ? ["-c:a", "aac", "-ar", "48000", "-ac", "2"] : [];
-        await runProcess(this.ffmpegPath, [
+        await runProcess(ffmpeg, [
           "-y", "-ss", String(Math.max(0, segment.inMs) / 1000), "-i", segment.videoPath, ...durationArgs,
           ...inputArgs,
           "-vf", `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${input.fps ?? input.sequence.defaults.fps},format=yuv420p`,
@@ -115,7 +124,7 @@ export class FfmpegService {
       const concatFile = path.join(jobDir, "concat.txt");
       await writeFile(concatFile, normalized.map((item) => `file '${escapeConcat(item)}'`).join("\n"), "utf8");
       const partial = path.join(jobDir, "output.partial.mp4");
-      await runProcess(this.ffmpegPath, ["-y", "-f", "concat", "-safe", "0", "-i", concatFile, "-c", "copy", "-movflags", "+faststart", partial], input.signal);
+      await runProcess(ffmpeg, ["-y", "-f", "concat", "-safe", "0", "-i", concatFile, "-c", "copy", "-movflags", "+faststart", partial], input.signal);
       const media = await this.probe(partial);
       const expectedDuration = input.segments.reduce((sum, segment) => sum + Math.max(0, (segment.outMs ?? 0) - segment.inMs), 0);
       if (expectedDuration > 0 && Math.abs(media.durationMs - expectedDuration) > Math.max(1_000, expectedDuration * 0.05)) {

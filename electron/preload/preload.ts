@@ -127,6 +127,7 @@ import {
   type ComicDramaBoardSnapshot
 } from "../../shared/comic-drama.js";
 import { VIDEO_SEQUENCE_EVENT_CHANNEL } from "../../shared/video-sequence.js";
+import { MEDIA_TOOLS_STATE_CHANNEL, type MediaToolsState } from "../../shared/media-tools.js";
 import type {
   VideoSequence,
   VideoSequenceExportJob,
@@ -504,6 +505,14 @@ const api = {
     ipcRenderer.invoke("video:save", sourcePath) as Promise<{ ok: boolean; path?: string }>,
   revealVideo: (sourcePath: string) =>
     ipcRenderer.invoke("video:reveal", sourcePath) as Promise<{ ok: boolean }>,
+  getMediaToolsState: () => ipcRenderer.invoke("mediaTools:getState") as Promise<MediaToolsState>,
+  installMediaTools: () => ipcRenderer.invoke("mediaTools:install") as Promise<MediaToolsState>,
+  cancelMediaToolsDownload: () => ipcRenderer.invoke("mediaTools:cancel") as Promise<void>,
+  onMediaToolsState: (listener: (state: MediaToolsState) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: MediaToolsState): void => listener(state);
+    ipcRenderer.on(MEDIA_TOOLS_STATE_CHANNEL, handler);
+    return (): void => { ipcRenderer.removeListener(MEDIA_TOOLS_STATE_CHANNEL, handler); };
+  },
   createVideoSequence: (input: { boardId: string; name?: string; imageNodeIds: string[]; defaults?: Partial<VideoSequence["defaults"]> }) =>
     ipcRenderer.invoke("videoSequence:create", input) as Promise<VideoSequence & { mediaUrls: Record<string, string>; sequenceTasks?: VideoSequenceTask[] }>,
   createVideoSequenceFromVideos: (input: { boardId: string; name?: string; videoNodeIds: string[]; defaults?: Partial<VideoSequence["defaults"]> }) =>
