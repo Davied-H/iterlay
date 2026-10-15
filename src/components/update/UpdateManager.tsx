@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, CheckCircle2, Download, Loader2, Rocket, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -7,14 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
 import { useLicense } from "@/components/licensing/license-context";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   getImageWorkbenchApi,
   getWorkbenchErrorMessage,
@@ -36,6 +31,8 @@ interface UpdateManagerProps {
 
 /** 应用内更新入口：订阅主进程更新状态，负责新版本提示、下载进度与强制更新拦截。 */
 export function UpdateManager({ children }: UpdateManagerProps): React.ReactElement {
+  const uiText = useUiText();
+
   const license = useLicense();
   const bridgeAvailable = hasImageWorkbenchApi();
   const [state, setState] = useState<UpdateStateSnapshot | null>(null);
@@ -119,7 +116,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
       } else if (result.phase === "error") {
         toast.error(result.error ?? "检查更新失败，请稍后重试。");
       } else {
-        toast.success(`当前已是最新版本 v${result.currentVersion}`);
+        toast.success(translateSourceText("当前已是最新版本 v{{ui:0}}", [result.currentVersion]));
       }
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "检查更新失败，请稍后重试。"));
@@ -182,7 +179,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
     try {
       await getImageWorkbenchApi().skipUpdateVersion(version);
       setOpen(false);
-      toast.success(`已跳过 v${version}，需要时可在画板库左下角重新检查更新。`);
+      toast.success(translateSourceText("已跳过 v{{ui:0}}，需要时可在画板库左下角重新检查更新。", [version]));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "操作失败，请重试。"));
     }
@@ -198,9 +195,9 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
       setState(snapshot);
       if (channel === "beta") {
         if (snapshot.phase === "available") return; // 已有 Beta 新版本，交给统一的新版本提示。
-        toast.success("已加入开发者计划，有 Beta 版本时会第一时间提醒你。");
+        toast.success(translateSourceText("已加入开发者计划，有 Beta 版本时会第一时间提醒你。"));
       } else {
-        toast.success("已退出开发者计划，之后只接收正式版更新。");
+        toast.success(translateSourceText("已退出开发者计划，之后只接收正式版更新。"));
       }
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "切换更新渠道失败，请重试。"));
@@ -248,18 +245,18 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
                 {forced ? <ShieldAlert className="h-5 w-5" aria-hidden="true" /> : <Rocket className="h-5 w-5" aria-hidden="true" />}
               </span>
               <div className="min-w-0">
-                <DialogTitle>{forced ? "需要更新后继续使用" : "发现新版本"}</DialogTitle>
+                <DialogTitle>{forced ? uiText("需要更新后继续使用") : uiText("发现新版本")}</DialogTitle>
                 <DialogDescription className="mt-1">
                   {forced
-                    ? "此版本已停止支持。必须完成更新，才能继续使用 Iterlay。"
-                    : "建议尽快更新，以获得最新功能与问题修复。"}
+                    ? uiText("此版本已停止支持。必须完成更新，才能继续使用 Iterlay。")
+                    : uiText("建议尽快更新，以获得最新功能与问题修复。")}
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
           {targetVersion ? <div className="flex items-center justify-between gap-3 border-y border-border py-3 text-sm">
-            <span className="text-muted-foreground">版本</span>
+            <span className="text-muted-foreground">{uiText("版本")}</span>
             <span className="flex items-center gap-2 font-medium">
               {state?.currentVersion ? (
                 <>
@@ -292,23 +289,21 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
 
           {forced && !manifest && phase !== "error" ? (
             <p className="m-0 text-sm leading-relaxed text-muted-foreground">
-              正在获取与你的设备匹配的强制更新安装包。
-            </p>
+              {uiText("正在获取与你的设备匹配的强制更新安装包。")}</p>
           ) : null}
 
           {phase === "ready" ? (
             <p className="m-0 text-sm text-muted-foreground">
               {manifest?.platform === "win32"
-                ? "安装包已就绪，正在准备静默替换并重启应用。"
-                : "安装包已就绪，正在准备自动替换并重启应用。"}
+                ? uiText("安装包已就绪，正在准备静默替换并重启应用。")
+                : uiText("安装包已就绪，正在准备自动替换并重启应用。")}
             </p>
           ) : null}
 
           {phase === "installing" ? (
             <p className="m-0 flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="assertive">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              安装即将开始。Iterlay 会暂时关闭，并在几秒后自动重新打开。
-            </p>
+              {uiText("安装即将开始。Iterlay 会暂时关闭，并在几秒后自动重新打开。")}</p>
           ) : null}
 
           {phase === "error" && state?.error ? (
@@ -323,25 +318,22 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
           <DialogFooter className="flex-wrap">
             {phase === "available" && !forced && manifest ? (
               <Button variant="ghost" onClick={() => void skip(manifest.version)}>
-                跳过此版本
-              </Button>
+                {uiText("跳过此版本")}</Button>
             ) : null}
             {phase === "available" && !forced ? (
               <Button variant="outline" onClick={() => setOpen(false)}>
-                稍后
-              </Button>
+                {uiText("稍后")}</Button>
             ) : null}
             {phase === "available" || (phase === "error" && manifest) ? (
               <Button onClick={() => void download()}>
                 <Download className="h-4 w-4" aria-hidden="true" />
-                {phase === "error" ? "重试更新" : "下载并自动重启"}
+                {phase === "error" ? uiText("重试更新") : uiText("下载并自动重启")}
               </Button>
             ) : null}
             {forced && !manifest ? (
               <Button disabled={checking || phase === "checking"} onClick={() => void checkNow()}>
                 {checking || phase === "checking" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-                重新获取更新
-              </Button>
+                {uiText("重新获取更新")}</Button>
             ) : null}
           </DialogFooter>
         </DialogContent>
@@ -362,6 +354,8 @@ function DownloadProgressBar({
   progress?: UpdateProgress;
   onCancel?: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const percent = progress?.percent;
   return (
     <div className="grid gap-2">
@@ -383,10 +377,9 @@ function DownloadProgressBar({
         </span>
         {onCancel ? (
           <button type="button" className="underline-offset-2 hover:underline" onClick={onCancel}>
-            取消下载
-          </button>
+            {uiText("取消下载")}</button>
         ) : (
-          <span>下载完成后将自动安装并重启</span>
+          <span>{uiText("下载完成后将自动安装并重启")}</span>
         )}
       </div>
     </div>
@@ -402,6 +395,8 @@ function InstalledReleaseDialog({
   open: boolean;
   onDismiss: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <Dialog open={open && Boolean(release)} onOpenChange={(next) => { if (!next) onDismiss(); }}>
       <DialogContent
@@ -414,9 +409,9 @@ function InstalledReleaseDialog({
               <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <DialogTitle>Iterlay 已更新</DialogTitle>
+              <DialogTitle>{uiText("Iterlay 已更新")}</DialogTitle>
               <DialogDescription className="mt-1">
-                已从 v{release?.previousVersion} 更新到 v{release?.version}
+                {uiText("已从 v")}{release?.previousVersion} {uiText("更新到 v")}{release?.version}
               </DialogDescription>
             </div>
           </div>
@@ -435,11 +430,11 @@ function InstalledReleaseDialog({
             </Suspense>
           </div>
         ) : (
-          <p className="m-0 text-sm leading-7 text-muted-foreground">新版本已经安装完成，可以继续工作。</p>
+          <p className="m-0 text-sm leading-7 text-muted-foreground">{uiText("新版本已经安装完成，可以继续工作。")}</p>
         )}
 
         <DialogFooter>
-          <Button onClick={onDismiss}>开始使用</Button>
+          <Button onClick={onDismiss}>{uiText("开始使用")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,5 @@
 import type { GenerateImageInput, GenerateResponse, ProviderConfig } from "@shared/types";
-import type { ImageWorkbenchApi } from "../../electron/preload/preload";
+import type { ImageWorkbenchApi } from "@shared/workbench-client";
 
 export interface TemplateVerificationConfirmation {
   title: string;

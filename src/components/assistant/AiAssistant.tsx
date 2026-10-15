@@ -1,5 +1,30 @@
+import { useUiText } from "@/i18n";
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, ChevronDown, Circle, CircleCheck, Copy, History, Image, ListPlus, Loader2, Maximize2, MessageSquarePlus, Paperclip, Pencil, Play, Plus, RefreshCw, RotateCcw, Send, Square, TriangleAlert, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  Check,
+  ChevronDown,
+  Circle,
+  CircleCheck,
+  Copy,
+  History,
+  Image,
+  ListPlus,
+  Loader2,
+  Maximize2,
+  MessageSquarePlus,
+  Paperclip,
+  Pencil,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Send,
+  Square,
+  TriangleAlert,
+  X
+} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
@@ -9,10 +34,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ImageZoomLightbox } from "@/components/workbench/asset/ImageZoomLightbox";
-import {
-  assistantInteractionSupplementKey,
-  type AssistantConfirmationPreview
-} from "@/lib/assistant-interaction";
+import { assistantInteractionSupplementKey, type AssistantConfirmationPreview } from "@/lib/assistant-interaction";
 import type { AssistantHistoryConversation } from "@/lib/assistant-history";
 import { extractClipboardImageFiles } from "@/lib/clipboard-images";
 import { isSendEnter } from "@/lib/send-on-enter";
@@ -743,6 +765,8 @@ function AssistantPromptReview({
 }
 
 function AssistantComicDramaPlan({ value }: { value: AiAssistantComicDramaPlan }): React.ReactElement {
+  const uiText = useUiText();
+
   const { plan } = value;
   const additions = plan.preview.additions;
   const characterDrafts = plan.action?.kind === "propose-characters" ? plan.action.characterDrafts : [];
@@ -765,17 +789,17 @@ function AssistantComicDramaPlan({ value }: { value: AiAssistantComicDramaPlan }
       ? "添加所选角色卡 · " + selectedDraftIds.length
       : "添加 " + additions.nodes + " 个节点到画板";
   return (
-    <section className="mt-2 overflow-hidden rounded-md border border-[#dededa] bg-background dark:border-border" aria-label="节点计划预览">
+    <section className="mt-2 overflow-hidden rounded-md border border-[#dededa] bg-background dark:border-border" aria-label={uiText("节点计划预览")}>
       <div className="border-b border-[#e4e4e0] px-3 py-2 dark:border-border">
         <p className="text-xs font-semibold text-[#30302e] dark:text-foreground">{plan.preview.title}</p>
         <p className="mt-0.5 line-clamp-2 text-[10px] text-[#686865] dark:text-muted-foreground">{value.contextLabel}</p>
       </div>
-      <div className="border-b border-[#e4e4e0] px-3 py-2 dark:border-border" aria-label="漫剧制作步骤">
+      <div className="border-b border-[#e4e4e0] px-3 py-2 dark:border-border" aria-label={uiText("漫剧制作步骤")}>
         <ol className="comic-plan-steps">{steps.map((step, index) => <li key={step} className="comic-plan-step" data-complete={index < currentStep || undefined} aria-current={index === currentStep ? "step" : undefined}>{step}</li>)}</ol>
-        <p className="mt-1 text-[10px] text-muted-foreground">当前：{steps[currentStep]} · 下一步：{steps[Math.min(currentStep + 1, steps.length - 1)]}</p>
+        <p className="mt-1 text-[10px] text-muted-foreground">{uiText("当前：")}{steps[currentStep]} {uiText("· 下一步：")}{steps[Math.min(currentStep + 1, steps.length - 1)]}</p>
       </div>
-      {characterDrafts.length ? <div className="grid gap-1.5 border-b border-[#e4e4e0] px-3 py-2 dark:border-border" aria-label="角色阵容方案">{characterDrafts.map((draft) => <label key={draft.id} className="flex items-start gap-2 rounded border border-border px-2 py-1.5 text-[11px]"><input type="checkbox" disabled={blocked} checked={selectedDraftIds.includes(draft.id)} onChange={(event) => setSelectedDraftIds((current) => event.target.checked ? [...current, draft.id] : current.filter((id) => id !== draft.id))} /><span className="min-w-0"><b>{draft.name}{draft.required ? " · 必需" : ""}</b><small className="mt-0.5 block break-words text-muted-foreground">{draft.role}</small><small className="mt-0.5 block break-words text-muted-foreground">{draft.profile}</small><small className="mt-0.5 block break-words text-muted-foreground">外观锚点：{draft.appearanceAnchors.join(" · ")}</small><small className="mt-0.5 block break-words text-muted-foreground">{draft.visualDescription} · 落板后逐个生成形象</small></span><Button type="button" variant="ghost" size="sm" disabled={blocked} className="ml-auto h-6 shrink-0 px-1.5 text-[10px]" onClick={(event) => { event.preventDefault(); value.onApply([draft.id]); }}>单独添加</Button></label>)}</div> : null}
-      {plan.preview.details?.length ? <dl className="grid gap-1.5 border-b border-[#e4e4e0] px-3 py-2.5 text-[11px] dark:border-border" aria-label="文本版本预览">
+      {characterDrafts.length ? <div className="grid gap-1.5 border-b border-[#e4e4e0] px-3 py-2 dark:border-border" aria-label={uiText("角色阵容方案")}>{characterDrafts.map((draft) => <label key={draft.id} className="flex items-start gap-2 rounded border border-border px-2 py-1.5 text-[11px]"><input type="checkbox" disabled={blocked} checked={selectedDraftIds.includes(draft.id)} onChange={(event) => setSelectedDraftIds((current) => event.target.checked ? [...current, draft.id] : current.filter((id) => id !== draft.id))} /><span className="min-w-0"><b>{draft.name}{draft.required ? uiText(" · 必需") : ""}</b><small className="mt-0.5 block break-words text-muted-foreground">{draft.role}</small><small className="mt-0.5 block break-words text-muted-foreground">{draft.profile}</small><small className="mt-0.5 block break-words text-muted-foreground">{uiText("外观锚点：")}{draft.appearanceAnchors.join(" · ")}</small><small className="mt-0.5 block break-words text-muted-foreground">{draft.visualDescription} {uiText("· 落板后逐个生成形象")}</small></span><Button type="button" variant="ghost" size="sm" disabled={blocked} className="ml-auto h-6 shrink-0 px-1.5 text-[10px]" onClick={(event) => { event.preventDefault(); value.onApply([draft.id]); }}>{uiText("单独添加")}</Button></label>)}</div> : null}
+      {plan.preview.details?.length ? <dl className="grid gap-1.5 border-b border-[#e4e4e0] px-3 py-2.5 text-[11px] dark:border-border" aria-label={uiText("文本版本预览")}>
         {plan.preview.details.map((detail) => <div key={detail.label} className="grid grid-cols-[68px_minmax(0,1fr)] gap-2">
           <dt className="font-medium text-muted-foreground">{detail.label}</dt>
           <dd className="max-h-16 overflow-y-auto whitespace-pre-wrap break-words text-foreground">{detail.value}</dd>
@@ -783,32 +807,32 @@ function AssistantComicDramaPlan({ value }: { value: AiAssistantComicDramaPlan }
       </dl> : null}
       <dl className="grid gap-2 px-3 py-2.5 text-[11px] leading-4">
         <div>
-          <dt className="font-semibold">{updatedNodeCount ? "将更新画板" : "将添加到画板"}</dt>
+          <dt className="font-semibold">{updatedNodeCount ? uiText("将更新画板") : uiText("将添加到画板")}</dt>
           <dd className="mt-0.5 text-[#686865] dark:text-muted-foreground">
             {updatedNodeCount
-              ? `更新 ${updatedNodeCount} 个节点 · ${additions.nodes} 个新增节点 · ${additions.connections} 条连接 · ${additions.groups} 个分组`
-              : `${additions.nodes} 个节点 · ${additions.connections} 条连接 · ${additions.groups} 个分组`}
+              ? uiText("更新 {{ui:0}} 个节点 · {{ui:1}} 个新增节点 · {{ui:2}} 条连接 · {{ui:3}} 个分组", [updatedNodeCount, additions.nodes, additions.connections, additions.groups])
+              : uiText("{{ui:0}} 个节点 · {{ui:1}} 条连接 · {{ui:2}} 个分组", [additions.nodes, additions.connections, additions.groups])}
           </dd>
         </div>
-        <div><dt className="font-semibold">影响</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{plan.preview.impact}</dd></div>
-        <div><dt className="font-semibold">费用</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{plan.preview.cost}{plan.preview.costItems?.length ? <ul className="mt-1 space-y-0.5">{plan.preview.costItems.map((item) => <li key={item.stage}>{item.stage === "character" ? "角色图片费用" : item.stage === "first-frame" ? "首帧图片费用" : item.stage === "last-frame" ? "尾帧图片费用" : "视频费用"} · {item.authoritative ? "权威报价" : "生成前报价"}</li>)}</ul> : null}</dd></div>
-        {value.readiness ? <div><dt className="font-semibold">首尾帧 readiness</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{value.readiness}</dd></div> : null}
+        <div><dt className="font-semibold">{uiText("影响")}</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{plan.preview.impact}</dd></div>
+        <div><dt className="font-semibold">{uiText("费用")}</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{plan.preview.cost}{plan.preview.costItems?.length ? <ul className="mt-1 space-y-0.5">{plan.preview.costItems.map((item) => <li key={item.stage}>{item.stage === "character" ? uiText("角色图片费用") : item.stage === "first-frame" ? uiText("首帧图片费用") : item.stage === "last-frame" ? uiText("尾帧图片费用") : uiText("视频费用")} · {item.authoritative ? uiText("权威报价") : uiText("生成前报价")}</li>)}</ul> : null}</dd></div>
+        {value.readiness ? <div><dt className="font-semibold">{uiText("首尾帧 readiness")}</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{value.readiness}</dd></div> : null}
       </dl>
-      {value.status === "conflict" ? <p className="border-t border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] text-destructive" role="alert">预览后画板内容发生了变化。请基于最新内容重新预览后再应用。</p> : null}
+      {value.status === "conflict" ? <p className="border-t border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] text-destructive" role="alert">{uiText("预览后画板内容发生了变化。请基于最新内容重新预览后再应用。")}</p> : null}
       {value.status === "error" ? <p className="border-t border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] text-destructive" role="alert">{value.error || "添加失败，未添加任何节点。"}</p> : null}
-      {value.status === "applied" ? <p className="border-t border-emerald-600/20 bg-emerald-600/5 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-400" role="status">{updatedNodeCount ? "文本新版本已保存，未自动推进阶段或调用媒体模型。" : characterDrafts.length ? "角色卡及完整设定已添加。下一步请在画板中逐个点击“生成形象”并采用满意版本。" : "节点已添加到普通画板，未调用媒体模型。"}</p> : null}
+      {value.status === "applied" ? <p className="border-t border-emerald-600/20 bg-emerald-600/5 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-400" role="status">{updatedNodeCount ? uiText("文本新版本已保存，未自动推进阶段或调用媒体模型。") : characterDrafts.length ? uiText("角色卡及完整设定已添加。下一步请在画板中逐个点击“生成形象”并采用满意版本。") : uiText("节点已添加到普通画板，未调用媒体模型。")}</p> : null}
       <div className="flex items-center justify-end gap-1.5 border-t border-[#e4e4e0] px-2 py-2 dark:border-border">
-        <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={value.onRefine}>{value.status === "conflict" ? "保留到输入框" : "继续修改"}</Button>
+        <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={value.onRefine}>{value.status === "conflict" ? uiText("保留到输入框") : uiText("继续修改")}</Button>
         {value.status === "conflict" || value.status === "error" ? (
-          <Button type="button" size="sm" className="h-8 text-xs" onClick={value.onRetry}>重新预览</Button>
+          <Button type="button" size="sm" className="h-8 text-xs" onClick={value.onRetry}>{uiText("重新预览")}</Button>
         ) : (
           <Button type="button" size="sm" className="h-8 text-xs" disabled={blocked || (characterDrafts.length > 0 && selectedDraftIds.length === 0)} onClick={() => value.onApply(characterDrafts.length ? selectedDraftIds : undefined)}>
-            {value.status === "applying" ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />{updatedNodeCount ? "正在保存…" : "正在添加…"}</>
-              : value.status === "applied" ? "已应用" : primaryLabel}
+            {value.status === "applying" ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />{updatedNodeCount ? uiText("正在保存…") : uiText("正在添加…")}</>
+              : value.status === "applied" ? uiText("已应用") : primaryLabel}
           </Button>
         )}
       </div>
-      <span className="sr-only" aria-live="polite">{value.status === "applied" ? updatedNodeCount ? `已更新 ${updatedNodeCount} 个节点` : `已添加 ${additions.nodes} 个节点到画板` : ""}</span>
+      <span className="sr-only" aria-live="polite">{value.status === "applied" ? updatedNodeCount ? uiText("已更新 {{ui:0}} 个节点", [updatedNodeCount]) : uiText("已添加 {{ui:0}} 个节点到画板", [additions.nodes]) : ""}</span>
     </section>
   );
 }
@@ -1642,6 +1666,8 @@ export function AiAssistant({
   onNewConversation,
   onApplyGeneratedPrompt
 }: AiAssistantProps): React.ReactElement {
+  const uiText = useUiText();
+
   const { t } = useI18n();
   const segmentedControlId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1859,7 +1885,7 @@ export function AiAssistant({
                 )}
               >
                 {historyScope === "board" ? <SegmentedControlIndicator layoutId={`assistant-history-${segmentedControlId}`} className="rounded bg-background shadow-sm" /> : null}
-                <span className="relative z-10">当前画板</span>
+                <span className="relative z-10">{uiText("当前画板")}</span>
               </button>
               <button
                 type="button"
@@ -1871,7 +1897,7 @@ export function AiAssistant({
                 )}
               >
                 {historyScope === "all" ? <SegmentedControlIndicator layoutId={`assistant-history-${segmentedControlId}`} className="rounded bg-background shadow-sm" /> : null}
-                <span className="relative z-10">全部画板</span>
+                <span className="relative z-10">{uiText("全部画板")}</span>
               </button>
             </div>
           ) : null}

@@ -1,3 +1,4 @@
+import { translateSourceText as uiText } from "@/i18n/ui-text";
 import { Component, createRef, type ErrorInfo, type ReactNode } from "react";
 import { Check, ChevronDown, Copy, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import packageMetadata from "../../../package.json";
@@ -191,28 +192,25 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
     const copyLabel = copyState === "copied" ? "已复制" : "复制诊断信息";
 
     return (
-      <main className="flex min-h-screen overflow-y-auto bg-background px-4 py-16 text-foreground sm:px-6 sm:py-20">
+      <main data-root-error className="flex min-h-screen overflow-y-auto bg-background px-4 py-16 text-foreground sm:px-6 sm:py-20">
         <section className="m-auto w-full max-w-xl [-webkit-app-region:no-drag]" aria-labelledby="root-error-title">
           <div className="text-center" role="alert">
             <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-destructive/15 bg-destructive/10 text-destructive">
               <TriangleAlert className="h-5 w-5" aria-hidden="true" />
             </span>
             <h1 id="root-error-title" className="mt-4 text-base font-semibold leading-6">
-              工作区暂时无法显示
-            </h1>
+              {uiText("工作区暂时无法显示")}</h1>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              已保存的画板仍在本机。重新加载通常可以恢复界面。
-            </p>
+              {uiText("已保存的画板仍在本机。重新加载通常可以恢复界面。")}</p>
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-[hsl(var(--success))]" aria-hidden="true" />
-              无需重新创建工作区
-            </p>
+              {uiText("无需重新创建工作区")}</p>
           </div>
 
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             <Button className="w-full sm:w-auto sm:min-w-32" type="button" disabled={reloading} onClick={this.reload}>
               <RefreshCw className={`h-4 w-4 ${reloading ? "animate-spin" : ""}`} aria-hidden="true" />
-              {reloading ? "正在重新加载…" : "重新加载"}
+              {reloading ? uiText("正在重新加载…") : uiText("重新加载")}
             </Button>
             <Button
               className="w-full transition-colors sm:w-auto sm:min-w-40"
@@ -229,18 +227,18 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
 
           <div className="mt-2 min-h-5 text-center text-xs leading-5" aria-live="polite" role="status">
             {copyState === "copied" ? (
-              <span className="text-[hsl(var(--success))]">诊断信息已复制，可以直接发给开发者。</span>
+              <span className="text-[hsl(var(--success))]">{uiText("诊断信息已复制，可以直接发给开发者。")}</span>
             ) : copyState === "failed" ? (
-              <span className="text-destructive">复制失败，请在下方手动选择错误详情。</span>
+              <span className="text-destructive">{uiText("复制失败，请在下方手动选择错误详情。")}</span>
             ) : reloading ? (
-              <span className="text-muted-foreground">正在带你回到工作区…</span>
+              <span className="text-muted-foreground">{uiText("正在带你回到工作区…")}</span>
             ) : null}
           </div>
 
           <div className="mt-5 overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
             <div className="border-b border-border px-4 py-3.5 sm:px-5">
               <div className="flex min-w-0 items-center justify-between gap-3">
-                <span className="text-xs font-medium text-muted-foreground">错误摘要</span>
+                <span className="text-xs font-medium text-muted-foreground">{uiText("错误摘要")}</span>
                 <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] leading-4 text-muted-foreground">
                   {sanitizeDiagnosticText(error.name || "Error")}
                 </code>
@@ -248,12 +246,12 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
               <p className="mt-2 max-h-20 overflow-auto whitespace-pre-wrap break-words text-[13px] leading-5">
                 {errorMessage}
               </p>
-              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">问题编号 {incidentId}</p>
+              <p className="mt-2 text-[11px] leading-4 text-muted-foreground">{uiText("问题编号 ")}{incidentId}</p>
             </div>
 
             <details ref={this.detailsRef} className="group">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 text-xs font-medium outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5 [&::-webkit-details-marker]:hidden">
-                <span>查看技术详情</span>
+                <span>{uiText("查看技术详情")}</span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
               </summary>
               <div className="border-t border-border bg-muted/35 px-4 py-4 sm:px-5">
@@ -261,8 +259,7 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
                   {report}
                 </pre>
                 <p className="mt-3 border-t border-border pt-3 text-[11px] leading-4 text-muted-foreground">
-                  诊断信息不包含画板内容、提示词或密钥，个人目录也已隐藏。
-                </p>
+                  {uiText("诊断信息不包含画板内容、提示词或密钥，个人目录也已隐藏。")}</p>
               </div>
             </details>
           </div>

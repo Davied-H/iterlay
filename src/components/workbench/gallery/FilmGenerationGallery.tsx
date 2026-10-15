@@ -1,12 +1,8 @@
+import { useUiText } from "@/i18n";
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { animate, type AnimationPlaybackControls } from "framer-motion";
 import { ChevronLeft, ChevronRight, ImageIcon, Pause, Play, Volume2, VolumeX } from "lucide-react";
-import {
-  calculateFilmFrameMetrics,
-  nearestFilmFrameIndex,
-  projectFilmScrollLeft,
-  type FilmFrameMetrics
-} from "@/components/workbench/gallery/film-scroll";
+import { calculateFilmFrameMetrics, nearestFilmFrameIndex, projectFilmScrollLeft, type FilmFrameMetrics } from "@/components/workbench/gallery/film-scroll";
 import { gallerySourceLabel, type BoardGalleryItem } from "@/lib/board-gallery";
 import { cn } from "@/lib/utils";
 import "./FilmGenerationGallery.css";
@@ -44,6 +40,8 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
   onActiveIndexChange,
   onOpen
 }: FilmGenerationGalleryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [playing, setPlaying] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [metrics, setMetrics] = useState<FilmFrameMetrics>(DEFAULT_METRICS);
@@ -277,7 +275,7 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
     return (
       <div className="flex h-full min-h-60 flex-col items-center justify-center gap-3 pt-20 text-center text-white/42">
         <ImageIcon className="h-6 w-6 text-white/35" />
-        <p className="text-sm text-white/68">当前筛选没有图片</p>
+        <p className="text-sm text-white/68">{uiText("当前筛选没有图片")}</p>
       </div>
     );
   }
@@ -286,7 +284,7 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
     <section
       className="gallery-film relative flex h-full min-h-0 flex-col overflow-hidden px-5 pb-2 pt-[116px] max-[620px]:px-3 max-[620px]:pt-16"
       data-playing={playing ? "true" : "false"}
-      aria-label="图片胶片回放"
+      aria-label={uiText("图片胶片回放")}
     >
       <div
         ref={viewportRef}
@@ -336,7 +334,7 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
                 type="button"
                 className={cn("gallery-film-frame", active && "is-active")}
                 style={{ width: metrics.frameWidth }}
-                aria-label={`第 ${index + 1} 帧，${formatClock(item.createdAt)}${active ? "，点击打开图片" : ""}`}
+                aria-label={uiText("第 {{ui:0}} 帧，{{ui:1}}{{ui:2}}", [index + 1, formatClock(item.createdAt), active ? "，点击打开图片" : ""])}
                 aria-current={active ? "true" : undefined}
                 onClick={() => {
                   if (active) onOpen(index);
@@ -378,16 +376,16 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
 
       <footer className="gallery-film-transport h-14 shrink-0">
         <div className="flex shrink-0 items-center gap-1">
-          <TransportButton label="上一帧" disabled={activeIndex <= 0} onClick={() => selectRelative(-1)}>
+          <TransportButton label={uiText("上一帧")} disabled={activeIndex <= 0} onClick={() => selectRelative(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </TransportButton>
-          <TransportButton label={playing ? "暂停回放" : "播放图片"} disabled={items.length <= 1} onClick={togglePlayback} primary>
+          <TransportButton label={playing ? uiText("暂停回放") : uiText("播放图片")} disabled={items.length <= 1} onClick={togglePlayback} primary>
             {playing ? <Pause className="h-3.5 w-3.5" fill="currentColor" /> : <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />}
           </TransportButton>
-          <TransportButton label={musicEnabled ? "关闭背景音乐" : "开启背景音乐"} disabled={false} onClick={toggleMusic}>
+          <TransportButton label={musicEnabled ? uiText("关闭背景音乐") : uiText("开启背景音乐")} disabled={false} onClick={toggleMusic}>
             {musicEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </TransportButton>
-          <TransportButton label="下一帧" disabled={activeIndex >= items.length - 1} onClick={() => selectRelative(1)}>
+          <TransportButton label={uiText("下一帧")} disabled={activeIndex >= items.length - 1} onClick={() => selectRelative(1)}>
             <ChevronRight className="h-4 w-4" />
           </TransportButton>
         </div>
@@ -395,7 +393,7 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
           {formatClock(activeItem.createdAt)}
         </span>
         <label className="flex min-w-0 flex-1 items-center">
-          <span className="sr-only">选择胶片帧</span>
+          <span className="sr-only">{uiText("选择胶片帧")}</span>
           <input
             type="range"
             min={0}

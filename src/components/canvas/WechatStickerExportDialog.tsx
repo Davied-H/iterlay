@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -20,14 +21,7 @@ import {
 import QRCode from "qrcode";
 import type { SaveWechatStickerPackageResult } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -90,6 +84,8 @@ export function WechatStickerExportDialog({
   onOpenChange,
   onExported
 }: WechatStickerExportDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [mode, setMode] = useState<ExportMode>(initialMode);
   const [personalExportStyle, setPersonalExportStyle] = useState<PersonalExportStyle>("sequence");
   const [fit, setFit] = useState<WechatStickerFit>("contain");
@@ -359,13 +355,13 @@ export function WechatStickerExportDialog({
               <Package className="h-4.5 w-4.5" />
             </div>
             <div>
-              <DialogTitle>导出为微信表情</DialogTitle>
+              <DialogTitle>{uiText("导出为微信表情")}</DialogTitle>
               <DialogDescription className="mt-1">
                 {prepared
                   ? prepared.result
-                    ? "素材已下载，可打开本地文件或发送到手机。"
-                    : "检查导出结果，然后下载到本地。"
-                  : "调整表情效果和导出方式，下一步可预览结果。"}
+                    ? uiText("素材已下载，可打开本地文件或发送到手机。")
+                    : uiText("检查导出结果，然后下载到本地。")
+                  : uiText("调整表情效果和导出方式，下一步可预览结果。")}
               </DialogDescription>
             </div>
           </div>
@@ -397,15 +393,13 @@ export function WechatStickerExportDialog({
                   <Tabs value={mode} onValueChange={(value) => setMode(value as ExportMode)}>
                     <TabsList className="h-8">
                       <TabsTrigger value="personal" className="h-6 px-3 text-xs">
-                        个人表情
-                      </TabsTrigger>
+                        {uiText("个人表情")}</TabsTrigger>
                       <TabsTrigger value="album" className="h-6 px-3 text-xs">
-                        投稿专辑
-                      </TabsTrigger>
+                        {uiText("投稿专辑")}</TabsTrigger>
                     </TabsList>
                   </Tabs>
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {availableImages.length} {sequenceEnabled ? "帧" : "张"}
+                    {availableImages.length} {sequenceEnabled ? uiText("帧") : uiText("张")}
                   </span>
                 </div>
 
@@ -415,7 +409,7 @@ export function WechatStickerExportDialog({
                       <div className="flex items-center gap-8">
                         <div>
                           <p className="mb-2 text-center text-[11px] font-medium text-muted-foreground">
-                            {sequenceEnabled ? "动画预览" : "聊天表情"} · 240 × 240
+                            {sequenceEnabled ? uiText("动画预览") : uiText("聊天表情")} · 240 × 240
                           </p>
                           <div
                             className={cn(
@@ -427,7 +421,7 @@ export function WechatStickerExportDialog({
                             <div className="h-full w-full" style={{ padding: `${paddingPercent}%` }}>
                               <img
                                 src={activeImage.dataUrl}
-                                alt="微信表情预览"
+                                alt={uiText("微信表情预览")}
                                 className={cn("h-full w-full", fit === "contain" ? "object-contain" : "object-cover")}
                               />
                             </div>
@@ -438,7 +432,7 @@ export function WechatStickerExportDialog({
                         </div>
                         <div>
                           <p className="mb-2 text-center text-[11px] font-medium text-muted-foreground">
-                            {sequenceEnabled ? `当前帧 · ${activeIndex + 1}/${availableImages.length}` : "面板预览 · 120 × 120"}
+                            {sequenceEnabled ? uiText("当前帧 · {{ui:0}}/{{ui:1}}", [activeIndex + 1, availableImages.length]) : uiText("面板预览 · 120 × 120")}
                           </p>
                           <div
                             className="h-[120px] w-[120px] overflow-hidden rounded-lg border border-border shadow-sm"
@@ -447,7 +441,7 @@ export function WechatStickerExportDialog({
                             <div className="h-full w-full" style={{ padding: `${paddingPercent}%` }}>
                               <img
                                 src={activeImage.dataUrl}
-                                alt="微信表情缩略预览"
+                                alt={uiText("微信表情缩略预览")}
                                 className={cn("h-full w-full", fit === "contain" ? "object-contain" : "object-cover")}
                               />
                             </div>
@@ -455,21 +449,21 @@ export function WechatStickerExportDialog({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">没有可预览的图片</p>
+                      <p className="text-sm text-muted-foreground">{uiText("没有可预览的图片")}</p>
                     )}
                   </div>
 
                   {sequenceEnabled ? (
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground">帧时间轴</p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">拖动缩略图调整播放顺序</p>
+                        <p className="text-xs font-medium text-foreground">{uiText("帧时间轴")}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{uiText("拖动缩略图调整播放顺序")}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
-                          title={previewPlaying ? "暂停预览" : "播放预览"}
-                          aria-label={previewPlaying ? "暂停预览" : "播放预览"}
+                          title={previewPlaying ? uiText("暂停预览") : uiText("播放预览")}
+                          aria-label={previewPlaying ? uiText("暂停预览") : uiText("播放预览")}
                           onClick={() => setPreviewPlaying((current) => !current)}
                           className="grid h-8 w-8 place-items-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground"
                         >
@@ -477,8 +471,8 @@ export function WechatStickerExportDialog({
                         </button>
                         <button
                           type="button"
-                          title="当前帧左移"
-                          aria-label="当前帧左移"
+                          title={uiText("当前帧左移")}
+                          aria-label={uiText("当前帧左移")}
                           disabled={activeIndex === 0}
                           onClick={() => moveActiveFrame(-1)}
                           className="grid h-8 w-8 place-items-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
@@ -487,8 +481,8 @@ export function WechatStickerExportDialog({
                         </button>
                         <button
                           type="button"
-                          title="当前帧右移"
-                          aria-label="当前帧右移"
+                          title={uiText("当前帧右移")}
+                          aria-label={uiText("当前帧右移")}
                           disabled={activeIndex >= availableImages.length - 1}
                           onClick={() => moveActiveFrame(1)}
                           className="grid h-8 w-8 place-items-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
@@ -518,7 +512,7 @@ export function WechatStickerExportDialog({
                           draggedFrameId === image.id && "opacity-45"
                         )}
                       >
-                        <img src={image.dataUrl} alt={`第 ${index + 1} 张`} className="h-full w-full object-cover" />
+                        <img src={image.dataUrl} alt={uiText("第 {{ui:0}} 张", [index + 1])} className="h-full w-full object-cover" />
                         {sequenceEnabled ? (
                           <span className="absolute left-0.5 top-0.5 grid h-4 w-4 place-items-center rounded bg-black/60 text-white">
                             <GripVertical className="h-2.5 w-2.5" />
@@ -586,19 +580,17 @@ export function WechatStickerExportDialog({
                 ) : (
                   <span>
                     {sequenceEnabled
-                      ? `${availableImages.length} 帧合成 1 个循环 GIF，最高不超过 ${formatWechatFileSize(WECHAT_STICKER_MAX_BYTES)}`
-                      : `输出 240×240 GIF，最高不超过 ${formatWechatFileSize(WECHAT_STICKER_MAX_BYTES)}`}
+                      ? uiText("{{ui:0}} 帧合成 1 个循环 GIF，最高不超过 {{ui:1}}", [availableImages.length, formatWechatFileSize(WECHAT_STICKER_MAX_BYTES)])
+                      : uiText("输出 240×240 GIF，最高不超过 {{ui:0}}", [formatWechatFileSize(WECHAT_STICKER_MAX_BYTES)])}
                   </span>
                 )}
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button variant="outline" disabled={processing} onClick={() => changeOpen(false)}>
-                  取消
-                </Button>
+                  {uiText("取消")}</Button>
                 <Button disabled={processing || Boolean(blockingError)} onClick={() => void prepareExport()}>
                   {processing ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Eye className="h-4 w-4" />}
-                  预览导出结果
-                </Button>
+                  {uiText("预览导出结果")}</Button>
               </div>
             </DialogFooter>
           </>
@@ -639,6 +631,8 @@ interface SettingsPanelProps {
 }
 
 function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="space-y-5">
       {props.blockingError ? (
@@ -650,27 +644,27 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
         <div className="flex gap-2 rounded-lg border border-[#07c160]/25 bg-[#07c160]/7 px-3 py-2.5 text-xs leading-5 text-foreground">
           <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#07964b]" />
           {props.mode === "album"
-            ? "数量符合微信表情专辑要求。"
+            ? uiText("数量符合微信表情专辑要求。")
             : props.personalExportStyle === "sequence" && props.imageCount > 1
-              ? `${props.imageCount} 张图片将合成为 1 个动画 GIF。`
-              : "每张图片将分别导出为 GIF。"}
+              ? uiText("{{ui:0}} 张图片将合成为 1 个动画 GIF。", [props.imageCount])
+              : uiText("每张图片将分别导出为 GIF。")}
         </div>
       )}
 
       {props.mode === "personal" && props.imageCount > 1 ? (
         <section className="space-y-3">
-          <h3 className="text-xs font-semibold text-foreground">导出方式</h3>
+          <h3 className="text-xs font-semibold text-foreground">{uiText("导出方式")}</h3>
           <div className="grid grid-cols-2 gap-2">
             <OptionButton
               active={props.personalExportStyle === "sequence"}
               onClick={() => props.onPersonalExportStyleChange("sequence")}
-              title="合成 1 个动图"
+              title={uiText("合成 1 个动图")}
               detail="每张图作为一帧"
             />
             <OptionButton
               active={props.personalExportStyle === "separate"}
               onClick={() => props.onPersonalExportStyleChange("separate")}
-              title="逐张导出"
+              title={uiText("逐张导出")}
               detail={`生成 ${props.imageCount} 个 GIF`}
             />
           </div>
@@ -681,8 +675,8 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
         <section className="space-y-3 border-t border-border pt-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-xs font-semibold text-foreground">当前帧时长</h3>
-              <p className="mt-1 text-[11px] text-muted-foreground">第 {props.activeIndex + 1} 帧的停留时间</p>
+              <h3 className="text-xs font-semibold text-foreground">{uiText("当前帧时长")}</h3>
+              <p className="mt-1 text-[11px] text-muted-foreground">{uiText("第 ")}{props.activeIndex + 1} {uiText("帧的停留时间")}</p>
             </div>
             <Input
               type="number"
@@ -692,7 +686,7 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
               value={props.activeFrameDuration}
               onChange={(event) => props.onActiveFrameDurationChange(Number(event.target.value))}
               className="h-8 w-24 text-right text-xs tabular-nums"
-              aria-label="当前帧时长（毫秒）"
+              aria-label={uiText("当前帧时长（毫秒）")}
             />
           </div>
           <input
@@ -703,7 +697,7 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
             value={props.activeFrameDuration}
             onChange={(event) => props.onActiveFrameDurationChange(Number(event.target.value))}
             className="h-1.5 w-full cursor-pointer accent-[#07c160]"
-            aria-label="调整当前帧时长"
+            aria-label={uiText("调整当前帧时长")}
           />
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span>100ms</span>
@@ -712,22 +706,21 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
               onClick={props.onApplyFrameDurationToAll}
               className="font-medium text-foreground hover:underline"
             >
-              应用到全部帧
-            </button>
+              {uiText("应用到全部帧")}</button>
             <span>2000ms</span>
           </div>
         </section>
       ) : null}
 
       <section className="space-y-3 border-t border-border pt-5">
-        <h3 className="text-xs font-semibold text-foreground">画面适配</h3>
+        <h3 className="text-xs font-semibold text-foreground">{uiText("画面适配")}</h3>
         <div className="grid grid-cols-2 gap-2">
-          <OptionButton active={props.fit === "contain"} onClick={() => props.onFitChange("contain")} title="完整显示" detail="保留全部主体" />
-          <OptionButton active={props.fit === "cover"} onClick={() => props.onFitChange("cover")} title="填满画布" detail="居中裁成方形" />
+          <OptionButton active={props.fit === "contain"} onClick={() => props.onFitChange("contain")} title={uiText("完整显示")} detail="保留全部主体" />
+          <OptionButton active={props.fit === "cover"} onClick={() => props.onFitChange("cover")} title={uiText("填满画布")} detail="居中裁成方形" />
         </div>
         <div className="space-y-2 rounded-lg border border-border px-3 py-3">
           <div className="flex items-center justify-between">
-            <Label htmlFor="wechat-padding">主体留白</Label>
+            <Label htmlFor="wechat-padding">{uiText("主体留白")}</Label>
             <span className="text-xs tabular-nums text-muted-foreground">{props.paddingPercent}%</span>
           </div>
           <input
@@ -742,39 +735,39 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <OptionButton active={props.background === "transparent"} onClick={() => props.onBackgroundChange("transparent")} title="透明背景" detail="推荐用于表情" />
-          <OptionButton active={props.background === "white"} onClick={() => props.onBackgroundChange("white")} title="白色背景" detail="适合照片素材" />
+          <OptionButton active={props.background === "transparent"} onClick={() => props.onBackgroundChange("transparent")} title={uiText("透明背景")} detail="推荐用于表情" />
+          <OptionButton active={props.background === "white"} onClick={() => props.onBackgroundChange("white")} title={uiText("白色背景")} detail="适合照片素材" />
         </div>
       </section>
 
       {props.mode === "album" ? (
         <section className="space-y-3 border-t border-border pt-5">
-          <h3 className="text-xs font-semibold text-foreground">专辑信息</h3>
-          <Field label="专辑名称" hint={`${Array.from(props.albumName).length}/8`}>
+          <h3 className="text-xs font-semibold text-foreground">{uiText("专辑信息")}</h3>
+          <Field label={uiText("专辑名称")} hint={`${Array.from(props.albumName).length}/8`}>
             <Input value={props.albumName} maxLength={8} onChange={(event) => props.onAlbumNameChange(event.target.value)} />
           </Field>
-          <Field label="专辑介绍" hint={`${Array.from(props.description).length}/80`}>
+          <Field label={uiText("专辑介绍")} hint={`${Array.from(props.description).length}/80`}>
             <Input value={props.description} maxLength={80} onChange={(event) => props.onDescriptionChange(event.target.value)} />
           </Field>
-          <Field label="版权信息" hint={`${Array.from(props.copyright).length}/10`}>
-            <Input value={props.copyright} maxLength={10} placeholder="选填" onChange={(event) => props.onCopyrightChange(event.target.value)} />
+          <Field label={uiText("版权信息")} hint={`${Array.from(props.copyright).length}/10`}>
+            <Input value={props.copyright} maxLength={10} placeholder={uiText("选填")} onChange={(event) => props.onCopyrightChange(event.target.value)} />
           </Field>
-          <Field label={`第 ${props.activeIndex + 1} 张含义词`} hint="最多 4 字">
+          <Field label={uiText("第 {{ui:0}} 张含义词", [props.activeIndex + 1])} hint="最多 4 字">
             <Input
               value={props.meanings[props.activeIndex] || ""}
               maxLength={4}
-              placeholder="例如：收到"
+              placeholder={uiText("例如：收到")}
               onChange={(event) => props.onMeaningChange(event.target.value)}
             />
           </Field>
-          <Field label="横幅背景" hint="750 × 400">
+          <Field label={uiText("横幅背景")} hint="750 × 400">
             <div className="flex gap-2">
               <input
                 type="color"
                 value={props.bannerBackground}
                 onChange={(event) => props.onBannerBackgroundChange(event.target.value)}
                 className="h-9 w-12 cursor-pointer rounded-md border border-input bg-background p-1"
-                aria-label="横幅背景颜色"
+                aria-label={uiText("横幅背景颜色")}
               />
               <Input value={props.bannerBackground} onChange={(event) => props.onBannerBackgroundChange(event.target.value)} />
             </div>
@@ -785,8 +778,8 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
       <section className="border-t border-border pt-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-foreground">同时生成 ZIP</p>
-            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">用于电脑归档或投稿；手机添加表情不依赖 ZIP。</p>
+            <p className="text-xs font-medium text-foreground">{uiText("同时生成 ZIP")}</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{uiText("用于电脑归档或投稿；手机添加表情不依赖 ZIP。")}</p>
           </div>
           <Switch checked={props.createZip} onCheckedChange={props.onCreateZipChange} />
         </div>
@@ -849,6 +842,8 @@ function ExportPreviewView({
   onBack: () => void;
   onDone: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const warnings = prepared.outputs.flatMap((output) => output.warnings);
   const result = prepared.result;
   const downloaded = Boolean(result?.folderPath);
@@ -873,29 +868,29 @@ function ExportPreviewView({
             </div>
             <div className="min-w-0">
               <h2 className="text-base font-semibold leading-6 text-foreground">
-                {downloaded ? "微信表情已下载" : "导出结果已准备好"}
+                {downloaded ? uiText("微信表情已下载") : uiText("导出结果已准备好")}
               </h2>
               <p className="mt-1 max-w-lg text-sm leading-5 text-muted-foreground">
                 {prepared.combined
-                  ? `${prepared.sourceImageCount} 张图片将合成为 1 个循环 GIF。`
+                  ? uiText("{{ui:0}} 张图片将合成为 1 个循环 GIF。", [prepared.sourceImageCount])
                   : prepared.sourceImageCount === 1
-                    ? "将生成 1 个 GIF 表情。"
-                    : `将生成 ${prepared.outputs.length} 个 GIF 表情。`}
+                    ? uiText("将生成 1 个 GIF 表情。")
+                    : uiText("将生成 {{ui:0}} 个 GIF 表情。", [prepared.outputs.length])}
               </p>
             </div>
           </div>
 
           <div className="mt-5">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-foreground">表情预览</p>
+              <p className="text-xs font-medium text-foreground">{uiText("表情预览")}</p>
               <p className="text-[11px] tabular-nums text-muted-foreground">
-                {prepared.outputs.length} 个 · {formatWechatFileSize(totalBytes)}
+                {prepared.outputs.length} {uiText("个 · ")}{formatWechatFileSize(totalBytes)}
               </p>
             </div>
             <div className="flex min-h-20 gap-2 overflow-x-auto rounded-lg bg-muted/45 p-2">
               {previewUrls.map((url, index) => (
                 <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-background">
-                  <img src={url} alt={`导出结果第 ${index + 1} 个表情`} className="h-full w-full object-contain" />
+                  <img src={url} alt={uiText("导出结果第 {{ui:0}} 个表情", [index + 1])} className="h-full w-full object-contain" />
                   <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[9px] text-white">
                     {index + 1}
                   </span>
@@ -915,15 +910,14 @@ function ExportPreviewView({
                 <FolderOpen className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">{downloaded ? "下载文件夹" : "下载内容"}</p>
+                <p className="text-xs text-muted-foreground">{downloaded ? uiText("下载文件夹") : uiText("下载内容")}</p>
                 <p className="mt-0.5 truncate text-sm font-medium text-foreground">
                   {result?.folderPath?.split(/[\\/]/).at(-1) ?? prepared.packageName}
                 </p>
               </div>
               {result?.folderPath ? (
                 <Button variant="ghost" size="sm" onClick={() => onOpenPath(result.folderPath as string)}>
-                  打开
-                </Button>
+                  {uiText("打开")}</Button>
               ) : null}
             </div>
             {prepared.createZip ? (
@@ -932,15 +926,14 @@ function ExportPreviewView({
                   <Package className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted-foreground">ZIP 素材包</p>
+                  <p className="text-xs text-muted-foreground">{uiText("ZIP 素材包")}</p>
                   <p className="mt-0.5 truncate text-sm font-medium text-foreground">
                     {result?.zipPath?.split(/[\\/]/).at(-1) ?? `${prepared.packageName}.zip`}
                   </p>
                 </div>
                 {result?.zipPath ? (
                   <Button variant="ghost" size="sm" onClick={() => onOpenPath(result.zipPath as string)}>
-                    打开
-                  </Button>
+                    {uiText("打开")}</Button>
                 ) : null}
               </div>
             ) : null}
@@ -959,13 +952,12 @@ function ExportPreviewView({
               <div className="grid h-12 w-12 place-items-center rounded-xl bg-background text-foreground shadow-sm">
                 <Download className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-foreground">下载到本地</h3>
+              <h3 className="mt-4 text-base font-semibold text-foreground">{uiText("下载到本地")}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                保存到下载目录后，可打开文件夹或生成手机二维码。
-              </p>
+                {uiText("保存到下载目录后，可打开文件夹或生成手机二维码。")}</p>
               <Button className="mt-5" onClick={onDownload} disabled={downloading}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}
-                {downloading ? "正在下载" : "下载到本地"}
+                {downloading ? uiText("正在下载") : uiText("下载到本地")}
               </Button>
             </div>
           ) : qrDataUrl ? (
@@ -975,12 +967,11 @@ function ExportPreviewView({
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(var(--ai-accent))] opacity-30 motion-reduce:animate-none" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--ai-accent))]" />
                 </span>
-                分享已开启
-              </div>
-              <h3 className="mt-2 text-base font-semibold text-foreground">用微信扫码</h3>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">手机无需与电脑连接同一网络</p>
+                {uiText("分享已开启")}</div>
+              <h3 className="mt-2 text-base font-semibold text-foreground">{uiText("用微信扫码")}</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("手机无需与电脑连接同一网络")}</p>
               <div className="mt-4 rounded-xl bg-white p-3 shadow-sm">
-                <img src={qrDataUrl} alt="公网微信导入页二维码" className="h-[190px] w-[190px]" />
+                <img src={qrDataUrl} alt={uiText("公网微信导入页二维码")} className="h-[190px] w-[190px]" />
               </div>
               <ol className="mt-4 grid w-full grid-cols-3 gap-2 text-[11px] leading-4 text-muted-foreground">
                 {[
@@ -1004,33 +995,30 @@ function ExportPreviewView({
                 onClick={() => void navigator.clipboard.writeText(shareUrl)}
               >
                 <Copy className="h-3.5 w-3.5" />
-                复制分享链接
-              </Button>
+                {uiText("复制分享链接")}</Button>
               <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-                关闭弹窗后仍会保持在线，可在“更多 → 在线分享管理”中关闭。
-              </p>
+                {uiText("关闭弹窗后仍会保持在线，可在“更多 → 在线分享管理”中关闭。")}</p>
             </div>
           ) : (
             <div className="flex w-full max-w-[272px] flex-col items-center">
               <div className="grid h-14 w-14 place-items-center rounded-xl bg-background text-foreground shadow-sm">
                 <ScanQrCode className="h-6 w-6" />
               </div>
-              <h3 className="mt-5 text-base font-semibold text-foreground">发送到手机</h3>
+              <h3 className="mt-5 text-base font-semibold text-foreground">{uiText("发送到手机")}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                生成临时二维码，在手机上打开表情列表并长按保存。
-              </p>
+                {uiText("生成临时二维码，在手机上打开表情列表并长按保存。")}</p>
               <Button className="mt-6" onClick={onStartPhoneShare} disabled={sharing}>
                 {sharing ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Smartphone className="h-4 w-4" />}
-                {sharing ? "正在生成" : "生成二维码"}
+                {sharing ? uiText("正在生成") : uiText("生成二维码")}
               </Button>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">二维码会持续有效，直到手动关闭、到期或退出 APP</p>
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">{uiText("二维码会持续有效，直到手动关闭、到期或退出 APP")}</p>
             </div>
           )}
         </aside>
       </div>
       <DialogFooter className="min-h-[64px] items-center border-t border-border px-6 py-3 sm:justify-between">
-        <Button variant="ghost" onClick={onBack} disabled={downloading}>返回调整</Button>
-        {downloaded ? <Button onClick={onDone}>完成</Button> : <span />}
+        <Button variant="ghost" onClick={onBack} disabled={downloading}>{uiText("返回调整")}</Button>
+        {downloaded ? <Button onClick={onDone}>{uiText("完成")}</Button> : <span />}
       </DialogFooter>
     </div>
   );

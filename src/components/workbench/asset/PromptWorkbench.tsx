@@ -1,12 +1,8 @@
+import { useUiText } from "@/i18n";
 import { Copy, Pencil, Play } from "lucide-react";
 import type { PromptSpec } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PromptWorkbenchProps {
   prompt: string;
@@ -45,6 +41,8 @@ export function PromptWorkbench({
   onReuse,
   onSendToEdit
 }: PromptWorkbenchProps): React.ReactElement {
+  const uiText = useUiText();
+
   // Collect non-empty spec fields.
   const specChips: Array<{ key: string; label: string; value: string }> = [];
   if (promptSpec) {
@@ -77,7 +75,7 @@ export function PromptWorkbench({
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-xs">
                   <p className="text-xs">{chip.value}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">点击复制</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">{uiText("点击复制")}</p>
                 </TooltipContent>
               </Tooltip>
             ))}
@@ -93,7 +91,7 @@ export function PromptWorkbench({
           </p>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">该素材没有记录提示词。</p>
+        <p className="text-sm text-muted-foreground">{uiText("该素材没有记录提示词。")}</p>
       )}
 
       {/* Action buttons */}
@@ -106,8 +104,7 @@ export function PromptWorkbench({
           onClick={onCopyPrompt}
         >
           <Copy className="h-3.5 w-3.5" />
-          复制
-        </Button>
+          {uiText("复制")}</Button>
         <Button
           variant="outline"
           size="sm"
@@ -116,8 +113,7 @@ export function PromptWorkbench({
           onClick={onReuse}
         >
           <Play className="h-3.5 w-3.5" />
-          以此生成
-        </Button>
+          {uiText("以此生成")}</Button>
         {onSendToEdit && (
           <Button
             variant="outline"
@@ -126,8 +122,7 @@ export function PromptWorkbench({
             onClick={onSendToEdit}
           >
             <Pencil className="h-3.5 w-3.5" />
-            送去编辑
-          </Button>
+            {uiText("送去编辑")}</Button>
         )}
       </div>
     </div>

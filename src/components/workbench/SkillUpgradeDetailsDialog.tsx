@@ -1,14 +1,8 @@
+import { useUiText } from "@/i18n";
 import { CheckCircle2, FilePenLine, FilePlus2, FileX2, RefreshCw } from "lucide-react";
 import type { McpSkillUpgradeDetail } from "@shared/mcp-integration";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SkillUpgradeDetailsDialogProps {
   open: boolean;
@@ -26,6 +20,8 @@ export function SkillUpgradeDetailsDialog({
   details,
   onOpenChange
 }: SkillUpgradeDetailsDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const changedFileCount = details.reduce(
     (total, detail) => total + detail.files.added.length + detail.files.updated.length + detail.files.removed.length,
     0
@@ -39,10 +35,9 @@ export function SkillUpgradeDetailsDialog({
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <DialogTitle>Iterlay Skill 已升级</DialogTitle>
+              <DialogTitle>{uiText("Iterlay Skill 已升级")}</DialogTitle>
               <DialogDescription className="mt-1 text-xs leading-5">
-                已同步 {details.length} 个 Coding Agent，共变更 {changedFileCount} 个文件。
-              </DialogDescription>
+                {uiText("已同步 ")}{details.length} {uiText("个 Coding Agent，共变更 ")}{changedFileCount} {uiText("个文件。")}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -58,15 +53,15 @@ export function SkillUpgradeDetailsDialog({
               </div>
               <p className="mt-2 break-all font-mono text-[11px] leading-5 text-muted-foreground">{detail.skillPath}</p>
               <div className="mt-4 space-y-3">
-                <FileChangeList icon={<FilePlus2 />} label="新增" paths={detail.files.added} tone="success" />
-                <FileChangeList icon={<FilePenLine />} label="更新" paths={detail.files.updated} tone="info" />
-                <FileChangeList icon={<FileX2 />} label="移除" paths={detail.files.removed} tone="muted" />
+                <FileChangeList icon={<FilePlus2 />} label={uiText("新增")} paths={detail.files.added} tone="success" />
+                <FileChangeList icon={<FilePenLine />} label={uiText("更新")} paths={detail.files.updated} tone="info" />
+                <FileChangeList icon={<FileX2 />} label={uiText("移除")} paths={detail.files.removed} tone="muted" />
               </div>
             </section>
           ))}
         </div>
         <DialogFooter className="border-t border-border px-6 py-4">
-          <Button type="button" size="sm" onClick={() => onOpenChange(false)}>完成</Button>
+          <Button type="button" size="sm" onClick={() => onOpenChange(false)}>{uiText("完成")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

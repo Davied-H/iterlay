@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -163,6 +164,8 @@ function TemplateBrief({
   onExpandedChange: (expanded: boolean) => void;
   onRequestSelect: (request: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const statusLabels: Record<TemplateRequestStatus, string> = {
     pending: "待补充",
     provided: "已提供",
@@ -175,7 +178,7 @@ function TemplateBrief({
       ? `${focus.length} 项保留 · ${pendingCount} 项待补`
       : `${focus.length} 项保留 · 信息已齐`;
   return (
-    <section className="shrink-0 border-b border-[#e5e5e1] px-3 dark:border-border" aria-label="模板使用说明">
+    <section className="shrink-0 border-b border-[#e5e5e1] px-3 dark:border-border" aria-label={uiText("模板使用说明")}>
       <div className="overflow-hidden">
         <button
           type="button"
@@ -185,11 +188,11 @@ function TemplateBrief({
         >
           <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#6f6f69] dark:text-foreground/75" />
           <span className="flex min-w-0 flex-1 items-baseline gap-1.5 whitespace-nowrap">
-            <span className="shrink-0 text-[11px] font-medium text-[#4b4b47] dark:text-foreground">模板约束</span>
+            <span className="shrink-0 text-[11px] font-medium text-[#4b4b47] dark:text-foreground">{uiText("模板约束")}</span>
             <span className="text-[10px] text-[#b2b2ac]">·</span>
             <span className="min-w-0 truncate text-[10px] text-[#777772] dark:text-muted-foreground" title={compactSummary}>{compactSummary}</span>
           </span>
-          <span className="sr-only">{expanded ? "收起模板使用说明" : "展开模板使用说明"}</span>
+          <span className="sr-only">{expanded ? uiText("收起模板使用说明") : uiText("展开模板使用说明")}</span>
           <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[#92928c] transition-transform", expanded && "rotate-180")} />
         </button>
         <AnimatePresence initial={false}>
@@ -204,7 +207,7 @@ function TemplateBrief({
               <div className="py-2.5 text-[11px]">
                 <div className="grid grid-cols-[54px_minmax(0,1fr)] items-start gap-2">
                   <div>
-                    <p className="font-medium text-[#666660] dark:text-foreground/90">自动保留</p>
+                    <p className="font-medium text-[#666660] dark:text-foreground/90">{uiText("自动保留")}</p>
                   </div>
                   <div className="flex min-w-0 flex-wrap gap-1">
                     {focus.map((item) => (
@@ -216,10 +219,10 @@ function TemplateBrief({
                 </div>
                 <div className="mt-2 grid grid-cols-[54px_minmax(0,1fr)] items-start gap-2">
                   <div>
-                    <p className="font-medium text-[#666660] dark:text-foreground/90">需要补充</p>
+                    <p className="font-medium text-[#666660] dark:text-foreground/90">{uiText("需要补充")}</p>
                   </div>
                   {requests.length > 0 ? (
-                    <ul className="grid min-w-0 gap-1" aria-label="需要补充的内容">
+                    <ul className="grid min-w-0 gap-1" aria-label={uiText("需要补充的内容")}>
                       {requests.map((item) => {
                         const pending = item.status === "pending";
                         const content = (
@@ -232,7 +235,7 @@ function TemplateBrief({
                         return (
                           <li key={item.label} data-request-status={item.status} className="min-w-0">
                             {pending ? (
-                              <button type="button" aria-label={`补充${item.label}`} onClick={() => onRequestSelect(item.label)} className="flex min-h-7 w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[#444440] transition-colors hover:bg-[#f0f0ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-foreground/85 dark:hover:bg-accent">
+                              <button type="button" aria-label={uiText("补充{{ui:0}}", [item.label])} onClick={() => onRequestSelect(item.label)} className="flex min-h-7 w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[#444440] transition-colors hover:bg-[#f0f0ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-foreground/85 dark:hover:bg-accent">
                                 {content}
                               </button>
                             ) : (
@@ -245,7 +248,7 @@ function TemplateBrief({
                       })}
                     </ul>
                   ) : (
-                    <p className="py-1 text-[#777772] dark:text-muted-foreground">直接描述本次目标即可。</p>
+                    <p className="py-1 text-[#777772] dark:text-muted-foreground">{uiText("直接描述本次目标即可。")}</p>
                   )}
                 </div>
               </div>
@@ -270,6 +273,8 @@ function PromptProposal({
   onGenerate: (prompt: string) => void;
   onDismiss: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [draftPrompt, setDraftPrompt] = useState(prompt);
 
   useEffect(() => setDraftPrompt(prompt), [prompt]);
@@ -281,24 +286,24 @@ function PromptProposal({
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
       className="absolute inset-x-2 bottom-2 z-10 flex max-h-[min(380px,calc(100%_-_16px))] flex-col overflow-hidden rounded-[10px] border border-[#d8d8d4] bg-[#fbfbf9] shadow-[0_4px_12px_rgba(22,22,20,0.12)] dark:border-border dark:bg-popover dark:shadow-none"
-      aria-label="确认生成方案"
+      aria-label={uiText("确认生成方案")}
     >
       <div className="min-h-0 overflow-y-auto p-3">
         <div className="flex min-h-8 items-start gap-2">
           <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold leading-5">应用这版提示词？</span>
-            <span className="mt-0.5 block text-xs leading-[1.5] text-muted-foreground">可先编辑，再回填输入框或直接生成。</span>
+            <span className="block text-[13px] font-semibold leading-5">{uiText("应用这版提示词？")}</span>
+            <span className="mt-0.5 block text-xs leading-[1.5] text-muted-foreground">{uiText("可先编辑，再回填输入框或直接生成。")}</span>
           </span>
-          <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 h-7 w-7 shrink-0 text-muted-foreground" aria-label="继续调整方案" onClick={onDismiss}>
+          <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 h-7 w-7 shrink-0 text-muted-foreground" aria-label={uiText("继续调整方案")} onClick={onDismiss}>
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
         <div className="mt-3 border-t border-[#e4e4e0] pt-3 dark:border-border">
-          <p className="text-[11px] font-medium leading-4 text-[#686865] dark:text-muted-foreground">将应用的提示词</p>
+          <p className="text-[11px] font-medium leading-4 text-[#686865] dark:text-muted-foreground">{uiText("将应用的提示词")}</p>
           <textarea
             value={draftPrompt}
-            aria-label="确认生成方案内容"
+            aria-label={uiText("确认生成方案内容")}
             onChange={(event) => setDraftPrompt(event.target.value)}
             className="mt-2 max-h-40 min-h-24 w-full resize-y rounded-lg border border-[#dededa] bg-[#f8f8f6] px-2.5 py-2 text-xs leading-5 text-[#30302e] outline-none [overflow-wrap:anywhere] focus:border-[#747470] focus:ring-2 focus:ring-[#747470]/20 dark:border-border dark:bg-secondary dark:text-foreground dark:focus:border-ring dark:focus:ring-ring/20"
           />
@@ -306,12 +311,10 @@ function PromptProposal({
       </div>
       <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-[#e4e4e0] px-3 py-2.5 dark:border-border">
         <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg px-2.5 text-xs" disabled={!draftPrompt.trim()} onClick={() => onApply(draftPrompt)}>
-          应用提示词
-        </Button>
+          {uiText("应用提示词")}</Button>
         <Button type="button" size="sm" className="h-8 rounded-lg bg-[#30302e] px-2.5 text-xs text-[#f4f4f1] hover:bg-[#242422] dark:bg-primary dark:text-primary-foreground" disabled={!draftPrompt.trim() || !canGenerateImmediately} onClick={() => onGenerate(draftPrompt)}>
           <Play className="mr-1 h-3.5 w-3.5" />
-          立即生成
-        </Button>
+          {uiText("立即生成")}</Button>
       </div>
     </motion.section>
   );
@@ -340,6 +343,8 @@ export function TemplateUseAssistant({
   onGeneratePrompt,
   canGenerateImmediately = false
 }: TemplateUseAssistantProps): React.ReactElement {
+  const uiText = useUiText();
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const reduceMotion = Boolean(useReducedMotion());
@@ -389,23 +394,23 @@ export function TemplateUseAssistant({
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbf9] text-[#242422] dark:bg-background dark:text-foreground" aria-label={`使用模板：${templateName}`}>
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbf9] text-[#242422] dark:bg-background dark:text-foreground" aria-label={uiText("使用模板：{{ui:0}}", [templateName])}>
       <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-[#e5e5e1] px-3 dark:border-border">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#242422] text-white dark:bg-foreground dark:text-background">
           <Sparkles className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-xs font-semibold" title={templateName}>{templateName}</h2>
-          <p className="mt-0.5 text-[10px] text-[#85857f] dark:text-muted-foreground">模板助手</p>
+          <p className="mt-0.5 text-[10px] text-[#85857f] dark:text-muted-foreground">{uiText("模板助手")}</p>
         </div>
         <TooltipProvider delayDuration={250}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="关闭模板使用助手" onClick={onClose}>
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label={uiText("关闭模板使用助手")} onClick={onClose}>
                 <X className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>关闭助手</TooltipContent>
+            <TooltipContent>{uiText("关闭助手")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </header>
@@ -434,7 +439,7 @@ export function TemplateUseAssistant({
                     message.tone === "error" && "text-destructive"
                   )}>
                     {message.streaming && !message.content ? (
-                      <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className={cn("h-3.5 w-3.5", !reduceMotion && "animate-spin")} />正在理解模板与需求…</span>
+                      <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className={cn("h-3.5 w-3.5", !reduceMotion && "animate-spin")} />{uiText("正在理解模板与需求…")}</span>
                     ) : message.content}
                   </div>
                 </div>
@@ -444,18 +449,18 @@ export function TemplateUseAssistant({
           </div>
 
           {!latestPrompt && !streaming ? (
-            <section className="mt-4" aria-label="建议的下一步">
+            <section className="mt-4" aria-label={uiText("建议的下一步")}>
             <div className="mb-1.5 flex items-center gap-2">
-              <p className="text-[10px] font-medium text-[#85857f] dark:text-muted-foreground">快捷操作</p>
+              <p className="text-[10px] font-medium text-[#85857f] dark:text-muted-foreground">{uiText("快捷操作")}</p>
               {suggestionsLoading ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /> : null}
               <TooltipProvider delayDuration={250}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button type="button" disabled={suggestionsLoading} onClick={onRefreshSuggestions} className="ml-auto flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" aria-label="换一组模板使用建议">
+                    <button type="button" disabled={suggestionsLoading} onClick={onRefreshSuggestions} className="ml-auto flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" aria-label={uiText("换一组模板使用建议")}>
                       <RefreshCw className="h-3.5 w-3.5" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>换一组建议</TooltipContent>
+                  <TooltipContent>{uiText("换一组建议")}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
@@ -492,12 +497,12 @@ export function TemplateUseAssistant({
 
       <div className="shrink-0 border-t border-[#e5e5e1] bg-white p-2.5 dark:border-border dark:bg-background">
         {contextImages.length > 0 ? (
-          <div className="mb-2 flex gap-1.5 overflow-x-auto" aria-label="本次参考图片">
+          <div className="mb-2 flex gap-1.5 overflow-x-auto" aria-label={uiText("本次参考图片")}>
             {contextImages.map((image) => (
               <div key={image.id} className="group relative h-9 w-9 shrink-0 overflow-hidden rounded border border-[#d9d9d4] dark:border-border">
                 <img src={image.src} alt={image.alt} className="h-full w-full object-cover" />
                 {image.onRemove ? (
-                  <button type="button" onClick={image.onRemove} aria-label={`移除${image.alt}`} className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-sm bg-black/65 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none">
+                  <button type="button" onClick={image.onRemove} aria-label={uiText("移除{{ui:0}}", [image.alt])} className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-sm bg-black/65 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none">
                     <X className="h-2.5 w-2.5" />
                   </button>
                 ) : null}
@@ -511,8 +516,8 @@ export function TemplateUseAssistant({
             autoFocus
             value={value}
             rows={1}
-            aria-label="描述这次如何使用模板"
-            placeholder="描述本次要生成的内容…"
+            aria-label={uiText("描述这次如何使用模板")}
+            placeholder={uiText("描述本次要生成的内容…")}
             className="max-h-24 min-h-9 w-full resize-none break-words bg-transparent px-2 py-1.5 text-xs leading-5 outline-none [overflow-wrap:anywhere] placeholder:text-[#999993] dark:placeholder:text-muted-foreground"
             onChange={(event) => onValueChange(event.target.value)}
             onPaste={handlePaste}
@@ -526,19 +531,19 @@ export function TemplateUseAssistant({
             <TooltipProvider delayDuration={250}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button type="button" onClick={onAttach} className="flex h-8 w-8 items-center justify-center rounded-md text-[#777772] hover:bg-[#ecece8] hover:text-[#30302d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground" aria-label="添加参考图">
+                  <button type="button" onClick={onAttach} className="flex h-8 w-8 items-center justify-center rounded-md text-[#777772] hover:bg-[#ecece8] hover:text-[#30302d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground" aria-label={uiText("添加参考图")}>
                     {contextImages.length > 0 ? <ImagePlus className="h-4 w-4" /> : <Paperclip className="h-4 w-4" />}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>添加参考图</TooltipContent>
+                <TooltipContent>{uiText("添加参考图")}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <span className="ml-1 min-w-0 flex-1 truncate text-[10px] text-[#999993] dark:text-muted-foreground">自动沿用模板</span>
+            <span className="ml-1 min-w-0 flex-1 truncate text-[10px] text-[#999993] dark:text-muted-foreground">{uiText("自动沿用模板")}</span>
             <button
               type="button"
               disabled={!streaming && !canSubmit}
               onClick={streaming ? onStop : submit}
-              aria-label={streaming ? "停止整理" : "发送给模板使用助手"}
+              aria-label={streaming ? uiText("停止整理") : uiText("发送给模板使用助手")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#30302d] text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:bg-[#b8b8b2] dark:bg-foreground dark:text-background"
             >
               {streaming ? <Square className="h-3.5 w-3.5 fill-current" /> : <Send className="h-3.5 w-3.5" />}

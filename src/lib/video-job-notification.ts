@@ -1,3 +1,4 @@
+import { translateSourceText } from "@/i18n/ui-text";
 import type { VideoGenerationJob } from "@shared/types";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
 
@@ -20,9 +21,9 @@ export function notifyVideoJob(
   const succeeded = job.status === "completed";
   iterlayToast.videoResult({
     succeeded,
-    title: succeeded ? "视频生成完成" : "视频生成失败",
+    title: succeeded ? translateSourceText("视频生成完成") : translateSourceText("视频生成失败"),
     detail: succeeded
-      ? boardName ? `已存入「${boardName}」` : "已保存到画板"
+      ? boardName ? translateSourceText("已存入「{{ui:0}}」", [boardName]) : translateSourceText("已保存到画板")
       : job.error || "任务未能完成，请检查配置后重试",
     onNavigate: boardId ? () => onNavigate(boardId, job.id) : undefined
   });

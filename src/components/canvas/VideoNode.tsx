@@ -1,5 +1,21 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, CircleAlert, Clock3, Download, Film, FolderOpen, ImageDown, Info, Loader2, Plus, RotateCcw, Shuffle, StepForward } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  CircleAlert,
+  Clock3,
+  Download,
+  Film,
+  FolderOpen,
+  ImageDown,
+  Info,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Shuffle,
+  StepForward
+} from "lucide-react";
 import { Handle, NodeToolbar, Position, useStore, type NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -74,23 +90,25 @@ export function resolveVideoPreload(
 }
 
 function VideoNodeComponent({ id, data, selected, dragging, width, height }: NodeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const {
-    video,
-    versions: suppliedVersions,
-    activeVersionIndex = 0,
-    onRetry,
-    onDownload,
-    onExtractFrame,
-    onReveal,
-    onOpenDetails,
-    onSelectVersion,
-    onExtend,
-    onRemix,
-    onCompareVersions,
-    onConnectionHandlePointerDown,
-    connectionTargetActive,
-    connectionSnapTargetHandle
-  } = data as unknown as VideoNodeData;
+  video,
+  versions: suppliedVersions,
+  activeVersionIndex = 0,
+  onRetry,
+  onDownload,
+  onExtractFrame,
+  onReveal,
+  onOpenDetails,
+  onSelectVersion,
+  onExtend,
+  onRemix,
+  onCompareVersions,
+  onConnectionHandlePointerDown,
+  connectionTargetActive,
+  connectionSnapTargetHandle
+} = data as unknown as VideoNodeData;
   const versions = normalizedVideoVersions(video, suppliedVersions);
   const [compareLeft, setCompareLeft] = useState(0);
   const [compareRight, setCompareRight] = useState(Math.min(1, Math.max(0, versions.length - 1)));
@@ -177,7 +195,7 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
         width: Math.max(VIDEO_NODE_MIN_WIDTH, width || VIDEO_NODE_WIDTH),
         height: Math.max(1, height || Math.max(VIDEO_NODE_MIN_WIDTH, width || VIDEO_NODE_WIDTH) / ratio)
       }}
-      aria-label={`${title}节点，${videoNodeStatusLabel(status)}${video.version ? `，版本 ${video.version}` : ""}`}
+      aria-label={uiText("{{ui:0}}节点，{{ui:1}}{{ui:2}}", [title, videoNodeStatusLabel(status), video.version ? `，版本 ${video.version}` : ""])}
       onPointerEnter={() => {
         connectionPoints.showConnectionPoints();
         keepToolbarVisible();
@@ -199,7 +217,7 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
               preload={resolveVideoPreload(Boolean(selected), hovered, toolbarInteractionOpen, playing)}
               playsInline
               draggable={false}
-              aria-label={`${title}播放器`}
+              aria-label={uiText("{{ui:0}}播放器", [title])}
               onPointerDown={(event) => {
                 if (showNativeControls && isVideoControlPointer(event.clientY, event.currentTarget.getBoundingClientRect())) {
                   event.stopPropagation();
@@ -223,16 +241,16 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
             <span className="video-node-drag-surface" aria-hidden="true" />
           </>
         ) : poster ? (
-          <img src={poster} alt={`${title}预览`} draggable={false} />
+          <img src={poster} alt={uiText("{{ui:0}}预览", [title])} draggable={false} />
         ) : (
           <div className="video-node-placeholder" aria-busy={busy || undefined}>
             <VideoStatusIcon status={status} large />
             <strong>{videoNodeStatusLabel(status)}</strong>
             <span>{status === "post_processing"
-              ? "视频已生成，正在下载到本机"
+              ? uiText("视频已生成，正在下载到本机")
               : busy
-                ? "任务会在后台继续，可先处理画布中的其他内容"
-                : "等待视频结果"}</span>
+                ? uiText("任务会在后台继续，可先处理画布中的其他内容")
+                : uiText("等待视频结果")}</span>
           </div>
         )}
         {busy && poster ? (
@@ -251,7 +269,7 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
         <PositionedVideoToolbar nodeId={id}>
           <div
             role="toolbar"
-            aria-label="视频操作"
+            aria-label={uiText("视频操作")}
             className="video-node-toolbar nodrag nopan nowheel"
             onPointerDown={(event) => event.stopPropagation()}
             onPointerEnter={keepToolbarVisible}
@@ -272,20 +290,20 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
               />
             ) : video.version ? <span className="video-node-toolbar-meta">v{video.version}</span> : null}
             <span className="video-node-toolbar-meta">{formatVideoDuration(video.durationMs)}</span>
-            <span className="video-node-toolbar-meta">{video.width && video.height ? `${video.width}×${video.height}` : "自适应"}</span>
-            <span className="video-node-toolbar-meta">{video.hasAudio === false ? "无音频" : "音频"}</span>
+            <span className="video-node-toolbar-meta">{video.width && video.height ? `${video.width}×${video.height}` : uiText("自适应")}</span>
+            <span className="video-node-toolbar-meta">{video.hasAudio === false ? uiText("无音频") : uiText("音频")}</span>
             {status === "failed" ? (
               <span className="video-node-toolbar-error" title={video.error}>
                 {video.error || "视频生成失败"}
               </span>
             ) : null}
-            {status === "failed" && onRetry ? <IconButton label="重试视频生成" onClick={() => onRetry(video)}><RotateCcw /></IconButton> : null}
-            {onExtend ? <IconButton label="继续视频" disabled={!playableSource} onClick={() => onExtend(video)}><StepForward /></IconButton> : null}
-            {onRemix ? <IconButton label="改编视频" disabled={!playableSource} onClick={() => onRemix(video)}><Shuffle /></IconButton> : null}
-            {onExtractFrame ? <IconButton label="提取当前帧" disabled={!playableSource || busy} onClick={extractCurrentFrame}><ImageDown /></IconButton> : null}
-            {onReveal ? <IconButton label="在访达中显示" disabled={!video.path} onClick={() => onReveal(video)}><FolderOpen /></IconButton> : null}
-            {onDownload ? <IconButton label="下载原视频" disabled={!playableSource} onClick={() => onDownload(video)}><Download /></IconButton> : null}
-            {onOpenDetails ? <IconButton label="查看视频详情" onClick={() => onOpenDetails(video)}><Info /></IconButton> : null}
+            {status === "failed" && onRetry ? <IconButton label={uiText("重试视频生成")} onClick={() => onRetry(video)}><RotateCcw /></IconButton> : null}
+            {onExtend ? <IconButton label={uiText("继续视频")} disabled={!playableSource} onClick={() => onExtend(video)}><StepForward /></IconButton> : null}
+            {onRemix ? <IconButton label={uiText("改编视频")} disabled={!playableSource} onClick={() => onRemix(video)}><Shuffle /></IconButton> : null}
+            {onExtractFrame ? <IconButton label={uiText("提取当前帧")} disabled={!playableSource || busy} onClick={extractCurrentFrame}><ImageDown /></IconButton> : null}
+            {onReveal ? <IconButton label={uiText("在访达中显示")} disabled={!video.path} onClick={() => onReveal(video)}><FolderOpen /></IconButton> : null}
+            {onDownload ? <IconButton label={uiText("下载原视频")} disabled={!playableSource} onClick={() => onDownload(video)}><Download /></IconButton> : null}
+            {onOpenDetails ? <IconButton label={uiText("查看视频详情")} onClick={() => onOpenDetails(video)}><Info /></IconButton> : null}
           </div>
         </PositionedVideoToolbar>
       ) : null}
@@ -324,6 +342,8 @@ function VideoVersionMenu({
   onCompareVersions?: VideoNodeData["onCompareVersions"];
   onOpenChange?: (open: boolean) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const safeActiveIndex = Math.min(Math.max(0, activeVersionIndex), versions.length - 1);
   const [open, setOpen] = useState(false);
   return (
@@ -332,13 +352,13 @@ function VideoVersionMenu({
       onOpenChange?.(nextOpen);
     }}>
       <PopoverTrigger asChild>
-        <button type="button" className="video-node-version-trigger" aria-label={`选择视频版本，当前版本 ${safeActiveIndex + 1}`}>
+        <button type="button" className="video-node-version-trigger" aria-label={uiText("选择视频版本，当前版本 {{ui:0}}", [safeActiveIndex + 1])}>
           v{safeActiveIndex + 1}<ChevronDown aria-hidden />
         </button>
       </PopoverTrigger>
       <PopoverContent side="top" align="end" className="video-node-version-menu nodrag nopan nowheel" onPointerDown={(event) => event.stopPropagation()}>
-        <div className="video-node-version-menu-title">版本</div>
-        <div className="video-node-version-list" role="listbox" aria-label="视频版本">
+        <div className="video-node-version-menu-title">{uiText("版本")}</div>
+        <div className="video-node-version-list" role="listbox" aria-label={uiText("视频版本")}>
           {versions.map((version, index) => (
             <button
               key={version.id || `${version.path}-${index}`}
@@ -352,26 +372,26 @@ function VideoVersionMenu({
               }}
             >
               <span>v{index + 1}</span>
-              <small>{formatVideoDuration(version.durationMs)} · {version.width && version.height ? `${version.width}×${version.height}` : "自适应"}</small>
+              <small>{formatVideoDuration(version.durationMs)} · {version.width && version.height ? `${version.width}×${version.height}` : uiText("自适应")}</small>
               {index === safeActiveIndex ? <Check aria-hidden /> : null}
             </button>
           ))}
         </div>
         {onCompareVersions ? (
-          <div className="video-node-compare" aria-label="比较两个视频版本">
-            <span>对比</span>
-            <select aria-label="对比版本 A" value={compareLeft} onChange={(event) => onCompareLeftChange(Number(event.target.value))}>
+          <div className="video-node-compare" aria-label={uiText("比较两个视频版本")}>
+            <span>{uiText("对比")}</span>
+            <select aria-label={uiText("对比版本 A")} value={compareLeft} onChange={(event) => onCompareLeftChange(Number(event.target.value))}>
               {versions.map((_, index) => <option key={index} value={index}>v{index + 1}</option>)}
             </select>
-            <span aria-hidden>与</span>
-            <select aria-label="对比版本 B" value={compareRight} onChange={(event) => onCompareRightChange(Number(event.target.value))}>
+            <span aria-hidden>{uiText("与")}</span>
+            <select aria-label={uiText("对比版本 B")} value={compareRight} onChange={(event) => onCompareRightChange(Number(event.target.value))}>
               {versions.map((_, index) => <option key={index} value={index}>v{index + 1}</option>)}
             </select>
             <button type="button" disabled={compareLeft === compareRight} onClick={() => {
               setOpen(false);
               onOpenChange?.(false);
               onCompareVersions(versions[compareLeft], versions[compareRight]);
-            }}>比较</button>
+            }}>{uiText("比较")}</button>
           </div>
         ) : null}
       </PopoverContent>
@@ -393,13 +413,15 @@ function VideoStatusIcon({ status, large = false }: { status: VideoNodeStatus; l
 }
 
 function NodeHandles({ nodeId, onConnectionHandlePointerDown }: { nodeId: string; onConnectionHandlePointerDown?: VideoNodeData["onConnectionHandlePointerDown"] }): React.ReactElement {
+  const uiText = useUiText();
+
   return <>{SIDES.map((position) => {
     const side = position.toLowerCase() as CanvasNodeSide;
     return (
       <div key={side} className={`image-node-connection-point image-node-connection-point--${side}`}>
         <Handle type="target" position={position} id={`target-${side}`} isConnectableStart className="image-node-connection-handle image-node-connection-handle--target nodrag nopan" />
         <Handle type="source" position={position} id={`source-${side}`} isConnectableEnd className="image-node-connection-handle image-node-connection-handle--source nodrag nopan" />
-        <button type="button" aria-label={`从${SIDE_LABELS[side]}侧创建连接`} className="nodrag nopan image-node-connection-trigger" onPointerDownCapture={(event) => {
+        <button type="button" aria-label={uiText("从{{ui:0}}侧创建连接", [SIDE_LABELS[side]])} className="nodrag nopan image-node-connection-trigger" onPointerDownCapture={(event) => {
           event.preventDefault(); event.stopPropagation();
           onConnectionHandlePointerDown?.(nodeId, side, event.clientX, event.clientY, event.pointerId);
         }}><Plus aria-hidden className="h-3.5 w-3.5" /></button>

@@ -1,5 +1,21 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useEffectEvent, useRef, useState } from "react";
-import { Check, ChevronDown, Circle, CircleAlert, Clock3, FileAudio, Image as ImageIcon, Loader2, Play, Plus, RotateCcw, Square, Video, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Circle,
+  CircleAlert,
+  Clock3,
+  FileAudio,
+  Image as ImageIcon,
+  Loader2,
+  Play,
+  Plus,
+  RotateCcw,
+  Square,
+  Video,
+  X
+} from "lucide-react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { VideoProviderConfig } from "@shared/types";
 import { getProviderModels } from "@shared/provider-models";
@@ -141,44 +157,46 @@ export function videoGenerationStatusLabel(status: VideoGenerationNodeStatus): s
 }
 
 function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const nodeData = data as unknown as VideoGenerationNodeData;
   const {
-    title = "视频生成",
-    mode,
-    advancedVideoModesEnabled = false,
-    prompt,
-    providerId,
-    sourceVideoPath,
-    model,
-    duration,
-    aspectRatio,
-    resolution,
-    generateAudio,
-    status = "draft",
-    error,
-    lastGenerationId,
-    startFrame,
-    endFrame,
-    referenceImages = [],
-    referenceVideos = [],
-    referenceAudios = [],
-    providerOptions = [],
-    requiresFirstLastFrame = false,
-    goldBeanBalance,
-    goldBeanLoading = false,
-    videoGoldBeanCostPerSecond,
-    onBeforeChange,
-    onChange,
-    onRun,
-    onRetry,
-    onStopPolling,
-    onResumePolling,
-    onChooseAudio,
-    onRemoveAudio,
-    connectionTargetActive,
-    compatibleConnectionHandles = [],
-    connectionSnapTargetHandle
-  } = nodeData;
+  title = "视频生成",
+  mode,
+  advancedVideoModesEnabled = false,
+  prompt,
+  providerId,
+  sourceVideoPath,
+  model,
+  duration,
+  aspectRatio,
+  resolution,
+  generateAudio,
+  status = "draft",
+  error,
+  lastGenerationId,
+  startFrame,
+  endFrame,
+  referenceImages = [],
+  referenceVideos = [],
+  referenceAudios = [],
+  providerOptions = [],
+  requiresFirstLastFrame = false,
+  goldBeanBalance,
+  goldBeanLoading = false,
+  videoGoldBeanCostPerSecond,
+  onBeforeChange,
+  onChange,
+  onRun,
+  onRetry,
+  onStopPolling,
+  onResumePolling,
+  onChooseAudio,
+  onRemoveAudio,
+  connectionTargetActive,
+  compatibleConnectionHandles = [],
+  connectionSnapTargetHandle
+} = nodeData;
   const aspectRatioSuggestion = resolveVideoGenerationAspectRatio(startFrame, endFrame, referenceImages);
   const aspectRatioSourceKey = aspectRatioSuggestion?.sourceKey ?? "";
   const previousAspectRatioSourceKey = useRef<string | undefined>(undefined);
@@ -290,7 +308,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
         "canvas-node-card canvas-workflow-node video-generation-node group relative flex w-[340px] cursor-grab flex-col overflow-visible active:cursor-grabbing",
         selected && "canvas-workflow-node--selected"
       )}
-      aria-label={`${title}节点，${videoGenerationStatusLabel(status)}`}
+      aria-label={uiText("{{ui:0}}节点，{{ui:1}}", [title, videoGenerationStatusLabel(status)])}
     >
       <VideoGenerationHandles
         connectionTargetActive={connectionTargetActive}
@@ -309,12 +327,12 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
         {capabilityBlock ? (
           <div id={`video-capability-${id}`} className="video-generation-mode-detail is-blocked" role="alert">
             <CircleAlert aria-hidden />
-            <span><strong>首尾帧模型不可用</strong><small>{capabilityBlock}</small></span>
+            <span><strong>{uiText("首尾帧模型不可用")}</strong><small>{capabilityBlock}</small></span>
           </div>
         ) : null}
         {showAdvancedModeControls ? (
           <>
-            <div className="video-generation-mode" role="group" aria-label="视频生成模式">
+            <div className="video-generation-mode" role="group" aria-label={uiText("视频生成模式")}>
               {MODE_OPTIONS.map((option) => {
                 const unavailableReason = videoModeUnavailableReason(option, hasSourceVideo, selectedProvider);
                 return (
@@ -338,18 +356,18 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
           </>
         ) : null}
         <div className="video-generation-section">
-          <div className="video-generation-section-title"><span>{hasSourceVideo ? "源视频与参考" : "画面参考"}</span><small>{referenceImages.length}/{VIDEO_MAX_REFERENCE_IMAGES} 参考图</small></div>
+          <div className="video-generation-section-title"><span>{hasSourceVideo ? uiText("源视频与参考") : uiText("画面参考")}</span><small>{referenceImages.length}/{VIDEO_MAX_REFERENCE_IMAGES} {uiText("参考图")}</small></div>
           <div className="video-generation-frame-grid">
-            <FrameSlot label="首帧" image={startFrame} required onPreview={(image, src, alt) => setImagePreview({ image, src, alt })} />
-            <FrameSlot label="尾帧" image={endFrame} onPreview={(image, src, alt) => setImagePreview({ image, src, alt })} />
+            <FrameSlot label={uiText("首帧")} image={startFrame} required onPreview={(image, src, alt) => setImagePreview({ image, src, alt })} />
+            <FrameSlot label={uiText("尾帧")} image={endFrame} onPreview={(image, src, alt) => setImagePreview({ image, src, alt })} />
           </div>
           {referenceImages.length ? (
-            <div className="video-generation-references" aria-label="视频参考图">
+            <div className="video-generation-references" aria-label={uiText("视频参考图")}>
               {referenceImages.slice(0, VIDEO_MAX_REFERENCE_IMAGES).map((image, index) => (
                 <CanvasThumbnailImage
                   key={image.id}
                   image={image}
-                  alt={`参考图 ${index + 1}`}
+                  alt={uiText("参考图 {{ui:0}}", [index + 1])}
                   onPreview={(src, alt) => setImagePreview({ image, src, alt })}
                 />
               ))}
@@ -357,11 +375,10 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
           ) : null}
           {referenceImages.length > VIDEO_MAX_REFERENCE_IMAGES ? (
             <p className="video-generation-input-error" role="alert">
-              当前模型最多接收 {VIDEO_MAX_REFERENCE_IMAGES} 张参考图，请移除 {referenceImages.length - VIDEO_MAX_REFERENCE_IMAGES} 张后生成。
-            </p>
+              {uiText("当前模型最多接收 ")}{VIDEO_MAX_REFERENCE_IMAGES} {uiText("张参考图，请移除 ")}{referenceImages.length - VIDEO_MAX_REFERENCE_IMAGES} {uiText("张后生成。")}</p>
           ) : null}
           {referenceVideos.length ? (
-            <div className="video-generation-video-references" aria-label="参考视频">
+            <div className="video-generation-video-references" aria-label={uiText("参考视频")}>
               {referenceVideos.map((video, index) => (
                 <div key={video.id} className="video-generation-video-reference">
                   <span className="video-generation-video-thumb">
@@ -369,25 +386,25 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
                   </span>
                   <span>
                     <strong>{video.name}</strong>
-                    <small>{video.path === sourceVideoPath || (!sourceVideoPath && draft.mode !== "generate" && index === 0) ? "源视频" : "参考视频"} · {formatVideoDuration(video.durationMs)}</small>
+                    <small>{video.path === sourceVideoPath || (!sourceVideoPath && draft.mode !== "generate" && index === 0) ? uiText("源视频") : uiText("参考视频")} · {formatVideoDuration(video.durationMs)}</small>
                   </span>
                 </div>
               ))}
             </div>
           ) : null}
-          <div className="video-generation-audio-references" aria-label="参考音频">
+          <div className="video-generation-audio-references" aria-label={uiText("参考音频")}>
             {referenceAudios.map((audio) => (
               <span key={audio.id} className="video-generation-audio-chip">
                 <FileAudio aria-hidden />
                 <span title={audio.name}>{audio.name}</span>
                 <small>{formatVideoDuration(audio.durationMs)}</small>
                 {onRemoveAudio ? (
-                  <button type="button" aria-label={`移除参考音频 ${audio.name}`} disabled={busy} onClick={() => onRemoveAudio(id, audio)}><X aria-hidden /></button>
+                  <button type="button" aria-label={uiText("移除参考音频 {{ui:0}}", [audio.name])} disabled={busy} onClick={() => onRemoveAudio(id, audio)}><X aria-hidden /></button>
                 ) : null}
               </span>
             ))}
             {onChooseAudio ? (
-              <button type="button" className="video-generation-audio-add" disabled={busy} onClick={() => onChooseAudio(id)}><Plus aria-hidden />参考音频</button>
+              <button type="button" className="video-generation-audio-add" disabled={busy} onClick={() => onChooseAudio(id)}><Plus aria-hidden />{uiText("参考音频")}</button>
             ) : null}
           </div>
         </div>
@@ -410,7 +427,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
               event.preventDefault(); flush(); onRun?.(id, draftRef.current);
             }}
           />
-          <span className="video-generation-prompt-meta"><span>⌘ Enter 生成</span><span>{draft.prompt.length}/{VIDEO_GENERATION_PROMPT_MAX_LENGTH}</span></span>
+          <span className="video-generation-prompt-meta"><span>{uiText("⌘ Enter 生成")}</span><span>{draft.prompt.length}/{VIDEO_GENERATION_PROMPT_MAX_LENGTH}</span></span>
         </div>
 
         <div className="video-generation-settings">
@@ -427,15 +444,15 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
             resolution={draft.resolution}
             onSelect={(selectedProviderId, selectedModel) => update({ providerId: selectedProviderId, model: selectedModel })}
           />
-          <OptionRow label="时长" options={DURATION_OPTIONS.map(String)} value={String(draft.duration)} suffix="s" disabled={busy} onChange={(value) => update({ duration: Number(value) })} />
-          <OptionRow label="画幅" options={RATIO_OPTIONS} value={draft.aspectRatio} disabled={busy} onChange={(value) => update({ aspectRatio: value })} />
-          <OptionRow label="清晰度" options={RESOLUTION_OPTIONS} value={draft.resolution} disabled={busy} onChange={(value) => update({ resolution: value })} />
+          <OptionRow label={uiText("时长")} options={DURATION_OPTIONS.map(String)} value={String(draft.duration)} suffix="s" disabled={busy} onChange={(value) => update({ duration: Number(value) })} />
+          <OptionRow label={uiText("画幅")} options={RATIO_OPTIONS} value={draft.aspectRatio} disabled={busy} onChange={(value) => update({ aspectRatio: value })} />
+          <OptionRow label={uiText("清晰度")} options={RESOLUTION_OPTIONS} value={draft.resolution} disabled={busy} onChange={(value) => update({ resolution: value })} />
           <div className="video-generation-audio">
-            <span><strong>生成声音</strong><small>模型支持时同步生成环境音</small></span>
+            <span><strong>{uiText("生成声音")}</strong><small>{uiText("模型支持时同步生成环境音")}</small></span>
             <button
               type="button"
               role="switch"
-              aria-label="生成声音"
+              aria-label={uiText("生成声音")}
               aria-checked={draft.generateAudio}
               disabled={busy}
               className="video-generation-audio-switch"
@@ -469,7 +486,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
           else onRun?.(id, draftRef.current);
         }}>
           {busy ? <Square aria-hidden /> : status === "polling_stopped" ? <RotateCcw aria-hidden /> : retryable ? <RotateCcw aria-hidden /> : <Play aria-hidden />}
-          {busy ? "停止等待" : status === "polling_stopped" ? "恢复等待" : retryable ? "重试" : modePresentation.submitLabel}
+          {busy ? uiText("停止等待") : status === "polling_stopped" ? uiText("恢复等待") : retryable ? uiText("重试") : modePresentation.submitLabel}
         </button>
       </footer>
       {imagePreview ? (
@@ -516,6 +533,8 @@ function CanvasThumbnailImage({
   alt: string;
   onPreview?: (src: string, alt: string) => void;
 }): React.ReactElement | null {
+  const uiText = useUiText();
+
   const thumbnailUrl = useCanvasThumbnail(image.path, image.dataUrl, 192, true);
   if (!thumbnailUrl) return null;
   if (!onPreview) return <img src={thumbnailUrl} alt={alt} />;
@@ -523,7 +542,7 @@ function CanvasThumbnailImage({
     <button
       type="button"
       className="nodrag nopan"
-      aria-label={`预览${alt}`}
+      aria-label={uiText("预览{{ui:0}}", [alt])}
       onClick={() => onPreview(thumbnailUrl, alt)}
     >
       <img src={thumbnailUrl} alt="" />
@@ -542,16 +561,18 @@ function FrameSlot({
   required?: boolean;
   onPreview: (image: GeneratedImage, src: string, alt: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const content = (
     <>
       {image ? (
         <CanvasThumbnailImage
           image={image}
-          alt={`${label}预览`}
+          alt={uiText("{{ui:0}}预览", [label])}
           onPreview={(src, alt) => onPreview(image, src, alt)}
         />
       ) : <ImageIcon aria-hidden />}
-      <span>{label}{required ? <small>建议</small> : null}</span>
+      <span>{label}{required ? <small>{uiText("建议")}</small> : null}</span>
     </>
   );
 
@@ -599,6 +620,8 @@ function VideoProviderPicker({
   resolution: string;
   onSelect: (providerId: string, model: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [open, setOpen] = useState(false);
   const selected = providers.find((provider) => provider.id === providerId);
   const unavailable = Boolean(providerId) && !selected;
@@ -611,17 +634,17 @@ function VideoProviderPicker({
 
   return (
     <div className="video-generation-model">
-      <span>模型</span>
+      <span>{uiText("模型")}</span>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="选择视频模型"
+            aria-label={uiText("选择视频模型")}
             aria-expanded={open}
             disabled={disabled || providers.length === 0}
             className={cn("video-generation-model-trigger", (unavailable || modelUnavailable) && "is-unavailable")}
           >
-            <span title={model}>{unavailable ? "连接不可用" : modelUnavailable ? "模型不可用" : model || "选择视频模型"}</span>
+            <span title={model}>{unavailable ? uiText("连接不可用") : modelUnavailable ? uiText("模型不可用") : model || "选择视频模型"}</span>
             <ChevronDown aria-hidden />
           </button>
         </DropdownMenuTrigger>
@@ -656,12 +679,12 @@ function VideoProviderPicker({
                       "shrink-0 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground",
                       insufficientGoldBeans && "text-destructive"
                     )}>
-                      余额 {goldBeanLoading ? "--" : goldBeanBalance ?? "--"}
+                      {uiText("余额 ")}{goldBeanLoading ? "--" : goldBeanBalance ?? "--"}
                     </span>
                   ) : null}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent
-                  aria-label={`${provider.name || "未命名视频服务"}的视频模型`}
+                  aria-label={uiText("{{ui:0}}的视频模型", [provider.name || "未命名视频服务"])}
                   className="nodrag nopan nowheel w-80 max-w-[calc(100vw-1rem)] shadow-md"
                   onPointerDown={(event) => event.stopPropagation()}
                 >
@@ -681,7 +704,7 @@ function VideoProviderPicker({
                         <span className="flex shrink-0 items-center gap-2">
                           <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                             {official
-                              ? `${videoGoldBeanCostPerSecond ?? 1} 金豆/秒`
+                              ? uiText("{{ui:0}} 金豆/秒", [videoGoldBeanCostPerSecond ?? 1])
                               : provider.type === "minimax"
                                 ? minimaxVideoPriceLabel(providerModel, resolution)
                                 : findVideoProviderModelOption(provider.modelOptions, providerModel)?.pricingLabel || "供应商计费"}
@@ -696,7 +719,7 @@ function VideoProviderPicker({
                   {models.filter((providerModel) => !requiresFirstLastFrame || resolveVideoModelCapability(
                     findVideoProviderModelOption(provider.modelOptions, providerModel),
                     "first-last-frame"
-                  ) === "supported").length === 0 ? <p className="px-2 py-1.5 text-xs text-muted-foreground">{requiresFirstLastFrame ? "没有明确支持首尾帧的模型，请检查 Provider 配置" : "未配置模型"}</p> : null}
+                  ) === "supported").length === 0 ? <p className="px-2 py-1.5 text-xs text-muted-foreground">{requiresFirstLastFrame ? uiText("没有明确支持首尾帧的模型，请检查 Provider 配置") : uiText("未配置模型")}</p> : null}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             );
@@ -729,6 +752,8 @@ function VideoGenerationHandles({
   compatibleConnectionHandles = [],
   connectionSnapTargetHandle
 }: ConnectionTargetPresentation): React.ReactElement {
+  const uiText = useUiText();
+
   const compatible = new Set(compatibleConnectionHandles);
   const inputClass = (handleId: string): string => cn(
     compatible.has(handleId) && "is-compatible",
@@ -736,15 +761,15 @@ function VideoGenerationHandles({
   );
   return (
     <>
-      <Handle type="target" position={Position.Left} id="target-start-frame" className={cn("video-generation-port video-generation-port--start nodrag nopan", inputClass("target-start-frame"))} aria-label="连接首帧输入" />
-      <Handle type="target" position={Position.Left} id="target-end-frame" className={cn("video-generation-port video-generation-port--end nodrag nopan", inputClass("target-end-frame"))} aria-label="连接尾帧输入" />
-      <Handle type="target" position={Position.Left} id="target-reference" className={cn("video-generation-port video-generation-port--reference nodrag nopan", inputClass("target-reference"))} aria-label="连接参考图输入" />
-      <Handle type="target" position={Position.Left} id="target-video-reference" className={cn("video-generation-port video-generation-port--video-reference nodrag nopan", inputClass("target-video-reference"))} aria-label="连接参考视频输入" />
-      <Handle type="source" position={Position.Right} id="source-right" className="video-generation-output-port nodrag nopan" aria-label="连接视频生成结果" />
-      <span className={cn("video-generation-port-label video-generation-port-label--start", inputClass("target-start-frame"))}>{connectionTargetActive ? "首帧" : "首"}</span>
-      <span className={cn("video-generation-port-label video-generation-port-label--end", inputClass("target-end-frame"))}>{connectionTargetActive ? "尾帧" : "尾"}</span>
-      <span className={cn("video-generation-port-label video-generation-port-label--reference", inputClass("target-reference"))}>{connectionTargetActive ? "参考图" : "参"}</span>
-      <span className={cn("video-generation-port-label video-generation-port-label--video-reference", inputClass("target-video-reference"))}>{connectionTargetActive ? "参考视频" : "视"}</span>
+      <Handle type="target" position={Position.Left} id="target-start-frame" className={cn("video-generation-port video-generation-port--start nodrag nopan", inputClass("target-start-frame"))} aria-label={uiText("连接首帧输入")} />
+      <Handle type="target" position={Position.Left} id="target-end-frame" className={cn("video-generation-port video-generation-port--end nodrag nopan", inputClass("target-end-frame"))} aria-label={uiText("连接尾帧输入")} />
+      <Handle type="target" position={Position.Left} id="target-reference" className={cn("video-generation-port video-generation-port--reference nodrag nopan", inputClass("target-reference"))} aria-label={uiText("连接参考图输入")} />
+      <Handle type="target" position={Position.Left} id="target-video-reference" className={cn("video-generation-port video-generation-port--video-reference nodrag nopan", inputClass("target-video-reference"))} aria-label={uiText("连接参考视频输入")} />
+      <Handle type="source" position={Position.Right} id="source-right" className="video-generation-output-port nodrag nopan" aria-label={uiText("连接视频生成结果")} />
+      <span className={cn("video-generation-port-label video-generation-port-label--start", inputClass("target-start-frame"))}>{connectionTargetActive ? uiText("首帧") : uiText("首")}</span>
+      <span className={cn("video-generation-port-label video-generation-port-label--end", inputClass("target-end-frame"))}>{connectionTargetActive ? uiText("尾帧") : uiText("尾")}</span>
+      <span className={cn("video-generation-port-label video-generation-port-label--reference", inputClass("target-reference"))}>{connectionTargetActive ? uiText("参考图") : uiText("参")}</span>
+      <span className={cn("video-generation-port-label video-generation-port-label--video-reference", inputClass("target-video-reference"))}>{connectionTargetActive ? uiText("参考视频") : uiText("视")}</span>
       <span className="video-generation-output-label"><Plus aria-hidden /></span>
     </>
   );

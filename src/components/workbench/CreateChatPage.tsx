@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -31,14 +32,8 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { formatAssistantInteractionAnswers } from "@/lib/assistant-interaction";
-import {
-  buildAssistantHistory,
-  type AssistantHistoryConversation
-} from "@/lib/assistant-history";
-import {
-  getImageWorkbenchApi,
-  getWorkbenchErrorMessage
-} from "@/lib/image-workbench-api";
+import { buildAssistantHistory, type AssistantHistoryConversation } from "@/lib/assistant-history";
+import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
 import { getGenerationTiming } from "@/lib/generation-timing";
 import { cn } from "@/lib/utils";
@@ -115,6 +110,8 @@ export function CreateChatPage({
   onOpenBoard,
   onOpenSettings
 }: CreateChatPageProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = Boolean(useReducedMotion());
   const [value, setValue] = useState("");
   const [targetBoardId, setTargetBoardId] = useState<string | null>(null);
@@ -422,17 +419,17 @@ export function CreateChatPage({
   const isEmpty = messages.length === 0 && !interpreting;
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background" aria-label="AI 创作">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background" aria-label={uiText("AI 创作")}>
       <header className="window-titlebar-overlay-safe flex h-14 shrink-0 items-center justify-between px-5 [-webkit-app-region:drag]">
         <div className="min-w-0 [-webkit-app-region:no-drag]">
-          <h1 className="truncate text-sm font-semibold">新对话</h1>
+          <h1 className="truncate text-sm font-semibold">{uiText("新对话")}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
           <button
             type="button"
             onClick={() => void openHistory()}
-            aria-label="查看会话历史"
-            title="会话历史"
+            aria-label={uiText("查看会话历史")}
+            title={uiText("会话历史")}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <History className="h-4 w-4" />
@@ -444,8 +441,7 @@ export function CreateChatPage({
             className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35"
           >
             <Plus className="h-3.5 w-3.5" />
-            新对话
-          </button>
+            {uiText("新对话")}</button>
         </div>
       </header>
 
@@ -453,18 +449,17 @@ export function CreateChatPage({
         <div className={cn("mx-auto w-full max-w-4xl", isEmpty ? "flex min-h-full flex-col items-center justify-center py-16" : "py-8")}>
           {isEmpty ? (
             <>
-              <h2 className="text-center text-2xl font-semibold">今天想创作什么？</h2>
+              <h2 className="text-center text-2xl font-semibold">{uiText("今天想创作什么？")}</h2>
               <div className="mt-8 flex w-full max-w-2xl items-center justify-end">
                 <button
                   type="button"
                   onClick={() => void loadStarterPrompts("divergent", starterPrompts)}
                   disabled={starterPromptsLoading}
-                  aria-label="换一批灵感"
+                  aria-label={uiText("换一批灵感")}
                   className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   <RefreshCw className={cn("h-3.5 w-3.5", starterPromptsLoading && "animate-spin motion-reduce:animate-none")} />
-                  换一批
-                </button>
+                  {uiText("换一批")}</button>
               </div>
               <div className="mt-2 grid w-full max-w-2xl gap-2 sm:grid-cols-3" aria-busy={starterPromptsLoading}>
                 {starterPrompts.map((prompt) => (
@@ -539,7 +534,7 @@ export function CreateChatPage({
                     <span className="grid h-6 w-6 place-items-center rounded-md bg-foreground text-background">
                       <Check className="h-3.5 w-3.5" />
                     </span>
-                    {message.result.comicDrama ? "已在普通画板中开始" : "已生成并保存到"}「{message.result.boardName}」
+                    {message.result.comicDrama ? uiText("已在普通画板中开始") : uiText("已生成并保存到")}「{message.result.boardName}」
                   </div>
                   {message.result.images.length > 0 ? (
                     <div className="grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-3">
@@ -548,7 +543,7 @@ export function CreateChatPage({
                           key={image.id}
                           type="button"
                           onClick={() => onOpenBoard(message.result.boardId)}
-                          aria-label={`打开画板查看第 ${index + 1} 张生成图片`}
+                          aria-label={uiText("打开画板查看第 {{ui:0}} 张生成图片", [index + 1])}
                           className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <img src={image.dataUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025] motion-reduce:transition-none" />
@@ -557,13 +552,11 @@ export function CreateChatPage({
                     </div>
                   ) : message.result.comicDrama ? (
                     <div className="max-w-xl rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm text-muted-foreground">
-                      已添加 1 张漫剧设定卡，并打开通用漫剧助手。本步未创建角色、片段或媒体节点，不产生媒体费用。
-                    </div>
+                      {uiText("已添加 1 张漫剧设定卡，并打开通用漫剧助手。本步未创建角色、片段或媒体节点，不产生媒体费用。")}</div>
                   ) : (
                     <div className="flex max-w-xl items-center gap-3 rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm text-muted-foreground">
                       <ImageIcon className="h-4 w-4 shrink-0" />
-                      没有生成可用图片，请检查模型配置后重试。
-                    </div>
+                      {uiText("没有生成可用图片，请检查模型配置后重试。")}</div>
                   )}
                   <button
                     type="button"
@@ -571,15 +564,13 @@ export function CreateChatPage({
                     className="mt-3 flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <LayoutGrid className="h-3.5 w-3.5" />
-                    打开画板
-                  </button>
+                    {uiText("打开画板")}</button>
                 </article>
               ))}
               {interpreting ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                  Pi Agent 正在理解创作意图…
-                </div>
+                  {uiText("Pi Agent 正在理解创作意图…")}</div>
               ) : null}
             </div>
           )}
@@ -588,7 +579,7 @@ export function CreateChatPage({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background to-transparent px-4 pb-5 pt-14 sm:px-8">
         <div className="pointer-events-auto mx-auto w-full max-w-4xl rounded-xl border border-border bg-card shadow-[0_12px_36px_rgba(0,0,0,0.10)]">
-          <label className="sr-only" htmlFor="create-chat-input">描述想要创建的内容</label>
+          <label className="sr-only" htmlFor="create-chat-input">{uiText("描述想要创建的内容")}</label>
           <textarea
             ref={textareaRef}
             id="create-chat-input"
@@ -596,7 +587,7 @@ export function CreateChatPage({
             rows={2}
             autoFocus
             disabled={busy}
-            placeholder={messages.length === 0 ? "描述你想创作的内容…" : "继续补充或调整创作想法…"}
+            placeholder={messages.length === 0 ? uiText("描述你想创作的内容…") : uiText("继续补充或调整创作想法…")}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={(event) => {
               if (!isSendEnter(event)) return;
@@ -619,10 +610,10 @@ export function CreateChatPage({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" className="w-64">
-                <DropdownMenuLabel>生成到</DropdownMenuLabel>
+                <DropdownMenuLabel>{uiText("生成到")}</DropdownMenuLabel>
                 <DropdownMenuItem onSelect={() => setTargetBoardId(null)}>
                   <Plus className="h-4 w-4" />
-                  <span className="flex-1">新建画板</span>
+                  <span className="flex-1">{uiText("新建画板")}</span>
                   {!targetBoardId ? <Check className="h-4 w-4" /> : null}
                 </DropdownMenuItem>
                 {boards.length > 0 ? <DropdownMenuSeparator /> : null}
@@ -632,14 +623,13 @@ export function CreateChatPage({
                     <span className="min-w-0 flex-1 truncate">{board.name}</span>
                     {targetBoardId === board.id ? <Check className="h-4 w-4" /> : null}
                     {board.id === activeBoardId && targetBoardId !== board.id ? (
-                      <span className="text-[10px] text-muted-foreground">当前</span>
+                      <span className="text-[10px] text-muted-foreground">{uiText("当前")}</span>
                     ) : null}
                   </DropdownMenuItem>
                 ))}
                 {boards.length === 0 ? (
                   <DropdownMenuItem onSelect={onOpenSettings}>
-                    生成后可在画板库中继续整理
-                  </DropdownMenuItem>
+                    {uiText("生成后可在画板库中继续整理")}</DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -648,7 +638,7 @@ export function CreateChatPage({
               type="button"
               onClick={() => void submit()}
               disabled={!value.trim() || busy}
-              aria-label="发送给 Pi Agent"
+              aria-label={uiText("发送给 Pi Agent")}
               className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-foreground text-background transition-[opacity,transform] hover:opacity-85 active:scale-95 disabled:pointer-events-none disabled:opacity-25 motion-reduce:transition-none"
             >
               {interpreting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <ArrowUp className="h-4 w-4" />}
@@ -662,7 +652,7 @@ export function CreateChatPage({
           <>
             <motion.button
               type="button"
-              aria-label="关闭会话历史"
+              aria-label={uiText("关闭会话历史")}
               className="absolute inset-0 z-40 bg-black/20 [-webkit-app-region:no-drag]"
               variants={HISTORY_MASK_VARIANTS}
               initial={reduceMotion ? false : "closed"}
@@ -674,7 +664,7 @@ export function CreateChatPage({
             <motion.aside
               role="dialog"
               aria-modal="true"
-              aria-label="会话历史"
+              aria-label={uiText("会话历史")}
               className="absolute inset-y-0 right-0 z-50 flex w-[min(380px,calc(100%-24px))] flex-col border-l border-border bg-background shadow-[-18px_0_44px_rgba(0,0,0,0.12)] [-webkit-app-region:no-drag]"
               variants={HISTORY_DRAWER_VARIANTS}
               initial={reduceMotion ? false : "closed"}
@@ -687,14 +677,14 @@ export function CreateChatPage({
             >
               <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
                 <div>
-                  <h2 className="text-sm font-semibold">会话历史</h2>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">选择一条记录继续创作</p>
+                  <h2 className="text-sm font-semibold">{uiText("会话历史")}</h2>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{uiText("选择一条记录继续创作")}</p>
                 </div>
                 <button
                   ref={historyCloseButtonRef}
                   type="button"
                   onClick={() => setHistoryOpen(false)}
-                  aria-label="关闭会话历史"
+                  aria-label={uiText("关闭会话历史")}
                   className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <X className="h-4 w-4" />
@@ -705,8 +695,7 @@ export function CreateChatPage({
                 {historyLoading ? (
                   <div className="flex h-32 items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
                     <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                    正在读取历史…
-                  </div>
+                    {uiText("正在读取历史…")}</div>
                 ) : historyError ? (
                   <div className="m-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-3 text-sm text-destructive">
                     <p>{historyError}</p>
@@ -715,14 +704,13 @@ export function CreateChatPage({
                       onClick={() => void openHistory()}
                       className="mt-2 h-8 rounded-md border border-destructive/25 px-2.5 text-xs font-medium hover:bg-destructive/10"
                     >
-                      重新加载
-                    </button>
+                      {uiText("重新加载")}</button>
                   </div>
                 ) : historyConversations.length === 0 ? (
                   <div className="flex h-48 flex-col items-center justify-center px-8 text-center">
                     <History className="h-5 w-5 text-muted-foreground" />
-                    <p className="mt-3 text-sm font-medium">暂无会话历史</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">完成一次与 Pi Agent 的对话后，记录会显示在这里。</p>
+                    <p className="mt-3 text-sm font-medium">{uiText("暂无会话历史")}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("完成一次与 Pi Agent 的对话后，记录会显示在这里。")}</p>
                   </div>
                 ) : (
                   <div className="space-y-0.5">
@@ -731,7 +719,7 @@ export function CreateChatPage({
                         key={conversation.id}
                         type="button"
                         onClick={() => restoreConversation(conversation)}
-                        aria-label={`打开会话：${conversation.title}`}
+                        aria-label={uiText("打开会话：{{ui:0}}", [conversation.title])}
                         className={cn(
                           "group w-full rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           conversation.id === conversationId && "bg-accent/70"
@@ -748,7 +736,7 @@ export function CreateChatPage({
                         ) : null}
                         <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
                           {conversation.boardName ? <span className="max-w-40 truncate">{conversation.boardName}</span> : null}
-                          <span>{conversation.exchangeCount} 轮</span>
+                          <span>{conversation.exchangeCount} {uiText("轮")}</span>
                         </div>
                       </button>
                     ))}
@@ -766,8 +754,7 @@ export function CreateChatPage({
                   className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  新建对话
-                </button>
+                  {uiText("新建对话")}</button>
               </div>
             </motion.aside>
           </>
@@ -802,6 +789,8 @@ function CreateQuestionCard({
   onSubmit: (values: QuestionValues) => void;
   onDismiss: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [values, setValues] = useState<QuestionValues>({});
   const complete = interaction.fields.every((field) => {
     if (!field.required) return true;
@@ -831,7 +820,7 @@ function CreateQuestionCard({
             <fieldset key={field.id} className="min-w-0">
               <legend className="mb-2 text-xs font-medium">
                 {field.label}
-                {!field.required ? <span className="ml-1 font-normal text-muted-foreground">可选</span> : null}
+                {!field.required ? <span className="ml-1 font-normal text-muted-foreground">{uiText("可选")}</span> : null}
               </legend>
               {field.type === "select" ? (
                 <div className="flex flex-wrap gap-2" role={field.multiple ? "group" : "radiogroup"}>
@@ -926,6 +915,8 @@ function CreatePlanCard({
   onRefine: () => void;
   onGenerate: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const generationTiming = useCreateGenerationTiming(generationStartedAt);
 
   return (
@@ -936,36 +927,35 @@ function CreatePlanCard({
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold">
-            {active ? "创作方案已准备好" : confirmed ? "已执行的创作方案" : "此前的创作方案"}
+            {active ? uiText("创作方案已准备好") : confirmed ? uiText("已执行的创作方案") : uiText("此前的创作方案")}
           </h3>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            {active ? comicDrama ? `确认后添加到「${targetLabel}」` : `确认后生成到「${targetLabel}」` : confirmed ? comicDrama ? "已添加到画板" : "已确认生成" : "已被后续对话替代"}
+            {active ? comicDrama ? uiText("确认后添加到「{{ui:0}}」", [targetLabel]) : uiText("确认后生成到「{{ui:0}}」", [targetLabel]) : confirmed ? comicDrama ? uiText("已添加到画板") : uiText("已确认生成") : uiText("已被后续对话替代")}
           </p>
         </div>
         <span className="shrink-0 rounded border border-border bg-muted/45 px-2 py-1 text-[10px] text-muted-foreground">
-          {comicDrama ? "免费落板" : "1 张"}
+          {comicDrama ? uiText("免费落板") : uiText("1 张")}
         </span>
       </div>
       <div className="px-4 py-3">
         <p className="line-clamp-5 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{prompt}</p>
       </div>
-      {comicDrama ? <p className="border-t border-border/70 px-4 pt-2 text-[11px] text-muted-foreground">本步不生成图片或视频，不产生媒体费用</p> : null}
+      {comicDrama ? <p className="border-t border-border/70 px-4 pt-2 text-[11px] text-muted-foreground">{uiText("本步不生成图片或视频，不产生媒体费用")}</p> : null}
       {active ? (
         <div className="flex min-h-14 items-center justify-end gap-2 border-t border-border/70 px-4 py-3">
           {generating && comicDrama ? (
             <div className="mr-auto min-w-0 text-[11px] leading-4 text-muted-foreground" role="status" aria-live="polite">
-              正在创建普通画板并添加 1 张漫剧设定卡，不会调用媒体模型。
-            </div>
+              {uiText("正在创建普通画板并添加 1 张漫剧设定卡，不会调用媒体模型。")}</div>
           ) : generating && generationTiming ? (
             <div className="mr-auto min-w-0 text-[11px] leading-4 text-muted-foreground" aria-live="polite">
               <p>
-                已用 <time className="tabular-nums">{generationTiming.elapsedLabel}</time>
+                {uiText("已用 ")}<time className="tabular-nums">{generationTiming.elapsedLabel}</time>
               </p>
               <p>
                 {generationTiming.overdue ? (
                   "比预计久一点，任务仍在处理中"
                 ) : (
-                  <>预计剩余 <time className="tabular-nums">{generationTiming.remainingLabel}</time></>
+                  <>{uiText("预计剩余 ")}<time className="tabular-nums">{generationTiming.remainingLabel}</time></>
                 )}
               </p>
             </div>
@@ -976,8 +966,7 @@ function CreatePlanCard({
             onClick={onRefine}
             className="h-8 rounded-md px-3 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            继续调整
-          </button>
+            {uiText("继续调整")}</button>
           <button
             type="button"
             disabled={generating}
@@ -985,7 +974,7 @@ function CreatePlanCard({
             className="flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:opacity-85 disabled:pointer-events-none disabled:opacity-50"
           >
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {generating ? comicDrama ? "正在添加…" : "正在生成" : comicDrama ? "在画板中开始" : "确认生成"}
+            {generating ? comicDrama ? uiText("正在添加…") : uiText("正在生成") : comicDrama ? uiText("在画板中开始") : uiText("确认生成")}
           </button>
         </div>
       ) : null}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { repository, releasesUrl, releaseInstallers, loadReleases } from './releases.mjs'
+import { repository, releasesUrl, releaseInstallers, loadReleases, type GitHubRelease, type InstallerVariant } from './releases.mjs'
 const variants = [ ['darwin-arm64', 'macOS Apple 芯片'], ['darwin-x64', 'macOS Intel 芯片'], ['win32-x64', 'Windows 64 位'] ] as const
 export default function DownloadPage() {
-  const [variant, setVariant] = useState<string>(() => /Windows/i.test(navigator.userAgent) ? 'win32-x64' : 'darwin-arm64')
-  const [releases, setReleases] = useState<any[]>([])
+  const [variant, setVariant] = useState<InstallerVariant>(() => /Windows/i.test(navigator.userAgent) ? 'win32-x64' : 'darwin-arm64')
+  const [releases, setReleases] = useState<GitHubRelease[]>([])
   const [status, setStatus] = useState('loading')
   const [retry, setRetry] = useState(0)
   useEffect(() => {

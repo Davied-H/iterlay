@@ -1,4 +1,4 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
+import type { AgentTool } from "./agents/tool-runtime.js";
 import { createHash } from "node:crypto";
 import { Type, type TSchema } from "typebox";
 import type { BoardConnection } from "../shared/types.js";

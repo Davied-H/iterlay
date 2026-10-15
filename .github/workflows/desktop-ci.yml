@@ -1,0 +1,82 @@
+name: Desktop and CLI checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_desktop_smoke:
+        description: Explicitly run visible desktop lifecycle tests
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:subprojects
+      - run: pnpm check:all
+  browser-smoke:
+    runs-on: macos-14
+    env:
+      ITERLAY_BROWSER_DEV_USER_DATA: ${{ runner.temp }}/iterlay-ci-user-data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chromium
+      - name: Verify the isolated browser workbench
+        shell: bash
+        run: |
+          pnpm dev > "$RUNNER_TEMP/iterlay-browser-dev.log" 2>&1 &
+          launcher_pid=$!
+          trap 'kill -INT "$launcher_pid" 2>/dev/null || true' EXIT
+          pnpm exec wait-on --timeout 180000 "$ITERLAY_BROWSER_DEV_USER_DATA/browser-dev-bridge.json" http-get://127.0.0.1:5180
+          pnpm test:browser:smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-smoke-diagnostics
+          path: |
+            output/playwright
+            ${{ runner.temp }}/iterlay-browser-dev.log
+  desktop-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_desktop_smoke
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm native:build
+      - run: pnpm build:renderer
+      - run: pnpm test:electron:smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: electron-smoke-diagnostics
+          path: output/playwright

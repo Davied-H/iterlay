@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -102,6 +104,8 @@ export function AssetDetail({
   onPrev,
   onNext
 }: AssetDetailProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = useReducedMotion();
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -248,20 +252,20 @@ export function AssetDetail({
       const resp = await fetch(currentDataUrl);
       const blob = await resp.blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      iterlayToast.copied({ title: "已复制图片", detail: "可粘贴到其他应用" });
+      iterlayToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
     } catch {
       // Fallback: copy data URL.
       void navigator.clipboard.writeText(currentDataUrl);
-      iterlayToast.copied({ title: "已复制 Data URL" });
+      iterlayToast.copied({ title: translateSourceText("已复制 Data URL") });
     }
   }, [currentDataUrl]);
 
   const handleDownload = useCallback(async () => {
     try {
       const result = await getImageWorkbenchApi().saveAsset(currentImagePath);
-      if (result?.ok) iterlayToast.exported({ title: "图片已导出", path: result.path });
+      if (result?.ok) iterlayToast.exported({ title: translateSourceText("图片已导出"), path: result.path });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "导出失败");
+      toast.error(err instanceof Error ? err.message : translateSourceText("导出失败"));
     }
   }, [currentImagePath]);
 
@@ -269,7 +273,7 @@ export function AssetDetail({
     try {
       onUseReference(await imageUrlToDataUrl(currentDataUrl));
     } catch {
-      toast.error("无法读取参考图。");
+      toast.error(translateSourceText("无法读取参考图。"));
     }
   }, [currentDataUrl, onUseReference]);
 
@@ -282,7 +286,7 @@ export function AssetDetail({
       setMeta(updated);
     } catch {
       setMeta(prev);
-      toast.error("操作失败");
+      toast.error(translateSourceText("操作失败"));
     }
   }, [item.imagePath, meta]);
 
@@ -300,7 +304,7 @@ export function AssetDetail({
       // 先预览，再让用户决定下载/复制。
       setShareCard(cardDataUrl);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "生成分享卡失败");
+      toast.error(err instanceof Error ? err.message : translateSourceText("生成分享卡失败"));
     }
   }, [currentDataUrl, currentPrompt, currentSize, currentUseCase, currentModel, currentCreatedAt]);
 
@@ -308,9 +312,9 @@ export function AssetDetail({
     if (!shareCard) return;
     try {
       const result = await getImageWorkbenchApi().saveImageDataUrl(shareCard, "share-card.png");
-      if (result?.ok) iterlayToast.exported({ title: "分享卡已导出", path: result.path });
+      if (result?.ok) iterlayToast.exported({ title: translateSourceText("分享卡已导出"), path: result.path });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "导出失败");
+      toast.error(err instanceof Error ? err.message : translateSourceText("导出失败"));
     }
   }, [shareCard]);
 
@@ -325,7 +329,7 @@ export function AssetDetail({
     setMeta((m) => m ? { ...m, tags: nextTags } : null);
     setTagInput("");
     void getImageWorkbenchApi().setAssetTags(item.imagePath, nextTags).then(setMeta).catch(() => {
-      toast.error("标签保存失败");
+      toast.error(translateSourceText("标签保存失败"));
     });
   }, [tagInput, tags, item.imagePath]);
 
@@ -334,7 +338,7 @@ export function AssetDetail({
       const nextTags = tags.filter((t) => t !== tag);
       setMeta((m) => m ? { ...m, tags: nextTags } : null);
       void getImageWorkbenchApi().setAssetTags(item.imagePath, nextTags).then(setMeta).catch(() => {
-        toast.error("标签保存失败");
+        toast.error(translateSourceText("标签保存失败"));
       });
     },
     [tags, item.imagePath]
@@ -394,9 +398,8 @@ export function AssetDetail({
           onClick={onBack}
         >
           <ArrowLeft className="h-4 w-4" />
-          返回素材库
-        </Button>
-        <span className="text-sm font-semibold tracking-tight">素材详情</span>
+          {uiText("返回素材库")}</Button>
+        <span className="text-sm font-semibold tracking-tight">{uiText("素材详情")}</span>
         <div className="flex-1" />
         {/* Prev / Next */}
         <TooltipProvider delayDuration={200}>
@@ -409,12 +412,12 @@ export function AssetDetail({
                   className="h-7 w-7"
                   disabled={!hasPrev}
                   onClick={onPrev}
-                  aria-label="上一张"
+                  aria-label={uiText("上一张")}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>上一张 (←)</TooltipContent>
+              <TooltipContent>{uiText("上一张 (←)")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -424,12 +427,12 @@ export function AssetDetail({
                   className="h-7 w-7"
                   disabled={!hasNext}
                   onClick={onNext}
-                  aria-label="下一张"
+                  aria-label={uiText("下一张")}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>下一张 (→)</TooltipContent>
+              <TooltipContent>{uiText("下一张 (→)")}</TooltipContent>
             </Tooltip>
           </div>
         </TooltipProvider>
@@ -446,7 +449,7 @@ export function AssetDetail({
             <motion.img
               key={currentDataUrl}
               src={currentDataUrl}
-              alt="素材"
+              alt={uiText("素材")}
               draggable={false}
               className="max-h-full max-w-full rounded-xl object-contain shadow-[0_12px_48px_-16px_rgba(0,0,0,0.4)]"
               initial={reduceMotion ? false : { opacity: flip ? 0 : 0.55 }}
@@ -495,8 +498,7 @@ export function AssetDetail({
               </motion.div>
             )}
             <span className="pointer-events-none absolute bottom-10 right-10 rounded-md bg-background px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
-              点击放大
-            </span>
+              {uiText("点击放大")}</span>
           </div>
 
           {/* Version timeline */}
@@ -511,7 +513,7 @@ export function AssetDetail({
                         <button
                           type="button"
                           onClick={() => setActiveVersionIdx(index)}
-                          title={index === 0 ? "原图" : `版本 ${index + 1}`}
+                          title={index === 0 ? uiText("原图") : uiText("版本 {{ui:0}}", [index + 1])}
                           className={cn(
                             "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted transition-[opacity,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             active
@@ -521,7 +523,7 @@ export function AssetDetail({
                         >
                           <img
                             src={version.dataUrl}
-                            alt={`版本 ${index + 1}`}
+                            alt={uiText("版本 {{ui:0}}", [index + 1])}
                             className="h-full w-full object-cover"
                             draggable={false}
                           />
@@ -536,13 +538,13 @@ export function AssetDetail({
                             e.stopPropagation();
                             try {
                               const r = await getImageWorkbenchApi().saveAsset(version.imagePath);
-                              if (r?.ok) iterlayToast.exported({ title: `v${index + 1} 已导出`, path: r.path });
+                              if (r?.ok) iterlayToast.exported({ title: translateSourceText("v{{ui:0}} 已导出", [index + 1]), path: r.path });
                             } catch {
-                              toast.error("导出失败");
+                              toast.error(translateSourceText("导出失败"));
                             }
                           }}
                           className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100"
-                          aria-label={`下载版本 ${index + 1}`}
+                          aria-label={uiText("下载版本 {{ui:0}}", [index + 1])}
                         >
                           <Download className="h-3 w-3" />
                         </button>
@@ -561,10 +563,9 @@ export function AssetDetail({
                         onClick={() => setCompareMode((v) => !v)}
                       >
                         <GitCompareArrows className="h-3.5 w-3.5" />
-                        对比
-                      </Button>
+                        {uiText("对比")}</Button>
                     </TooltipTrigger>
-                    <TooltipContent>版本对比模式</TooltipContent>
+                    <TooltipContent>{uiText("版本对比模式")}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
@@ -587,7 +588,7 @@ export function AssetDetail({
                       >
                         {versions.map((_, i) => (
                           <option key={i} value={i}>
-                            v{i + 1}{i === 0 ? " 原图" : ""}
+                            v{i + 1}{i === 0 ? uiText(" 原图") : ""}
                           </option>
                         ))}
                       </select>
@@ -599,7 +600,7 @@ export function AssetDetail({
                       >
                         {versions.map((_, i) => (
                           <option key={i} value={i}>
-                            v{i + 1}{i === 0 ? " 原图" : ""}
+                            v{i + 1}{i === 0 ? uiText(" 原图") : ""}
                           </option>
                         ))}
                       </select>
@@ -646,7 +647,7 @@ export function AssetDetail({
             <motion.section {...sectionReveal} className="border-b border-border p-5">
               {/* Prompt workbench */}
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-sm font-semibold">提示词</span>
+                <span className="text-sm font-semibold">{uiText("提示词")}</span>
                 {currentVersion && (
                   <Badge variant="muted" className="text-[10px]">
                     v{activeVersionIdx + 1}
@@ -665,7 +666,7 @@ export function AssetDetail({
               {currentReferences.length > 0 && (
                 <div className="mt-4">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    引用图片 <span className="tabular-nums">{currentReferences.length}</span>
+                    {uiText("引用图片 ")}<span className="tabular-nums">{currentReferences.length}</span>
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {currentReferences.map((ref: AssetReference, index: number) => (
@@ -702,7 +703,7 @@ export function AssetDetail({
 
             {/* Source board */}
             <section className="border-b border-border p-5">
-              <p className="text-xs font-medium text-muted-foreground">来源画板</p>
+              <p className="text-xs font-medium text-muted-foreground">{uiText("来源画板")}</p>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate text-sm font-medium">{item.boardName}</span>
                 <Button
@@ -711,14 +712,13 @@ export function AssetDetail({
                   onClick={() => onLocateAsset(item.boardId, item.nodeId)}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
-                  进入并定位
-                </Button>
+                  {uiText("进入并定位")}</Button>
               </div>
             </section>
 
             {/* Tags */}
             <section className="border-b border-border p-5">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">标签</p>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{uiText("标签")}</p>
               <div className="flex flex-wrap items-center gap-1.5">
                 {tags.map((tag) => (
                   <Badge
@@ -731,7 +731,7 @@ export function AssetDetail({
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
                       className="flex h-4 w-4 items-center justify-center rounded-full transition-colors hover:bg-accent"
-                      aria-label={`移除标签 ${tag}`}
+                      aria-label={uiText("移除标签 {{ui:0}}", [tag])}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -747,7 +747,7 @@ export function AssetDetail({
                   <Input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    placeholder="添加标签"
+                    placeholder={uiText("添加标签")}
                     className="h-6 w-20 px-1.5 text-xs"
                   />
                   <Button
@@ -766,12 +766,11 @@ export function AssetDetail({
             {/* Comments */}
             <section className="p-5">
               <p className="mb-3 text-sm font-semibold">
-                评论 <span className="text-xs font-normal text-muted-foreground">{itemComments.length}</span>
+                {uiText("评论 ")}<span className="text-xs font-normal text-muted-foreground">{itemComments.length}</span>
               </p>
               {itemComments.length === 0 ? (
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  还没有评论，在下方写下第一条。
-                </p>
+                  {uiText("还没有评论，在下方写下第一条。")}</p>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {itemComments.map((comment) => (
@@ -786,7 +785,7 @@ export function AssetDetail({
                       <button
                         type="button"
                         onClick={() => onDeleteComment(comment.id)}
-                        aria-label="删除评论"
+                        aria-label={uiText("删除评论")}
                         className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -811,7 +810,7 @@ export function AssetDetail({
                   submitComment();
                 }}
                 rows={1}
-                placeholder="写下评论…"
+                placeholder={uiText("写下评论…")}
                 className="min-h-[2.5rem] max-h-40 resize-none border-0 bg-transparent py-2 pl-3 pr-12 text-sm leading-6 focus-visible:ring-0"
               />
               <Button
@@ -820,14 +819,13 @@ export function AssetDetail({
                 className="absolute bottom-2 right-2 h-7 w-7 rounded-md transition-[transform,background-color] active:scale-90 disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100"
                 disabled={!draft.trim()}
                 onClick={submitComment}
-                aria-label="发送评论 (Enter)"
+                aria-label={uiText("发送评论 (Enter)")}
               >
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
             <p className="mt-1.5 px-0.5 text-[11px] leading-none text-muted-foreground">
-              Enter 发送 · Shift + Enter 换行
-            </p>
+              {uiText("Enter 发送 · Shift + Enter 换行")}</p>
           </div>
         </aside>
       </div>
@@ -837,7 +835,7 @@ export function AssetDetail({
         {lightboxSrc && (
           <ImageZoomLightbox
             src={lightboxSrc}
-            alt="素材预览"
+            alt={uiText("素材预览")}
             onClose={() => setLightboxSrc(null)}
           />
         )}
@@ -856,7 +854,7 @@ export function AssetDetail({
           >
             <motion.img
               src={shareCard}
-              alt="分享卡预览"
+              alt={uiText("分享卡预览")}
               className="max-h-[78vh] max-w-full rounded-xl border border-border object-contain shadow-2xl"
               draggable={false}
               initial={reduceMotion ? false : { scale: 0.96, opacity: 0 }}
@@ -866,23 +864,20 @@ export function AssetDetail({
             />
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Button variant="outline" onClick={() => setShareCard(null)}>
-                关闭
-              </Button>
+                {uiText("关闭")}</Button>
               <Button
                 variant="outline"
                 className="gap-1.5"
                 onClick={() => {
                   void navigator.clipboard.writeText(shareCard);
-                  iterlayToast.copied({ title: "已复制分享卡 Data URL" });
+                  iterlayToast.copied({ title: translateSourceText("已复制分享卡 Data URL") });
                 }}
               >
                 <Copy className="h-4 w-4" />
-                复制
-              </Button>
+                {uiText("复制")}</Button>
               <Button className="gap-1.5" onClick={downloadShareCard}>
                 <Download className="h-4 w-4" />
-                下载
-              </Button>
+                {uiText("下载")}</Button>
             </div>
           </motion.div>
         ) : null}
@@ -904,17 +899,19 @@ function ReferenceThumb({
   onPreview: () => void;
   onOpenSource?: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="group relative">
       <button
         type="button"
         onClick={onPreview}
         className="h-16 w-16 overflow-hidden rounded-lg border border-border bg-muted transition-all hover:border-ring/60"
-        title={`引用图 ${index + 1}`}
+        title={uiText("引用图 {{ui:0}}", [index + 1])}
       >
         <img
           src={reference.dataUrl}
-          alt={`引用图 ${index + 1}`}
+          alt={uiText("引用图 {{ui:0}}", [index + 1])}
           className="h-full w-full object-cover"
           draggable={false}
         />
@@ -926,13 +923,13 @@ function ReferenceThumb({
           e.stopPropagation();
           try {
             const r = await getImageWorkbenchApi().saveAsset(reference.imagePath);
-            if (r?.ok) iterlayToast.exported({ title: "引用图已导出", path: r.path });
+            if (r?.ok) iterlayToast.exported({ title: translateSourceText("引用图已导出"), path: r.path });
           } catch {
-            toast.error("导出失败");
+            toast.error(translateSourceText("导出失败"));
           }
         }}
         className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100"
-        aria-label="下载引用图"
+        aria-label={uiText("下载引用图")}
       >
         <Download className="h-3 w-3" />
       </button>
@@ -946,8 +943,7 @@ function ReferenceThumb({
           }}
           className="absolute -bottom-1 -right-1 rounded bg-background/90 px-1 py-0.5 text-[9px] font-medium text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100"
         >
-          来源
-        </button>
+          {uiText("来源")}</button>
       )}
     </div>
   );

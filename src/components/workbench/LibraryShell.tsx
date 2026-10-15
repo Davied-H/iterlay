@@ -1,92 +1,74 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import appIconDefault from "@/assets/app-icon-default.png";
 import { Button } from "@/components/ui/button";
-import {
-Dialog,
-DialogContent,
-DialogDescription,
-DialogFooter,
-DialogHeader,
-DialogTitle
-} from "@/components/ui/dialog";
-import {
-DropdownMenu,
-DropdownMenuContent,
-DropdownMenuItem,
-DropdownMenuSeparator,
-DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Tooltip,TooltipContent,TooltipProvider,TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUpdateCenter } from "@/components/update/update-context";
 import { AssetLibrary } from "@/components/workbench/AssetLibrary";
 import { BoardGenerationStatus } from "@/components/workbench/BoardGenerationStatus";
 import { BoardLibrary } from "@/components/workbench/BoardLibrary";
 import { BoardTrash } from "@/components/workbench/BoardTrash";
-import {
-CreateChatPage,
-type CreateChatGenerationPlan,
-type CreateChatResult
-} from "@/components/workbench/CreateChatPage";
+import { CreateChatPage, type CreateChatGenerationPlan, type CreateChatResult } from "@/components/workbench/CreateChatPage";
 import { InspirationSources } from "@/components/workbench/InspirationSources";
-import { LibraryNavCanvasIcon,type LibraryNavIconKind } from "@/components/workbench/LibraryNavCanvasIcon";
+import { LibraryNavCanvasIcon, type LibraryNavIconKind } from "@/components/workbench/LibraryNavCanvasIcon";
 import { OnlineShareManagerDialog } from "@/components/workbench/OnlineShareManagerDialog";
 import { SceneLibraryPage } from "@/components/workbench/SceneLibrary";
+import { groupActiveBoardGenerations, type ActiveBoardGeneration } from "@/lib/active-board-generation";
+import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 import {
-groupActiveBoardGenerations,
-type ActiveBoardGeneration
-} from "@/lib/active-board-generation";
-import { getImageWorkbenchApi,getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
-import {
-DEFAULT_LIBRARY_SIDEBAR_SIZE,
-LIBRARY_SIDEBAR_MAX_WIDTH,
-LIBRARY_SIDEBAR_MIN_WIDTH,
-createLibrarySidebarPreference,
-getAdjacentLibrarySidebarPreset,
-getClosestLibrarySidebarPreset,
-readLibrarySidebarSize,
-resolveLibrarySidebarSnap,
-writeLibrarySidebarSize,
-type LibrarySidebarPreset,
-type LibrarySidebarSizePreference
+  DEFAULT_LIBRARY_SIDEBAR_SIZE,
+  LIBRARY_SIDEBAR_MAX_WIDTH,
+  LIBRARY_SIDEBAR_MIN_WIDTH,
+  createLibrarySidebarPreference,
+  getAdjacentLibrarySidebarPreset,
+  getClosestLibrarySidebarPreset,
+  readLibrarySidebarSize,
+  resolveLibrarySidebarSnap,
+  writeLibrarySidebarSize,
+  type LibrarySidebarPreset,
+  type LibrarySidebarSizePreference
 } from "@/lib/library-sidebar-size";
-import type { NewSceneInput,SceneDefinition } from "@/lib/scene-library";
+import type { NewSceneInput, SceneDefinition } from "@/lib/scene-library";
 import type { SceneGenerationDefaults } from "@/lib/scene-media";
 import type { GenerateTemplateVerification } from "@/lib/template-verification";
 import { cn } from "@/lib/utils";
 import type {
-AssetComment,
-BoardEnterOrigin,
-BoardSummary,
-BoardTrashRetentionDays,
-CollaborateSceneRequest,
-CollaborateSceneResult,
-GenerationJob,
-GptImageUseCase,
-ImageWorkflowMode,
-PromptSpec,
-TemplateSubmissionResult,
-TrashedBoardSummary
+  AssetComment,
+  BoardEnterOrigin,
+  BoardSummary,
+  BoardTrashRetentionDays,
+  CollaborateSceneRequest,
+  CollaborateSceneResult,
+  GenerationJob,
+  GptImageUseCase,
+  ImageWorkflowMode,
+  PromptSpec,
+  TemplateSubmissionResult,
+  TrashedBoardSummary
 } from "@shared/types";
-import { AnimatePresence,motion,useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-ChevronDown,
-ChevronRight,
-Copy,
-Download,
-History,
-Images,
-Loader2,
-MoreHorizontal,
-PanelLeftClose,
-PanelLeftOpen,
-Pencil,
-Plus,
-RadioTower,
-RefreshCw,
-Settings,
-Trash2
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Download,
+  History,
+  Images,
+  Loader2,
+  MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  Plus,
+  RadioTower,
+  RefreshCw,
+  Settings,
+  Trash2
 } from "lucide-react";
-import { useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export type LibraryTab = "create" | "boards" | "assets" | "scenes" | "inspiration" | "trash";
@@ -180,16 +162,28 @@ interface LibrarySidebarResizeSession {
  * 顶级工作区壳层：左侧导航切换画板库 / 素材库 / 模版库，并提供最近画板快速入口。
  */
 export function LibraryShell(props: LibraryShellProps): React.ReactElement {
+  const uiText = useUiText();
+
   const {
-    boards,
-    activeBoardId,
-    openingBoardId,
-    onOpenBoard,
-    onPrefetchBoard,
-      onOpenSettings,
-    onClose
-  } = props;
-  const { comments, onAddComment, onDeleteComment, onLocateAsset, onCopyText, onReusePrompt, onEditAsset, onUseReference, onDeleteAsset } = props;
+  boards,
+  activeBoardId,
+  openingBoardId,
+  onOpenBoard,
+  onPrefetchBoard,
+  onOpenSettings,
+  onClose
+} = props;
+  const {
+  comments,
+  onAddComment,
+  onDeleteComment,
+  onLocateAsset,
+  onCopyText,
+  onReusePrompt,
+  onEditAsset,
+  onUseReference,
+  onDeleteAsset
+} = props;
   const reduceMotion = useReducedMotion();
   // 记忆上次所在的库页 tab（画板库 / 素材库 / 模版库），下次进入库页时恢复。
   const [tab, setTab] = useState<LibraryTab>(() => {
@@ -290,7 +284,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
     const nextName = sidebarRenameValue.trim();
     const currentName = boards.find((board) => board.id === sidebarRenamingId)?.name;
     if (!nextName) {
-      toast.error("画板名称不能为空，已保留原名称");
+      toast.error(translateSourceText("画板名称不能为空，已保留原名称"));
     } else if (sidebarRenamingId && nextName !== currentName) {
       props.onRenameBoard(sidebarRenamingId, nextName);
     }
@@ -320,7 +314,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
       const restored = await getImageWorkbenchApi().restoreBoard(id);
       if (!restored) throw new Error("画板已不在回收站中。");
       await Promise.all([props.onBoardRestored(id), refreshTrash()]);
-      toast.success(`已恢复「${restored.name}」`);
+      toast.success(translateSourceText("已恢复「{{ui:0}}」", [restored.name]));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "恢复画板失败。"));
       throw error;
@@ -332,7 +326,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
       const result = await getImageWorkbenchApi().permanentlyDeleteBoard(id);
       if (!result.ok) throw new Error("画板已不在回收站中。");
       await refreshTrash();
-      toast.success("画板已彻底删除");
+      toast.success(translateSourceText("画板已彻底删除"));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "彻底删除画板失败。"));
       throw error;
@@ -343,7 +337,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
     try {
       const result = await getImageWorkbenchApi().emptyBoardTrash();
       await refreshTrash();
-      toast.success(result.count > 0 ? `已彻底删除 ${result.count} 个画板` : "回收站已清空");
+      toast.success(result.count > 0 ? translateSourceText("已彻底删除 {{ui:0}} 个画板", [result.count]) : translateSourceText("回收站已清空"));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "清空回收站失败。"));
       throw error;
@@ -357,7 +351,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
       await api.saveSettings({ ...current, boardTrashRetentionDays: days });
       setTrashRetentionDays(days);
       await refreshTrash();
-      toast.success(days === 0 ? "回收站将不再自动清理" : `回收站将在 ${days} 天后自动清理`);
+      toast.success(days === 0 ? translateSourceText("回收站将不再自动清理") : translateSourceText("回收站将在 {{ui:0}} 天后自动清理", [days]));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "保存回收站设置失败。"));
       throw error;
@@ -496,11 +490,11 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             />
             <span className="library-sidebar-label truncate text-lg font-semibold tracking-tight">Iterlay</span>
           </div>
-          <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={sidebarSize.mode === "small" ? "展开侧边栏" : "收起侧边栏"}>
+          <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={sidebarSize.mode === "small" ? uiText("展开侧边栏") : uiText("收起侧边栏")}>
             <button
               type="button"
               data-sidebar-toggle
-              aria-label={sidebarSize.mode === "small" ? "展开侧边栏" : "收起侧边栏"}
+              aria-label={sidebarSize.mode === "small" ? uiText("展开侧边栏") : uiText("收起侧边栏")}
               onClick={() => applySidebarSize(
                 sidebarSize.mode === "small"
                   ? DEFAULT_LIBRARY_SIDEBAR_SIZE
@@ -578,23 +572,23 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             </svg>
             <Plus className="library-sidebar-create__plus h-4 w-4" aria-hidden="true" />
           </span>
-          <span>新建创作</span>
+          <span>{uiText("新建创作")}</span>
         </button>
 
         <div className="library-sidebar-section-label library-sidebar-expanded-only flex h-7 shrink-0 items-center justify-between px-5 text-[11px] font-semibold text-muted-foreground">
-          <span>工作台</span>
+          <span>{uiText("工作台")}</span>
           <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
         </div>
 
         <nav
           data-tour="library-nav"
-          aria-label="库导航"
+          aria-label={uiText("库导航")}
           className="library-sidebar-nav flex flex-col gap-0.5 px-3 pb-2 pt-1 [-webkit-app-region:no-drag]"
         >
           <div className="library-sidebar-compact-only">
             <NavItem
               kind="create"
-              label="创作"
+              label={uiText("创作")}
               active={tab === "create"}
               compact={sidebarSize.mode === "small"}
               reduceMotion={Boolean(reduceMotion)}
@@ -603,7 +597,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           </div>
           <NavItem
             kind="boards"
-            label="画板库"
+            label={uiText("画板库")}
             active={tab === "boards"}
             compact={sidebarSize.mode === "small"}
             reduceMotion={Boolean(reduceMotion)}
@@ -611,7 +605,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           />
           <NavItem
             kind="assets"
-            label="素材库"
+            label={uiText("素材库")}
             active={tab === "assets"}
             compact={sidebarSize.mode === "small"}
             reduceMotion={Boolean(reduceMotion)}
@@ -619,7 +613,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           />
           <NavItem
             kind="scenes"
-            label="模版库"
+            label={uiText("模版库")}
             active={tab === "scenes"}
             compact={sidebarSize.mode === "small"}
             reduceMotion={Boolean(reduceMotion)}
@@ -627,7 +621,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           />
           <NavItem
             kind="inspiration"
-            label="灵感"
+            label={uiText("灵感")}
             active={tab === "inspiration"}
             compact={sidebarSize.mode === "small"}
             reduceMotion={Boolean(reduceMotion)}
@@ -637,12 +631,12 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
 
         <div className="library-sidebar-recents-full library-sidebar-recents-full--surface flex min-h-0 flex-1 flex-col border-t border-border/70 px-3 pb-3 pt-2 [-webkit-app-region:no-drag]">
           <div className="flex h-7 shrink-0 items-center justify-between px-2 text-[11px] font-semibold text-muted-foreground">
-            <span>我的画板</span>
+            <span>{uiText("我的画板")}</span>
             <span className="text-[10px] font-medium tabular-nums opacity-70">{boards.length}</span>
           </div>
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
             {recentBoards.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground/70">暂无画板</p>
+              <p className="px-2 py-1.5 text-xs text-muted-foreground/70">{uiText("暂无画板")}</p>
             ) : (
               recentBoards.map((board) => {
                 const isRenaming = sidebarRenamingId === board.id;
@@ -662,7 +656,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                         <Input
                           autoFocus
                           value={sidebarRenameValue}
-                          aria-label={`重命名 ${board.name}`}
+                          aria-label={uiText("重命名 {{ui:0}}", [board.name])}
                           onChange={(event) => setSidebarRenameValue(event.target.value)}
                           onBlur={commitSidebarRename}
                           onKeyDown={(event) => {
@@ -678,7 +672,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                         type="button"
                         disabled={openingBoardId !== null && openingBoardId !== undefined}
                         aria-busy={isOpening}
-                        aria-label={`打开画板 ${board.name}`}
+                        aria-label={uiText("打开画板 {{ui:0}}", [board.name])}
                         onPointerEnter={() => onPrefetchBoard(board.id)}
                         onFocus={() => onPrefetchBoard(board.id)}
                         onClick={(event) => {
@@ -709,7 +703,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                         ) : board.id === activeBoardId ? (
                           <span
                             className="pointer-events-none flex h-7 w-7 items-center justify-center"
-                            aria-label="当前"
+                            aria-label={uiText("当前")}
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-primary transition-opacity group-hover:opacity-0 group-focus-within:opacity-0" />
                           </span>
@@ -722,7 +716,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                                 "flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,opacity] hover:bg-background/80 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:bg-background/80 data-[state=open]:text-foreground data-[state=open]:opacity-100",
                                 boardGenerations.length > 0 ? "opacity-0" : "absolute right-0 opacity-0"
                               )}
-                              aria-label={`画板 ${board.name} 操作`}
+                              aria-label={uiText("画板 {{ui:0}} 操作", [board.name])}
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
@@ -735,24 +729,20 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                           >
                             <DropdownMenuItem onSelect={() => startSidebarRename(board)}>
                               <Pencil className="h-4 w-4" />
-                              重命名
-                            </DropdownMenuItem>
+                              {uiText("重命名")}</DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => props.onDuplicateBoard(board.id)}>
                               <Copy className="h-4 w-4" />
-                              创建副本
-                            </DropdownMenuItem>
+                              {uiText("创建副本")}</DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => props.onExportBoard(board.id)}>
                               <Download className="h-4 w-4" />
-                              导出 .itb
-                            </DropdownMenuItem>
+                              {uiText("导出 .itb")}</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onSelect={() => setSidebarDeleteTarget(board)}
                             >
                               <Trash2 className="h-4 w-4" />
-                              移入回收站
-                            </DropdownMenuItem>
+                              {uiText("移入回收站")}</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </span>
@@ -767,7 +757,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             onClick={() => setTab("boards")}
             className="library-sidebar-recents-all flex shrink-0 items-center justify-between rounded-md px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
-            <span>查看全部画板</span>
+            <span>{uiText("查看全部画板")}</span>
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
@@ -787,7 +777,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           data-tour="library-settings"
           className="library-sidebar-footer library-sidebar-footer--graphite flex shrink-0 flex-col gap-1 border-t border-border px-2 py-2 [-webkit-app-region:no-drag]"
         >
-          <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label="在线分享管理">
+          <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={uiText("在线分享管理")}>
             <button
               type="button"
               data-sidebar-utility
@@ -799,7 +789,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
               )}
             >
               <RadioTower className="h-4 w-4 shrink-0" />
-              <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">在线分享管理</span>
+              <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("在线分享管理")}</span>
             </button>
           </CompactSidebarTooltip>
           <SidebarUtilityEntries
@@ -809,17 +799,17 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             onOpenTrash={() => setTab("trash")}
             onOpenSettings={onOpenSettings}
           />
-          <CompactSidebarTooltip compact={true} label="展开侧边栏">
+          <CompactSidebarTooltip compact={true} label={uiText("展开侧边栏")}>
             <button
               type="button"
               data-sidebar-utility
               data-sidebar-footer-toggle
-              aria-label="展开侧边栏"
+              aria-label={uiText("展开侧边栏")}
               onClick={() => applySidebarSize(DEFAULT_LIBRARY_SIDEBAR_SIZE)}
               className={cn(SIDEBAR_UTILITY_ENTRY_CLASS, SIDEBAR_UTILITY_ENTRY_IDLE_CLASS)}
             >
               <PanelLeftOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">展开侧边栏</span>
+              <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("展开侧边栏")}</span>
             </button>
           </CompactSidebarTooltip>
         </div>
@@ -830,14 +820,14 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           ref={sidebarResizeHandleRef}
           type="button"
           role="separator"
-          aria-label="调整侧边栏宽度"
+          aria-label={uiText("调整侧边栏宽度")}
           aria-orientation="vertical"
           aria-controls="library-sidebar"
           aria-valuemin={LIBRARY_SIDEBAR_MIN_WIDTH}
           aria-valuemax={LIBRARY_SIDEBAR_MAX_WIDTH}
           aria-valuenow={sidebarSize.width}
           aria-valuetext={`${LIBRARY_SIDEBAR_MODE_LABEL[sidebarSize.mode]}，${sidebarSize.width} 像素`}
-          title="拖动调整侧边栏；双击恢复默认"
+          title={uiText("拖动调整侧边栏；双击恢复默认")}
           data-resizing={isSidebarResizing ? "true" : undefined}
           data-snapped={isSidebarResizing && sidebarSize.mode !== "custom" ? "true" : undefined}
           className="library-sidebar-resize-handle absolute inset-y-0 -left-1.5 w-3 touch-none border-0 bg-transparent p-0 [-webkit-app-region:no-drag]"
@@ -954,22 +944,20 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
       >
         <DialogContent className="max-w-sm" onKeyDownCapture={(event) => event.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>删除画板</DialogTitle>
+            <DialogTitle>{uiText("删除画板")}</DialogTitle>
             <DialogDescription>
-              「{sidebarDeleteTarget?.name}」将移入回收站，并按回收站设置自动清理。清理前可随时恢复。
-            </DialogDescription>
+              「{sidebarDeleteTarget?.name}{uiText("」将移入回收站，并按回收站设置自动清理。清理前可随时恢复。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" disabled={isDeletingSidebarBoard} onClick={() => setSidebarDeleteTarget(null)}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button
               variant="destructive"
               disabled={isDeletingSidebarBoard}
               onClick={() => void confirmSidebarDelete()}
             >
               {isDeletingSidebarBoard ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : null}
-              {isDeletingSidebarBoard ? "正在移动" : "移入回收站"}
+              {isDeletingSidebarBoard ? uiText("正在移动") : uiText("移入回收站")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -994,10 +982,12 @@ function SidebarBoardThumbnail({
   board: BoardSummary;
   isOpening: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
       {isOpening ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" aria-label="正在打开画板" />
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" aria-label={uiText("正在打开画板")} />
       ) : board.thumbnailDataUrl ? (
         <img src={board.thumbnailDataUrl} alt="" className="h-full w-full object-cover" draggable={false} />
       ) : (
@@ -1026,6 +1016,8 @@ function CompactRecentBoards({
   onPrefetchBoard: (id: string) => void;
   onOpenBoard: (id: string, origin?: BoardEnterOrigin) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -1175,7 +1167,7 @@ function CompactRecentBoards({
       <button
         ref={triggerRef}
         type="button"
-        aria-label="最近画板"
+        aria-label={uiText("最近画板")}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="compact-recent-boards"
@@ -1210,7 +1202,7 @@ function CompactRecentBoards({
           <motion.div
             id="compact-recent-boards"
             role="menu"
-            aria-label="最近画板"
+            aria-label={uiText("最近画板")}
             className="pointer-events-auto absolute left-full top-0 z-[60] ml-2 max-h-[min(420px,calc(100vh-24px))] w-[min(280px,calc(100vw-88px))] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-[0_12px_32px_hsl(220_14%_12%/0.16),0_2px_8px_hsl(220_14%_12%/0.08)]"
             initial={reduceMotion
               ? { opacity: 0 }
@@ -1228,12 +1220,12 @@ function CompactRecentBoards({
             onKeyDown={handleMenuKeyDown}
           >
             <div className="flex h-9 items-center justify-between border-b border-border/70 px-3">
-              <span className="text-xs font-semibold">最近画板</span>
+              <span className="text-xs font-semibold">{uiText("最近画板")}</span>
               <span className="text-[11px] tabular-nums text-muted-foreground">{boards.length}</span>
             </div>
             <div className="max-h-[min(384px,calc(100vh-60px))] overflow-y-auto p-1.5">
               {boards.length === 0 ? (
-                <p className="flex h-[72px] items-center justify-center text-xs text-muted-foreground">暂无画板</p>
+                <p className="flex h-[72px] items-center justify-center text-xs text-muted-foreground">{uiText("暂无画板")}</p>
               ) : boards.map((board, index) => {
                 const isOpening = openingBoardId === board.id;
                 return (
@@ -1258,7 +1250,7 @@ function CompactRecentBoards({
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[5px] border border-border bg-muted">
                       {isOpening ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" aria-label="正在打开画板" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" aria-label={uiText("正在打开画板")} />
                       ) : board.thumbnailDataUrl ? (
                         <img src={board.thumbnailDataUrl} alt="" className="h-full w-full object-cover" draggable={false} />
                       ) : (
@@ -1267,7 +1259,7 @@ function CompactRecentBoards({
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{board.name}</span>
                     {board.id === activeBoardId ? (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="当前" />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label={uiText("当前")} />
                     ) : null}
                   </button>
                 );
@@ -1294,6 +1286,8 @@ function SidebarUtilityEntries({
   onOpenReferralInvite?: () => void;
   onOpenSettings: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const updateCenter = useUpdateCenter();
   const phase = updateCenter.state?.phase;
   const isChecking = updateCenter.checking || phase === "checking";
@@ -1320,10 +1314,10 @@ function SidebarUtilityEntries({
   );
 
   return <>
-    <CompactSidebarTooltip compact={compact} label="回收站">
+    <CompactSidebarTooltip compact={compact} label={uiText("回收站")}>
       <button type="button" data-sidebar-utility onClick={onOpenTrash} className={utilityClass(trashActive)}>
         <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">回收站</span>
+        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("回收站")}</span>
         {trashedBoardCount > 0 ? <span className="text-[11px] tabular-nums text-muted-foreground">{trashedBoardCount}</span> : null}
       </button>
     </CompactSidebarTooltip>
@@ -1331,7 +1325,7 @@ function SidebarUtilityEntries({
       <button
         type="button"
         data-sidebar-utility
-        aria-label={updateCenter.hasUpdate && updateMeta ? `发现新版本，${updateMeta}` : "检查更新"}
+        aria-label={updateCenter.hasUpdate && updateMeta ? uiText("发现新版本，{{ui:0}}", [updateMeta]) : uiText("检查更新")}
         disabled={isChecking}
         onClick={updateCenter.openUpdateCenter}
         className={utilityClass()}
@@ -1341,10 +1335,10 @@ function SidebarUtilityEntries({
         {updateMeta ? <span className="library-sidebar-label text-[11px] tabular-nums text-[hsl(var(--ai-accent))]">{updateMeta}</span> : null}
       </button>
     </CompactSidebarTooltip>
-    <CompactSidebarTooltip compact={compact} label="设置">
+    <CompactSidebarTooltip compact={compact} label={uiText("设置")}>
       <button type="button" data-sidebar-utility onClick={onOpenSettings} className={utilityClass()}>
         <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">设置</span>
+        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("设置")}</span>
       </button>
     </CompactSidebarTooltip>
   </>;

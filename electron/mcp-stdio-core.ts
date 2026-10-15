@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import { callMcpBridge } from "./mcp-bridge.js";
+import { callMcpBridge } from "./mcp-bridge-client.js";
 
 type JsonObject = Record<string, unknown>;
 type McpContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };

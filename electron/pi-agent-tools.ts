@@ -1,6 +1,6 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
+import type { AgentTool } from "./agents/tool-runtime.js";
 import type { TSchema } from "typebox";
-import { callMcpBridge } from "./mcp-bridge.js";
+import { callMcpBridge } from "./mcp-bridge-client.js";
 import { buildToolContent, listMcpTools } from "./mcp-stdio-core.js";
 
 type JsonObject = Record<string, unknown>;

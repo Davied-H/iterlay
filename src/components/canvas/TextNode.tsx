@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
@@ -34,20 +35,22 @@ const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left] as 
 const SIDE_LABELS: Record<CanvasNodeSide, string> = { top: "上", right: "右", bottom: "下", left: "左" };
 
 function TextNodeComponent({ id, data, selected }: NodeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const connectionPoints = useDelayedConnectionPoints();
   const { getZoom } = useReactFlow();
   const {
-    text,
-    title = "文本",
-    displayHeight = TEXT_NODE_HEIGHT,
-    heightMode = "auto",
-    onBeforeChange,
-    onChange,
-    onHeightChange,
-    onConnectionHandlePointerDown,
-    connectionTargetActive,
-    connectionSnapTargetHandle
-  } = data as unknown as TextNodeData;
+  text,
+  title = "文本",
+  displayHeight = TEXT_NODE_HEIGHT,
+  heightMode = "auto",
+  onBeforeChange,
+  onChange,
+  onHeightChange,
+  onConnectionHandlePointerDown,
+  connectionTargetActive,
+  connectionSnapTargetHandle
+} = data as unknown as TextNodeData;
   const [draft, setDraft] = useState(text);
   const [nodeHeight, setNodeHeight] = useState(() => clampTextNodeHeight(displayHeight));
   const [manualHeight, setManualHeight] = useState(heightMode === "manual");
@@ -111,7 +114,7 @@ function TextNodeComponent({ id, data, selected }: NodeProps): React.ReactElemen
         selected && "canvas-workflow-node--selected"
       )}
       style={{ width: TEXT_NODE_WIDTH, height: nodeHeight }}
-      aria-label={`${title}节点`}
+      aria-label={uiText("{{ui:0}}节点", [title])}
       onPointerEnter={connectionPoints.showConnectionPoints}
       onPointerLeave={connectionPoints.scheduleConnectionPointsHide}
     >
@@ -125,10 +128,10 @@ function TextNodeComponent({ id, data, selected }: NodeProps): React.ReactElemen
       <div className="canvas-workflow-node__editor">
         <textarea
           ref={textareaRef}
-          aria-label="文本内容"
+          aria-label={uiText("文本内容")}
           value={draft}
           maxLength={TEXT_NODE_MAX_LENGTH}
-          placeholder="写下画面意图、语气与关键约束..."
+          placeholder={uiText("写下画面意图、语气与关键约束...")}
           className={cn(
             "nodrag canvas-workflow-node__textarea",
             textareaOwnsWheel && "nopan nowheel"
@@ -151,20 +154,20 @@ function TextNodeComponent({ id, data, selected }: NodeProps): React.ReactElemen
           }}
         />
         <footer className="canvas-workflow-node__meta">
-          <span>自动保存</span>
-          <span className="canvas-workflow-node__count" aria-label={`${draft.length} / ${TEXT_NODE_MAX_LENGTH} 个字符`}>
+          <span>{uiText("自动保存")}</span>
+          <span className="canvas-workflow-node__count" aria-label={uiText("{{ui:0}} / {{ui:1}} 个字符", [draft.length, TEXT_NODE_MAX_LENGTH])}>
             {draft.length} / {TEXT_NODE_MAX_LENGTH}
           </span>
         </footer>
         <button
           type="button"
           role="separator"
-          aria-label="调整文本输入框高度"
+          aria-label={uiText("调整文本输入框高度")}
           aria-orientation="horizontal"
           aria-valuemin={TEXT_NODE_HEIGHT}
           aria-valuemax={TEXT_NODE_MAX_HEIGHT}
           aria-valuenow={Math.round(nodeHeight)}
-          title="拖拽调整高度 · 双击恢复自动适应"
+          title={uiText("拖拽调整高度 · 双击恢复自动适应")}
           data-resizing={resizeRef.current ? "true" : undefined}
           className="nodrag nopan canvas-text-resize-handle"
           onPointerDown={(event) => {
@@ -240,6 +243,8 @@ interface NodeHandlesProps {
 }
 
 function NodeHandles({ nodeId, onConnectionHandlePointerDown }: NodeHandlesProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <>
       {SIDES.map((position) => {
@@ -262,7 +267,7 @@ function NodeHandles({ nodeId, onConnectionHandlePointerDown }: NodeHandlesProps
             />
             <button
               type="button"
-              aria-label={`从${SIDE_LABELS[side]}侧创建连接`}
+              aria-label={uiText("从{{ui:0}}侧创建连接", [SIDE_LABELS[side]])}
               className="nodrag nopan image-node-connection-trigger"
               onPointerDownCapture={(event) => {
                 event.preventDefault();

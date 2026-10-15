@@ -20,6 +20,9 @@ const rendererOnly = new Set(["react-icons", "gifenc", "gifuct-js", "libavoid-js
 const entries = asar.listPackage(asarPath).map((entry) => entry.replaceAll("\\", "/"));
 const violations = [];
 for (const entry of entries) {
+  if (/^\/dist-electron\/(?:electron\/dev-browser-[^/]+|shared\/(?:dev-browser-wire|dev-asset-url))\.js$/u.test(entry)) {
+    violations.push(`Browser development module: ${entry}`);
+  }
   if (/\.(?:js|mjs|cjs)\.map$/u.test(entry)) violations.push(`Production JavaScript source map: ${entry}`);
   if (/(?:^|\/)node_modules\/(?:react-icons|gifenc|gifuct-js|libavoid-js|qrcode|use-stick-to-bottom)(?:\/|$)/u.test(entry)) {
     const dependency = entry.split("/node_modules/").at(-1)?.split("/")[0];
@@ -52,4 +55,4 @@ await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(`App: ${(appBytes / 1024 / 1024).toFixed(2)} MiB; ASAR: ${(asarBytes / 1024 / 1024).toFixed(2)} MiB`);
 console.log(`Package audit: ${reportPath}`);
 assert.equal(report.violations.length, 0, report.violations.join("\n"));
-console.log("Package passed dependency, JavaScript source map, media-tool and size checks.");
+console.log("Package passed development-module, dependency, JavaScript source map, media-tool and size checks.");

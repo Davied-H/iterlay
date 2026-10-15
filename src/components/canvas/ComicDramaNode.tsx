@@ -1,21 +1,10 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useMemo, useState } from "react";
 import { Handle, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { Check, CircleAlert, Clapperboard, LoaderCircle, Lock, Plus, ScrollText, UserRound } from "lucide-react";
-import type {
-  ComicCharacterFields,
-  ComicDramaBoardNode,
-  ComicSegmentScriptFields,
-  ComicSettingFields
-} from "@shared/comic-drama";
+import type { ComicCharacterFields, ComicDramaBoardNode, ComicSegmentScriptFields, ComicSettingFields } from "@shared/comic-drama";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +40,18 @@ function activeVersion(node: ComicDramaBoardNode): ComicDramaBoardNode["versions
 }
 
 function ComicDramaNodeComponent({ data, selected }: NodeProps): React.ReactElement {
-  const { node, editRequest, connectionRevision, onChange, onContinueComicDrama, onRetryCharacter, onConnectionHandlePointerDown, connectionSnapTargetHandle } = data as unknown as ComicDramaNodeData;
+  const uiText = useUiText();
+
+  const {
+  node,
+  editRequest,
+  connectionRevision,
+  onChange,
+  onContinueComicDrama,
+  onRetryCharacter,
+  onConnectionHandlePointerDown,
+  connectionSnapTargetHandle
+} = data as unknown as ComicDramaNodeData;
   const updateNodeInternals = useUpdateNodeInternals();
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -78,7 +78,7 @@ function ComicDramaNodeComponent({ data, selected }: NodeProps): React.ReactElem
     <>
       <article
         role="group"
-        aria-label={`${typeLabel}，${title}，版本 ${versionNumber}，${statusLabel}`}
+        aria-label={uiText("{{ui:0}}，{{ui:1}}，版本 {{ui:2}}，{{ui:3}}", [typeLabel, title, versionNumber, statusLabel])}
         data-comic-drama-node={node.type}
         data-comic-drama-status={node.status}
         data-connection-snap-target={connectionSnapTargetHandle}
@@ -87,13 +87,13 @@ function ComicDramaNodeComponent({ data, selected }: NodeProps): React.ReactElem
           selected && "canvas-workflow-node--selected"
         )}
       >
-        <Handle type="target" position={Position.Left} id="target-left" aria-label={`${typeLabel}输入`} className="image-node-connection-handle image-node-connection-handle--target nodrag nopan" />
-        <Handle type="source" position={Position.Right} id="source-right" aria-label={`${typeLabel}输出`} className="image-node-connection-handle image-node-connection-handle--source nodrag nopan" />
+        <Handle type="target" position={Position.Left} id="target-left" aria-label={uiText("{{ui:0}}输入", [typeLabel])} className="image-node-connection-handle image-node-connection-handle--target nodrag nopan" />
+        <Handle type="source" position={Position.Right} id="source-right" aria-label={uiText("{{ui:0}}输出", [typeLabel])} className="image-node-connection-handle image-node-connection-handle--source nodrag nopan" />
         <Handle type="source" position={Position.Right} id="system-output" className="canvas-programmatic-handle" />
         <button
           type="button"
           tabIndex={-1}
-          aria-label={`从${typeLabel}创建连接`}
+          aria-label={uiText("从{{ui:0}}创建连接", [typeLabel])}
           className="nodrag nopan image-node-connection-trigger comic-drama-node__connection-trigger"
           onPointerDown={(event) => onConnectionHandlePointerDown?.(node.id, "right", event)}
         >
@@ -135,12 +135,12 @@ function ComicDramaNodeComponent({ data, selected }: NodeProps): React.ReactElem
 
         <footer className="nodrag comic-drama-node__footer" onPointerDown={(event) => event.stopPropagation()}>
           <span className="comic-drama-node__footer-meta">{footerMeta}</span>
-          {node.type === "comic-setting" ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" onClick={() => onContinueComicDrama?.(node.id)}>继续制作</button> : null}
-          {node.type === "comic-character" && node.status === "failed" ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" title={node.generationError} onClick={() => onRetryCharacter?.(node)}>逐项重试</button> : null}
-          {node.type === "comic-character" && ["draft", "saved", "ready"].includes(node.status) ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" onClick={() => onRetryCharacter?.(node)}>生成形象</button> : null}
-          {node.type === "comic-character" && node.status === "review" ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" onClick={() => onChange?.(node.id, { status: "adopted" })}>采用角色</button> : null}
+          {node.type === "comic-setting" ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" onClick={() => onContinueComicDrama?.(node.id)}>{uiText("继续制作")}</button> : null}
+          {node.type === "comic-character" && node.status === "failed" ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" title={node.generationError} onClick={() => onRetryCharacter?.(node)}>{uiText("逐项重试")}</button> : null}
+          {node.type === "comic-character" && ["draft", "saved", "ready"].includes(node.status) ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" onClick={() => onRetryCharacter?.(node)}>{uiText("生成形象")}</button> : null}
+          {node.type === "comic-character" && node.status === "review" ? <button type="button" className="canvas-generation-run comic-drama-node__primary-action" onClick={() => onChange?.(node.id, { status: "adopted" })}>{uiText("采用角色")}</button> : null}
           <Button type="button" variant="ghost" size="sm" className="comic-drama-node__edit-action" onClick={() => setEditing(true)}>
-            编辑{node.type === "comic-setting" ? "设定" : node.type === "comic-character" ? "角色" : "脚本"}
+            {uiText("编辑")}{node.type === "comic-setting" ? uiText("设定") : node.type === "comic-character" ? uiText("角色") : uiText("脚本")}
           </Button>
         </footer>
       </article>
@@ -150,8 +150,10 @@ function ComicDramaNodeComponent({ data, selected }: NodeProps): React.ReactElem
 }
 
 function SettingSummary({ fields }: { fields: ComicSettingFields }): React.ReactElement {
+  const uiText = useUiText();
+
   return <>
-    <span className="comic-drama-node__section-label">故事简介</span>
+    <span className="comic-drama-node__section-label">{uiText("故事简介")}</span>
     <p className="comic-drama-node__synopsis">{fields.synopsis || "还没有填写故事内容，点击“编辑设定”补充。"}</p>
     <div className="comic-drama-node__chips">{[fields.genre, fields.tone].filter(Boolean).map((value) => <span key={value}>{value}</span>)}</div>
   </>;
@@ -162,9 +164,11 @@ function CharacterSummary({ fields, status, generationError }: {
   status: ComicDramaBoardNode["status"];
   generationError?: string;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return <>
     <div className="comic-drama-node__character-empty" role="status" data-error={status === "failed" ? "true" : undefined}>
-      <span>{status === "generating" ? "角色形象生成中" : status === "review" ? "角色形象待采用" : status === "adopted" ? "角色形象已采用" : status === "failed" ? "角色形象生成失败" : "尚未采用角色形象"}</span>
+      <span>{status === "generating" ? uiText("角色形象生成中") : status === "review" ? uiText("角色形象待采用") : status === "adopted" ? uiText("角色形象已采用") : status === "failed" ? uiText("角色形象生成失败") : uiText("尚未采用角色形象")}</span>
       {status === "failed" ? <small title={generationError}>{generationError || "未返回具体原因，请逐项重试。"}</small> : null}
     </div>
     <div className="comic-drama-node__details">
@@ -175,11 +179,13 @@ function CharacterSummary({ fields, status, generationError }: {
 }
 
 function SegmentSummary({ fields }: { fields: ComicSegmentScriptFields }): React.ReactElement {
+  const uiText = useUiText();
+
   return <>
-    <span className="comic-drama-node__section-label">片段内容</span>
+    <span className="comic-drama-node__section-label">{uiText("片段内容")}</span>
     <p className="comic-drama-node__purpose">{fields.purpose || "尚未填写剧情目的"}</p>
     <p className="comic-drama-node__script">{fields.action || "尚未填写动作"}{fields.dialogue ? `\n“${fields.dialogue}”` : ""}</p>
-    <p className="comic-drama-node__meta"><Lock aria-label="结构化脚本字段" /> {fields.emotion || "情绪待定"}</p>
+    <p className="comic-drama-node__meta"><Lock aria-label={uiText("结构化脚本字段")} /> {fields.emotion || "情绪待定"}</p>
   </>;
 }
 
@@ -189,6 +195,8 @@ function ComicNodeEditor({ node, open, onOpenChange, onChange }: {
   onOpenChange: (open: boolean) => void;
   onChange?: ComicDramaNodeData["onChange"];
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const initialFields = useMemo(() => structuredClone(activeVersion(node).fields), [node]);
   const [draft, setDraft] = useState<Record<string, unknown>>(initialFields as unknown as Record<string, unknown>);
   const [name, setName] = useState(node.type === "comic-character" ? node.name : node.type === "comic-segment-script" ? node.title : "");
@@ -223,11 +231,11 @@ function ComicNodeEditor({ node, open, onOpenChange, onChange }: {
     }}>
       <DialogContent className="max-h-[calc(100vh-48px)] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>编辑{node.type === "comic-setting" ? "漫剧设定" : node.type === "comic-character" ? "角色卡" : "片段脚本"}</DialogTitle>
-          <DialogDescription>保存会创建新的稳定版本，旧版本继续保留。</DialogDescription>
+          <DialogTitle>{uiText("编辑")}{node.type === "comic-setting" ? uiText("漫剧设定") : node.type === "comic-character" ? uiText("角色卡") : uiText("片段脚本")}</DialogTitle>
+          <DialogDescription>{uiText("保存会创建新的稳定版本，旧版本继续保留。")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-1">
-          {node.type !== "comic-setting" ? <EditorField label={node.type === "comic-character" ? "角色名" : "片段标题"} value={name} onChange={setName} /> : null}
+          {node.type !== "comic-setting" ? <EditorField label={node.type === "comic-character" ? uiText("角色名") : uiText("片段标题")} value={name} onChange={setName} /> : null}
           {fields.map(([key, label]) => {
             const value = draft[key];
             const multiline = ["synopsis", "profile", "visualPrompt", "action", "dialogue", "visualDirection", "cameraDirection", "appearanceAnchors"].includes(key);
@@ -245,8 +253,8 @@ function ComicNodeEditor({ node, open, onOpenChange, onChange }: {
           })}
         </div>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>放弃修改</Button>
-          <Button type="button" onClick={save}>保存新版本</Button>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>{uiText("放弃修改")}</Button>
+          <Button type="button" onClick={save}>{uiText("保存新版本")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

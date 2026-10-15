@@ -1,0 +1,336 @@
+/* Keep the floating prompt surface clear of the persistent canvas toolbar. */
+.prompt-dock-layer {
+  padding-left: max(1rem, calc(73rem - 100vw));
+}
+
+.prompt-dock-layer[data-right-rail-open="true"] {
+  padding-left: 15rem;
+}
+
+@media (max-width: 600px) {
+  .prompt-dock-layer,
+  .prompt-dock-layer[data-right-rail-open="true"] {
+    padding-left: 1rem;
+  }
+}
+
+@container prompt-dock (max-width: 26rem) {
+  .prompt-dock-provider-label {
+    display: none;
+  }
+
+  .prompt-dock-template-summary {
+    gap: 0.375rem;
+    padding-inline: 0.375rem;
+  }
+
+  .prompt-dock-template-thumbnail {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .prompt-dock-template-action {
+    width: 1.75rem;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .prompt-dock-template-action-label {
+    display: none;
+  }
+
+  .prompt-dock-assistant-button {
+    width: 2rem;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .prompt-dock-assistant-label {
+    display: none;
+  }
+}
+
+.quick-scene-strip {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
+  background: hsl(var(--card) / 0.96);
+  box-shadow: 0 2px 6px hsl(var(--foreground) / 0.08);
+  scrollbar-width: none;
+}
+
+.quick-scene-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-scene-option {
+  height: 1.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0 0.625rem;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.quick-scene-option:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.quick-scene-option:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.quick-scene-tag {
+  display: inline-flex;
+  height: 1.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  border: 1px solid hsl(var(--foreground) / 0.18);
+  border-radius: 0.5rem;
+  padding: 0 0.625rem;
+  color: hsl(var(--foreground) / 0.78);
+  background: hsl(var(--popover));
+  box-shadow:
+    0 1px 2px hsl(0 0% 0% / 0.1),
+    0 4px 12px hsl(0 0% 0% / 0.06);
+  font-size: 0.6875rem;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 120ms ease;
+}
+
+.quick-scene-tag:hover {
+  border-color: hsl(var(--foreground) / 0.82);
+  color: hsl(var(--background));
+  background: hsl(var(--foreground) / 0.88);
+  box-shadow:
+    0 2px 4px hsl(0 0% 0% / 0.14),
+    0 6px 16px hsl(0 0% 0% / 0.08);
+}
+
+.quick-scene-tag:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px hsl(0 0% 0% / 0.12);
+}
+
+.quick-scene-tag:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Prompt Dock primary action, adapted from the supplied folded-corner Uiverse button. */
+.generate-action-button {
+  --generate-button-round: 0.75rem;
+  position: relative;
+  display: inline-flex;
+  min-width: 6rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--generate-button-round);
+  outline: 0;
+  padding: 0.375rem 1rem;
+  cursor: pointer;
+  color: white;
+  background:
+    radial-gradient(65.28% 65.28% at 50% 100%, rgb(223 113 255 / 80%) 0%, rgb(223 113 255 / 0%) 100%),
+    linear-gradient(0deg, #7a5af8, #7a5af8);
+  box-shadow: 0 4px 8px rgb(83 58 184 / 22%);
+  transition:
+    min-width 240ms ease-out,
+    height 240ms ease-out,
+    padding 240ms ease-out,
+    border-radius 240ms ease-out,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.generate-action-button::before,
+.generate-action-button::after {
+  content: "";
+  position: absolute;
+  inset: var(--generate-button-space);
+  z-index: 0;
+  border-radius: calc(var(--generate-button-round) - var(--generate-button-space));
+  transition: opacity 250ms ease;
+}
+
+.generate-action-button::before {
+  --generate-button-space: 1px;
+  background: linear-gradient(177.95deg, rgb(255 255 255 / 19%) 0%, rgb(255 255 255 / 0%) 100%);
+}
+
+.generate-action-button::after {
+  --generate-button-space: 2px;
+  background:
+    radial-gradient(65.28% 65.28% at 50% 100%, rgb(223 113 255 / 80%) 0%, rgb(223 113 255 / 0%) 100%),
+    linear-gradient(0deg, #7a5af8, #7a5af8);
+}
+
+.generate-action-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 5px 8px rgb(83 58 184 / 28%);
+}
+
+.generate-action-button:active:not(:disabled) {
+  transform: scale(0.95);
+  box-shadow: 0 3px 9px rgb(83 58 184 / 24%);
+}
+
+.generate-action-button:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px #7a5af8;
+}
+
+.generate-action-button:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.3);
+  opacity: 0.48;
+  box-shadow: none;
+}
+
+.generate-action-fold {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  overflow: hidden;
+  border-radius: 0 var(--generate-button-round) 0 0.5rem;
+  background: radial-gradient(100% 75% at 55%, rgb(223 113 255 / 80%) 0%, rgb(223 113 255 / 0%) 100%);
+  box-shadow: 0 0 3px rgb(0 0 0 / 75%);
+  transition: width 240ms ease-out, height 240ms ease-out, margin 500ms ease-in-out;
+}
+
+.generate-action-fold::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 150%;
+  height: 150%;
+  transform: rotate(45deg) translateY(-18px);
+  background: hsl(var(--background));
+  pointer-events: none;
+}
+
+.generate-action-button:hover:not(:disabled) .generate-action-fold {
+  margin-top: -0.875rem;
+  margin-right: -0.875rem;
+}
+
+.generate-action-points {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.generate-action-points i {
+  position: absolute;
+  bottom: -10px;
+  width: 2px;
+  height: 2px;
+  border-radius: 9999px;
+  background: white;
+  pointer-events: none;
+  animation: generate-action-floating-point infinite ease-in-out;
+}
+
+@keyframes generate-action-floating-point {
+  0% { transform: translateY(0); }
+  85% { opacity: 0; }
+  100% { transform: translateY(-55px); opacity: 0; }
+}
+
+.generate-action-points i:nth-child(1) { left: 10%; opacity: 1; animation-duration: 2.35s; animation-delay: 0.2s; }
+.generate-action-points i:nth-child(2) { left: 30%; opacity: 0.7; animation-duration: 2.5s; animation-delay: 0.5s; }
+.generate-action-points i:nth-child(3) { left: 25%; opacity: 0.8; animation-duration: 2.2s; animation-delay: 0.1s; }
+.generate-action-points i:nth-child(4) { left: 44%; opacity: 0.6; animation-duration: 2.05s; }
+.generate-action-points i:nth-child(5) { left: 50%; opacity: 1; animation-duration: 1.9s; }
+.generate-action-points i:nth-child(6) { left: 75%; opacity: 0.5; animation-duration: 1.5s; animation-delay: 1.5s; }
+.generate-action-points i:nth-child(7) { left: 88%; opacity: 0.9; animation-duration: 2.2s; animation-delay: 0.2s; }
+.generate-action-points i:nth-child(8) { left: 58%; opacity: 0.8; animation-duration: 2.25s; animation-delay: 0.2s; }
+.generate-action-points i:nth-child(9) { left: 98%; opacity: 0.6; animation-duration: 2.6s; animation-delay: 0.1s; }
+.generate-action-points i:nth-child(10) { left: 65%; opacity: 1; animation-duration: 2.5s; animation-delay: 0.2s; }
+
+.generate-action-inner {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: gap 240ms ease-out, font-size 240ms ease-out;
+}
+
+.generate-action-inner svg {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 2.5;
+  transition: width 240ms ease-out, height 240ms ease-out, fill 100ms linear;
+}
+
+.generate-action-button--compact {
+  --generate-button-round: 0.625rem;
+  min-width: 5.25rem;
+  height: 2.25rem;
+  padding: 0.25rem 0.625rem;
+}
+
+.generate-action-button--compact .generate-action-fold {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.generate-action-button--compact:hover:not(:disabled) .generate-action-fold {
+  margin-top: -0.625rem;
+  margin-right: -0.625rem;
+}
+
+.generate-action-button--compact .generate-action-inner {
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.generate-action-button--compact .generate-action-inner svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.generate-action-button:hover:not(:disabled) .generate-action-inner svg {
+  fill: transparent;
+  animation: generate-action-dash 1s linear forwards, generate-action-fill 100ms linear forwards 950ms;
+}
+
+@keyframes generate-action-dash {
+  from { stroke-dasharray: 0 0 0 0; }
+  to { stroke-dasharray: 68 68 0 0; }
+}
+
+@keyframes generate-action-fill {
+  to { fill: white; }
+}
+

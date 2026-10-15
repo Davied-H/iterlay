@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import "./startup-loading.css";
 
 interface StartupLoadingProps {
@@ -11,6 +12,8 @@ export function StartupLoading({
   error,
   onRetry
 }: StartupLoadingProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className={`license-loading${error ? " license-loading--error" : ""}`} role="status" aria-live="polite">
       <StartupMark />
@@ -19,7 +22,7 @@ export function StartupLoading({
         {error ? <span className="license-loading__error">{error}</span> : <span className="sr-only">{label}</span>}
       </div>
       {error && onRetry ? (
-        <button className="license-loading__retry" type="button" onClick={onRetry}>重试</button>
+        <button className="license-loading__retry" type="button" onClick={onRetry}>{uiText("重试")}</button>
       ) : null}
     </div>
   );

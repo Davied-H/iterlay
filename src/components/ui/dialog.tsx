@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -36,7 +37,7 @@ export const DialogContent = React.forwardRef<
     /** 覆盖遮罩样式，例如轻量弹层用透明遮罩避免压暗画布。 */
     overlayClassName?: string;
   }
->(({ className, children, hideClose, closeClassName, overlayClassName, ...props }, ref) => (
+>(({ className, children, hideClose, closeClassName, overlayClassName, ...props }, ref) => { const uiText = useUiText(); return ((
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
@@ -59,12 +60,12 @@ export const DialogContent = React.forwardRef<
           )}
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">关闭</span>
+          <span className="sr-only">{uiText("关闭")}</span>
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+)); });
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {

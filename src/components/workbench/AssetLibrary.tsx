@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Images, Loader2, RotateCcw, Search, Star, Video, X } from "lucide-react";
@@ -93,6 +95,8 @@ export function AssetLibrary({
   onUseReference,
   onDeleteAsset
 }: AssetLibraryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [assets, setAssets] = useState<AssetLibraryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
@@ -195,7 +199,7 @@ export function AssetLibrary({
       setTotal(page.total);
       setNextCursor(page.nextCursor);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "更多素材加载失败。");
+      toast.error(err instanceof Error ? err.message : translateSourceText("更多素材加载失败。"));
     } finally {
       setLoadingMore(false);
     }
@@ -227,7 +231,7 @@ export function AssetLibrary({
         setTotal(latestTotal);
         setNextCursor(undefined);
       } catch (err) {
-        if (!cancelled) toast.error(err instanceof Error ? err.message : "搜索素材失败。");
+        if (!cancelled) toast.error(err instanceof Error ? err.message : translateSourceText("搜索素材失败。"));
       } finally {
         if (!cancelled) setHydratingSearch(false);
       }
@@ -410,7 +414,7 @@ export function AssetLibrary({
         setAssets((current) => current.some((candidate) => candidate.imagePath === item.imagePath) ? current : [...current, item]);
         setSelected(item);
       } catch {
-        toast.error("来源素材已不可用。");
+        toast.error(translateSourceText("来源素材已不可用。"));
       }
     },
     [assets]
@@ -461,7 +465,7 @@ export function AssetLibrary({
           await getImageWorkbenchApi().toggleAssetFavorite(item.imagePath);
           await refreshMeta();
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "收藏操作失败。");
+          toast.error(err instanceof Error ? err.message : translateSourceText("收藏操作失败。"));
         }
       })();
     },
@@ -480,7 +484,7 @@ export function AssetLibrary({
           current.some((candidate) => candidate.imagePath === item.imagePath) ? current : [...current, item]
         );
         setTotal((current) => current + 1);
-        toast.error(err instanceof Error ? err.message : "删除素材失败。");
+        toast.error(err instanceof Error ? err.message : translateSourceText("删除素材失败。"));
       }
     },
     [onDeleteAsset]
@@ -531,14 +535,12 @@ export function AssetLibrary({
       <div className="library-content flex h-full min-h-0 flex-col" inert={selected ? true : undefined}>
       <header className="window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-4 border-b border-border px-4 [-webkit-app-region:drag]">
         <div className="flex shrink-0 items-baseline gap-2">
-          <span className="text-sm font-semibold tracking-tight">素材库</span>
+          <span className="text-sm font-semibold tracking-tight">{uiText("素材库")}</span>
           <span className="relative grid text-xs tabular-nums text-muted-foreground">
             <span aria-hidden className="invisible col-start-1 row-start-1">
-              {total} / {total} 项素材
-            </span>
+              {total} / {total} {uiText("项素材")}</span>
             <span className="col-start-1 row-start-1">
-              {filteredAssets.length}{total > assets.length ? ` / ${total}` : ""} 项素材
-            </span>
+              {filteredAssets.length}{total > assets.length ? ` / ${total}` : ""} {uiText("项素材")}</span>
           </span>
         </div>
 
@@ -570,8 +572,7 @@ export function AssetLibrary({
               onClick={() => setFavoriteOnly((v) => !v)}
             >
               <Star className={cn("h-3 w-3", favoriteOnly && "fill-current")} />
-              收藏
-            </Button>
+              {uiText("收藏")}</Button>
             {allTags.length > 0 && (
               <>
                 <span className="h-4 w-px shrink-0 bg-border" />
@@ -597,8 +598,7 @@ export function AssetLibrary({
               onClick={resetView}
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              重置
-            </Button>
+              {uiText("重置")}</Button>
           </div>
         )}
       </header>
@@ -615,8 +615,7 @@ export function AssetLibrary({
         ) : filteredAssets.length === 0 && hydratingSearch ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
-            正在搜索全部素材
-          </div>
+            {uiText("正在搜索全部素材")}</div>
         ) : filteredAssets.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground">
@@ -624,14 +623,14 @@ export function AssetLibrary({
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                {assets.length === 0 ? "还没有素材" : "没有匹配的素材"}
+                {assets.length === 0 ? uiText("还没有素材") : uiText("没有匹配的素材")}
               </p>
               <p className="mt-1 max-w-xs text-sm text-muted-foreground">
                 {assets.length === 0
-                  ? "生成或导入的图片与视频会自动汇集到这里。"
+                  ? uiText("生成或导入的图片与视频会自动汇集到这里。")
                   : hasSearchQuery
-                    ? "尝试换个关键词，或调整当前筛选条件。"
-                    : "尝试切换筛选条件。"}
+                    ? uiText("尝试换个关键词，或调整当前筛选条件。")
+                    : uiText("尝试切换筛选条件。")}
               </p>
             </div>
           </div>
@@ -674,8 +673,8 @@ export function AssetLibrary({
                   setQuery("");
                   setSubmittedQuery("");
                 }}
-                placeholder="搜索提示词、标签或画板"
-                aria-label="搜索素材"
+                placeholder={uiText("搜索提示词、标签或画板")}
+                aria-label={uiText("搜索素材")}
                 aria-busy={hydratingSearch}
                 className={cn(
                   "h-12 rounded-2xl border-border/80 bg-card/95 pl-11 text-sm shadow-[0_2px_10px_hsl(0_0%_0%/0.14)] backdrop-blur-md placeholder:text-muted-foreground transition-[border-color,background-color,box-shadow] duration-200 ease-out focus-visible:border-foreground/40 focus-visible:shadow-[0_2px_12px_hsl(0_0%_0%/0.18)] motion-reduce:transition-none",
@@ -685,8 +684,8 @@ export function AssetLibrary({
               {query ? (
                 <button
                   type="button"
-                  aria-label="清除搜索"
-                  title="清除搜索"
+                  aria-label={uiText("清除搜索")}
+                  title={uiText("清除搜索")}
                   className="absolute right-12 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => {
                     setQuery("");
@@ -700,7 +699,7 @@ export function AssetLibrary({
               <button
                 type="submit"
                 disabled={!query.trim() || hydratingSearch}
-                aria-label={hydratingSearch ? "正在搜索素材" : "搜索素材"}
+                aria-label={hydratingSearch ? uiText("正在搜索素材") : uiText("搜索素材")}
                 className={cn(
                   "absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md transition-[color,background-color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default motion-reduce:transition-none",
                   query.trim()

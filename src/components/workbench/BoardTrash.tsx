@@ -1,22 +1,10 @@
+import { useUiText } from "@/i18n";
 import { useState } from "react";
 import { Images, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import type { BoardTrashRetentionDays, TrashedBoardSummary } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface BoardTrashProps {
   boards: TrashedBoardSummary[];
@@ -46,6 +34,8 @@ export function BoardTrash({
   onDelete,
   onEmpty
 }: BoardTrashProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TrashedBoardSummary | null>(null);
   const [emptyConfirmOpen, setEmptyConfirmOpen] = useState(false);
@@ -92,10 +82,10 @@ export function BoardTrash({
   return (
     <div className="library-content flex h-full min-h-0 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border/80 px-4 [-webkit-app-region:drag]">
-        <span className="text-sm font-semibold">回收站</span>
-        <span className="text-xs tabular-nums text-muted-foreground">{boards.length} 个画板</span>
+        <span className="text-sm font-semibold">{uiText("回收站")}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{boards.length} {uiText("个画板")}</span>
         <div className="ml-auto flex items-center gap-2 [-webkit-app-region:no-drag]">
-          <span className="hidden text-xs text-muted-foreground sm:inline">自动清理</span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">{uiText("自动清理")}</span>
           <Select
             value={String(retentionDays)}
             disabled={loading || isEmptying || busyId !== null}
@@ -103,7 +93,7 @@ export function BoardTrash({
               void onRetentionDaysChange(Number(value) as BoardTrashRetentionDays).catch(() => undefined);
             }}
           >
-            <SelectTrigger className="h-8 w-24 text-xs" aria-label="回收站自动清理周期">
+            <SelectTrigger className="h-8 w-24 text-xs" aria-label={uiText("回收站自动清理周期")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="end">
@@ -119,8 +109,7 @@ export function BoardTrash({
             onClick={() => setEmptyConfirmOpen(true)}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            清空
-          </Button>
+            {uiText("清空")}</Button>
         </div>
       </header>
 
@@ -128,23 +117,23 @@ export function BoardTrash({
         {loading ? (
           <div className="flex min-h-48 items-center justify-center text-muted-foreground" role="status">
             <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
-            <span className="ml-2 text-sm">正在读取回收站</span>
+            <span className="ml-2 text-sm">{uiText("正在读取回收站")}</span>
           </div>
         ) : boards.length === 0 ? (
           <div className="flex min-h-64 flex-col items-center justify-center border-y border-border text-center">
             <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Trash2 className="h-5 w-5" />
             </span>
-            <p className="text-sm font-medium">回收站是空的</p>
-            <p className="mt-1 text-xs text-muted-foreground">移除的画板会暂时保留在这里。</p>
+            <p className="text-sm font-medium">{uiText("回收站是空的")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{uiText("移除的画板会暂时保留在这里。")}</p>
           </div>
         ) : (
           <div className="border-t border-border">
             <div className="hidden grid-cols-[minmax(18rem,1fr)_7rem_9rem_10rem] items-center border-b border-border bg-muted/45 px-3 py-2 text-[11px] font-medium text-muted-foreground min-[980px]:grid">
-              <span>画板</span>
-              <span>图片</span>
-              <span>移除时间</span>
-              <span className="text-right">操作</span>
+              <span>{uiText("画板")}</span>
+              <span>{uiText("图片")}</span>
+              <span>{uiText("移除时间")}</span>
+              <span className="text-right">{uiText("操作")}</span>
             </div>
             {boards.map((board) => {
               const isBusy = busyId === board.id;
@@ -164,7 +153,7 @@ export function BoardTrash({
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium">{board.name}</p>
                       <p className="mt-1 text-[11px] text-muted-foreground min-[980px]:hidden">
-                        {board.imageCount} 张图片 · {formatExpiry(board.expiresAt)}
+                        {board.imageCount} {uiText("张图片 · ")}{formatExpiry(board.expiresAt)}
                       </p>
                     </div>
                   </div>
@@ -181,15 +170,14 @@ export function BoardTrash({
                       onClick={() => void restoreBoard(board)}
                     >
                       {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                      恢复
-                    </Button>
+                      {uiText("恢复")}</Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       disabled={busyId !== null || isEmptying}
-                      title={`彻底删除 ${board.name}`}
-                      aria-label={`彻底删除 ${board.name}`}
+                      title={uiText("彻底删除 {{ui:0}}", [board.name])}
+                      aria-label={uiText("彻底删除 {{ui:0}}", [board.name])}
                       onClick={() => setDeleteTarget(board)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -205,15 +193,14 @@ export function BoardTrash({
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && !busyId && setDeleteTarget(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>彻底删除画板</DialogTitle>
-            <DialogDescription>将永久删除「{deleteTarget?.name}」及其生成历史，删除后无法恢复。</DialogDescription>
+            <DialogTitle>{uiText("彻底删除画板")}</DialogTitle>
+            <DialogDescription>{uiText("将永久删除「")}{deleteTarget?.name}{uiText("」及其生成历史，删除后无法恢复。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" disabled={busyId !== null} onClick={() => setDeleteTarget(null)}>取消</Button>
+            <Button variant="outline" disabled={busyId !== null} onClick={() => setDeleteTarget(null)}>{uiText("取消")}</Button>
             <Button variant="destructive" disabled={busyId !== null} onClick={() => void permanentlyDeleteBoard()}>
               {busyId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              彻底删除
-            </Button>
+              {uiText("彻底删除")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -221,15 +208,14 @@ export function BoardTrash({
       <Dialog open={emptyConfirmOpen} onOpenChange={(open) => !isEmptying && setEmptyConfirmOpen(open)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>清空回收站</DialogTitle>
-            <DialogDescription>将永久删除回收站中的 {boards.length} 个画板及其生成历史，此操作无法撤销。</DialogDescription>
+            <DialogTitle>{uiText("清空回收站")}</DialogTitle>
+            <DialogDescription>{uiText("将永久删除回收站中的 ")}{boards.length} {uiText("个画板及其生成历史，此操作无法撤销。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" disabled={isEmptying} onClick={() => setEmptyConfirmOpen(false)}>取消</Button>
+            <Button variant="outline" disabled={isEmptying} onClick={() => setEmptyConfirmOpen(false)}>{uiText("取消")}</Button>
             <Button variant="destructive" disabled={isEmptying} onClick={() => void emptyTrash()}>
               {isEmptying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              清空回收站
-            </Button>
+              {uiText("清空回收站")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

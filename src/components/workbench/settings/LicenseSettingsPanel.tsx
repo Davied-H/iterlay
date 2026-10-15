@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import type { LicenseStatusSnapshot } from "@shared/licensing";
 import { getLicenseStatusLabel } from "@/components/licensing/license-context";
@@ -16,6 +17,8 @@ export function LicenseSettingsPanel({
   onOpenCenter: () => void;
   onActivate: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const licensed = status?.state === "LICENSED";
   const statusLabel = getLicenseStatusLabel(status?.state ?? null);
   const detail = !status
@@ -28,9 +31,9 @@ export function LicenseSettingsPanel({
 
   return (
     <>
-      <SettingsGroup title="授权与激活">
+      <SettingsGroup title={uiText("授权与激活")}>
         <SettingsRow
-          title="Iterlay 桌面版"
+          title={uiText("Iterlay 桌面版")}
           description={detail}
           control={(
             <span
@@ -49,11 +52,11 @@ export function LicenseSettingsPanel({
             </span>
           )}
         />
-        {status?.licenseEmail ? <SettingsRow title="授权邮箱" description={status.licenseEmail} /> : null}
-        {status?.activatedAt ? <SettingsRow title="激活时间" description={formatLicenseDateTime(status.activatedAt)} /> : null}
+        {status?.licenseEmail ? <SettingsRow title={uiText("授权邮箱")} description={status.licenseEmail} /> : null}
+        {status?.activatedAt ? <SettingsRow title={uiText("激活时间")} description={formatLicenseDateTime(status.activatedAt)} /> : null}
         <SettingsRow
-          title={licensed ? "授权管理" : "激活授权"}
-          description={licensed ? "查看授权详情、设备名额和客户中心。" : "使用购买邮箱和激活码授权当前设备。"}
+          title={licensed ? uiText("授权管理") : uiText("激活授权")}
+          description={licensed ? uiText("查看授权详情、设备名额和客户中心。") : uiText("使用购买邮箱和激活码授权当前设备。")}
           control={(
             <Button
               type="button"
@@ -63,7 +66,7 @@ export function LicenseSettingsPanel({
               onClick={licensed ? onOpenCenter : onActivate}
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : licensed ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <KeyRound className="h-4 w-4" aria-hidden="true" />}
-              {licensed ? "管理授权" : "激活授权"}
+              {licensed ? uiText("管理授权") : uiText("激活授权")}
             </Button>
           )}
         />

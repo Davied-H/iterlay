@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ImageIcon, ImageOff, RotateCcw, X } from "lucide-react";
@@ -22,6 +23,8 @@ export function GenerationStack({
   imageUrls,
   onClose
 }: GenerationStackProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = Boolean(useReducedMotion());
   const [topIndex, setTopIndex] = useState(0);
   const [originalUrlByPath, setOriginalUrlByPath] = useState<Record<string, string | null | undefined>>({});
@@ -118,7 +121,7 @@ export function GenerationStack({
         {url && !failed ? (
           <img
             src={url}
-            alt={`${title} 候选图 ${originalIndex + 1}`}
+            alt={uiText("{{ui:0}} 候选图 {{ui:1}}", [title, originalIndex + 1])}
             className="card-image object-contain"
             draggable={false}
             onError={() => setFailedByPath((current) => ({ ...current, [path]: true }))}
@@ -126,7 +129,7 @@ export function GenerationStack({
         ) : failed ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-white/[0.025] text-white/38">
             <ImageOff className="h-7 w-7" />
-            <span className="text-xs">图片无法读取</span>
+            <span className="text-xs">{uiText("图片无法读取")}</span>
           </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-white/[0.025]">
@@ -135,7 +138,7 @@ export function GenerationStack({
         )}
       </div>
     );
-  }), [failedByPath, imagePaths, imageUrls, orderedPaths, originalUrlByPath, title]);
+  }), [failedByPath, imagePaths, imageUrls, orderedPaths, originalUrlByPath, title, uiText]);
 
   const selectRelative = useCallback((offset: number): void => {
     if (imagePaths.length <= 1) return;
@@ -176,7 +179,7 @@ export function GenerationStack({
         <ImageZoomLightbox
           key={`${imagePaths[0]}:zoom`}
           src={singlePreviewUrl}
-          alt={`${title} 放大预览`}
+          alt={uiText("{{ui:0}} 放大预览", [title])}
           imageWidth={singlePreviewSize.width}
           imageHeight={singlePreviewSize.height}
           onClose={onClose}
@@ -185,7 +188,7 @@ export function GenerationStack({
         <motion.div
           key={`${imagePaths[0]}:loading`}
           role="dialog"
-          aria-label="正在打开图片预览"
+          aria-label={uiText("正在打开图片预览")}
           aria-modal="true"
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 dark:bg-black/80"
           initial={reduceMotion ? false : { opacity: 0 }}
@@ -196,7 +199,7 @@ export function GenerationStack({
           {singleFailed && singlePath ? (
             <div className="flex flex-col items-center gap-3 text-white/60">
               <ImageOff className="h-7 w-7" />
-              <p className="text-sm font-medium">图片无法读取</p>
+              <p className="text-sm font-medium">{uiText("图片无法读取")}</p>
               <Button
                 type="button"
                 variant="outline"
@@ -204,8 +207,7 @@ export function GenerationStack({
                 onClick={() => retryPath(singlePath)}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
-                重试
-              </Button>
+                {uiText("重试")}</Button>
             </div>
           ) : (
             <ImageIcon className="h-6 w-6 text-white/28" />
@@ -213,7 +215,7 @@ export function GenerationStack({
           <button
             type="button"
             autoFocus
-            aria-label="关闭放大预览"
+            aria-label={uiText("关闭放大预览")}
             onClick={onClose}
             className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-md bg-white/[0.07] text-white/55 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
@@ -233,7 +235,7 @@ export function GenerationStack({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-medium text-white/78">{title}</p>
                 <p className="text-[10px] tabular-nums text-white/38">
-                  候选 {Math.min(imagePaths.length, topIndex + 1)} / {imagePaths.length}
+                  {uiText("候选 ")}{Math.min(imagePaths.length, topIndex + 1)} / {imagePaths.length}
                 </p>
               </div>
               <Tooltip>
@@ -244,12 +246,12 @@ export function GenerationStack({
                     size="icon"
                     className="h-8 w-8 text-white/55 hover:bg-white/[0.07] hover:text-white"
                     onClick={onClose}
-                    aria-label="关闭候选图"
+                    aria-label={uiText("关闭候选图")}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>关闭候选图</TooltipContent>
+                <TooltipContent>{uiText("关闭候选图")}</TooltipContent>
               </Tooltip>
             </header>
 
@@ -270,8 +272,8 @@ export function GenerationStack({
 
               {imagePaths.length > 1 ? (
                 <>
-                  <GalleryArrow label="上一张候选图" side="left" onClick={() => selectRelative(-1)} />
-                  <GalleryArrow label="下一张候选图" side="right" onClick={() => selectRelative(1)} />
+                  <GalleryArrow label={uiText("上一张候选图")} side="left" onClick={() => selectRelative(-1)} />
+                  <GalleryArrow label={uiText("下一张候选图")} side="right" onClick={() => selectRelative(1)} />
                 </>
               ) : null}
             </div>

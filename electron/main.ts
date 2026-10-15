@@ -1,25 +1,25 @@
-import { app,BrowserWindow,dialog,Menu,nativeImage,nativeTheme,net,shell } from "electron";
+import { waitForStorageMutations } from "./storage/atomic-json.js";
+import { readImageDimensions } from "./media/image-metadata.js";
+import { ImageTaskQueue } from "./image-worker-client.js";
+import { allowedExternalUrl, installRendererSecurity, isTrustedRendererUrl } from "./renderer-security.js";
+import { installWindowLifecycle } from "./window-lifecycle.js";
+import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell } from "electron";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { removeConnectedBackground } from "../shared/background-removal.js";
-import { extractIterlayDeepLinks,ITERLAY_DEEP_LINK_SCHEME } from "../shared/deep-link.js";
-import { resolveAppLocale,type ResolvedAppLocale } from "../shared/i18n.js";
-import type {
-AppIconPreference,
-CustomAppIcon,
-ProviderConfig,
-ProviderGenerateInput
-} from "../shared/types.js";
+import { extractIterlayDeepLinks, ITERLAY_DEEP_LINK_SCHEME } from "../shared/deep-link.js";
+import { resolveAppLocale, type ResolvedAppLocale } from "../shared/i18n.js";
+import type { AppIconPreference, CustomAppIcon, ProviderConfig, ProviderGenerateInput } from "../shared/types.js";
 import { VIDEO_SEQUENCE_EVENT_CHANNEL } from "../shared/video-sequence.js";
-import { applyAppIcon,loadAppIcon } from "./app-icon.js";
+import { applyAppIcon, loadAppIcon } from "./app-icon.js";
 import { buildApplicationMenuTemplate } from "./application-menu.js";
 import { registerAssetProtocol } from "./asset-protocol.js";
 import { CodexOAuthService } from "./auth/codex-oauth.js";
-import { dispatchDeepLink,registerDeepLinkIpc } from "./deep-link.js";
+import { dispatchDeepLink, registerDeepLinkIpc } from "./deep-link.js";
 import { ensureInitialDemoBoard } from "./demo-board.js";
 import { registerIpc } from "./ipc.js";
-import { LicenseService,registerLicenseIpc } from "./licensing/index.js";
+import { LicenseService, registerLicenseIpc } from "./licensing/index.js";
 import { MasterGoBridge } from "./mastergo-bridge.js";
 import { startMcpBridge } from "./mcp-bridge.js";
 import { runElectronMcpServer } from "./mcp-stdio.js";
@@ -28,17 +28,17 @@ import { MediaToolsManager } from "./media/media-tools-manager.js";
 import { registerMediaToolsIpc } from "./media/media-tools-ipc.js";
 import { MEDIA_TOOLS_STATE_CHANNEL } from "../shared/media-tools.js";
 import {
-extractChromaticPhotoSubject,
-extractConnectedPhotoSubject,
-fillPhotoLayerInterior,
-hasLostProtectedOpaqueEdge,
-inpaintPhotoBackground,
-intersectPhotoLayerMask,
-measureOpaqueBounds,
-measureOpaqueEdgeFractions,
-measureOpaqueFraction,
-segmentPhotoLayer,
-subtractPhotoLayerMask
+  extractChromaticPhotoSubject,
+  extractConnectedPhotoSubject,
+  fillPhotoLayerInterior,
+  hasLostProtectedOpaqueEdge,
+  inpaintPhotoBackground,
+  intersectPhotoLayerMask,
+  measureOpaqueBounds,
+  measureOpaqueEdgeFractions,
+  measureOpaqueFraction,
+  segmentPhotoLayer,
+  subtractPhotoLayerMask
 } from "./photo-layer-segmentation.js";
 import { PiAgentEvolutionStore } from "./pi-agent-evolution.js";
 import { PiAgentLogStore } from "./pi-agent-log.js";
@@ -48,7 +48,7 @@ import { CodexOAuthImageProvider } from "./providers/codex-oauth.js";
 import { FalImageProvider } from "./providers/fal.js";
 import { Sub2ApiImageProvider } from "./providers/sub2api.js";
 import type { VideoProviderConfig as RuntimeVideoProviderConfig } from "./providers/video-types.js";
-import { exportLogArchive,RuntimeLog } from "./runtime-log.js";
+import { exportLogArchive, RuntimeLog } from "./runtime-log.js";
 import { buildStartupPage } from "./startup-page.js";
 import { AssetMetaStore } from "./storage/asset-meta-store.js";
 import { AssetStore } from "./storage/asset-store.js";
@@ -67,17 +67,17 @@ import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-st
 import { VideoTaskStore } from "./storage/video-task-store.js";
 import { GitHubUpdateApiClient } from "./updater/github-api-client.js";
 import {
-AppUpdateService,
-DirectDownloadDriver,
-registerUpdateIpc,
-UPDATE_STATE_CHANNEL,
-UpdatePreferenceStore
+  AppUpdateService,
+  DirectDownloadDriver,
+  registerUpdateIpc,
+  UPDATE_STATE_CHANNEL,
+  UpdatePreferenceStore
 } from "./updater/index.js";
-import { defaultVideoProviders,VideoGenerationService } from "./video-generation-service.js";
+import { defaultVideoProviders, VideoGenerationService } from "./video-generation-service.js";
 import { createVideoSubmitInputNormalizer } from "./video-reference-image.js";
 import type { VideoSequenceTask } from "./video-sequence-types.js";
 import { VideoSequenceScheduler } from "./video/video-sequence-scheduler.js";
-import { resolveWindowFrameOptions,resolveWindowsTitleBarOverlay } from "./window-chrome.js";
+import { resolveWindowFrameOptions, resolveWindowsTitleBarOverlay } from "./window-chrome.js";
 import { migrateLegacyWorkspace } from "./workspace-migration.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -85,6 +85,9 @@ const APP_NAME = "Iterlay";
 const APP_ID = "dev.dong.iterlay";
 const UPDATE_QUIT_FEEDBACK_DELAY_MS = 1_200;
 const processStartedAt = performance.now();
+// A packaged app ignores all browser-development flags.
+const isBrowserDev = !app.isPackaged && process.env.ITERLAY_BROWSER_DEV === "1";
+let browserDevBridge: { flush: () => Promise<void>; close: () => void } | undefined;
 let updateQuitScheduled = false;
 
 function quitForUpdate(): void {
@@ -106,7 +109,7 @@ function quitForUpdate(): void {
     });
     app.quit();
     const forceExitTimer = setTimeout(() => {
-      if (!didBeginQuit) app.exit(0);
+      if (didBeginQuit) app.exit(0);
     }, 1_500);
     forceExitTimer.unref();
   }, UPDATE_QUIT_FEEDBACK_DELAY_MS);
@@ -135,14 +138,30 @@ function normalizeGeneratedPhotoEdit(bytes: Buffer, width: number, height: numbe
   });
 }
 
+if (isBrowserDev) {
+  const userData = process.env.ITERLAY_BROWSER_DEV_USER_DATA;
+  if (!userData || !process.env.ITERLAY_BROWSER_DEV_BRIDGE_CONFIG || !process.env.VITE_DEV_SERVER_URL) {
+    throw new Error("请使用 pnpm dev 启动网页调试，以确保独立的开发工作区。");
+  }
+  app.setPath("userData", path.resolve(userData));
+  app.setPath("sessionData", path.join(path.resolve(userData), "session"));
+  app.setAppLogsPath(path.join(path.resolve(userData), "logs"));
+  process.on("SIGTERM", () => app.quit());
+  process.on("SIGINT", () => app.quit());
+} else if (process.env.ITERLAY_PLAYWRIGHT === "1" && process.env.ITERLAY_E2E_USER_DATA) {
+  app.setPath("userData", path.resolve(process.env.ITERLAY_E2E_USER_DATA));
+}
 app.setName(APP_NAME);
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
 }
 
 const isMcpMode = process.argv.includes("--mcp");
+if (!isMcpMode) installRendererSecurity(path.join(__dirname, "../../dist/index.html"), app.isPackaged ? undefined : process.env.VITE_DEV_SERVER_URL);
 let runtimeLog: RuntimeLog | undefined;
 let flushAgentLogs: (() => Promise<void>) | undefined;
+let flushHistoryStore: (() => Promise<void>) | undefined;
+let guardWindowClose: ((window: BrowserWindow) => void) | undefined;
 if (!isMcpMode) {
   try {
     runtimeLog = new RuntimeLog(app.getPath("logs"));
@@ -196,7 +215,7 @@ function installApplicationMenu(
       });
       if (result.canceled || !result.filePath) return;
       if (!runtimeLog) throw new Error(locale === "zh-CN" ? "运行日志初始化失败，请检查日志目录权限或磁盘空间。" : "Runtime logging failed to initialize. Check disk space and permissions.");
-      await flushAgentLogs?.();
+      await Promise.all([flushAgentLogs?.(), runtimeLog?.flush()]);
       await exportLogArchive(app.getPath("logs"), result.filePath, {
         appVersion: app.getVersion(), platform: process.platform, arch: process.arch,
         electron: process.versions.electron, node: process.versions.node
@@ -227,6 +246,7 @@ async function showLoadFailure(
   description: string,
   locale: ResolvedAppLocale = resolveAppLocale("system", app.getLocale())
 ): Promise<void> {
+  if (isBrowserDev) throw new Error(`网页开发后端加载失败：${description}`);
   const detail = description.replace(/[<>&]/g, "");
   const copy = locale === "zh-CN"
     ? { title: "Iterlay 未能完成加载", description: "本地工作区没有被修改。", reload: "重新加载" }
@@ -252,18 +272,29 @@ function createWindowFrame(
     backgroundColor: startupBackground(theme),
     ...resolveWindowFrameOptions(process.platform, theme, nativeTheme.shouldUseDarkColors),
     webPreferences: {
-      preload: path.join(__dirname, "preload/preload.js"),
+      preload: path.join(__dirname, "preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   });
 
+  guardWindowClose?.(win);
+  const openLink = (url: string): void => {
+    if (url.toLowerCase().startsWith("iterlay:")) dispatchDeepLink(url);
+    else if (allowedExternalUrl(url)) void shell.openExternal(url);
+  };
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    openLink(url);
     return { action: "deny" };
   });
+  win.webContents.on("will-navigate", (event, url) => {
+    if (isTrustedRendererUrl(url, path.join(__dirname, "../../dist/index.html"), app.isPackaged ? undefined : process.env.VITE_DEV_SERVER_URL)) return;
+    event.preventDefault();
+    openLink(url);
+  });
   win.once("ready-to-show", () => {
+    if (isBrowserDev) return;
     win.show();
     startupMark("window-visible");
   });
@@ -280,6 +311,7 @@ function createWindowFrame(
 }
 
 async function loadStartupPage(win: BrowserWindow, theme: WindowTheme): Promise<void> {
+  if (isBrowserDev) { await win.loadURL("about:blank"); return; }
   const dark = theme === "dark" || (theme === "system" && nativeTheme.shouldUseDarkColors);
   const html = buildStartupPage({ dark, locale: resolveAppLocale("system", app.getLocale()) });
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
@@ -290,11 +322,12 @@ async function loadApplication(win: BrowserWindow, theme: WindowTheme = "system"
     ? (nativeTheme.shouldUseDarkColors ? "dark" : "light")
     : theme;
   try {
-    if (process.env.VITE_DEV_SERVER_URL) {
+    if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) {
       const url = new URL(process.env.VITE_DEV_SERVER_URL);
       url.searchParams.set("bootTheme", bootTheme);
+      if (isBrowserDev) url.searchParams.set("__iterlay_backend", "1");
       await win.loadURL(url.toString());
-      if (process.env.ITERLAY_PLAYWRIGHT !== "1") {
+      if (!isBrowserDev && process.env.ITERLAY_PLAYWRIGHT !== "1") {
         win.webContents.openDevTools({ mode: "detach" });
       }
     } else {
@@ -324,13 +357,18 @@ if (isMcpMode) {
 } else app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
   if (app.isPackaged) app.setAsDefaultProtocolClient(ITERLAY_DEEP_LINK_SCHEME);
+  guardWindowClose = installWindowLifecycle(
+    async () => { await waitForStorageMutations(); await flushHistoryStore?.(); await Promise.all([flushAgentLogs?.(), runtimeLog?.flush()]); },
+    isBrowserDev ? () => browserDevBridge?.flush() ?? Promise.resolve() : undefined
+  );
+  if (isBrowserDev && process.platform === "darwin") app.dock?.hide();
   startupMark("electron-ready");
   const startupWindow = createWindowFrame("default", [], "system");
   await loadStartupPage(startupWindow, "system");
   startupMark("startup-document-loaded");
 
   const dataDir = path.join(app.getPath("userData"), "workspace");
-  await migrateLegacyWorkspace(dataDir, app.getPath("appData"));
+  if (!isBrowserDev) await migrateLegacyWorkspace(dataDir, app.getPath("appData"));
   startupMark("workspace-migrated");
   const settings = new SettingsStore(dataDir);
   const appLocale = resolveAppLocale(settings.getSettings().language, app.getLocale());
@@ -359,16 +397,19 @@ if (isMcpMode) {
     void createWindow(current.appIcon ?? "default", current.customAppIcons ?? [], current.theme);
   }, appLocale);
   const history = new HistoryStore(dataDir);
+  flushHistoryStore = () => history.flush();
   const historyReady = history.failInterruptedJobs();
   const videoTasks = new VideoTaskStore(dataDir);
   const videoSequences = new VideoSequenceStore(dataDir);
   const videoSequenceTemplates = new VideoSequenceTemplateStore(dataDir);
-  const boards = new BoardStore(dataDir, async (imagePath) => {
+  const dimensionTasks = new ImageTaskQueue();
+  const boards = new BoardStore(dataDir, (imagePath) => readImageDimensions(imagePath, () => dimensionTasks.run(() => {
     const image = nativeImage.createFromPath(imagePath);
     if (image.isEmpty()) return null;
     const { width, height } = image.getSize();
     return width > 0 && height > 0 ? { width, height } : null;
-  });
+  })));
+
   const boardImageTrash = new BoardImageTrashStore(dataDir);
   const assets = new AssetStore(dataDir);
   const comments = new CommentStore(dataDir);
@@ -961,7 +1002,13 @@ if (isMcpMode) {
     await loadApplication(startupWindow, settings.getSettings().theme);
   }
   startupMark("application-document-loaded");
-  const disposeMcpBridge = await startMcpBridge(startupWindow, app.getPath("userData"));
+  if (isBrowserDev) {
+    const { startDevBrowserBridge } = await import("./dev-browser-bridge.js");
+    browserDevBridge = await startDevBrowserBridge(startupWindow, assets,
+      process.env.ITERLAY_BROWSER_DEV_BRIDGE_CONFIG!, new URL(process.env.VITE_DEV_SERVER_URL!).origin);
+    console.info("[browser-dev] 网页真实服务已就绪，桌面编辑器未启动。");
+  }
+  const disposeMcpBridge = await startMcpBridge(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"));
 
   if (settings.getSettings().memoryEnabled) {
     const maintenanceTimer = setTimeout(() => {
@@ -971,6 +1018,7 @@ if (isMcpMode) {
   }
 
   app.once("will-quit", () => {
+    browserDevBridge?.close();
     mediaTools.cancel();
     disposeMediaToolsIpc();
     disposeMcpBridge();
@@ -982,11 +1030,21 @@ if (isMcpMode) {
   });
 
   app.on("activate", () => {
+    if (isBrowserDev) return;
     if (BrowserWindow.getAllWindows().length === 0) {
       const current = settings.getSettings();
       void createWindow(current.appIcon ?? "default", current.customAppIcons ?? [], current.theme);
     }
   });
+}).catch((error) => {
+  console.error("Application startup failed", error);
+  if (isBrowserDev && !browserDevBridge) {
+    // No browser editor exists yet; let the development launcher report failure.
+    void runtimeLog?.flush().finally(() => app.exit(1));
+    if (!runtimeLog) app.exit(1);
+    return;
+  }
+  dialog.showErrorBox("Iterlay 启动失败", error instanceof Error ? error.message : String(error));
 });
 
 app.on("window-all-closed", () => {

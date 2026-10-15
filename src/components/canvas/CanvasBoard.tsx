@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { useReactFlow, type Edge, type Node } from "@xyflow/react";
@@ -38,15 +40,8 @@ import type { CanvasClipboardItem } from "./canvas-clipboard";
 import type { EmptyCanvasMode } from "./EmptyCanvasStart";
 import { copyImageDataUrlToClipboard } from "@/lib/clipboard-images";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
-import {
-  CANVAS_FIT_VIEW_OPTIONS,
-  resolveCanvasWheelInteraction
-} from "./canvas-viewport";
-import {
-  type CanvasNodeLayout,
-  type CanvasRestoreSnapshot,
-  type CanvasSelectionSnapshot
-} from "./canvas-history";
+import { CANVAS_FIT_VIEW_OPTIONS, resolveCanvasWheelInteraction } from "./canvas-viewport";
+import { type CanvasNodeLayout, type CanvasRestoreSnapshot, type CanvasSelectionSnapshot } from "./canvas-history";
 import { useCanvasController } from "./CanvasController";
 import { CanvasSurface } from "./CanvasSurface";
 import {
@@ -58,64 +53,34 @@ import {
   CanvasViewportOverlays
 } from "./CanvasOverlays";
 import { useCanvasMiniMapController } from "./use-canvas-minimap-controller";
-import {
-  edgeFromConnection
-} from "./ConnectionController";
-import {
-  nodeImage,
-  nodeRenderedHeight,
-  nodeRenderedWidth
-} from "./NodeRegistry";
-import {
-  CanvasContextMenu,
-  CanvasNodeCreateMenu,
-  CanvasZoomToolbar
-} from "./CanvasInteractionOverlays";
+import { edgeFromConnection } from "./ConnectionController";
+import { nodeImage, nodeRenderedHeight, nodeRenderedWidth } from "./NodeRegistry";
+import { CanvasContextMenu, CanvasNodeCreateMenu, CanvasZoomToolbar } from "./CanvasInteractionOverlays";
 import { useCanvasConnectionPresentation } from "./use-canvas-connection-presentation";
 import { useCanvasConnectionMutations } from "./use-canvas-connection-mutations";
 import { useFreeConnectionGesture } from "./use-free-connection-gesture";
 import { useCanvasConnectionEdgeActions } from "./use-canvas-connection-edge-actions";
-import {
-  useCanvasDropController,
-  type CanvasDropPayload
-} from "./use-canvas-drop-controller";
-import {
-  projectCanvasNodes,
-  type CanvasNodeProjectionBindings,
-  type CanvasWorkflowNode
-} from "./canvas-node-projection";
+import { useCanvasDropController, type CanvasDropPayload } from "./use-canvas-drop-controller";
+import { projectCanvasNodes, type CanvasNodeProjectionBindings, type CanvasWorkflowNode } from "./canvas-node-projection";
 import { resolveGenerationNodeInput } from "./canvas-workflow";
 import { resolveGeneratedImageVersion } from "./image-node-model";
 import type { GenerationNodeData } from "./GenerationNode";
 import type { GenerationReferencePlacementTarget } from "./generation-reference-paste";
 import type { VideoNodeData } from "./VideoNode";
-import type {
-  AudioReferenceInput,
-  GeneratedVideo,
-  VideoReferenceInput
-} from "./video-node-model";
+import type { AudioReferenceInput, GeneratedVideo, VideoReferenceInput } from "./video-node-model";
 import type { VideoGenerationNodeConfig } from "./VideoGenerationNode";
 import { useCanvasNodeLayoutInteractions } from "./use-canvas-node-layout-interactions";
 import { useCanvasNodeBindings } from "./use-canvas-node-bindings";
 import { useCanvasWorkflowNodeActions } from "./use-canvas-workflow-node-actions";
 import { useCanvasSelectionActions } from "./use-canvas-selection-actions";
-import {
-  useCanvasClipboardController,
-  type CanvasClipboardDropPayload
-} from "./use-canvas-clipboard-controller";
-import type {
-  CanvasOptionalAssetShortcut,
-  CanvasShortcutSnapshot
-} from "./canvas-shortcut-plan";
+import { useCanvasClipboardController, type CanvasClipboardDropPayload } from "./use-canvas-clipboard-controller";
+import type { CanvasOptionalAssetShortcut, CanvasShortcutSnapshot } from "./canvas-shortcut-plan";
 import { useCanvasShortcutController } from "./use-canvas-shortcut-controller";
 import { useCanvasCommandApi } from "./use-canvas-command-api";
 import { useCanvasViewportController } from "./use-canvas-viewport-controller";
 import { useCanvasMenuController } from "./use-canvas-menu-controller";
 import { useCanvasRelationshipController } from "./use-canvas-relationship-controller";
-import {
-  VIDEO_GENERATION_NODE_HEIGHT,
-  VIDEO_GENERATION_NODE_WIDTH
-} from "./canvas-node-layout";
+import { VIDEO_GENERATION_NODE_HEIGHT, VIDEO_GENERATION_NODE_WIDTH } from "./canvas-node-layout";
 
 function isImageCanvasNode(node: Node): boolean {
   return node.type === "imageNode";
@@ -550,20 +515,22 @@ export function CanvasBoard({
   onOpenShortcutHelp,
   onExitCanvas
 }: CanvasBoardProps): React.ReactElement {
+  const uiText = useUiText();
+
   const { fitView, setCenter, setViewport, zoomTo, getViewport, screenToFlowPosition } = useReactFlow();
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const {
-    nodes,
-    setNodes,
-    onNodesChange,
-    edges,
-    setEdges,
-    onEdgesChange,
-    reportCanvasState,
-    scheduleCanvasReport,
-    recordCanvasChange
-  } = useCanvasController({
+  nodes,
+  setNodes,
+  onNodesChange,
+  edges,
+  setEdges,
+  onEdgesChange,
+  reportCanvasState,
+  scheduleCanvasReport,
+  recordCanvasChange
+} = useCanvasController({
     initialConnections,
     nodesRef,
     edgesRef,
@@ -618,7 +585,7 @@ export function CanvasBoard({
   const hasQuickShareHandler = Boolean(onQuickShareImage);
 
   const handleInvalidConnection = useCallback((): void => {
-    toast.error("这两个节点的端口类型不兼容。");
+    toast.error(translateSourceText("这两个节点的端口类型不兼容。"));
   }, []);
   const connectionMutations = useCanvasConnectionMutations({
     nodesRef,
@@ -635,7 +602,7 @@ export function CanvasBoard({
     const referenceCount = ((target.data as unknown as GenerationNodeData).referenceImages ?? []).length;
     const availableSlots = Math.max(0, 4 - referenceCount);
     if (availableSlots === 0) {
-      toast.error("图片生成节点最多连接 4 张参考图。");
+      toast.error(translateSourceText("图片生成节点最多连接 4 张参考图。"));
       return;
     }
     const accepted = files.slice(0, availableSlots);
@@ -671,10 +638,10 @@ export function CanvasBoard({
       scheduleCanvasReport();
       const skipped = files.length - accepted.length;
       toast.success(skipped > 0
-        ? `已粘贴 ${imported.length} 张参考图，另有 ${skipped} 张超过上限`
-        : `已粘贴并连接 ${imported.length} 张参考图`);
+        ? translateSourceText("已粘贴 {{ui:0}} 张参考图，另有 {{ui:1}} 张超过上限", [imported.length, skipped])
+        : translateSourceText("已粘贴并连接 {{ui:0}} 张参考图", [imported.length]));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "参考图粘贴失败。");
+      toast.error(error instanceof Error ? error.message : translateSourceText("参考图粘贴失败。"));
     }
   }, [onImportGenerationReferences, recordCanvasChange, scheduleCanvasReport, setEdges]);
   const getViewportZoom = useCallback((): number => getViewport().zoom, [getViewport]);
@@ -701,15 +668,15 @@ export function CanvasBoard({
     onBeforeCanvasChange?.(snapshot);
   }, [onBeforeCanvasChange]);
   const {
-    onNodeDragStart: handleNodeDragStart,
-    onNodeDrag: handleNodeDrag,
-    onNodeDragStop: handleNodeDragStop,
-    onNodeResizeStart: handleNodeResizeStart,
-    onNodeResizeEnd: handleNodeResizeEnd,
-    helperLines,
-    draggingNodeIds,
-    userPositionedNodeIds
-  } = useCanvasNodeLayoutInteractions({
+  onNodeDragStart: handleNodeDragStart,
+  onNodeDrag: handleNodeDrag,
+  onNodeDragStop: handleNodeDragStop,
+  onNodeResizeStart: handleNodeResizeStart,
+  onNodeResizeEnd: handleNodeResizeEnd,
+  helperLines,
+  draggingNodeIds,
+  userPositionedNodeIds
+} = useCanvasNodeLayoutInteractions({
     getNodes: getCanvasNodes,
     getEdges: getCanvasEdges,
     updateNodes: updateCanvasNodes,
@@ -820,7 +787,7 @@ export function CanvasBoard({
   const handleCopyImage = useCallback((): void => {
     if (!clipboardEnabled) return;
     if (!document.execCommand("copy")) {
-      toast.error("无法复制图片，请使用键盘快捷键重试");
+      toast.error(translateSourceText("无法复制图片，请使用键盘快捷键重试"));
     }
   }, [clipboardEnabled]);
   const handleDeleteImage = useCallback((image: GeneratedImage) => {
@@ -860,15 +827,15 @@ export function CanvasBoard({
     workflowActions: selectionWorkflowActions
   });
   const {
-    duplicateNodes,
-    arrangeSelectedNodes,
-    deleteNodes: deleteNodesFromCanvas,
-    useSelectedReferences: handleUseSelectedReferences,
-    downloadSelectedImages: handleDownloadSelectedImages,
-    exportWechatSelectedImages: handleExportWechatSelectedImages,
-    isAddingReferences,
-    isDownloading
-  } = selectionActions;
+  duplicateNodes,
+  arrangeSelectedNodes,
+  deleteNodes: deleteNodesFromCanvas,
+  useSelectedReferences: handleUseSelectedReferences,
+  downloadSelectedImages: handleDownloadSelectedImages,
+  exportWechatSelectedImages: handleExportWechatSelectedImages,
+  isAddingReferences,
+  isDownloading
+} = selectionActions;
 
   const notifyMenu = useCallback((level: "info" | "error", message: string): void => {
     if (level === "error") toast.error(message);
@@ -1447,10 +1414,10 @@ export function CanvasBoard({
   ]);
 
   const notifyShortcutImageCopied = useCallback((): void => {
-    iterlayToast.copied({ title: "已复制图片", detail: "可粘贴到其他应用" });
+    iterlayToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
   }, []);
   const notifyShortcutImageCopyFailed = useCallback((): void => {
-    toast.error("无法复制图片到剪贴板");
+    toast.error(translateSourceText("无法复制图片到剪贴板"));
   }, []);
   const rejectCanvasShortcut = useCallback((message: string): void => {
     toast(message);
@@ -1506,13 +1473,13 @@ export function CanvasBoard({
     [images]
   );
   const {
-    selectedNodes,
-    selectedImageNodes,
-    selectedReadyCount,
-    selectedReferenceCandidateCount,
-    selectedDownloadableCount,
-    selectedShareableImages
-  } = selectionActions.selection;
+  selectedNodes,
+  selectedImageNodes,
+  selectedReadyCount,
+  selectedReferenceCandidateCount,
+  selectedDownloadableCount,
+  selectedShareableImages
+} = selectionActions.selection;
   const reportedSelectionRef = useRef<string[] | null>(null);
   useEffect(() => {
     if (!onSelectionChange) return;
@@ -1624,21 +1591,21 @@ export function CanvasBoard({
       onPointerDownCapture={relationshipController.onCanvasPointerDownCapture}
       onMouseDownCapture={preventMiddleMouseAutoScroll}
     >
-      <div className="canvas-mode-toolbar" data-canvas-create-toolbar="" role="toolbar" aria-label="画布工具">
-        <button type="button" title="选择 (V)" aria-label="选择 (V)" aria-pressed={canvasToolMode === "select"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("select")}><MousePointer2 /></button>
-        <button type="button" title="平移 (H)" aria-label="平移 (H)" aria-pressed={canvasToolMode === "pan"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("pan")}><Hand /></button>
+      <div className="canvas-mode-toolbar" data-canvas-create-toolbar="" role="toolbar" aria-label={uiText("画布工具")}>
+        <button type="button" title={uiText("选择 (V)")} aria-label={uiText("选择 (V)")} aria-pressed={canvasToolMode === "select"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("select")}><MousePointer2 /></button>
+        <button type="button" title={uiText("平移 (H)")} aria-label={uiText("平移 (H)")} aria-pressed={canvasToolMode === "pan"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("pan")}><Hand /></button>
         {!comicDramaBoard ? <span className="canvas-tool-divider" /> : null}
         {onCreateWorkflowNode && !comicDramaBoard ? <>
-          <button type="button" title="生成图片" aria-label="生成图片" onClick={() => createWorkflowNode("generation")}><ImagePlus /></button>
-          <button type="button" title="添加文本" aria-label="添加文本" onClick={() => createWorkflowNode("text")}><Type /></button>
+          <button type="button" title={uiText("生成图片")} aria-label={uiText("生成图片")} onClick={() => createWorkflowNode("generation")}><ImagePlus /></button>
+          <button type="button" title={uiText("添加文本")} aria-label={uiText("添加文本")} onClick={() => createWorkflowNode("text")}><Type /></button>
         </> : null}
-        <button type="button" title="适应画布" aria-label="适应画布" onClick={viewportController.fitAll}><Maximize /></button>
-        {onCreateWorkflowNode ? <details><summary aria-label="更多画布工具" title="更多画布工具"><MoreHorizontal /></summary><div>
-          <button type="button" onClick={() => createWorkflowNode("video-generation")}><Video />生成视频</button>
-          <button type="button" onClick={startComicDrama}><Clapperboard />{comicDramaBoard ? "打开漫剧设定" : "新建漫剧项目"}</button>
+        <button type="button" title={uiText("适应画布")} aria-label={uiText("适应画布")} onClick={viewportController.fitAll}><Maximize /></button>
+        {onCreateWorkflowNode ? <details><summary aria-label={uiText("更多画布工具")} title={uiText("更多画布工具")}><MoreHorizontal /></summary><div>
+          <button type="button" onClick={() => createWorkflowNode("video-generation")}><Video />{uiText("生成视频")}</button>
+          <button type="button" onClick={startComicDrama}><Clapperboard />{comicDramaBoard ? uiText("打开漫剧设定") : uiText("新建漫剧项目")}</button>
           {comicDramaBoard ? <>
-            <button type="button" onClick={() => createWorkflowNode("comic-character")}><ImagePlus />添加角色卡</button>
-            <button type="button" onClick={() => createWorkflowNode("comic-segment-script")}><Video />添加片段卡</button>
+            <button type="button" onClick={() => createWorkflowNode("comic-character")}><ImagePlus />{uiText("添加角色卡")}</button>
+            <button type="button" onClick={() => createWorkflowNode("comic-segment-script")}><Video />{uiText("添加片段卡")}</button>
           </> : null}
         </div></details> : null}
       </div>

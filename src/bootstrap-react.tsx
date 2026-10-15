@@ -4,7 +4,6 @@ import { LicenseGate } from "./components/licensing/LicenseGate";
 import { RootErrorBoundary } from "./components/system/RootErrorBoundary";
 import { StartupLoading } from "./components/system/StartupLoading";
 import { I18nProvider } from "./i18n";
-import { LegacyI18nBridge } from "./i18n/LegacyI18nBridge";
 import "./styles.css";
 
 const Workspace = React.lazy(async () => {
@@ -27,7 +26,6 @@ document.documentElement.classList.remove("boot-dark", "boot-light");
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nProvider>
-      <LegacyI18nBridge>
         <RootErrorBoundary>
           <LicenseGate>
             <React.Suspense fallback={<StartupLoading />}>
@@ -35,7 +33,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             </React.Suspense>
           </LicenseGate>
         </RootErrorBoundary>
-      </LegacyI18nBridge>
     </I18nProvider>
   </React.StrictMode>
 );

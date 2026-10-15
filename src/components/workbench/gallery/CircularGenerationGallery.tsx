@@ -1,9 +1,7 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
-import {
-  ReactBitsCircularGallery,
-  type ReactBitsCircularGalleryItem
-} from "@/components/workbench/gallery/ReactBitsCircularGallery";
+import { ReactBitsCircularGallery, type ReactBitsCircularGalleryItem } from "@/components/workbench/gallery/ReactBitsCircularGallery";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { gsap, useGSAP } from "@/lib/gsap";
@@ -34,6 +32,8 @@ export function CircularGenerationGallery({
   onActiveIndexChange,
   onOpen
 }: CircularGenerationGalleryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [webglUnavailable, setWebglUnavailable] = useState(false);
   const [activeCardHovered, setActiveCardHovered] = useState(false);
   const shortcutHintRef = useRef<HTMLDivElement>(null);
@@ -79,8 +79,8 @@ export function CircularGenerationGallery({
           <ImageIcon className="h-5 w-5 text-white/45" />
         </span>
         <div>
-          <p className="text-sm font-medium text-white/75">当前筛选没有图片</p>
-          <p className="mt-1 text-xs">调整筛选或从时间线选择其他日期</p>
+          <p className="text-sm font-medium text-white/75">{uiText("当前筛选没有图片")}</p>
+          <p className="mt-1 text-xs">{uiText("调整筛选或从时间线选择其他日期")}</p>
         </div>
       </div>
     );
@@ -134,11 +134,11 @@ export function CircularGenerationGallery({
           >
             <kbd className="flex h-5 min-w-5 items-center justify-center rounded bg-white/10 px-1 text-[11px] font-medium text-white/90 ring-1 ring-white/[0.15]">←</kbd>
             <kbd className="flex h-5 min-w-5 items-center justify-center rounded bg-white/10 px-1 text-[11px] font-medium text-white/90 ring-1 ring-white/[0.15]">→</kbd>
-            <span className="ml-0.5 text-[11px] font-medium text-white/70">图片</span>
+            <span className="ml-0.5 text-[11px] font-medium text-white/70">{uiText("图片")}</span>
             <span className="mx-0.5 h-3 w-px bg-white/15" />
             <kbd className="flex h-5 min-w-5 items-center justify-center rounded bg-white/10 px-1 text-[11px] font-medium text-white/90 ring-1 ring-white/[0.15]">↑</kbd>
             <kbd className="flex h-5 min-w-5 items-center justify-center rounded bg-white/10 px-1 text-[11px] font-medium text-white/90 ring-1 ring-white/[0.15]">↓</kbd>
-            <span className="ml-0.5 text-[11px] font-medium text-white/70">日期</span>
+            <span className="ml-0.5 text-[11px] font-medium text-white/70">{uiText("日期")}</span>
           </div>
         ) : null}
 
@@ -148,13 +148,13 @@ export function CircularGenerationGallery({
             <div
               className="pointer-events-auto flex h-9 w-[292px] max-w-[calc(100vw-7rem)] items-center gap-3 rounded-full bg-black/85 px-3.5 shadow-[0_8px_28px_rgba(0,0,0,0.38)] ring-1 ring-white/20 max-[520px]:w-[240px]"
             >
-              <div role="group" aria-label="选择图片" className="flex min-w-0 flex-1 items-center gap-1">
+              <div role="group" aria-label={uiText("选择图片")} className="flex min-w-0 flex-1 items-center gap-1">
                 {items.map((item, index) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => onActiveIndexChange(index)}
-                    aria-label={`切换到第 ${index + 1} 张：${item.title}`}
+                    aria-label={uiText("切换到第 {{ui:0}} 张：{{ui:1}}", [index + 1, item.title])}
                     aria-current={index === activeIndex ? "true" : undefined}
                     className="group flex h-5 min-w-0 flex-1 items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   >
@@ -176,19 +176,19 @@ export function CircularGenerationGallery({
               </span>
             </div>
             <span className="sr-only" role="status" aria-live="polite">
-              第 {activeIndex + 1} 张，共 {items.length} 张{isLastItem ? "，最后一张" : ""}
+              {uiText("第 ")}{activeIndex + 1} {uiText("张，共 ")}{items.length} {uiText("张")}{isLastItem ? uiText("，最后一张") : ""}
             </span>
           </div>
         </div>
 
         <GalleryArrow
-          label="上一张图片"
+          label={uiText("上一张图片")}
           side="left"
           disabled={activeIndex <= 0}
           onClick={() => selectRelative(-1)}
         />
         <GalleryArrow
-          label="下一张图片"
+          label={uiText("下一张图片")}
           side="right"
           disabled={activeIndex >= items.length - 1}
           onClick={() => selectRelative(1)}

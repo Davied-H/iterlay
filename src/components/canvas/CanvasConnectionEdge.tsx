@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import {
   useCallback,
   useContext,
@@ -64,15 +65,8 @@ import {
   type ResolvedConnectionRoute
 } from "./connection-routing";
 import { screenPxToFlow } from "./canvas-coordinates";
-import {
-  isVideoGenerationTargetHandle,
-  videoGenerationTargetHandleAnchorRatio
-} from "./canvas-node-layout";
-import {
-  pointAtConnectionPathProgress,
-  projectPointToConnectionPath,
-  sampleConnectionPath
-} from "./connection-label";
+import { isVideoGenerationTargetHandle, videoGenerationTargetHandleAnchorRatio } from "./canvas-node-layout";
+import { pointAtConnectionPathProgress, projectPointToConnectionPath, sampleConnectionPath } from "./connection-label";
 import {
   CanvasConnectionEdgeActionsContext,
   type CanvasConnectionAnchor,
@@ -367,6 +361,8 @@ export function CanvasConnectionEdge({
   targetPosition,
   data
 }: EdgeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const actions = useContext(CanvasConnectionEdgeActionsContext);
   const { screenToFlowPosition } = useReactFlow();
   const edgeData = (data ?? {}) as CanvasConnectionEdgeData;
@@ -1095,8 +1091,8 @@ export function CanvasConnectionEdge({
             ) : null}
             <button
               type="button"
-              aria-label="拖动连接起点"
-              title="拖动连接起点"
+              aria-label={uiText("拖动连接起点")}
+              title={uiText("拖动连接起点")}
               className="nodrag nopan canvas-connection-endpoint"
               style={overlayStyle(sourcePoint, zoom)}
               onPointerDown={(event) => startEndpointDrag("source", event)}
@@ -1104,8 +1100,8 @@ export function CanvasConnectionEdge({
             />
             <button
               type="button"
-              aria-label="拖动连接终点"
-              title="拖动连接终点"
+              aria-label={uiText("拖动连接终点")}
+              title={uiText("拖动连接终点")}
               className="nodrag nopan canvas-connection-endpoint"
               style={overlayStyle(targetPoint, zoom)}
               onPointerDown={(event) => startEndpointDrag("target", event)}
@@ -1115,8 +1111,8 @@ export function CanvasConnectionEdge({
               <button
                 key={waypoint.id}
                 type="button"
-                aria-label="拖动拐点，双击删除"
-                title="拖动拐点，双击删除"
+                aria-label={uiText("拖动拐点，双击删除")}
+                title={uiText("拖动拐点，双击删除")}
                 className="nodrag nopan canvas-connection-waypoint"
                 style={overlayStyle(waypoint, zoom)}
                 onPointerDown={(event) => startWaypointDrag(waypoint.id, event)}
@@ -1142,8 +1138,8 @@ export function CanvasConnectionEdge({
                 <button
                   key={`midpoint:${segment.id}`}
                   type="button"
-                  aria-label="拖动以新增拐点"
-                  title="拖动以新增拐点"
+                  aria-label={uiText("拖动以新增拐点")}
+                  title={uiText("拖动以新增拐点")}
                   className="nodrag nopan canvas-connection-midpoint"
                   style={overlayStyle(center, zoom)}
                   onPointerDown={(event) => startMidpointDrag(segment.index, event, center)}
@@ -1169,7 +1165,7 @@ export function CanvasConnectionEdge({
             })}
             {(edgeData.toolbarOwner ?? true) ? <div
               role="toolbar"
-              aria-label="连接线路由"
+              aria-label={uiText("连接线路由")}
               className="nodrag nopan canvas-connection-toolbar"
               style={overlayStyle(floatingToolbarPoint, zoom, toolbarAlignment)}
               onPointerDown={(event) => event.stopPropagation()}
@@ -1177,31 +1173,31 @@ export function CanvasConnectionEdge({
             >
               <button
                 type="button"
-                aria-label="直线"
-                title="直线"
+                aria-label={uiText("直线")}
+                title={uiText("直线")}
                 aria-pressed={draft.routing.kind === "straight"}
                 onClick={() => setRoutingKind("straight")}
               ><Minus aria-hidden="true" /></button>
               <button
                 type="button"
-                aria-label="正交线"
-                title="正交线"
+                aria-label={uiText("正交线")}
+                title={uiText("正交线")}
                 aria-pressed={draft.routing.kind === "orthogonal"}
                 onClick={() => setRoutingKind("orthogonal")}
               ><CornerDownRight aria-hidden="true" /></button>
               <button
                 type="button"
-                aria-label="曲线"
-                title="曲线"
+                aria-label={uiText("曲线")}
+                title={uiText("曲线")}
                 aria-pressed={draft.routing.kind === "curved"}
                 onClick={() => setRoutingKind("curved")}
               ><Spline aria-hidden="true" /></button>
               <span aria-hidden="true" />
-              <label className="canvas-connection-color" title="连接线颜色">
-                <span className="sr-only">连接线颜色</span>
+              <label className="canvas-connection-color" title={uiText("连接线颜色")}>
+                <span className="sr-only">{uiText("连接线颜色")}</span>
                 <input
                   type="color"
-                  aria-label="连接线颜色"
+                  aria-label={uiText("连接线颜色")}
                   value={/^#[0-9a-f]{6}$/iu.test(connectionStyle.color ?? "") ? connectionStyle.color : "#52525b"}
                   disabled={!actions.applyToSelection}
                   onChange={(event) => applyStyle({ color: event.currentTarget.value })}
@@ -1209,8 +1205,8 @@ export function CanvasConnectionEdge({
               </label>
               <button
                 type="button"
-                aria-label="切换连接线宽度"
-                title={`线宽 ${connectionStyle.width ?? 1.5}px`}
+                aria-label={uiText("切换连接线宽度")}
+                title={uiText("线宽 {{ui:0}}px", [connectionStyle.width ?? 1.5])}
                 disabled={!actions.applyToSelection}
                 onClick={() => {
                   const widths = [1.5, 2.5, 4];
@@ -1220,8 +1216,8 @@ export function CanvasConnectionEdge({
               ><SlidersHorizontal aria-hidden="true" /></button>
               <button
                 type="button"
-                aria-label="切换实线或虚线"
-                title={`线型 ${connectionStyle.dash ?? "solid"}`}
+                aria-label={uiText("切换实线或虚线")}
+                title={uiText("线型 {{ui:0}}", [connectionStyle.dash ?? "solid"])}
                 disabled={!actions.applyToSelection}
                 onClick={() => {
                   const dashes = ["solid", "dashed", "dotted"] as const;
@@ -1231,8 +1227,8 @@ export function CanvasConnectionEdge({
               ><Ellipsis aria-hidden="true" /></button>
               <button
                 type="button"
-                aria-label="切换起点箭头"
-                title="起点箭头"
+                aria-label={uiText("切换起点箭头")}
+                title={uiText("起点箭头")}
                 aria-pressed={connectionStyle.startMarker === "arrow"}
                 disabled={!actions.applyToSelection}
                 onClick={() => applyStyle({
@@ -1241,8 +1237,8 @@ export function CanvasConnectionEdge({
               ><ArrowLeft aria-hidden="true" /></button>
               <button
                 type="button"
-                aria-label="切换终点箭头"
-                title="终点箭头"
+                aria-label={uiText("切换终点箭头")}
+                title={uiText("终点箭头")}
                 aria-pressed={connectionStyle.endMarker === "arrow"}
                 disabled={!actions.applyToSelection}
                 onClick={() => applyStyle({
@@ -1250,14 +1246,14 @@ export function CanvasConnectionEdge({
                 })}
               ><ArrowRight aria-hidden="true" /></button>
               {(connectionStyle.startMarker === "arrow" || endMarker === "arrow") ? (
-                <label className="canvas-connection-marker-size" title={`箭头大小 ${markerSize}px`}>
-                  <span className="sr-only">箭头大小</span>
+                <label className="canvas-connection-marker-size" title={uiText("箭头大小 {{ui:0}}px", [markerSize])}>
+                  <span className="sr-only">{uiText("箭头大小")}</span>
                   <input
                     type="range"
                     min="6"
                     max="20"
                     step="2"
-                    aria-label="箭头大小"
+                    aria-label={uiText("箭头大小")}
                     value={markerSize}
                     disabled={!actions.applyToSelection}
                     onChange={(event) => applyStyle({ markerSize: Number(event.currentTarget.value) })}
@@ -1266,8 +1262,8 @@ export function CanvasConnectionEdge({
               ) : null}
               <button
                 type="button"
-                aria-label="切换跨线桥"
-                title="跨线桥"
+                aria-label={uiText("切换跨线桥")}
+                title={uiText("跨线桥")}
                 aria-pressed={connectionStyle.lineJumps === true}
                 disabled={!actions.applyToSelection}
                 onClick={() => applyStyle({ lineJumps: !connectionStyle.lineJumps })}
@@ -1275,8 +1271,8 @@ export function CanvasConnectionEdge({
               <span aria-hidden="true" />
               <button
                 type="button"
-                aria-label="重置为自动路径"
-                title="重置为自动路径"
+                aria-label={uiText("重置为自动路径")}
+                title={uiText("重置为自动路径")}
                 disabled={draft.routing.mode === "auto" && draft.routing.waypoints.length === 0}
                 onClick={() => {
                   if (actions.applyToSelection) {
@@ -1299,7 +1295,7 @@ export function CanvasConnectionEdge({
             style={overlayStyle(labelPoint, zoom, labelAlignment)}
             role={editingLabel ? undefined : "button"}
             tabIndex={editingLabel ? undefined : 0}
-            aria-label={editingLabel ? undefined : "拖动连接线文字"}
+            aria-label={editingLabel ? undefined : uiText("拖动连接线文字")}
             onPointerDown={editingLabel ? undefined : startLabelDrag}
             onKeyDown={editingLabel ? undefined : keyboardLabel}
             onDoubleClick={(event) => {
@@ -1312,7 +1308,7 @@ export function CanvasConnectionEdge({
               <input
                 autoFocus
                 defaultValue={edgeData.label ?? ""}
-                aria-label="连接线文字"
+                aria-label={uiText("连接线文字")}
                 onPointerDown={(event) => event.stopPropagation()}
                 onBlur={(event) => actions.updateLabel?.(id, event.currentTarget.value.trim())}
                 onKeyDown={(event) => {

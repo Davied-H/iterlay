@@ -1,46 +1,38 @@
 import {
-fauxAssistantMessage as codingFauxAssistantMessage,
-fauxText as codingFauxText,
-fauxToolCall as codingFauxToolCall,
-fauxProvider,
-type FauxContentBlock as CodingFauxContentBlock,
-type FauxResponseFactory as CodingFauxResponseFactory
-} from "@earendil-works/pi-ai";
-import {
-ModelRuntime,
-SessionManager,
-createAgentSession,
-type ToolDefinition
-} from "@earendil-works/pi-coding-agent";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
+  fauxAssistantMessage as codingFauxAssistantMessage,
+  fauxText as codingFauxText,
+  fauxToolCall as codingFauxToolCall,
+  fauxProvider,
+  type FauxContentBlock as CodingFauxContentBlock,
+  type FauxResponseFactory as CodingFauxResponseFactory
+} from "../agents/coding-runtime.js";
+import { ModelRuntime, SessionManager, createAgentSession, type ToolDefinition } from "../agents/coding-runtime.js";
+import type { AgentTool } from "../agents/tool-runtime.js";
 import { parse as parseHtml } from "node-html-parser";
 import path from "node:path";
 import { Type } from "typebox";
-import { Check,Errors } from "typebox/value";
+import { Check, Errors } from "typebox/value";
 import { sanitizeAssistantToolDetails } from "../../shared/assistant-display.js";
 import type { PiAgentLogInput } from "../../shared/pi-agent-log.js";
 import type {
-AppSettings,
-CollaborateSceneRequest,
-CollaborateSceneResult,
-EnhancePromptRequest,
-ImageCropRect,
-ProviderModelOption,
-SceneAssistantAction,
-SceneAssistantInteraction,
-SliceSubjectDetection,
-SuggestAssistantIntentsRequest,
-SuggestAssistantIntentsResult,
-SuggestImageEditsResult,
-TextProviderConfig
+  AppSettings,
+  CollaborateSceneRequest,
+  CollaborateSceneResult,
+  EnhancePromptRequest,
+  ImageCropRect,
+  ProviderModelOption,
+  SceneAssistantAction,
+  SceneAssistantInteraction,
+  SliceSubjectDetection,
+  SuggestAssistantIntentsRequest,
+  SuggestAssistantIntentsResult,
+  SuggestImageEditsResult,
+  TextProviderConfig
 } from "../../shared/types.js";
 import { buildEnhanceMessages } from "../../shared/workflow.js";
 import { assistantResultSchema } from "../assistant-result-schema.js";
 import { createAssistantUiExtension } from "../assistant-ui-extension.js";
-import {
-convertPiContextToCompletionMessages,
-parsePiAgentDecision
-} from "../mastergo-bridge.js";
+import { convertPiContextToCompletionMessages, parsePiAgentDecision } from "../mastergo-bridge.js";
 import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
 import { Semaphore } from "./concurrency.js";
 import { ProviderError } from "./errors.js";

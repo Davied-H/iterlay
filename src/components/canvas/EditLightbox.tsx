@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, ChevronUp, Clock3, Download, GitCompareArrows, Loader2, Maximize2, X } from "lucide-react";
@@ -57,12 +58,14 @@ function VersionPreviewImage({
   reduceMotion,
   onNaturalSize
 }: VersionPreviewImageProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <AnimatePresence initial={false} mode="sync">
       <motion.img
         key={imageKey}
         src={src}
-        alt="正在编辑的图片"
+        alt={uiText("正在编辑的图片")}
         className="absolute inset-0 h-full w-full object-contain"
         draggable={false}
         onLoad={(event) => {
@@ -89,12 +92,14 @@ function ImageDimensionBadge({
   height?: number;
   className?: string;
 }): React.ReactElement | null {
+  const uiText = useUiText();
+
   if (!width || !height) return null;
   const label = `${Math.round(width)} × ${Math.round(height)}`;
 
   return (
     <span
-      aria-label={`图片尺寸 ${label} 像素`}
+      aria-label={uiText("图片尺寸 {{ui:0}} 像素", [label])}
       className={cn(
         "pointer-events-none absolute z-20 rounded-md bg-background/80 px-2 py-1 text-[11px] tabular-nums text-muted-foreground opacity-0 backdrop-blur transition-opacity duration-150 group-hover:opacity-100 motion-reduce:transition-none",
         className
@@ -130,6 +135,8 @@ export function EditLightbox({
   onDownload,
   onClose
 }: EditLightboxProps): React.ReactElement {
+  const uiText = useUiText();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const previewFrameRef = useRef<HTMLDivElement>(null);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
@@ -310,17 +317,16 @@ export function EditLightbox({
         : <Loader2 aria-hidden className="h-3.5 w-3.5 shrink-0 animate-spin" />}
       <div className="min-w-0 text-center">
         <p className="text-xs font-medium leading-4">
-          {allEditsQueued ? "编辑任务排队中" : `正在应用编辑${queuedEditCount ? ` · ${queuedEditCount} 个版本排队中` : ""}`}
+          {allEditsQueued ? uiText("编辑任务排队中") : uiText("正在应用编辑{{ui:0}}", [queuedEditCount ? ` · ${queuedEditCount} 个版本排队中` : ""])}
         </p>
         {allEditsQueued ? (
-          <p className="text-pretty text-[11px] leading-4">已有 {MAX_CONCURRENT_GENERATIONS} 个任务正在处理，稍后自动开始</p>
+          <p className="text-pretty text-[11px] leading-4">{uiText("已有 ")}{MAX_CONCURRENT_GENERATIONS} {uiText("个任务正在处理，稍后自动开始")}</p>
         ) : editingTiming.overdue ? (
           <p className="text-pretty text-[11px] leading-4">
-            已用 <time className="tabular-nums">{editingTiming.elapsedLabel}</time> · 比预计久一点，任务仍在处理中
-          </p>
+            {uiText("已用 ")}<time className="tabular-nums">{editingTiming.elapsedLabel}</time> {uiText("· 比预计久一点，任务仍在处理中")}</p>
         ) : (
           <p className="text-[11px] leading-4">
-            已用 <time className="tabular-nums">{editingTiming.elapsedLabel}</time> · 预计剩余{" "}
+            {uiText("已用 ")}<time className="tabular-nums">{editingTiming.elapsedLabel}</time> {uiText("· 预计剩余")}{" "}
             <time className="tabular-nums">{editingTiming.remainingLabel}</time>
           </p>
         )}
@@ -394,8 +400,7 @@ export function EditLightbox({
                 />
                 <ImageDimensionBadge width={currentWidth} height={currentHeight} className="left-2 top-2" />
                 <span className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-                  点击查看提示词
-                </span>
+                  {uiText("点击查看提示词")}</span>
                 {editingOverlay}
               </div>
               {/* 背面：提示词 + 引用图 */}
@@ -423,8 +428,7 @@ export function EditLightbox({
               <ImageDimensionBadge width={currentWidth} height={currentHeight} className="left-2 top-2" />
               {canShowPromptInfo ? (
                 <span className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-                  点击查看提示词
-                </span>
+                  {uiText("点击查看提示词")}</span>
               ) : null}
               {editingOverlay}
             </div>
@@ -439,7 +443,7 @@ export function EditLightbox({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="下载当前图片"
+                    aria-label={uiText("下载当前图片")}
                     disabled={!currentPath || downloading}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -454,13 +458,13 @@ export function EditLightbox({
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">下载当前图片</TooltipContent>
+                <TooltipContent side="right">{uiText("下载当前图片")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="放大预览"
+                    aria-label={uiText("放大预览")}
                     onClick={(event) => {
                       event.stopPropagation();
                       const rect = previewFrameRef.current?.getBoundingClientRect();
@@ -476,14 +480,14 @@ export function EditLightbox({
                     <Maximize2 className="h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">放大预览</TooltipContent>
+                <TooltipContent side="right">{uiText("放大预览")}</TooltipContent>
               </Tooltip>
               {versions.length > 1 ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      aria-label={compareMode ? "退出版本对比" : "版本对比"}
+                      aria-label={compareMode ? uiText("退出版本对比") : uiText("版本对比")}
                       aria-pressed={compareMode}
                       onClick={(event) => {
                         event.stopPropagation();
@@ -500,7 +504,7 @@ export function EditLightbox({
                       <GitCompareArrows className="h-3.5 w-3.5" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">{compareMode ? "退出版本对比" : "版本对比"}</TooltipContent>
+                  <TooltipContent side="right">{compareMode ? uiText("退出版本对比") : uiText("版本对比")}</TooltipContent>
                 </Tooltip>
               ) : null}
             </div>
@@ -520,11 +524,11 @@ export function EditLightbox({
             onClick={(event) => event.stopPropagation()}
           >
             <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
-              <span className="text-sm font-semibold">提示词</span>
+              <span className="text-sm font-semibold">{uiText("提示词")}</span>
               <button
                 type="button"
                 onClick={() => setInfoOpen(false)}
-                aria-label="收起"
+                aria-label={uiText("收起")}
                 className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="h-4 w-4" />
@@ -534,11 +538,11 @@ export function EditLightbox({
               <TypedPrompt prompt={info?.prompt ?? ""} loading={info === null} reduceMotion={Boolean(reduceMotion)} />
               {info && info.referenceImages.length > 0 ? (
                 <>
-                  <p className="mb-2 mt-5 text-sm font-semibold">引用图片</p>
+                  <p className="mb-2 mt-5 text-sm font-semibold">{uiText("引用图片")}</p>
                   <div className="flex flex-wrap gap-2">
                     {info.referenceImages.map((src, index) => (
                       <div key={index} className="h-16 w-16 overflow-hidden rounded-lg border border-border bg-muted">
-                        <img src={src} alt={`引用图 ${index + 1}`} className="h-full w-full object-cover" draggable={false} />
+                        <img src={src} alt={uiText("引用图 {{ui:0}}", [index + 1])} className="h-full w-full object-cover" draggable={false} />
                       </div>
                     ))}
                   </div>
@@ -577,7 +581,7 @@ export function EditLightbox({
                   type="button"
                   aria-pressed={active}
                   onClick={() => onSwitchVersion(image.id, index)}
-                  title={index === 0 ? "原图" : `版本 ${index + 1}`}
+                  title={index === 0 ? uiText("原图") : uiText("版本 {{ui:0}}", [index + 1])}
                   className={cn(
                     "relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-opacity duration-200 focus-visible:outline-none motion-reduce:transition-none",
                     active
@@ -587,7 +591,7 @@ export function EditLightbox({
                 >
                   <img
                     src={version.dataUrl}
-                    alt={`版本 ${index + 1}`}
+                    alt={uiText("版本 {{ui:0}}", [index + 1])}
                     className="h-full w-full object-cover"
                     draggable={false}
                     decoding="async"
@@ -619,7 +623,7 @@ export function EditLightbox({
         {zoomOpen ? (
           <ImageZoomLightbox
             src={currentSrc}
-            alt="当前编辑图片的放大预览"
+            alt={uiText("当前编辑图片的放大预览")}
             sourceRect={zoomSourceRect}
             imageWidth={currentWidth}
             imageHeight={currentHeight}
@@ -651,15 +655,17 @@ function VersionCompareControls({
   onCompareAChange: (index: number) => void;
   onCompareBChange: (index: number) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const options = versions.map((_, index) => (
     <option key={index} value={index}>
-      v{index + 1}{index === 0 ? " 原图" : ""}
+      v{index + 1}{index === 0 ? uiText(" 原图") : ""}
     </option>
   ));
 
   return (
     <div className="flex h-12 items-center gap-2 px-1">
-      <label className="sr-only" htmlFor="edit-compare-before">左侧对比版本</label>
+      <label className="sr-only" htmlFor="edit-compare-before">{uiText("左侧对比版本")}</label>
       <select
         id="edit-compare-before"
         value={compareA}
@@ -669,7 +675,7 @@ function VersionCompareControls({
         {options}
       </select>
       <GitCompareArrows aria-hidden className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <label className="sr-only" htmlFor="edit-compare-after">右侧对比版本</label>
+      <label className="sr-only" htmlFor="edit-compare-after">{uiText("右侧对比版本")}</label>
       <select
         id="edit-compare-after"
         value={compareB}
@@ -684,22 +690,24 @@ function VersionCompareControls({
 
 /** 翻转背面的提示词 + 引用图内容。 */
 function PromptInfo({ info, footer }: { info: JobPromptInfo | null; footer?: string }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="flex h-full w-full flex-col p-5 text-left">
-      <p className="mb-2 shrink-0 text-sm font-semibold">提示词</p>
+      <p className="mb-2 shrink-0 text-sm font-semibold">{uiText("提示词")}</p>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {info === null ? (
-          <p className="text-sm text-muted-foreground">加载中…</p>
+          <p className="text-sm text-muted-foreground">{uiText("加载中…")}</p>
         ) : (
           <>
             <CollapsiblePrompt prompt={info.prompt} />
             {info.referenceImages.length > 0 ? (
               <>
-                <p className="mb-2 mt-5 text-sm font-semibold">引用图片</p>
+                <p className="mb-2 mt-5 text-sm font-semibold">{uiText("引用图片")}</p>
                 <div className="flex flex-wrap gap-2">
                   {info.referenceImages.map((src, index) => (
                     <div key={index} className="h-16 w-16 overflow-hidden rounded-lg border border-border bg-muted">
-                      <img src={src} alt={`引用图 ${index + 1}`} className="h-full w-full object-cover" draggable={false} />
+                      <img src={src} alt={uiText("引用图 {{ui:0}}", [index + 1])} className="h-full w-full object-cover" draggable={false} />
                     </div>
                   ))}
                 </div>
@@ -721,6 +729,8 @@ function CollapsiblePrompt({
   prompt: string;
   typing?: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -735,7 +745,7 @@ function CollapsiblePrompt({
     setOverflowing(content.scrollHeight > content.clientHeight + 1);
   }, [expanded, prompt]);
 
-  if (!prompt) return <p className="text-sm text-muted-foreground">（无提示词）</p>;
+  if (!prompt) return <p className="text-sm text-muted-foreground">{uiText("（无提示词）")}</p>;
 
   return (
     <div className="min-w-0">
@@ -759,7 +769,7 @@ function CollapsiblePrompt({
           }}
           className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {expanded ? "收起" : "查看更多"}
+          {expanded ? uiText("收起") : uiText("查看更多")}
           {expanded ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}
         </button>
       ) : null}
@@ -777,6 +787,8 @@ function TypedPrompt({
   loading: boolean;
   reduceMotion: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [shown, setShown] = useState("");
 
   useEffect(() => {
@@ -796,8 +808,8 @@ function TypedPrompt({
     return () => clearInterval(timer);
   }, [prompt, reduceMotion]);
 
-  if (loading) return <p className="text-sm text-muted-foreground">加载中…</p>;
-  if (!prompt) return <p className="text-sm text-muted-foreground">（无提示词）</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">{uiText("加载中…")}</p>;
+  if (!prompt) return <p className="text-sm text-muted-foreground">{uiText("（无提示词）")}</p>;
 
   return <CollapsiblePrompt prompt={shown} typing={shown.length < prompt.length} />;
 }

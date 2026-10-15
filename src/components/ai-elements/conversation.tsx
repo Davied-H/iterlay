@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 import { ArrowDown } from "lucide-react";
@@ -14,8 +15,10 @@ export function ConversationContent({ className, ...props }: ComponentProps<type
 }
 
 export function ConversationScrollButton({ className }: { className?: string }): React.ReactElement | null {
+  const uiText = useUiText();
+
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
   const handleClick = useCallback(() => scrollToBottom(), [scrollToBottom]);
   if (isAtBottom) return null;
-  return <button type="button" className={cn("ai-conversation-scroll", className)} onClick={handleClick} aria-label="回到最新消息"><ArrowDown /></button>;
+  return <button type="button" className={cn("ai-conversation-scroll", className)} onClick={handleClick} aria-label={uiText("回到最新消息")}><ArrowDown /></button>;
 }

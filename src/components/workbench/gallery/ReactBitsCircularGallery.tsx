@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { Camera, Mesh, Plane, Program, Raycast, Renderer, Texture, Transform } from "ogl";
 import { useEffect, useRef } from "react";
 import "./ReactBitsCircularGallery.css";
@@ -742,6 +743,8 @@ export function ReactBitsCircularGallery({
   reduceMotion = false,
   paused = false
 }: ReactBitsCircularGalleryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<CircularGalleryApp | null>(null);
   const itemsRef = useRef(items);
@@ -810,7 +813,7 @@ export function ReactBitsCircularGallery({
       ref={containerRef}
       tabIndex={0}
       role="region"
-      aria-label="生成记录环形画廊，使用左右方向键浏览"
+      aria-label={uiText("生成记录环形画廊，使用左右方向键浏览")}
     />
   );
 }

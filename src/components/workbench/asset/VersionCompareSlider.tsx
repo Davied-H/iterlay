@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ export function VersionCompareSlider({
   fill = false,
   className
 }: VersionCompareSliderProps): React.ReactElement {
+  const uiText = useUiText();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(50); // 0–100，左侧显示 before 的比例
   const [ratio, setRatio] = useState<number | null>(null);
@@ -106,7 +109,7 @@ export function VersionCompareSlider({
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="slider"
-      aria-label="版本对比滑块"
+      aria-label={uiText("版本对比滑块")}
       aria-valuenow={Math.round(position)}
       aria-valuemin={0}
       aria-valuemax={100}

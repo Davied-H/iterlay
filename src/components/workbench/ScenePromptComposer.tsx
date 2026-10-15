@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useState, type ClipboardEvent, type DragEvent } from "react";
 import { Loader2, Paperclip, Send, Settings2, X } from "lucide-react";
 import type { ReferenceImagePayload } from "@shared/types";
@@ -43,6 +44,8 @@ export function ScenePromptComposer({
   onOpenSettings,
   onSubmit
 }: ScenePromptComposerProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [dragActive, setDragActive] = useState(false);
   const atReferenceLimit = references.length >= referenceLimit;
   const submitLabel = hasGeneratedPrompt ? "更新 AI 助手" : "发送给 AI 助手";
@@ -98,7 +101,7 @@ export function ScenePromptComposer({
               <img src={image.previewUrl} alt={image.payload.name} className="h-full w-full object-cover" />
               <button
                 type="button"
-                aria-label={`移除参考图 ${image.payload.name}`}
+                aria-label={uiText("移除参考图 {{ui:0}}", [image.payload.name])}
                 className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background/90 text-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onRemoveReference(image.payload.id)}
               >
@@ -110,7 +113,7 @@ export function ScenePromptComposer({
       ) : null}
 
       <textarea
-        aria-label="本次生成需求"
+        aria-label={uiText("本次生成需求")}
         value={value}
         rows={3}
         placeholder={placeholder}
@@ -129,8 +132,7 @@ export function ScenePromptComposer({
           className="mx-1 mb-1 text-left text-[11px] leading-5 text-amber-700 hover:underline dark:text-amber-400"
           onClick={onOpenSettings}
         >
-          当前图像 Provider 不支持参考图，切换后可生成实例。
-        </button>
+          {uiText("当前图像 Provider 不支持参考图，切换后可生成实例。")}</button>
       ) : null}
 
       <div className="flex h-8 min-w-0 items-center gap-1">
@@ -154,16 +156,16 @@ export function ScenePromptComposer({
                 }}
               />
               <Paperclip className="h-4 w-4" />
-              <span className="sr-only">添加参考图</span>
+              <span className="sr-only">{uiText("添加参考图")}</span>
             </label>
           </TooltipTrigger>
           <TooltipContent side="top">
-            {atReferenceLimit ? `已添加 ${referenceLimit} 张参考图` : `添加参考图，最多 ${referenceLimit} 张`}
+            {atReferenceLimit ? uiText("已添加 {{ui:0}} 张参考图", [referenceLimit]) : uiText("添加参考图，最多 {{ui:0}} 张", [referenceLimit])}
           </TooltipContent>
         </Tooltip>
 
         <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground max-[640px]:hidden">
-          参考图 {references.length}/{referenceLimit}
+          {uiText("参考图 ")}{references.length}/{referenceLimit}
         </span>
 
         {!canOptimize ? (
@@ -173,8 +175,7 @@ export function ScenePromptComposer({
               className="ml-auto truncate text-xs font-medium text-muted-foreground hover:text-foreground max-[640px]:hidden"
               onClick={onOpenSettings}
             >
-              配置 AI Provider
-            </button>
+              {uiText("配置 AI Provider")}</button>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -182,17 +183,17 @@ export function ScenePromptComposer({
                   variant="ghost"
                   size="icon"
                   className="ml-auto hidden h-8 w-8 shrink-0 rounded-lg text-muted-foreground max-[640px]:flex"
-                  aria-label="配置 AI Provider"
+                  aria-label={uiText("配置 AI Provider")}
                   onClick={onOpenSettings}
                 >
                   <Settings2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">配置 AI Provider</TooltipContent>
+              <TooltipContent side="top">{uiText("配置 AI Provider")}</TooltipContent>
             </Tooltip>
           </>
         ) : (
-          <span className="ml-auto hidden truncate text-[11px] text-muted-foreground min-[420px]:inline">Enter 发送 · Shift+Enter 换行</span>
+          <span className="ml-auto hidden truncate text-[11px] text-muted-foreground min-[420px]:inline">{uiText("Enter 发送 · Shift+Enter 换行")}</span>
         )}
 
         <Tooltip>
@@ -201,7 +202,7 @@ export function ScenePromptComposer({
               type="button"
               size="icon"
               className="group ml-1 h-8 w-8 shrink-0 rounded-full bg-[#30302e] text-[#f4f4f1] transition-[background-color,transform] duration-150 ease-out hover:scale-[1.04] hover:bg-[#242422] active:scale-[0.94] focus-visible:ring-[#747470]/50 motion-reduce:transform-none motion-reduce:transition-none dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:focus-visible:ring-ring/50"
-              aria-label={composing ? "正在生成提示词" : submitLabel}
+              aria-label={composing ? uiText("正在生成提示词") : submitLabel}
               disabled={submitDisabled}
               onClick={onSubmit}
             >
@@ -210,7 +211,7 @@ export function ScenePromptComposer({
                 : <Send className="h-3.5 w-3.5 transition-transform duration-150 ease-out group-hover:translate-x-px group-hover:-translate-y-px motion-reduce:transform-none motion-reduce:transition-none" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top">{composing ? "正在生成提示词" : submitLabel}</TooltipContent>
+          <TooltipContent side="top">{composing ? uiText("正在生成提示词") : submitLabel}</TooltipContent>
         </Tooltip>
       </div>
     </div>

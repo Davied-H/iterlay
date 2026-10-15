@@ -1,13 +1,47 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
+import { useAssistantSessionState, type AssistantIntentSuggestionMode } from "@/features/assistant/use-assistant-session-state";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Blend, Check, ChevronDown, ChevronUp, CircleCheck, Clock3, ImagePlus, LayoutTemplate, Library, Loader2, Maximize2, Minus, PanelLeft, PanelLeftClose, PanelLeftOpen, PanelRight, PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Send, Server, Settings2, SlidersHorizontal, Sparkles, Trash2, Upload, WandSparkles, X, Zap } from "lucide-react";
+import {
+  Blend,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  CircleCheck,
+  Clock3,
+  ImagePlus,
+  LayoutTemplate,
+  Library,
+  Loader2,
+  Maximize2,
+  Minus,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRight,
+  PanelRightClose,
+  PanelRightOpen,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Send,
+  Server,
+  Settings2,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+  Upload,
+  WandSparkles,
+  X,
+  Zap
+} from "lucide-react";
 import { toast } from "sonner";
 import type {
   AssistantIntentSuggestionCount,
   AssistantSurface,
   BoardMutationPlan,
   ComicDramaBoardSnapshot,
-  AssistantMemoryContextItem,
   CollaborateSceneRequest,
   CollaborateSceneResult,
   CreationMode,
@@ -76,10 +110,7 @@ import {
   settleCancelledAssistantMessages,
   settleFailedAssistantMessage
 } from "@/lib/prompt-assistant";
-import {
-  startSceneCollaborationStream,
-  type SceneCollaborationStreamHandle
-} from "@/lib/scene-collaboration-stream";
+import { startSceneCollaborationStream } from "@/lib/scene-collaboration-stream";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage, hasImageWorkbenchApi } from "@/lib/image-workbench-api";
 import {
   ASSISTANT_PROMPT_IDLE_MS,
@@ -87,17 +118,9 @@ import {
   getAssistantAwarenessCopy,
   shouldScheduleAssistantPromptAnalysis
 } from "@/lib/assistant-awareness";
-import {
-  buildAssistantHistory,
-  getLatestAssistantConversation,
-  type AssistantHistoryConversation
-} from "@/lib/assistant-history";
+import { buildAssistantHistory, getLatestAssistantConversation, type AssistantHistoryConversation } from "@/lib/assistant-history";
 import { getAssistantShortcutDescriptor, matchesAssistantShortcut } from "@/lib/assistant-shortcut";
-import {
-  readAssistantPanelSize,
-  writeAssistantPanelSize,
-  type AssistantPanelSize
-} from "@/lib/assistant-panel-size";
+import { readAssistantPanelSize, writeAssistantPanelSize, type AssistantPanelSize } from "@/lib/assistant-panel-size";
 import {
   ASSISTANT_DOCK_MIN_VIEWPORT_WIDTH,
   readAssistantDockLayout,
@@ -109,14 +132,8 @@ import {
 } from "@/lib/assistant-panel-docking";
 import { getProviderMaxImageCount } from "@/lib/provider-image-count";
 import { providerSupportsTransparentBackground } from "@/lib/provider-transparent-background";
-import {
-  shouldOpenTextProviderSettings,
-  type TextProviderReadinessStatus
-} from "@/lib/text-provider-readiness";
-import {
-  getProviderImageSizeOptions,
-  providerSupportsCustomImageSize
-} from "@/lib/provider-image-sizes";
+import { shouldOpenTextProviderSettings, type TextProviderReadinessStatus } from "@/lib/text-provider-readiness";
+import { getProviderImageSizeOptions, providerSupportsCustomImageSize } from "@/lib/provider-image-sizes";
 import { getScenePreviewImages } from "@/lib/scene-media";
 import { isSendEnter } from "@/lib/send-on-enter";
 import { findSceneForMode, getQuickScenes, type NewSceneInput, type SceneDefinition } from "@/lib/scene-library";
@@ -269,18 +286,6 @@ interface AssistantDockResizeState {
   startX: number;
   startWidth: number;
   currentWidth: number;
-}
-
-type AssistantIntentSuggestionMode = "contextual" | "divergent";
-
-interface PendingAssistantInteraction {
-  state: AiAssistantInteractionState;
-  onConfirm?: () => void;
-  onGenerateImmediately?: () => void;
-  activityLabel?: string;
-  generationActivityLabel?: string;
-  dismissMessage?: string;
-  agentInteractionId?: string;
 }
 
 interface EditTargetInfo {
@@ -521,6 +526,12 @@ export function PromptDock({
   promptFocusNonce,
   onPromptFocusChange
 }: PromptDockProps): React.ReactElement {
+  // Effect lifetimes depend on context; action implementations read the latest render.
+  const assistantEffectActionsRef = useRef({ clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant });
+  assistantEffectActionsRef.current = { clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant };
+
+  const uiText = useUiText();
+
   const { locale, t } = useI18n();
   const [promptHeight, setPromptHeight] = useState(DEFAULT_PROMPT_HEIGHT);
   const [maxPromptHeight, setMaxPromptHeight] = useState(360);
@@ -531,12 +542,52 @@ export function PromptDock({
   const [assistantOpen, setAssistantOpen] = useState(assistantEnabled && !comicDramaSnapshot);
   const [fusionPromptContext, setFusionPromptContext] = useState<string | null>(null);
   const autoOpenedComicBoardRef = useRef<string | undefined>(undefined);
-  const [assistantHasUnreadResult, setAssistantHasUnreadResult] = useState(false);
-  const [assistantValue, setAssistantValue] = useState("");
-  const [assistantStreaming, setAssistantStreaming] = useState(false);
-  const [assistantActivity, setAssistantActivity] = useState<string | null>(null);
-  const [assistantIntentSuggestions, setAssistantIntentSuggestions] = useState<string[]>([]);
-  const [assistantIntentSuggestionsLoading, setAssistantIntentSuggestionsLoading] = useState(false);
+  const {
+  assistantHasUnreadResult,
+  setAssistantHasUnreadResult,
+  assistantValue,
+  setAssistantValue,
+  assistantStreaming,
+  setAssistantStreaming,
+  assistantActivity,
+  setAssistantActivity,
+  assistantIntentSuggestions,
+  setAssistantIntentSuggestions,
+  assistantIntentSuggestionsLoading,
+  setAssistantIntentSuggestionsLoading,
+  memorySuggestions,
+  setMemorySuggestions,
+  assistantMessages,
+  setAssistantMessages,
+  assistantConversationId,
+  setAssistantConversationId,
+  assistantHistory,
+  setAssistantHistory,
+  assistantHistoryLoading,
+  setAssistantHistoryLoading,
+  assistantHistoryScope,
+  setAssistantHistoryScope,
+  assistantInteraction,
+  setAssistantInteraction,
+  assistantStreamRef,
+  assistantBackgroundRequestRef,
+  assistantRequestVersionRef,
+  assistantIntentSuggestionRequestRef,
+  assistantIntentSuggestionHistoryRef,
+  assistantApplyTimerRef,
+  assistantAutoPromptTimerRef,
+  assistantReferenceSignatureRef,
+  assistantAnalyzedContextSignatureRef,
+  assistantSubmittedContextSignatureRef,
+  pendingAssistantReferenceCountRef,
+  assistantPreviousGenerationPromptRef,
+  assistantClarificationRoundsRef,
+  sendAssistantInstructionRef,
+  requestAssistantIntentSuggestionsRef,
+  assistantBranchSignatureRef,
+  assistantRestoredBoardIdRef
+} = useAssistantSessionState();
+
   const [templateResolving, setTemplateResolving] = useState(false);
   const [templatePromptPreview, setTemplatePromptPreview] = useState<TemplatePromptPreview | null>(null);
   const [uiBriefResolving, setUiBriefResolving] = useState(false);
@@ -560,15 +611,10 @@ export function PromptDock({
     centerY: number;
   } | null>(null);
   const [assistantDragging, setAssistantDragging] = useState(false);
-  const [memorySuggestions, setMemorySuggestions] = useState<AssistantMemoryContextItem[]>([]);
+
   const [assistantSize, setAssistantSize] = useState<AssistantPanelSize | null>(readAssistantPanelSize);
   const [assistantDockWidthOverride, setAssistantDockWidthOverride] = useState<number | null>(null);
-  const [assistantMessages, setAssistantMessages] = useState<AiAssistantMessage[]>([]);
-  const [assistantConversationId, setAssistantConversationId] = useState<string>(() => crypto.randomUUID());
-  const [assistantHistory, setAssistantHistory] = useState<AssistantHistoryConversation[]>([]);
-  const [assistantHistoryLoading, setAssistantHistoryLoading] = useState(false);
-  const [assistantHistoryScope, setAssistantHistoryScope] = useState<"board" | "all">("board");
-  const [assistantInteraction, setAssistantInteraction] = useState<PendingAssistantInteraction | null>(null);
+
   const [inlineVariableExpanded, setInlineVariableExpanded] = useState(false);
   const [suggestedEditsExpanded, setSuggestedEditsExpanded] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -586,14 +632,10 @@ export function PromptDock({
   }, [assistantDragging, assistantDockSide, fusionAnchor, assistantOffset]);
   const assistantResizeRef = useRef<AssistantResizeState | null>(null);
   const assistantDockResizeRef = useRef<AssistantDockResizeState | null>(null);
-  const assistantStreamRef = useRef<SceneCollaborationStreamHandle | null>(null);
+
   const assistantOpenRef = useRef(false);
   const comicDramaSnapshotRef = useRef(comicDramaSnapshot);
-  const assistantBackgroundRequestRef = useRef(false);
-  const assistantRequestVersionRef = useRef(0);
-  const assistantIntentSuggestionRequestRef = useRef(0);
-  const assistantIntentSuggestionHistoryRef = useRef<string[]>([]);
-  const assistantApplyTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     // Recover an orphaned progress label without unlocking a live request or
     // an application/generation action that is still scheduled.
@@ -601,32 +643,18 @@ export function PromptDock({
       assistantStreamRef.current === null && assistantApplyTimerRef.current === null) {
       setAssistantActivity(null);
     }
-  }, [assistantActivity, assistantStreaming]);
+  }, [assistantActivity, assistantApplyTimerRef, assistantStreamRef, assistantStreaming, setAssistantActivity]);
   const assistantPreviousFocusRef = useRef<HTMLElement | null>(null);
   const assistantShortcutActionRef = useRef<() => void>(() => {});
   const onAssistantDockLayoutChangeRef = useRef(onAssistantDockLayoutChange);
   const promptSyncTimerRef = useRef<number | null>(null);
-  const assistantAutoPromptTimerRef = useRef<number | null>(null);
+
   const promptDraftRef = useRef(input.prompt);
   const parentPromptRef = useRef(input.prompt);
   const pendingParentPromptRef = useRef<string | null>(null);
-  const assistantReferenceSignatureRef = useRef("");
-  const assistantAnalyzedContextSignatureRef = useRef("");
-  const assistantSubmittedContextSignatureRef = useRef("");
-  const pendingAssistantReferenceCountRef = useRef(0);
+
   /** 最近一次从输入框真正提交生成的提示词，供“下一集/继续”在输入框清空后延续。 */
-  const assistantPreviousGenerationPromptRef = useRef("");
-  const assistantClarificationRoundsRef = useRef(0);
-  const sendAssistantInstructionRef = useRef<(
-    instruction: string,
-    displayContent?: string,
-    clearComposer?: boolean,
-    showUserMessage?: boolean,
-    background?: boolean
-  ) => Promise<void>>(async () => {});
-  const requestAssistantIntentSuggestionsRef = useRef<(
-    mode?: AssistantIntentSuggestionMode
-  ) => Promise<void>>(async () => {});
+
   const reduceMotion = useReducedMotion();
   const assistantShortcut = useMemo(() => getAssistantShortcutDescriptor(), []);
   assistantOpenRef.current = assistantOpen;
@@ -657,6 +685,7 @@ export function PromptDock({
   const assistantSurface: AssistantSurface = editTarget ? "canvas-edit" : comicDramaActive ? "comic-drama" : "canvas-prompt";
   const fusionEnabled = assistantAvailable && assistantSurface !== "comic-drama";
   useEffect(() => {
+    const panel = assistantPanelRef.current;
     // Reset on board/surface changes, and release native listeners on unmount.
     setAssistantDragging(false);
     setAssistantDockPreview(null);
@@ -665,7 +694,7 @@ export function PromptDock({
       assistantDragSessionRef.current?.dispose();
       assistantDragSessionRef.current = null;
       assistantDragRef.current = null;
-      assistantPanelRef.current?.style.removeProperty("translate");
+      panel?.style.removeProperty("translate");
     };
   }, [boardId, assistantSurface, fusionEnabled]);
   useEffect(() => {
@@ -691,7 +720,7 @@ export function PromptDock({
           assistantContext: guideId
         }]);
     setAssistantIntentSuggestions(comicDramaGuide.suggestions);
-  }, [comicDramaActive, comicDramaGuide, comicDramaSnapshot]);
+  }, [comicDramaActive, comicDramaGuide, comicDramaSnapshot, setAssistantIntentSuggestions, setAssistantMessages]);
   const activeScene = useMemo(
     () => findSceneForMode(scenes, input.sceneId, input.workflowMode) ?? null,
     [input.sceneId, input.workflowMode, scenes]
@@ -723,8 +752,7 @@ export function PromptDock({
     assistantTemplateSignature
   ].join("\u0000");
   // 首次挂载也要恢复当前画板，而不是把已保存的会话当作新会话处理。
-  const assistantBranchSignatureRef = useRef<string | null>(null);
-  const assistantRestoredBoardIdRef = useRef<string | null>(null);
+
   const editTargetDataUrl = editTarget?.dataUrl;
   const assistantContextImages = useMemo<AiAssistantContextImage[]>(() => [
     ...(editTarget ? [{
@@ -794,7 +822,7 @@ export function PromptDock({
     return () => {
       cancelled = true;
     };
-  }, [boardId, editTarget?.path, input.sceneId, memoryEnabled, memoryUsageLevel]);
+  }, [boardId, editTarget?.path, input.sceneId, memoryEnabled, memoryUsageLevel, setMemorySuggestions]);
   // 已引用的画布节点 id：选择器里据此显示"已加入 ✓"。
   const referencedNodeIds = new Set(
     input.referenceImages.map((image) => image.sourceNodeId).filter((id): id is string => Boolean(id))
@@ -1004,7 +1032,7 @@ export function PromptDock({
             content: `已结合「${activeScene.name}」${referenceImages.length > 0 ? `和 ${referenceImages.length} 张参考图` : ""}生成${editTarget ? "编辑指令" : "提示词"}预览。你可以确认${editTarget ? "应用" : "生成"}，也可以继续告诉我怎么调整。`
           }
         ]);
-        toast.success(editTarget ? "编辑指令预览已生成，确认后才会应用" : "提示词预览已生成，确认后才会出图");
+        toast.success(editTarget ? translateSourceText("编辑指令预览已生成，确认后才会应用") : translateSourceText("提示词预览已生成，确认后才会出图"));
       } catch (error) {
         toast.error(getWorkbenchErrorMessage(error, "暂时无法套用模板，请稍后重试。"));
       } finally {
@@ -1053,11 +1081,7 @@ export function PromptDock({
   }, []);
 
   useEffect(() => () => {
-    assistantRequestVersionRef.current += 1;
-    assistantStreamRef.current?.dispose();
-    if (assistantApplyTimerRef.current !== null) window.clearTimeout(assistantApplyTimerRef.current);
     if (promptSyncTimerRef.current !== null) window.clearTimeout(promptSyncTimerRef.current);
-    if (assistantAutoPromptTimerRef.current !== null) window.clearTimeout(assistantAutoPromptTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -1071,15 +1095,24 @@ export function PromptDock({
     assistantIntentSuggestionHistoryRef.current = [];
     setAssistantIntentSuggestions([]);
     setAssistantIntentSuggestionsLoading(false);
-  }, [assistantIntentSuggestionsEnabled, assistantSurface]);
+  }, [
+    assistantIntentSuggestionHistoryRef,
+    assistantIntentSuggestionRequestRef,
+    assistantIntentSuggestionsEnabled,
+    assistantSurface,
+    setAssistantIntentSuggestions,
+    setAssistantIntentSuggestionsLoading
+  ]);
 
   useEffect(() => {
     if (assistantEnabled && assistantAwarenessEnabled) return;
-    clearAssistantAutoPromptTimer();
+    assistantEffectActionsRef.current.clearAssistantAutoPromptTimer();
     pendingAssistantReferenceCountRef.current = 0;
-    cancelBackgroundAssistantRequest();
-  }, [assistantAwarenessEnabled, assistantEnabled]);
+    assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
+  }, [assistantAwarenessEnabled, assistantEnabled, pendingAssistantReferenceCountRef]);
 
+  const assistantIntentAvailabilityRef = useRef({ assistantStreaming, assistantActivity, assistantInteraction });
+  assistantIntentAvailabilityRef.current = { assistantStreaming, assistantActivity, assistantInteraction };
   // 推荐是入口提示，不应随着每次输入、消息流式更新或画布字段变化而
   // 自动重刷；否则用户会看到推荐内容不断跳变。打开助手时加载一次，
   // 后续只由用户点击“换一组”或切换助手上下文触发更新。
@@ -1089,15 +1122,21 @@ export function PromptDock({
       assistantSurface === "comic-drama" ||
       !assistantIntentSuggestionsEnabled ||
       !supportsPromptEnhancement ||
-      assistantStreaming ||
-      assistantActivity ||
-      assistantInteraction
+      assistantIntentAvailabilityRef.current.assistantStreaming ||
+      assistantIntentAvailabilityRef.current.assistantActivity ||
+      assistantIntentAvailabilityRef.current.assistantInteraction
     ) return;
     const timer = window.setTimeout(() => {
       void requestAssistantIntentSuggestionsRef.current();
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [assistantIntentSuggestionsEnabled, assistantOpen, assistantSurface, supportsPromptEnhancement]);
+  }, [
+    assistantIntentSuggestionsEnabled,
+    assistantOpen,
+    assistantSurface,
+    requestAssistantIntentSuggestionsRef,
+    supportsPromptEnhancement
+  ]);
 
   useEffect(() => {
     if (assistantBranchSignatureRef.current === assistantBranchSignature) return;
@@ -1176,7 +1215,7 @@ export function PromptDock({
       const latestConversation = getLatestAssistantConversation(records);
       if (latestConversation) {
         setAssistantHistory(history);
-        restoreAssistantConversation(latestConversation);
+        assistantEffectActionsRef.current.restoreAssistantConversation(latestConversation);
         return;
       }
 
@@ -1200,7 +1239,27 @@ export function PromptDock({
     comicDramaGuide,
     comicDramaSnapshot,
     editTarget?.path,
-    supportsPromptEnhancement
+    supportsPromptEnhancement,
+    assistantBranchSignatureRef,
+    assistantRestoredBoardIdRef,
+    assistantRequestVersionRef,
+    assistantStreamRef,
+    assistantAnalyzedContextSignatureRef,
+    pendingAssistantReferenceCountRef,
+    assistantPreviousGenerationPromptRef,
+    assistantClarificationRoundsRef,
+    assistantIntentSuggestionHistoryRef,
+    assistantSubmittedContextSignatureRef,
+    setAssistantConversationId,
+    setAssistantHistory,
+    setAssistantMessages,
+    setAssistantInteraction,
+    setAssistantValue,
+    setAssistantStreaming,
+    setAssistantActivity,
+    setAssistantHasUnreadResult,
+    setAssistantIntentSuggestions,
+    sendAssistantInstructionRef
   ]);
 
   useEffect(() => {
@@ -1284,9 +1343,16 @@ export function PromptDock({
     const addedCount = input.referenceImages.filter((image) => !previousIds.has(image.id)).length;
     if (addedCount > 0) {
       pendingAssistantReferenceCountRef.current += addedCount;
-      cancelBackgroundAssistantRequest();
+      assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
     }
-  }, [assistantAwarenessEnabled, assistantEnabled, assistantReferenceSignature, input.referenceImages]);
+  }, [
+    assistantAwarenessEnabled,
+    assistantEnabled,
+    assistantReferenceSignature,
+    assistantReferenceSignatureRef,
+    input.referenceImages,
+    pendingAssistantReferenceCountRef
+  ]);
 
   useEffect(() => {
     if (
@@ -1317,11 +1383,14 @@ export function PromptDock({
     assistantReferenceSignature,
     assistantSurface,
     assistantStreaming,
-    supportsPromptEnhancement
+    supportsPromptEnhancement,
+    pendingAssistantReferenceCountRef,
+    assistantAnalyzedContextSignatureRef,
+    sendAssistantInstructionRef
   ]);
 
   useEffect(() => {
-    clearAssistantAutoPromptTimer();
+    assistantEffectActionsRef.current.clearAssistantAutoPromptTimer();
     const currentPrompt = promptDraft.trim();
     if (
       !assistantEnabled ||
@@ -1331,7 +1400,7 @@ export function PromptDock({
       assistantActivity
     ) return;
     if (assistantBackgroundRequestRef.current && assistantStreaming) {
-      cancelBackgroundAssistantRequest();
+      assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
       return;
     }
     if (assistantStreaming) return;
@@ -1360,15 +1429,20 @@ export function PromptDock({
         true
       );
     }, ASSISTANT_PROMPT_IDLE_MS);
-    return clearAssistantAutoPromptTimer;
+    return assistantEffectActionsRef.current.clearAssistantAutoPromptTimer;
   }, [
     assistantActivity,
+    assistantAnalyzedContextSignatureRef,
+    assistantAutoPromptTimerRef,
     assistantAwarenessEnabled,
+    assistantBackgroundRequestRef,
     assistantEnabled,
     assistantOpeningContextSignature,
     assistantStreaming,
+    assistantSubmittedContextSignatureRef,
     assistantSurface,
     promptDraft,
+    sendAssistantInstructionRef,
     supportsPromptEnhancement
   ]);
 
@@ -1524,7 +1598,7 @@ export function PromptDock({
     } satisfies AssistantDockLayout;
     setAssistantDockSide(layout.side);
     void onAssistantDockLayoutChange?.(layout);
-  }, [assistantDockPreference, rightRailOpen, onAssistantDockLayoutChange, fusionEnabled]);
+  }, [assistantDockPreference, rightRailOpen, onAssistantDockLayoutChange]);
 
   useEffect(() => {
     if (fusionEnabled) restoreAssistantDockPreference();
@@ -1672,7 +1746,7 @@ export function PromptDock({
       if (cancelled) return;
       const conversation = buildAssistantHistory(records, boardNameById).find((item) => item.id === conversationId);
       if (!conversation) {
-        toast.error("未找到这次 AI 助手记录。");
+        toast.error(translateSourceText("未找到这次 AI 助手记录。"));
         return;
       }
       assistantPreviousFocusRef.current = document.activeElement instanceof HTMLElement
@@ -1680,7 +1754,7 @@ export function PromptDock({
         : null;
       setAssistantOffset({ x: 0, y: 0 });
       setAssistantHasUnreadResult(false);
-      restoreAssistantConversation(conversation);
+      assistantEffectActionsRef.current.restoreAssistantConversation(conversation);
       restoreAssistantDockPreference();
       setAssistantOpen(true);
     }).catch((error) => {
@@ -1691,7 +1765,8 @@ export function PromptDock({
     assistantConversationRequest?.conversationId,
     assistantConversationRequest?.nonce,
     boardNameById,
-    restoreAssistantDockPreference
+    restoreAssistantDockPreference,
+    setAssistantHasUnreadResult
   ]);
 
   function startNewAssistantConversation(): void {
@@ -1820,7 +1895,7 @@ export function PromptDock({
       }),
       () => {
         applyAssistantChanges(nextPrompt);
-        toast.success(assistantSurface === "canvas-edit" ? "已应用到当前编辑指令" : "已应用到当前提示词");
+        toast.success(assistantSurface === "canvas-edit" ? translateSourceText("已应用到当前编辑指令") : translateSourceText("已应用到当前提示词"));
       },
       {
         activityLabel: assistantSurface === "canvas-edit" ? "正在更新编辑指令…" : "正在更新当前提示词…",
@@ -3183,7 +3258,7 @@ export function PromptDock({
 
   useEffect(() => {
     if (assistantEnabled || !assistantOpen) return;
-    stopAssistant();
+    assistantEffectActionsRef.current.stopAssistant();
     closeAssistant();
   }, [assistantEnabled, assistantOpen, closeAssistant]);
 
@@ -3299,21 +3374,21 @@ export function PromptDock({
         onPasteImages={onPasteImages}
         onPasteCanvasReferences={onPasteCanvasReferences}
         extra={<>
-          {editTarget ? <div className="mb-2 flex items-center gap-3 text-xs text-muted-foreground"><span className="mr-auto">正在编辑当前图片</span><button type="button" onClick={onOpenAdvancedEdit}>高级编辑</button><button type="button" onClick={onExitEdit}>退出编辑</button></div> : null}
-          {activeScene ? <details className="mb-2 text-xs"><summary>模板：{activeScene.name}</summary>
+          {editTarget ? <div className="mb-2 flex items-center gap-3 text-xs text-muted-foreground"><span className="mr-auto">{uiText("正在编辑当前图片")}</span><button type="button" onClick={onOpenAdvancedEdit}>{uiText("高级编辑")}</button><button type="button" onClick={onExitEdit}>{uiText("退出编辑")}</button></div> : null}
+          {activeScene ? <details className="mb-2 text-xs"><summary>{uiText("模板：")}{activeScene.name}</summary>
             <p className="max-h-24 overflow-auto whitespace-pre-wrap py-2">{activeScene.prompt}</p>
             {templatePreviewImages.length ? <div className="my-2 flex gap-2">{templatePreviewImages.map((preview, index) => <button
-              key={preview.src} type="button" className="h-14 w-20 overflow-hidden rounded" aria-label={`查看模板示例 ${index + 1}`}
+              key={preview.src} type="button" className="h-14 w-20 overflow-hidden rounded" aria-label={uiText("查看模板示例 {{ui:0}}", [index + 1])}
               onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setTemplatePreviewLightbox({ src: preview.src, sourceRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } }); }}>
-              <img src={preview.src} alt={`模板示例 ${index + 1}`} className="h-full w-full object-cover" />
+              <img src={preview.src} alt={uiText("模板示例 {{ui:0}}", [index + 1])} className="h-full w-full object-cover" />
             </button>)}</div> : null}
-            {templateMediaLoading ? <p role="status">正在加载示例…</p> : null}
-            {templateMediaError ? <button type="button" onClick={() => setTemplateMediaReloadNonce((current) => current + 1)}>重新加载示例</button> : null}
-            <div className="flex gap-3"><button type="button" onClick={() => setScenePickerOpen(true)}>更换模板</button><button type="button" onClick={() => onInputChange({ sceneId: undefined })}>移除模板</button></div>
+            {templateMediaLoading ? <p role="status">{uiText("正在加载示例…")}</p> : null}
+            {templateMediaError ? <button type="button" onClick={() => setTemplateMediaReloadNonce((current) => current + 1)}>{uiText("重新加载示例")}</button> : null}
+            <div className="flex gap-3"><button type="button" onClick={() => setScenePickerOpen(true)}>{uiText("更换模板")}</button><button type="button" onClick={() => onInputChange({ sceneId: undefined })}>{uiText("移除模板")}</button></div>
           </details> : null}
           {uiBriefPreview ? <details className="mb-2 text-xs"><summary>UI Brief · {uiBriefPreview.brief.goal}</summary><p>{uiBriefPreview.brief.structure}</p><p>{uiBriefPreview.brief.visualDirection}</p></details> : null}
-          {isUiDesignMode && input.referenceImages.length ? <details className="mb-2 text-xs"><summary>材料职责</summary>{input.referenceImages.map((image) => <label className="my-2 flex items-center justify-between gap-2" key={image.id}><span className="truncate">{image.name}</span><select aria-label={t("prompt.uiDesign.role.changeFor", { name: image.name })} value={image.semanticRole ?? inferUiMaterialRole(image.name)} onChange={(event) => changeUiMaterialRole(image.id, event.target.value as UiMaterialRole)}>{UI_MATERIAL_ROLES.map((role) => <option key={role} value={role}>{t(UI_MATERIAL_ROLE_MESSAGE_KEYS[role])}</option>)}</select></label>)}</details> : null}
-          {editTarget && editSmartSuggestionsEnabled ? <details className="mb-2 text-xs"><summary>编辑建议</summary>{suggestedEdits.map((suggestion) => <button className="block py-1 text-left" type="button" key={suggestion} onClick={() => onApplySuggestedEdit(suggestion)}>{suggestion}</button>)}<button type="button" disabled={suggestingEdits || !canSuggestEdits} onClick={onRegenerateSuggestedEdits}>{suggestingEdits ? "正在获取建议…" : "刷新建议"}</button></details> : null}
+          {isUiDesignMode && input.referenceImages.length ? <details className="mb-2 text-xs"><summary>{uiText("材料职责")}</summary>{input.referenceImages.map((image) => <label className="my-2 flex items-center justify-between gap-2" key={image.id}><span className="truncate">{image.name}</span><select aria-label={t("prompt.uiDesign.role.changeFor", { name: image.name })} value={image.semanticRole ?? inferUiMaterialRole(image.name)} onChange={(event) => changeUiMaterialRole(image.id, event.target.value as UiMaterialRole)}>{UI_MATERIAL_ROLES.map((role) => <option key={role} value={role}>{t(UI_MATERIAL_ROLE_MESSAGE_KEYS[role])}</option>)}</select></label>)}</details> : null}
+          {editTarget && editSmartSuggestionsEnabled ? <details className="mb-2 text-xs"><summary>{uiText("编辑建议")}</summary>{suggestedEdits.map((suggestion) => <button className="block py-1 text-left" type="button" key={suggestion} onClick={() => onApplySuggestedEdit(suggestion)}>{suggestion}</button>)}<button type="button" disabled={suggestingEdits || !canSuggestEdits} onClick={onRegenerateSuggestedEdits}>{suggestingEdits ? uiText("正在获取建议…") : uiText("刷新建议")}</button></details> : null}
         </>}
         directEditor={<InlinePromptEditor
           ref={promptEditorRef} prompt={promptDraft} templatePrompts={sceneTemplatePrompts}
@@ -3336,26 +3411,26 @@ export function PromptDock({
             onCountChange={(n) => onInputChange({ n })} onTransparentBackgroundChange={(enabled) => onInputChange({ background: enabled ? "transparent" : "auto", outputFormat: "png" })}
             onOpenChange={setSizePickerOpen} showLabel={Boolean(assistantDockSide)} />
           {!editTarget && input.workflowMode === "generate" ? <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="创作模式"><LayoutTemplate /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={uiText("创作模式")}><LayoutTemplate /></Button></DropdownMenuTrigger>
             <DropdownMenuContent side="top"><DropdownMenuRadioGroup value={creationMode} onValueChange={(value) => changeCreationMode(value as CreationMode)}>
               <DropdownMenuRadioItem value="general">{t("prompt.creationMode.general")}</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="ui-design">{t("prompt.creationMode.uiDesign")}</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup></DropdownMenuContent>
           </DropdownMenu> : null}
-          {activeCount > 0 ? <span role="status" className="text-xs text-muted-foreground">{activeCount} 项任务</span> : null}
+          {activeCount > 0 ? <span role="status" className="text-xs text-muted-foreground">{activeCount} {uiText("项任务")}</span> : null}
         </>}
         directAction={<GenerateActionButton buttonStyle={generateButtonStyle} compact
           disabled={!canSubmit && !needsProviderSetup && !templateNeedsProviderSetup && !uiBriefNeedsProviderSetup}
           onClick={needsProviderSetup || templateNeedsProviderSetup || uiBriefNeedsProviderSetup ? onOpenSettings : () => void handleSubmit()}>
-          {needsProviderSetup ? "去配置" : isUiDesignMode ? uiGenerateActionLabel : templateResolving ? "正在生成预览" : activeScene && !templatePromptPreviewReady ? "预览提示词" : editTarget ? "应用编辑" : "生成"}
+          {needsProviderSetup ? uiText("去配置") : isUiDesignMode ? uiGenerateActionLabel : templateResolving ? uiText("正在生成预览") : activeScene && !templatePromptPreviewReady ? uiText("预览提示词") : editTarget ? uiText("应用编辑") : uiText("生成")}
         </GenerateActionButton>}
-        assistant={<Suspense fallback={<div className="p-4 text-sm" role="status">正在加载助手…</div>}>
+        assistant={<Suspense fallback={<div className="p-4 text-sm" role="status">{uiText("正在加载助手…")}</div>}>
           <AiAssistant appearance="fusion" hideComposer variant={assistantDockSide ? "docked" : "floating"} dockSide={assistantDockSide ?? undefined} compact
             hideInteraction={assistantInteraction?.state.interaction.type === "confirm"}
             headerPointerHandlers={{
               onPointerDown: startAssistantDrag
             }}
-            title={isUiDesignMode ? t("assistant.title.uiDesign") : assistantSurface === "canvas-edit" ? t("assistant.title.imageEdit") : "创作助手"}
+            title={isUiDesignMode ? t("assistant.title.uiDesign") : assistantSurface === "canvas-edit" ? t("assistant.title.imageEdit") : uiText("创作助手")}
             messages={assistantMessages.length ? assistantMessages : [{
               id: "fusion-greeting", role: "assistant",
               content: buildPromptAssistantGreeting(promptDraft, { editing: editTarget !== null, referenceCount: input.referenceImages.length, templateName: activeScene?.name }, locale)
@@ -3587,7 +3662,7 @@ export function PromptDock({
                 <AiAssistant
                   variant={assistantDockSide ? "docked" : "floating"}
                   dockSide={assistantDockSide ?? undefined}
-                  title={assistantSurface === "comic-drama" ? "漫剧制作" : t(isUiDesignMode
+                  title={assistantSurface === "comic-drama" ? uiText("漫剧制作") : t(isUiDesignMode
                     ? "assistant.title.uiDesign"
                     : assistantSurface === "canvas-edit"
                       ? "assistant.title.imageEdit"
@@ -3770,7 +3845,7 @@ export function PromptDock({
                       key={memory.id}
                       type="button"
                       onClick={() => handlePromptChange(rememberedPrompt)}
-                      title={`来自近期创作：${rememberedPrompt}`}
+                      title={uiText("来自近期创作：{{ui:0}}", [rememberedPrompt])}
                       className="quick-scene-tag"
                     >
                       {memorySuggestionLabel(memory.content)}
@@ -3839,8 +3914,8 @@ export function PromptDock({
             data-prompt-dock-grip=""
             role="separator"
             aria-orientation="horizontal"
-            aria-label="拖拽调整输入框高度"
-            title="拖拽调整高度 · 双击复位"
+            aria-label={uiText("拖拽调整输入框高度")}
+            title={uiText("拖拽调整高度 · 双击复位")}
             onPointerDown={handleDragStart}
             onPointerMove={handleDragMove}
             onPointerUp={handleDragEnd}
@@ -3941,7 +4016,7 @@ export function PromptDock({
                     ) : templateMediaLoading ? (
                       <span
                         className="h-full w-full animate-pulse bg-muted-foreground/10 motion-reduce:animate-none"
-                        aria-label="正在加载模板示例"
+                        aria-label={uiText("正在加载模板示例")}
                       />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -3964,19 +4039,19 @@ export function PromptDock({
                         ? t("prompt.uiDesign.templateRole")
                         : templateResolving
                         ? input.referenceImages.length > 0
-                          ? `正在结合模板与引用图片生成${editTarget ? "编辑指令" : "提示词"}`
-                          : `正在根据本次需求生成${editTarget ? "编辑指令" : "提示词"}`
+                          ? uiText("正在结合模板与引用图片生成{{ui:0}}", [editTarget ? "编辑指令" : "提示词"])
+                          : uiText("正在根据本次需求生成{{ui:0}}", [editTarget ? "编辑指令" : "提示词"])
                         : templatePromptPreviewReady
                           ? editTarget
-                            ? "编辑指令预览已就绪 · 确认后应用"
-                            : "提示词预览已就绪 · 确认后生成"
+                            ? uiText("编辑指令预览已就绪 · 确认后应用")
+                            : uiText("提示词预览已就绪 · 确认后生成")
                           : templatePromptPreview?.sceneId === activeScene.id
-                            ? `${editTarget ? "编辑" : "创作"}内容已变化 · 需要更新预览`
+                            ? uiText("{{ui:0}}内容已变化 · 需要更新预览", [editTarget ? "编辑" : "创作"])
                             : input.referenceImages.length > 0
-                              ? `将结合模板与 ${input.referenceImages.length} 张引用图片生成${editTarget ? "编辑指令" : "提示词"}预览`
+                              ? uiText("将结合模板与 {{ui:0}} 张引用图片生成{{ui:1}}预览", [input.referenceImages.length, editTarget ? "编辑指令" : "提示词"])
                               : editTarget
-                                ? "先预览编辑指令，确认后应用"
-                                : "先预览提示词，确认后生成"}
+                                ? uiText("先预览编辑指令，确认后应用")
+                                : uiText("先预览提示词，确认后生成")}
                     </p>
                   </div>
                   {templatePromptPreviewReady ? (
@@ -3985,11 +4060,11 @@ export function PromptDock({
                       variant="ghost"
                       size="sm"
                       className="prompt-dock-template-action h-7 shrink-0 gap-1 px-2 text-[11px] text-muted-foreground"
-                      aria-label="继续调整模板提示词"
+                      aria-label={uiText("继续调整模板提示词")}
                       onClick={openAssistant}
                     >
                       <WandSparkles className="h-3 w-3" aria-hidden />
-                      <span className="prompt-dock-template-action-label">继续调整</span>
+                      <span className="prompt-dock-template-action-label">{uiText("继续调整")}</span>
                     </Button>
                   ) : null}
                   <Popover>
@@ -3999,9 +4074,9 @@ export function PromptDock({
                         variant="ghost"
                         size="sm"
                         className="prompt-dock-template-action h-7 shrink-0 gap-0.5 px-2 text-[11px] text-muted-foreground"
-                        aria-label="查看模板详情"
+                        aria-label={uiText("查看模板详情")}
                       >
-                        <span className="prompt-dock-template-action-label">详情</span>
+                        <span className="prompt-dock-template-action-label">{uiText("详情")}</span>
                         <ChevronUp className="h-3 w-3" aria-hidden />
                       </Button>
                     </PopoverTrigger>
@@ -4014,7 +4089,7 @@ export function PromptDock({
                           </p>
                         </div>
                         <div className="space-y-1.5">
-                          <p className="text-[11px] font-medium text-muted-foreground">示例效果</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">{uiText("示例效果")}</p>
                           {templatePreviewImages.length > 0 ? (
                             <div className="grid grid-cols-3 gap-1.5">
                               {templatePreviewImages.map((preview, index) => {
@@ -4024,7 +4099,7 @@ export function PromptDock({
                                     key={`${preview.src}-${index}`}
                                     type="button"
                                     disabled={broken}
-                                    aria-label={`放大预览示例 ${index + 1}`}
+                                    aria-label={uiText("放大预览示例 {{ui:0}}", [index + 1])}
                                     className="group relative aspect-[4/3] min-w-0 overflow-hidden rounded-md border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                                     onClick={(event) => {
                                       const rect = event.currentTarget.getBoundingClientRect();
@@ -4040,14 +4115,14 @@ export function PromptDock({
                                     }}
                                   >
                                     {broken ? (
-                                      <span className="flex h-full w-full items-center justify-center text-muted-foreground" title="示例图无法显示">
+                                      <span className="flex h-full w-full items-center justify-center text-muted-foreground" title={uiText("示例图无法显示")}>
                                         <ImagePlus className="h-4 w-4" />
                                       </span>
                                     ) : (
                                       <>
                                         <img
                                           src={preview.src}
-                                          alt={`${activeScene.name}示例 ${index + 1}`}
+                                          alt={uiText("{{ui:0}}示例 {{ui:1}}", [activeScene.name, index + 1])}
                                           loading="lazy"
                                           decoding="async"
                                           className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transition-none"
@@ -4066,20 +4141,20 @@ export function PromptDock({
                               })}
                             </div>
                           ) : templateMediaLoading ? (
-                            <div className="grid grid-cols-3 gap-1.5" aria-label="正在加载模板示例">
+                            <div className="grid grid-cols-3 gap-1.5" aria-label={uiText("正在加载模板示例")}>
                               {Array.from({ length: 3 }, (_, index) => (
                                 <span key={index} className="aspect-[4/3] animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
                               ))}
                             </div>
                           ) : templateMediaError ? (
                             <div className="flex h-16 items-center justify-center gap-2 rounded-md border border-dashed border-border text-[11px] text-muted-foreground">
-                              <span>示例图加载失败</span>
+                              <span>{uiText("示例图加载失败")}</span>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7"
-                                aria-label="重新加载模板示例"
+                                aria-label={uiText("重新加载模板示例")}
                                 onClick={() => setTemplateMediaReloadNonce((current) => current + 1)}
                               >
                                 <RefreshCw className="h-3.5 w-3.5" />
@@ -4088,12 +4163,11 @@ export function PromptDock({
                           ) : (
                             <div className="flex h-16 items-center justify-center gap-2 rounded-md border border-dashed border-border text-[11px] text-muted-foreground">
                               <ImagePlus className="h-3.5 w-3.5" />
-                              暂无示例图
-                            </div>
+                              {uiText("暂无示例图")}</div>
                           )}
                         </div>
                         <div className="space-y-1.5">
-                          <p className="text-[11px] font-medium text-muted-foreground">模板规则</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">{uiText("模板规则")}</p>
                           <div className="max-h-40 overflow-y-auto rounded-md bg-muted/60 px-3 py-2">
                             <p className="whitespace-pre-wrap break-words text-[11px] leading-5 text-foreground/80">
                               {activeScene.prompt}
@@ -4101,8 +4175,7 @@ export function PromptDock({
                           </div>
                         </div>
                         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setScenePickerOpen(true)}>
-                          更换模板
-                        </Button>
+                          {uiText("更换模板")}</Button>
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -4111,7 +4184,7 @@ export function PromptDock({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0"
-                    aria-label={`移除模板 ${activeScene.name}`}
+                    aria-label={uiText("移除模板 {{ui:0}}", [activeScene.name])}
                     onClick={() => onInputChange({ sceneId: undefined })}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -4123,8 +4196,7 @@ export function PromptDock({
                     className="mb-1.5 w-full rounded-md border border-border px-2.5 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={onOpenSettings}
                   >
-                    模板自动套用需要文本 AI，点击完成配置
-                  </button>
+                    {uiText("模板自动套用需要文本 AI，点击完成配置")}</button>
                 ) : null}
               </motion.div>
             ) : null}
@@ -4470,20 +4542,20 @@ export function PromptDock({
                 <span
                   role="status"
                   aria-label={queuedCount === activeCount
-                    ? `${queuedCount} 个任务排队中`
+                    ? uiText("{{ui:0}} 个任务排队中", [queuedCount])
                     : queuedCount > 0
-                      ? `正在处理 ${activeCount - queuedCount} 个任务，${queuedCount} 个任务排队中`
-                      : `正在处理 ${activeCount} 个任务`}
+                      ? uiText("正在处理 {{ui:0}} 个任务，{{ui:1}} 个任务排队中", [activeCount - queuedCount, queuedCount])
+                      : uiText("正在处理 {{ui:0}} 个任务", [activeCount])}
                   title={queuedCount === activeCount
-                    ? `${queuedCount} 个任务排队中`
-                    : `正在处理 ${activeCount - queuedCount} 个任务${queuedCount ? `，${queuedCount} 个任务排队中` : ""}`}
+                    ? uiText("{{ui:0}} 个任务排队中", [queuedCount])
+                    : uiText("正在处理 {{ui:0}} 个任务{{ui:1}}", [activeCount - queuedCount, queuedCount ? `，${queuedCount} 个任务排队中` : ""])}
                   className="flex h-8 shrink-0 items-center gap-1 px-1.5 text-xs tabular-nums text-muted-foreground"
                 >
                   {queuedCount === activeCount
                     ? <Clock3 className="h-3 w-3" aria-hidden />
                     : <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
-                  <span aria-hidden>{queuedCount === activeCount ? `${queuedCount} 排队` : activeCount}</span>
-                  {queuedCount > 0 && queuedCount < activeCount ? <span aria-hidden>· {queuedCount} 排队</span> : null}
+                  <span aria-hidden>{queuedCount === activeCount ? uiText("{{ui:0}} 排队", [queuedCount]) : activeCount}</span>
+                  {queuedCount > 0 && queuedCount < activeCount ? <span aria-hidden>· {queuedCount} {uiText("排队")}</span> : null}
                 </span>
               ) : null}
               {assistantAvailable ? (
@@ -4544,15 +4616,15 @@ export function PromptDock({
                 disabled={!canSubmit && !needsProviderSetup && !templateNeedsProviderSetup && !uiBriefNeedsProviderSetup}
                 title={
                   needsProviderSetup
-                    ? "尚未完成 Provider 配置，点击前往设置"
+                    ? uiText("尚未完成 Provider 配置，点击前往设置")
                     : uiBriefNeedsProviderSetup
                       ? t("prompt.uiDesign.brief.needsProvider")
                     : templateNeedsProviderSetup
-                      ? "模板自动套用需要先配置文本 AI"
+                      ? uiText("模板自动套用需要先配置文本 AI")
                       : isUiDesignMode && !uiBriefReady
                         ? t("prompt.uiDesign.brief.prepareTitle")
                       : activeScene && !templatePromptPreviewReady
-                        ? "先根据模板、需求和引用图片生成提示词预览"
+                        ? uiText("先根据模板、需求和引用图片生成提示词预览")
                       : undefined
                 }
                 onClick={needsProviderSetup || templateNeedsProviderSetup || uiBriefNeedsProviderSetup
@@ -4560,7 +4632,7 @@ export function PromptDock({
                   : () => void handleSubmit()}
               >
                 {needsProviderSetup
-                  ? "去配置"
+                  ? uiText("去配置")
                   : isUiDesignMode
                     ? (
                         <>
@@ -4573,14 +4645,14 @@ export function PromptDock({
                         </>
                       )
                   : templateResolving
-                    ? "正在生成预览"
+                    ? uiText("正在生成预览")
                     : activeScene
                       ? templatePromptPreviewReady
-                        ? editTarget ? "应用编辑" : "确认生成"
-                        : templatePromptPreview ? "更新预览" : "预览提示词"
+                        ? editTarget ? uiText("应用编辑") : uiText("确认生成")
+                        : templatePromptPreview ? uiText("更新预览") : uiText("预览提示词")
                       : editTarget
-                        ? "应用编辑"
-                        : "生成"}
+                        ? uiText("应用编辑")
+                        : uiText("生成")}
               </GenerateActionButton>
             </div>
           </div>
@@ -4618,7 +4690,7 @@ export function PromptDock({
           <ImageZoomLightbox
             key={templatePreviewLightbox.src}
             src={templatePreviewLightbox.src}
-            alt={`${activeScene?.name ?? "模板"}示例大图`}
+            alt={uiText("{{ui:0}}示例大图", [activeScene?.name ?? "模板"])}
             sourceRect={templatePreviewLightbox.sourceRect}
             onClose={() => setTemplatePreviewLightbox(null)}
           />
@@ -4923,6 +4995,8 @@ function ProviderPicker({
   showLabel?: boolean;
   reduceMotion?: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [falPrices, setFalPrices] = useState<Record<string, FalModelPrice | null>>({});
@@ -5005,7 +5079,7 @@ function ProviderPicker({
               reduceMotion={reduceMotion}
               className="prompt-dock-provider-label max-w-40 text-xs"
             >
-              <span className="block truncate">{active?.type === "official" ? "官方 ·" : active?.name || "Provider"}</span>
+              <span className="block truncate">{active?.type === "official" ? uiText("官方 ·") : active?.name || "Provider"}</span>
             </ToolbarReveal>
             <ToolbarReveal visible={showLabel} reduceMotion={reduceMotion}>
               <ChevronUp className="h-3 w-3 shrink-0 opacity-60" />
@@ -5243,6 +5317,8 @@ function GenerationSettingsPicker({
   onOpenChange?: (open: boolean) => void;
   showLabel?: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [w, setW] = useState(() => parseSize(size).w);
@@ -5281,7 +5357,7 @@ function GenerationSettingsPicker({
             aria-label={t("prompt.generationSettings")}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            {showLabel ? <span>设置</span> : null}
+            {showLabel ? <span>{uiText("设置")}</span> : null}
           </Button>
         </PopoverTrigger>
       </ToolbarTooltip>
@@ -5322,8 +5398,8 @@ function GenerationSettingsPicker({
               value={w}
               onChange={(event) => setW(event.target.value.replace(/[^\d]/g, ""))}
               inputMode="numeric"
-              aria-label="宽"
-              placeholder="宽"
+              aria-label={uiText("宽")}
+              placeholder={uiText("宽")}
               className="h-7 px-2 text-center text-xs tabular-nums"
             />
             <span className="text-xs text-muted-foreground">×</span>
@@ -5331,13 +5407,12 @@ function GenerationSettingsPicker({
               value={h}
               onChange={(event) => setH(event.target.value.replace(/[^\d]/g, ""))}
               inputMode="numeric"
-              aria-label="高"
-              placeholder="高"
+              aria-label={uiText("高")}
+              placeholder={uiText("高")}
               className="h-7 px-2 text-center text-xs tabular-nums"
             />
             <Button type="submit" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={!canApplyCustom}>
-              应用
-            </Button>
+              {uiText("应用")}</Button>
           </form>
         ) : null}
         <Separator className="my-2" />

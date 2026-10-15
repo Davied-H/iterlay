@@ -4,7 +4,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { Agent, type AgentEvent, type AgentTool } from "@mariozechner/pi-agent-core";
+import { Agent, type AgentEvent, type AgentTool } from "./agents/tool-runtime.js";
 import {
   fauxAssistantMessage,
   fauxText,
@@ -13,7 +13,7 @@ import {
   type Context as PiContext,
   type FauxContentBlock,
   type FauxResponseFactory
-} from "@mariozechner/pi-ai";
+} from "./agents/tool-runtime.js";
 import { parse as parseHtml } from "node-html-parser";
 import { Type } from "typebox";
 import type {

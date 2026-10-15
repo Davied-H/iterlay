@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { Command, ImagePlus, MousePointer2, Navigation, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getAssistantShortcutDescriptor } from "@/lib/assistant-shortcut";
@@ -62,6 +63,8 @@ export function CanvasShortcutHelpDialog({
   open,
   onOpenChange
 }: CanvasShortcutHelpDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -72,8 +75,7 @@ export function CanvasShortcutHelpDialog({
         <DialogHeader className="h-11 justify-center border-b border-border px-4 pr-12">
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold leading-5">
             <Command aria-hidden className="h-3.5 w-3.5 text-muted-foreground" />
-            画板快捷键
-          </DialogTitle>
+            {uiText("画板快捷键")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-px bg-border sm:grid-cols-3">
           {groups.map((group) => {
@@ -102,8 +104,7 @@ export function CanvasShortcutHelpDialog({
         </div>
         <div className="flex items-center gap-2 border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
           <ImagePlus aria-hidden className="h-3.5 w-3.5" />
-          单字母快捷键仅在画板前景且未输入文字时生效。
-        </div>
+          {uiText("单字母快捷键仅在画板前景且未输入文字时生效。")}</div>
       </DialogContent>
     </Dialog>
   );

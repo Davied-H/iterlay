@@ -208,7 +208,7 @@ export function useCanvasMiniMapController({
       viewport: getViewport()
     };
     setIsDragging(true);
-  }, [getViewport, visible]);
+  }, [canvasContainerRef, getViewport, visible]);
 
   const moveViewportDrag: PointerEventHandler<HTMLDivElement> = useCallback((event) => {
     const drag = viewportDragRef.current;

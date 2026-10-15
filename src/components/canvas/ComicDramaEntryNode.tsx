@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useState } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { ArrowRight, Clapperboard, Clock3, FolderOpen, Trash2 } from "lucide-react";
@@ -26,6 +27,8 @@ function formatRelativeUpdate(updatedAt?: string): string {
 }
 
 function ComicDramaEntryNodeComponent({ data, selected }: NodeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const { node, onOpen, onDelete } = data as unknown as ComicDramaEntryNodeData;
   const [summary, setSummary] = useState<BoardSummary>();
   useEffect(() => {
@@ -54,7 +57,7 @@ function ComicDramaEntryNodeComponent({ data, selected }: NodeProps): React.Reac
         !hasCover && "comic-drama-entry-node--empty",
         selected && "canvas-workflow-node--selected"
       )}
-      aria-label={`漫剧项目，${node.name}`}
+      aria-label={uiText("漫剧项目，{{ui:0}}", [node.name])}
     >
       {hasCover ? (
         <img
@@ -72,15 +75,15 @@ function ComicDramaEntryNodeComponent({ data, selected }: NodeProps): React.Reac
       <header className="comic-drama-entry-node__header">
         <div className="comic-drama-entry-node__project">
           <span className="comic-drama-entry-node__icon"><Clapperboard aria-hidden /></span>
-          <span>漫剧项目</span>
+          <span>{uiText("漫剧项目")}</span>
         </div>
         <div className="nodrag comic-drama-entry-node__header-actions" onPointerDown={(event) => event.stopPropagation()}>
-          <span className="comic-drama-entry-node__status"><i />{imageCount > 0 ? "制作中" : "待开始"}</span>
+          <span className="comic-drama-entry-node__status"><i />{imageCount > 0 ? uiText("制作中") : uiText("待开始")}</span>
           <button
             type="button"
             className="comic-drama-entry-node__delete"
-            aria-label="删除漫剧项目"
-            title="删除漫剧项目"
+            aria-label={uiText("删除漫剧项目")}
+            title={uiText("删除漫剧项目")}
             onClick={() => onDelete?.(node.id)}
           >
             <Trash2 aria-hidden />
@@ -88,14 +91,14 @@ function ComicDramaEntryNodeComponent({ data, selected }: NodeProps): React.Reac
         </div>
       </header>
       <section className="comic-drama-entry-node__body">
-        <span>{imageCount > 0 ? `${imageCount} 张素材` : "独立制作画板"}</span>
+        <span>{imageCount > 0 ? uiText("{{ui:0}} 张素材", [imageCount]) : uiText("独立制作画板")}</span>
         <h2>{node.name}</h2>
-        <p>设定、角色、片段、图片与视频都在子画板中管理。</p>
+        <p>{uiText("设定、角色、片段、图片与视频都在子画板中管理。")}</p>
       </section>
       <footer className="nodrag comic-drama-entry-node__footer" onPointerDown={(event) => event.stopPropagation()}>
         <span className="comic-drama-entry-node__updated"><Clock3 aria-hidden />{formatRelativeUpdate(summary?.updatedAt)}</span>
         <button type="button" className="canvas-generation-run" onClick={(event) => openProject(event.currentTarget)}>
-          <FolderOpen aria-hidden />打开漫剧画板<ArrowRight aria-hidden />
+          <FolderOpen aria-hidden />{uiText("打开漫剧画板")}<ArrowRight aria-hidden />
         </button>
       </footer>
     </article>

@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useRef } from "react";
 import { ImageIcon } from "lucide-react";
 import { gallerySourceLabel, type BoardGalleryItem } from "@/lib/board-gallery";
@@ -19,6 +20,8 @@ export const LightboxGenerationGallery = memo(function LightboxGenerationGallery
   onActiveIndexChange,
   onOpen
 }: LightboxGenerationGalleryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const activeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -28,7 +31,7 @@ export const LightboxGenerationGallery = memo(function LightboxGenerationGallery
   if (items.length === 0) return <GalleryEmptyState />;
 
   return (
-    <section className="gallery-lightbox" aria-label="灵感灯箱">
+    <section className="gallery-lightbox" aria-label={uiText("灵感灯箱")}>
       <div className="gallery-lightbox__housing">
         <div className="gallery-lightbox__hardware" aria-hidden>
           <span className="gallery-lightbox__brand">ITERLAY · CONTACT</span>
@@ -40,7 +43,7 @@ export const LightboxGenerationGallery = memo(function LightboxGenerationGallery
           <div
             className="gallery-lightbox__contact-sheet"
             role="listbox"
-            aria-label="选择图片"
+            aria-label={uiText("选择图片")}
           >
             {items.map((item, index) => {
               const imageUrl = imageUrls[item.imagePath];
@@ -89,14 +92,16 @@ export const LightboxGenerationGallery = memo(function LightboxGenerationGallery
 });
 
 function GalleryEmptyState(): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="flex h-full min-h-60 flex-col items-center justify-center gap-3 pt-20 text-center text-white/42">
       <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.055]">
         <ImageIcon className="h-5 w-5 text-white/45" />
       </span>
       <div>
-        <p className="text-sm font-medium text-white/75">当前筛选没有图片</p>
-        <p className="mt-1 text-xs">调整筛选或从时间线选择其他日期</p>
+        <p className="text-sm font-medium text-white/75">{uiText("当前筛选没有图片")}</p>
+        <p className="mt-1 text-xs">{uiText("调整筛选或从时间线选择其他日期")}</p>
       </div>
     </div>
   );

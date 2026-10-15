@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import {
   lazy,
   memo,
@@ -46,15 +48,7 @@ import type {
 } from "@shared/types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,11 +62,7 @@ import { useMasonryGrid } from "@/components/workbench/asset/useMasonryGrid";
 import { partitionTemplateImportFiles } from "@/components/workbench/template-import";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage, hasImageWorkbenchApi } from "@/lib/image-workbench-api";
 import type { GenerateTemplateVerification } from "@/lib/template-verification";
-import {
-  getScenePreviewImages,
-  type SceneGenerationDefaults,
-  type ScenePreviewImage
-} from "@/lib/scene-media";
+import { getScenePreviewImages, type SceneGenerationDefaults, type ScenePreviewImage } from "@/lib/scene-media";
 import {
   SCENE_CATEGORY_LABELS,
   sortScenesForLibrary,
@@ -253,6 +243,8 @@ export function SceneLibraryPage({
   onOpenSettings,
   onClose
 }: SceneLibraryPageProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [editorScene, setEditorScene] = useState<SceneDefinition | null | undefined>(undefined);
   const [creationMethodOpen, setCreationMethodOpen] = useState(false);
   const [smartCreateOpen, setSmartCreateOpen] = useState(false);
@@ -348,10 +340,10 @@ export function SceneLibraryPage({
 
     const { accepted, rejected } = partitionTemplateImportFiles(Array.from(event.dataTransfer.files));
     if (accepted.length === 0) {
-      if (rejected.length > 0) toast.error("只支持 .itt 模板文件");
+      if (rejected.length > 0) toast.error(translateSourceText("只支持 .itt 模板文件"));
       return;
     }
-    if (rejected.length > 0) toast.warning(`已忽略 ${rejected.length} 个非 .itt 文件`);
+    if (rejected.length > 0) toast.warning(translateSourceText("已忽略 {{ui:0}} 个非 .itt 文件", [rejected.length]));
 
     setImportingCount(accepted.length);
     try {
@@ -473,7 +465,7 @@ export function SceneLibraryPage({
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {isImporting ? "导入中" : "导入模板"}
+              {isImporting ? uiText("导入中") : uiText("导入模板")}
             </Button>
             <Button
               size="sm"
@@ -483,8 +475,7 @@ export function SceneLibraryPage({
               onClick={() => setCreationMethodOpen(true)}
             >
               <Plus className="h-4 w-4" />
-              创建模板
-            </Button>
+              {uiText("创建模板")}</Button>
           </>
         )}
         onSelect={setSelectedScene}
@@ -495,8 +486,8 @@ export function SceneLibraryPage({
       <Dialog open={creationMethodOpen} onOpenChange={setCreationMethodOpen}>
         <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[600px]">
           <DialogHeader className="border-b border-border px-6 py-5 pr-12">
-            <DialogTitle>创建模板</DialogTitle>
-            <DialogDescription>选择一种创建方式，后续仍可继续编辑模板内容。</DialogDescription>
+            <DialogTitle>{uiText("创建模板")}</DialogTitle>
+            <DialogDescription>{uiText("选择一种创建方式，后续仍可继续编辑模板内容。")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <button
@@ -508,13 +499,12 @@ export function SceneLibraryPage({
                 <Bot className="h-[18px] w-[18px]" />
               </span>
               <span className="mt-5 flex items-center justify-between gap-3">
-                <strong className="text-sm font-semibold">智能创建</strong>
+                <strong className="text-sm font-semibold">{uiText("智能创建")}</strong>
                 <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
               </span>
               <span className="mt-2 text-xs leading-5 text-muted-foreground">
-                描述目标或上传参考图，自动提取规则、生成验证稿并完成复核。
-              </span>
-              <span className="mt-auto pt-4 text-[11px] font-medium text-foreground/70">后台运行，可继续浏览</span>
+                {uiText("描述目标或上传参考图，自动提取规则、生成验证稿并完成复核。")}</span>
+              <span className="mt-auto pt-4 text-[11px] font-medium text-foreground/70">{uiText("后台运行，可继续浏览")}</span>
             </button>
 
             <button
@@ -526,13 +516,12 @@ export function SceneLibraryPage({
                 <Pencil className="h-[18px] w-[18px]" />
               </span>
               <span className="mt-5 flex items-center justify-between gap-3">
-                <strong className="text-sm font-semibold">普通创建</strong>
+                <strong className="text-sm font-semibold">{uiText("普通创建")}</strong>
                 <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
               </span>
               <span className="mt-2 text-xs leading-5 text-muted-foreground">
-                手动填写模板信息、提示词字段和生成示例，完整控制每项内容。
-              </span>
-              <span className="mt-auto pt-4 text-[11px] font-medium text-foreground/70">适合已有清晰模板结构</span>
+                {uiText("手动填写模板信息、提示词字段和生成示例，完整控制每项内容。")}</span>
+              <span className="mt-auto pt-4 text-[11px] font-medium text-foreground/70">{uiText("适合已有清晰模板结构")}</span>
             </button>
           </div>
         </DialogContent>
@@ -572,9 +561,9 @@ export function SceneLibraryPage({
                 <Upload className="h-5 w-5" />
               )}
             </span>
-            <p className="text-sm font-semibold">{isImporting ? "正在导入模板" : "松手导入模板"}</p>
+            <p className="text-sm font-semibold">{isImporting ? uiText("正在导入模板") : uiText("松手导入模板")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {isImporting ? `正在解析并还原 ${importingCount} 个文件` : "仅支持 .itt 文件"}
+              {isImporting ? uiText("正在解析并还原 {{ui:0}} 个文件", [importingCount]) : uiText("仅支持 .itt 文件")}
             </p>
           </div>
         </div>
@@ -583,17 +572,15 @@ export function SceneLibraryPage({
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>删除“{deleteTarget?.name}”？</DialogTitle>
-            <DialogDescription>历史生成图片不会被删除，但这个自定义模板无法恢复。</DialogDescription>
+            <DialogTitle>{uiText("删除“")}{deleteTarget?.name}”？</DialogTitle>
+            <DialogDescription>{uiText("历史生成图片不会被删除，但这个自定义模板无法恢复。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" disabled={deleting} onClick={() => setDeleteTarget(null)}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button variant="destructive" disabled={deleting} onClick={() => void confirmDelete()}>
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              删除模板
-            </Button>
+              {uiText("删除模板")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -614,6 +601,8 @@ export function ScenePickerDialog({
   onSave,
   onManage
 }: ScenePickerDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [saveOpen, setSaveOpen] = useState(false);
   const { mediaBySceneId, mediaLoaded } = useSceneMediaLibrary();
 
@@ -625,8 +614,8 @@ export function ScenePickerDialog({
           className="flex h-[min(820px,calc(100dvh-32px))] w-[min(1280px,calc(100vw-32px))] max-w-none flex-col gap-0 overflow-hidden p-0"
         >
           <DialogHeader className="sr-only">
-            <DialogTitle>选择模板</DialogTitle>
-            <DialogDescription>选择后回到画板描述本次需求，AI 会自动套用模板。</DialogDescription>
+            <DialogTitle>{uiText("选择模板")}</DialogTitle>
+            <DialogDescription>{uiText("选择后回到画板描述本次需求，AI 会自动套用模板。")}</DialogDescription>
           </DialogHeader>
 
           <SceneBrowser
@@ -637,7 +626,7 @@ export function ScenePickerDialog({
             mediaLoaded={mediaLoaded}
             compactActions={(
               <DialogClose asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="关闭选择模板">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={uiText("关闭选择模板")}>
                   <X className="h-4 w-4" />
                 </Button>
               </DialogClose>
@@ -649,13 +638,11 @@ export function ScenePickerDialog({
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-3">
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={onManage}>
               <Library className="h-4 w-4" />
-              打开模版库
-              <ArrowRight className="h-3.5 w-3.5" />
+              {uiText("打开模版库")}<ArrowRight className="h-3.5 w-3.5" />
             </Button>
             <Button size="sm" className="gap-1.5" onClick={() => setSaveOpen(true)}>
               <Plus className="h-4 w-4" />
-              保存为模板
-            </Button>
+              {uiText("保存为模板")}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -688,6 +675,8 @@ function SceneBrowser({
   onToggleFavorite,
   onRequestDelete
 }: SceneBrowserProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -807,7 +796,7 @@ function SceneBrowser({
     ) return;
     notifiedSearchSequenceRef.current = completedSearchSequence;
     if (submittedQuery && filteredScenes.length === 0) {
-      toast.info("没有找到匹配的模版，可以尝试创建一个新模版。");
+      toast.info(translateSourceText("没有找到匹配的模版，可以尝试创建一个新模版。"));
     }
   }, [completedSearchSequence, filteredScenes.length, isSearching, submittedQuery]);
 
@@ -859,8 +848,8 @@ function SceneBrowser({
       {!compact ? (
         <header className="window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-4 border-b border-border px-4 [-webkit-app-region:drag]">
           <div className="flex shrink-0 items-baseline gap-2">
-            <span className="text-sm font-semibold tracking-tight">探索模版</span>
-            <span className="text-xs tabular-nums text-muted-foreground">{scenes.length} 个模板</span>
+            <span className="text-sm font-semibold tracking-tight">{uiText("探索模版")}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{scenes.length} {uiText("个模板")}</span>
           </div>
           <div className="min-w-0 [-webkit-app-region:no-drag]">{filterTabs}</div>
           <Button
@@ -871,8 +860,7 @@ function SceneBrowser({
             onClick={resetView}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            重置
-          </Button>
+            {uiText("重置")}</Button>
           {pageHeaderActions ? (
             <div className="ml-auto flex shrink-0 items-center gap-2 [-webkit-app-region:no-drag]">
               {pageHeaderActions}
@@ -922,8 +910,8 @@ function SceneBrowser({
                 event.preventDefault();
                 clearSearch();
               }}
-              placeholder="搜索图片风格或 Prompt"
-              aria-label="搜索图片风格或 Prompt"
+              placeholder={uiText("搜索图片风格或 Prompt")}
+              aria-label={uiText("搜索图片风格或 Prompt")}
               className={cn(
                 "text-sm placeholder:text-muted-foreground transition-[border-color,background-color,box-shadow] duration-200 ease-out focus-visible:border-foreground/40 motion-reduce:transition-none",
                 compact
@@ -935,7 +923,7 @@ function SceneBrowser({
             {query ? (
               <button
                 type="button"
-                aria-label="清除搜索"
+                aria-label={uiText("清除搜索")}
                 className={cn(
                   "absolute top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   compact ? "right-8" : "right-12"
@@ -951,7 +939,7 @@ function SceneBrowser({
             <button
               type="submit"
               disabled={!query.trim() || isSearching}
-              aria-label={isSearching ? "正在搜索模版" : "搜索模版"}
+              aria-label={isSearching ? uiText("正在搜索模版") : uiText("搜索模版")}
               className={cn(
                 "absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md transition-[color,background-color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default motion-reduce:transition-none",
                 compact ? "right-1 h-7 w-7" : "right-1.5 h-9 w-9",
@@ -1038,8 +1026,8 @@ function SceneBrowser({
           <div className={cn("flex h-full min-h-52 items-center justify-center px-6 text-center", !compact && "pb-20")}>
             <div>
               <Search className="mx-auto h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium">没有匹配的模版</p>
-              <p className="mt-1 text-xs text-muted-foreground">试试其他图片风格、Prompt 关键词或筛选范围</p>
+              <p className="mt-2 text-sm font-medium">{uiText("没有匹配的模版")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{uiText("试试其他图片风格、Prompt 关键词或筛选范围")}</p>
             </div>
           </div>
         )}
@@ -1049,6 +1037,8 @@ function SceneBrowser({
 }
 
 function SceneSearchSkeleton({ compact }: { compact: boolean }): React.ReactElement {
+  const uiText = useUiText();
+
   const heights = compact
     ? [220, 220, 220, 220, 220, 220]
     : [310, 430, 350, 400, 390, 320, 440, 360];
@@ -1057,7 +1047,7 @@ function SceneSearchSkeleton({ compact }: { compact: boolean }): React.ReactElem
     <div
       data-scene-search-skeleton=""
       role="status"
-      aria-label="正在搜索模版"
+      aria-label={uiText("正在搜索模版")}
       className={cn(
         "grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4",
         compact ? "gap-3 p-3 sm:p-4" : "mx-6 my-4"
@@ -1098,6 +1088,8 @@ const SceneCard = memo(function SceneCard({
   onToggleFavorite: (id: string) => void;
   onRequestDelete?: (scene: SceneDefinition) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [promptExpanded, setPromptExpanded] = useState(false);
   const Icon = CATEGORY_ICONS[scene.category];
   const previews = mediaLoaded ? getScenePreviewImages(scene, media) : [];
@@ -1132,8 +1124,8 @@ const SceneCard = memo(function SceneCard({
       {scene.source === "custom" && onRequestDelete ? (
         <button
           type="button"
-          aria-label={`删除 ${scene.name} 模板`}
-          title="删除模板"
+          aria-label={uiText("删除 {{ui:0}} 模板", [scene.name])}
+          title={uiText("删除模板")}
           onClick={() => onRequestDelete(scene)}
           className={cn(
             "absolute z-20 flex items-center justify-center rounded-md border border-white/30 bg-background text-muted-foreground shadow-sm opacity-0 transition-[opacity,color,background-color] hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100",
@@ -1145,8 +1137,8 @@ const SceneCard = memo(function SceneCard({
       ) : null}
       <button
         type="button"
-        aria-label={favorite ? `取消收藏 ${scene.name}` : `收藏 ${scene.name}`}
-        title={favorite ? "取消收藏" : "收藏这个模板"}
+        aria-label={favorite ? uiText("取消收藏 {{ui:0}}", [scene.name]) : uiText("收藏 {{ui:0}}", [scene.name])}
+        title={favorite ? uiText("取消收藏") : uiText("收藏这个模板")}
         onClick={() => onToggleFavorite(scene.id)}
         className={cn(
           "absolute z-20 flex items-center justify-center rounded-md border border-white/30 bg-background text-muted-foreground shadow-sm opacity-0 transition-[opacity,color] hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 group-focus-within:opacity-100",
@@ -1178,8 +1170,8 @@ const SceneCard = memo(function SceneCard({
               <Icon className={showDetails ? "h-5 w-5" : "h-4 w-4"} />
             </span>
             <div>
-              <p className="text-xs font-medium">尚未添加示例图</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">我的模板</p>
+              <p className="text-xs font-medium">{uiText("尚未添加示例图")}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{uiText("我的模板")}</p>
             </div>
           </div>
         )}
@@ -1214,6 +1206,8 @@ function ScenePromptOverlay({
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const promptRegionId = `scene-prompt-${scene.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
   return (
@@ -1232,7 +1226,7 @@ function ScenePromptOverlay({
               type="button"
               aria-expanded={expanded}
               aria-controls={promptRegionId}
-              aria-label={expanded ? `收起 ${scene.name} 的完整提示词` : `展开 ${scene.name} 的完整提示词`}
+              aria-label={expanded ? uiText("收起 {{ui:0}} 的完整提示词", [scene.name]) : uiText("展开 {{ui:0}} 的完整提示词", [scene.name])}
               onClick={() => onExpandedChange(!expanded)}
               className={cn(
                 "pointer-events-auto absolute bottom-2 left-1/2 z-30 flex h-7 w-12 -translate-x-1/2 items-center justify-center opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none motion-reduce:transition-none",
@@ -1249,7 +1243,7 @@ function ScenePromptOverlay({
               </span>
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">{expanded ? "收起提示词" : "查看完整提示词"}</TooltipContent>
+          <TooltipContent side="top">{expanded ? uiText("收起提示词") : uiText("查看完整提示词")}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
@@ -1262,13 +1256,12 @@ function ScenePromptOverlay({
                 {scene.description || SCENE_CATEGORY_LABELS[scene.category]}
               </p>
             ) : (
-              <p className="mt-1 text-[11px] font-medium text-white/60">完整提示词</p>
+              <p className="mt-1 text-[11px] font-medium text-white/60">{uiText("完整提示词")}</p>
             )}
           </div>
           {!expanded ? (
             <span className="mt-0.5 flex shrink-0 translate-x-1 items-center gap-1 text-[10px] font-medium text-white/75 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:translate-x-0 group-focus-within:opacity-100 motion-reduce:transition-none">
-              查看详情
-              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+              {uiText("查看详情")}<ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
             </span>
           ) : null}
         </div>
@@ -1277,7 +1270,7 @@ function ScenePromptOverlay({
           <div
             id={promptRegionId}
             role="region"
-            aria-label={`${scene.name} 的完整提示词`}
+            aria-label={uiText("{{ui:0}} 的完整提示词", [scene.name])}
             className="pointer-events-auto mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-white/15 pt-3 pr-2 text-sm leading-6 text-white/90 [scrollbar-color:rgba(255,255,255,0.38)_transparent] [scrollbar-width:thin]"
           >
             <p className="whitespace-pre-wrap break-words pb-3">{scene.prompt}</p>
@@ -1381,6 +1374,8 @@ function SceneCardContent({
   previewCount: number;
   generatedPreview: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div
       className={cn(
@@ -1391,14 +1386,14 @@ function SceneCardContent({
       {showDetails ? (
         <div className="mb-3 flex items-center gap-2">
           <span className="rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            {scene.mode === "edit" ? "图片编辑" : SCENE_CATEGORY_LABELS[scene.category]}
+            {scene.mode === "edit" ? uiText("图片编辑") : SCENE_CATEGORY_LABELS[scene.category]}
           </span>
           <span className="rounded-sm border border-border px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            {scene.source === "preset" ? "官方模板" : "我的模板"}
+            {scene.source === "preset" ? uiText("官方模板") : uiText("我的模板")}
           </span>
           {previewCount > 0 ? (
             <span className="text-[10px] text-muted-foreground">
-              {previewCount} 张{generatedPreview ? "生成示例" : "内置示例"}
+              {previewCount} {uiText("张")}{generatedPreview ? uiText("生成示例") : uiText("内置示例")}
             </span>
           ) : null}
         </div>
@@ -1415,7 +1410,7 @@ function SceneCardContent({
           </p>
         </div>
         <span className={cn("mt-0.5 flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground", !showDetails && "transition-colors group-hover:text-foreground")}>
-          {showDetails ? "查看 Prompt" : "套用 Prompt"}
+          {showDetails ? uiText("查看 Prompt") : uiText("套用 Prompt")}
           {showDetails ? <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" /> : null}
         </span>
       </div>
@@ -1435,6 +1430,8 @@ function SaveSceneDialog({
   useCase,
   onSave
 }: SaveSceneDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -1454,18 +1451,18 @@ function SaveSceneDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>保存为模板</DialogTitle>
-          <DialogDescription>保存后会出现在模版库的“我的”中。</DialogDescription>
+          <DialogTitle>{uiText("保存为模板")}</DialogTitle>
+          <DialogDescription>{uiText("保存后会出现在模版库的“我的”中。")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-3 max-sm:grid-cols-1">
             <label className="space-y-1.5">
-              <span className="text-sm font-medium">名称</span>
-              <Input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：雨夜街头" />
+              <span className="text-sm font-medium">{uiText("名称")}</span>
+              <Input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={uiText("例如：雨夜街头")} />
             </label>
             <label className="space-y-1.5">
-              <span className="text-sm font-medium">分类</span>
+              <span className="text-sm font-medium">{uiText("分类")}</span>
               <Select value={category} onValueChange={(value) => setCategory(value as SceneCategory)}>
                 <SelectTrigger>{SCENE_CATEGORY_LABELS[category]}</SelectTrigger>
                 <SelectContent>
@@ -1480,16 +1477,16 @@ function SaveSceneDialog({
           </div>
 
           <label className="space-y-1.5">
-            <span className="text-sm font-medium">说明</span>
-            <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="简短描述用途或视觉特征" />
+            <span className="text-sm font-medium">{uiText("说明")}</span>
+            <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder={uiText("简短描述用途或视觉特征")} />
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-sm font-medium">Prompt 内容</span>
+            <span className="text-sm font-medium">{uiText("Prompt 内容")}</span>
             <Textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              placeholder="输入可复用的完整 Prompt"
+              placeholder={uiText("输入可复用的完整 Prompt")}
               className="min-h-32 resize-y leading-6"
             />
           </label>
@@ -1497,14 +1494,12 @@ function SaveSceneDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
+            {uiText("取消")}</Button>
           <Button
             disabled={!canSave}
             onClick={() => onSave({ name, description, prompt, category, mode, useCase })}
           >
-            保存模板
-          </Button>
+            {uiText("保存模板")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

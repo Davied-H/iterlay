@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ImageVersion } from "./ImageNode";
 
@@ -72,6 +73,8 @@ export function VersionSeparationCanvas({
   commitTarget,
   onRequestSeparation
 }: VersionSeparationCanvasProps): React.ReactElement {
+  const uiText = useUiText();
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mountedAtRef = useRef(performance.now());
   const commitStartedAtRef = useRef<number | null>(null);
@@ -379,7 +382,7 @@ export function VersionSeparationCanvas({
           key={index}
           type="button"
           disabled={commitTarget !== null}
-          aria-label={`分离版本 ${index + 1}`}
+          aria-label={uiText("分离版本 {{ui:0}}", [index + 1])}
           className="absolute rounded-md opacity-0 focus-visible:opacity-0 focus-visible:outline-none"
           style={{
             left: controlsLeft + HORIZONTAL_PADDING + index * (PREVIEW_SIZE + PREVIEW_GAP),
@@ -406,7 +409,7 @@ export function VersionSeparationCanvas({
       <button
         type="button"
         disabled={commitTarget !== null}
-        aria-label="全部分离"
+        aria-label={uiText("全部分离")}
         className="absolute rounded-md opacity-0 focus-visible:opacity-0 focus-visible:outline-none"
         style={{
           left: centerX - ALL_BUTTON_WIDTH / 2,

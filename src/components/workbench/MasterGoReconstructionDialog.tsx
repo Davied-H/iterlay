@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -25,14 +26,7 @@ import type {
   MasterGoReconstructionTask
 } from "@shared/mastergo-reconstruction";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,6 +65,8 @@ export function MasterGoReconstructionDialog({
   textProviderId,
   onOpenChange
 }: Props): React.ReactElement {
+  const uiText = useUiText();
+
   const [connection, setConnection] = useState<MasterGoConnectionState | null>(null);
   const [preparation, setPreparation] = useState<MasterGoReconstructionPreparation | null>(null);
   const [task, setTask] = useState<MasterGoReconstructionTask | null>(null);
@@ -266,13 +262,12 @@ export function MasterGoReconstructionDialog({
         <DialogHeader className="gap-1 px-5 pb-2 pt-4 pr-10 sm:flex-row sm:items-center sm:gap-2">
           <DialogTitle className="flex shrink-0 items-center gap-2 text-base">
             <PanelTop className="h-4 w-4" />
-            还原为可编辑设计稿
-          </DialogTitle>
+            {uiText("还原为可编辑设计稿")}</DialogTitle>
           <span className="hidden text-border sm:block" aria-hidden="true">·</span>
           <DialogDescription id="mastergo-reconstruction-description" className="text-xs leading-5">
             {mode === "photo-layers"
-              ? "补全背景并提取主体，通过 MasterGo MCP 写入当前页面。"
-              : "拆分 UI 元素，通过 MasterGo MCP 写入当前页面。"}
+              ? uiText("补全背景并提取主体，通过 MasterGo MCP 写入当前页面。")
+              : uiText("拆分 UI 元素，通过 MasterGo MCP 写入当前页面。")}
           </DialogDescription>
         </DialogHeader>
 
@@ -309,36 +304,32 @@ export function MasterGoReconstructionDialog({
         <DialogFooter className="border-t px-6 py-4">
           {phase === "ready" ? (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{uiText("取消")}</Button>
               <Button disabled={!frameName.trim()} onClick={() => void start()}>
                 <WandSparkles className="h-4 w-4" />
-                开始还原
-              </Button>
+                {uiText("开始还原")}</Button>
             </>
           ) : phase === "running" ? (
             isMasterGoRemoteStage(task?.stage) ? (
               <p className="mr-auto flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-                正在写入 MasterGo，请勿关闭
-              </p>
+                {uiText("正在写入 MasterGo，请勿关闭")}</p>
             ) : (
-              <Button variant="outline" onClick={() => void cancel()}>取消任务</Button>
+              <Button variant="outline" onClick={() => void cancel()}>{uiText("取消任务")}</Button>
             )
           ) : phase === "completed" ? (
             <Button onClick={() => onOpenChange(false)}>
               <Check className="h-4 w-4" />
-              完成
-            </Button>
+              {uiText("完成")}</Button>
           ) : phase === "failed" ? (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{uiText("关闭")}</Button>
               <Button onClick={() => void checkConnection()}>
                 <RefreshCw className="h-4 w-4" />
-                重新开始
-              </Button>
+                {uiText("重新开始")}</Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{uiText("关闭")}</Button>
           )}
         </DialogFooter>
       </DialogContent>
@@ -347,12 +338,14 @@ export function MasterGoReconstructionDialog({
 }
 
 function CheckingState(): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="flex min-h-56 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
       <Loader2 className="h-5 w-5 animate-spin text-primary motion-reduce:animate-none" />
       <div>
-        <p className="text-sm font-medium">正在连接 MasterGo</p>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">自动检测当前文件，并准备官方 Vibe MCP</p>
+        <p className="text-sm font-medium">{uiText("正在连接 MasterGo")}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("自动检测当前文件，并准备官方 Vibe MCP")}</p>
       </div>
     </div>
   );
@@ -367,6 +360,8 @@ function DisconnectedState({
   checking: boolean;
   onRetry: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="px-6 py-6" aria-busy={checking}>
       <div className="flex items-start gap-3">
@@ -374,7 +369,7 @@ function DisconnectedState({
           <Unplug className="h-4 w-4 text-muted-foreground" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-medium">还差一步即可连接</p>
+          <p className="text-sm font-medium">{uiText("还差一步即可连接")}</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{message}</p>
         </div>
       </div>
@@ -386,19 +381,16 @@ function DisconnectedState({
       <div className="mt-5 flex flex-wrap gap-2">
         <Button disabled={checking} onClick={onRetry}>
           <RefreshCw className={cn("h-4 w-4", checking && "animate-spin motion-reduce:animate-none")} />
-          {checking ? "正在检查" : "重新检查"}
+          {checking ? uiText("正在检查") : uiText("重新检查")}
         </Button>
         <Button variant="outline" onClick={() => void getImageWorkbenchApi().openMasterGoSetup("download")}>
           <ExternalLink className="h-4 w-4" />
-          安装 MasterGo
-        </Button>
+          {uiText("安装 MasterGo")}</Button>
         <Button variant="ghost" onClick={() => void getImageWorkbenchApi().openMasterGoSetup("guide")}>
-          官方连接指南
-        </Button>
+          {uiText("官方连接指南")}</Button>
       </div>
       <p className="mt-4 border-t pt-4 text-xs leading-5 text-muted-foreground">
-        个人访问令牌只用于旧的 Magic MCP；图片还原使用本地 Vibe MCP，不读取个人令牌。
-      </p>
+        {uiText("个人访问令牌只用于旧的 Magic MCP；图片还原使用本地 Vibe MCP，不读取个人令牌。")}</p>
     </div>
   );
 }
@@ -437,6 +429,8 @@ function ReadyState({
   onModeChange: (value: MasterGoReconstructionMode) => void;
   onEvolutionEnabledChange: (value: boolean) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="grid gap-5 px-6 py-5">
       <div className="flex items-center gap-3">
@@ -445,13 +439,12 @@ function ReadyState({
           <p className="truncate text-sm font-medium">{source.name}</p>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <FileImage className="h-3.5 w-3.5" />
-            将拆分为独立可编辑图层
-          </p>
+            {uiText("将拆分为独立可编辑图层")}</p>
         </div>
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="mastergo-target">目标画板</Label>
+        <Label htmlFor="mastergo-target">{uiText("目标画板")}</Label>
         <Select value="current-page">
           <SelectTrigger id="mastergo-target">
             <SelectValue />
@@ -460,11 +453,11 @@ function ReadyState({
             <SelectItem value="current-page">{preparation.targetName}</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs leading-5 text-muted-foreground">生成时请不要在 MasterGo 中切换文件或页面。</p>
+        <p className="text-xs leading-5 text-muted-foreground">{uiText("生成时请不要在 MasterGo 中切换文件或页面。")}</p>
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="mastergo-frame-name">设计稿名称</Label>
+        <Label htmlFor="mastergo-frame-name">{uiText("设计稿名称")}</Label>
         <Input
           id="mastergo-frame-name"
           value={frameName}
@@ -474,36 +467,36 @@ function ReadyState({
       </div>
 
       <div className="grid gap-2">
-        <Label>生成类型</Label>
-        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="生成类型">
+        <Label>{uiText("生成类型")}</Label>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={uiText("生成类型")}>
           <ModeButton
             selected={mode === "ui"}
-            title="可编辑 UI"
-            description="拆分文字、容器和图标"
+            title={uiText("可编辑 UI")}
+            description={uiText("拆分文字、容器和图标")}
             onClick={() => onModeChange("ui")}
           />
           <ModeButton
             selected={mode === "photo-layers"}
-            title="AI 照片分层"
-            description="自动补全背景和独立物体"
+            title={uiText("AI 照片分层")}
+            description={uiText("自动补全背景和独立物体")}
             onClick={() => onModeChange("photo-layers")}
           />
         </div>
       </div>
 
       {mode === "ui" ? <div className="grid gap-2">
-        <Label>还原方式</Label>
-        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="还原方式">
+        <Label>{uiText("还原方式")}</Label>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={uiText("还原方式")}>
           <ModeButton
             selected={strategy === "fidelity"}
-            title="高保真"
-            description="优先匹配原图"
+            title={uiText("高保真")}
+            description={uiText("优先匹配原图")}
             onClick={() => onStrategyChange("fidelity")}
           />
           <ModeButton
             selected={strategy === "balanced"}
-            title="易维护"
-            description="优化重复结构"
+            title={uiText("易维护")}
+            description={uiText("优化重复结构")}
             onClick={() => onStrategyChange("balanced")}
           />
         </div>
@@ -511,20 +504,20 @@ function ReadyState({
 
       <div className="flex items-center justify-between gap-4 border-t pt-4">
         <div className="min-w-0">
-          <Label htmlFor="mastergo-agent-evolution" className="text-sm">Pi Agent 自动进化</Label>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">汇总已核验任务的执行信号，用于下一次还原的结构与视觉检查。</p>
+          <Label htmlFor="mastergo-agent-evolution" className="text-sm">{uiText("Pi Agent 自动进化")}</Label>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("汇总已核验任务的执行信号，用于下一次还原的结构与视觉检查。")}</p>
         </div>
         <Switch
           id="mastergo-agent-evolution"
           checked={evolutionEnabled}
           onCheckedChange={onEvolutionEnabledChange}
-          aria-label="Pi Agent 自动进化"
+          aria-label={uiText("Pi Agent 自动进化")}
         />
       </div>
 
       <div className="flex items-start gap-2 border-t pt-4 text-xs leading-5 text-muted-foreground">
         <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-        <span>{mode === "photo-layers" ? "照片会保留为独立位图图层，不重绘为 UI 元素。" : `${preparation.modeName}：${preparation.modeDescription}`}</span>
+        <span>{mode === "photo-layers" ? uiText("照片会保留为独立位图图层，不重绘为 UI 元素。") : `${preparation.modeName}：${preparation.modeDescription}`}</span>
       </div>
     </div>
   );
@@ -573,6 +566,8 @@ export function MasterGoReconstructionTaskState({
   task: MasterGoReconstructionTask;
   sourceDataUrl?: string;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const completed = task.status === "completed";
   const failed = task.status === "failed" || task.status === "cancelled";
   const reduceMotion = useReducedMotion();
@@ -592,7 +587,7 @@ export function MasterGoReconstructionTaskState({
               className="flex items-center gap-2"
             >
               {completed ? <CircleCheck className="h-4 w-4 text-emerald-600" /> : failed ? <Unplug className="h-4 w-4 text-destructive" /> : <Loader2 className="h-4 w-4 animate-spin text-primary motion-reduce:animate-none" />}
-              <p className="text-sm font-medium">{completed ? "可编辑设计稿已创建" : stageLabels[task.stage]}</p>
+              <p className="text-sm font-medium">{completed ? uiText("可编辑设计稿已创建") : stageLabels[task.stage]}</p>
             </motion.div>
           </AnimatePresence>
           <div className="relative mt-1 min-h-6 overflow-hidden">
@@ -612,7 +607,7 @@ export function MasterGoReconstructionTaskState({
         </div>
       </div>
 
-      {!failed ? <div className="mt-6" aria-label={`任务进度 ${task.progress}%`}>
+      {!failed ? <div className="mt-6" aria-label={uiText("任务进度 {{ui:0}}%", [task.progress])}>
         <HorizontalPipeline activeStepIndex={activeStepIndex} completed={completed} progress={task.progress} reduceMotion={reduceMotion} />
         <AnimatePresence initial={false} mode="wait">
           <StageDetail
@@ -635,10 +630,9 @@ export function MasterGoReconstructionTaskState({
         >
           <div className="flex items-center gap-2 font-medium text-emerald-700">
             <CircleCheck className="h-4 w-4" />
-            已写入 MasterGo
-          </div>
-          <ResultLine icon={<PanelTop className="h-3.5 w-3.5" />} label="目标" value={task.result?.targetName || "当前 MasterGo 页面"} />
-          <ResultLine icon={<Square className="h-3.5 w-3.5" />} label="名称" value={task.result?.frameName || "可编辑设计稿"} />
+            {uiText("已写入 MasterGo")}</div>
+          <ResultLine icon={<PanelTop className="h-3.5 w-3.5" />} label={uiText("目标")} value={task.result?.targetName || "当前 MasterGo 页面"} />
+          <ResultLine icon={<Square className="h-3.5 w-3.5" />} label={uiText("名称")} value={task.result?.frameName || "可编辑设计稿"} />
         </motion.div>
       ) : null}
 
@@ -649,6 +643,8 @@ export function MasterGoReconstructionTaskState({
 }
 
 function HtmlResultWorkspace({ task }: { task: MasterGoReconstructionTask }): React.ReactElement {
+  const uiText = useUiText();
+
   const result = task.result!;
   const reduceMotion = useReducedMotion();
   const [html, setHtml] = useState(result.html || "");
@@ -686,19 +682,19 @@ function HtmlResultWorkspace({ task }: { task: MasterGoReconstructionTask }): Re
 
   return <section className="mt-6 border-t pt-5">
     <div className="flex items-center justify-between gap-3">
-      <div><p className="text-sm font-medium">HTML 结果</p><p className="mt-0.5 text-xs text-muted-foreground">修改后可重新写入 MasterGo 并生成图片</p></div>
+      <div><p className="text-sm font-medium">{uiText("HTML 结果")}</p><p className="mt-0.5 text-xs text-muted-foreground">{uiText("修改后可重新写入 MasterGo 并生成图片")}</p></div>
       <div className="flex shrink-0 gap-2">
-        <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void downloadHtml()}><Download className="h-3.5 w-3.5" />{busy === "download" ? "下载中" : "下载 HTML"}</Button>
-        <Button size="sm" disabled={busy !== null} onClick={() => void renderImage()}>{busy === "render" ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <ImageDown className="h-3.5 w-3.5" />}生成图片</Button>
+        <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void downloadHtml()}><Download className="h-3.5 w-3.5" />{busy === "download" ? uiText("下载中") : uiText("下载 HTML")}</Button>
+        <Button size="sm" disabled={busy !== null} onClick={() => void renderImage()}>{busy === "render" ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <ImageDown className="h-3.5 w-3.5" />}{uiText("生成图片")}</Button>
       </div>
     </div>
     <div className="mt-3 grid overflow-hidden rounded-md border md:grid-cols-2">
       <label className="grid min-h-72 border-b bg-muted/[0.16] md:border-b-0 md:border-r">
         <span className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">HTML</span>
-        <textarea value={html} onChange={(event) => setHtml(event.target.value)} spellCheck={false} className="min-h-64 w-full resize-y bg-transparent p-3 font-mono text-xs leading-5 outline-none" aria-label="编辑 HTML" />
+        <textarea value={html} onChange={(event) => setHtml(event.target.value)} spellCheck={false} className="min-h-64 w-full resize-y bg-transparent p-3 font-mono text-xs leading-5 outline-none" aria-label={uiText("编辑 HTML")} />
       </label>
       <div className="grid min-h-72 bg-white">
-        <span className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">预览</span>
+        <span className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">{uiText("预览")}</span>
         <AnimatePresence initial={false} mode="wait">
           {preview ? <motion.div
             key="rendered-image"
@@ -708,14 +704,14 @@ function HtmlResultWorkspace({ task }: { task: MasterGoReconstructionTask }): Re
             transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: motionEase }}
             className="min-h-0 overflow-auto bg-muted/30 p-3"
           >
-            <img src={preview} alt="修改后的设计稿" className="h-auto w-full border bg-white" />
+            <img src={preview} alt={uiText("修改后的设计稿")} className="h-auto w-full border bg-white" />
           </motion.div> : <motion.iframe
             key="html-preview"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: motionEase }}
-            title="HTML 预览"
+            title={uiText("HTML 预览")}
             srcDoc={html}
             sandbox=""
             className="h-64 w-full border-0 bg-white"
@@ -728,6 +724,8 @@ function HtmlResultWorkspace({ task }: { task: MasterGoReconstructionTask }): Re
 }
 
 function PhotoLayerWorkspace({ task }: { task: MasterGoReconstructionTask }): React.ReactElement {
+  const uiText = useUiText();
+
   const result = task.result!;
   const canvas = result.canvas!;
   const initialLayers = result.layers!;
@@ -767,8 +765,8 @@ function PhotoLayerWorkspace({ task }: { task: MasterGoReconstructionTask }): Re
 
   return <section className="mt-6 border-t pt-5">
     <div className="flex items-center justify-between gap-3">
-      <div><p className="text-sm font-medium">分层画布</p><p className="mt-0.5 text-xs text-muted-foreground">拖拽素材调整位置，导出会保留当前图层坐标</p></div>
-      <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void exportLayers()}><Download className="h-3.5 w-3.5" />全部素材</Button><Button size="sm" disabled={busy !== null} onClick={() => void exportPsd()}>{busy === "psd" ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <Layers3 className="h-3.5 w-3.5" />}导出 PSD</Button></div>
+      <div><p className="text-sm font-medium">{uiText("分层画布")}</p><p className="mt-0.5 text-xs text-muted-foreground">{uiText("拖拽素材调整位置，导出会保留当前图层坐标")}</p></div>
+      <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void exportLayers()}><Download className="h-3.5 w-3.5" />{uiText("全部素材")}</Button><Button size="sm" disabled={busy !== null} onClick={() => void exportPsd()}>{busy === "psd" ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <Layers3 className="h-3.5 w-3.5" />}{uiText("导出 PSD")}</Button></div>
     </div>
     <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px]">
       <div
@@ -793,8 +791,8 @@ function PhotoLayerWorkspace({ task }: { task: MasterGoReconstructionTask }): Re
         }} className="absolute cursor-grab select-none active:cursor-grabbing" style={{ left: `${(layer.x / canvas.width) * 100}%`, top: `${(layer.y / canvas.height) * 100}%`, width: `${(layer.width / canvas.width) * 100}%`, height: `${(layer.height / canvas.height) * 100}%` }} /> : null)}
       </div>
       <div className="divide-y overflow-hidden rounded-md border bg-background">
-        <p className="px-3 py-2 text-xs font-medium text-muted-foreground">图层 · {layers.length}</p>
-        {layers.map((layer) => <div key={layer.id} className="flex items-center gap-2 px-3 py-2"><span className="min-w-0 flex-1 truncate text-xs">{layer.name}</span><button type="button" onClick={() => downloadLayer(layer)} className="text-muted-foreground hover:text-foreground" aria-label={`下载 ${layer.name}`}><Download className="h-3.5 w-3.5" /></button></div>)}
+        <p className="px-3 py-2 text-xs font-medium text-muted-foreground">{uiText("图层 · ")}{layers.length}</p>
+        {layers.map((layer) => <div key={layer.id} className="flex items-center gap-2 px-3 py-2"><span className="min-w-0 flex-1 truncate text-xs">{layer.name}</span><button type="button" onClick={() => downloadLayer(layer)} className="text-muted-foreground hover:text-foreground" aria-label={uiText("下载 {{ui:0}}", [layer.name])}><Download className="h-3.5 w-3.5" /></button></div>)}
       </div>
     </div>
     {error ? <p className="mt-2 text-xs leading-5 text-destructive">{error}</p> : null}
@@ -881,8 +879,10 @@ function HorizontalPipeline({
   progress: number;
   reduceMotion: boolean | null;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const lineProgress = completed ? 1 : activeStepIndex / (reconstructionSteps.length - 1);
-  return <div className="relative grid grid-cols-6" aria-label="还原阶段">
+  return <div className="relative grid grid-cols-6" aria-label={uiText("还原阶段")}>
     <span className="absolute left-[8.333%] right-[8.333%] top-[17px] h-px overflow-hidden bg-border" aria-hidden="true">
       <motion.span
         className="block h-full origin-left bg-emerald-600"
@@ -965,6 +965,8 @@ function StageDetail({
   completed: boolean;
   reduceMotion: boolean | null;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const StageIcon = step.icon;
   const stageProgress = getStageProgress(step.range, progress, completed);
   const activeChildIndex = completed ? step.children.length : Math.min(step.children.length - 1, Math.floor(stageProgress / (100 / step.children.length)));
@@ -980,7 +982,7 @@ function StageDetail({
         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
           <StageIcon className="h-3.5 w-3.5" />
         </span>
-        <div><p className="text-sm font-medium">{step.label}</p><p className="text-[11px] text-muted-foreground">阶段内进度</p></div>
+        <div><p className="text-sm font-medium">{step.label}</p><p className="text-[11px] text-muted-foreground">{uiText("阶段内进度")}</p></div>
       </div>
       <span className="text-xs tabular-nums text-muted-foreground">{Math.round(stageProgress)}%</span>
       <span className="absolute inset-x-0 bottom-0 h-0.5 bg-muted" aria-hidden="true">
@@ -1010,6 +1012,8 @@ function StageChild({ child, state, taskMessage, reduceMotion }: {
   taskMessage: string;
   reduceMotion: boolean | null;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const running = state === "running";
   return <motion.div
     layout
@@ -1041,7 +1045,7 @@ function StageChild({ child, state, taskMessage, reduceMotion }: {
       </AnimatePresence>
     </motion.span>
     <div className="relative z-10 min-w-0 flex-1">
-      <div className="flex items-center gap-2"><p className={cn("text-sm", state !== "pending" && "font-medium", state === "pending" && "text-muted-foreground")}>{child.label}</p>{running ? <span className="text-[11px] text-primary">处理中</span> : null}</div>
+      <div className="flex items-center gap-2"><p className={cn("text-sm", state !== "pending" && "font-medium", state === "pending" && "text-muted-foreground")}>{child.label}</p>{running ? <span className="text-[11px] text-primary">{uiText("处理中")}</span> : null}</div>
       <AnimatePresence initial={false} mode="popLayout">
         {running ? <motion.p
           key={taskMessage}
@@ -1062,7 +1066,7 @@ function StageChild({ child, state, taskMessage, reduceMotion }: {
           transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: motionEase }}
           className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] text-emerald-700"
         >
-          <span className="mr-0.5">已识别</span>
+          <span className="mr-0.5">{uiText("已识别")}</span>
           {child.output.map((item) => <span
             key={item}
             className="rounded-sm border border-emerald-600/15 bg-emerald-600/5 px-1.5 py-px leading-4"

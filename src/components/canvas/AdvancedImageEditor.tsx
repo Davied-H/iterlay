@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import {
   useCallback,
   useEffect,
@@ -39,11 +40,7 @@ import { getGenerationTiming } from "@/lib/generation-timing";
 import { MAX_CONCURRENT_GENERATIONS } from "@/lib/generation-queue";
 import { isSendEnter } from "@/lib/send-on-enter";
 import { cn } from "@/lib/utils";
-import {
-  RelaxFlowBoard,
-  type RelaxFlowInterpretation,
-  type RelaxFlowRequest
-} from "./RelaxFlowBoard";
+import { RelaxFlowBoard, type RelaxFlowInterpretation, type RelaxFlowRequest } from "./RelaxFlowBoard";
 import { getPendingEditCount, type GeneratedImage, type ImageVersion } from "./ImageNode";
 
 type RegionTool = "rect" | "brush" | "eraser";
@@ -179,6 +176,8 @@ export function AdvancedImageEditor({
   onBack,
   onClose
 }: AdvancedImageEditorProps): React.ReactElement {
+  const uiText = useUiText();
+
   const segmentedLayoutId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
   const maskRef = useRef<HTMLCanvasElement>(null);
@@ -554,9 +553,8 @@ export function AdvancedImageEditor({
               aria-hidden="true"
               className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5 motion-reduce:transition-none"
             />
-            返回普通编辑
-          </Button>
-          <strong className="text-sm font-semibold">高级编辑</strong>
+            {uiText("返回普通编辑")}</Button>
+          <strong className="text-sm font-semibold">{uiText("高级编辑")}</strong>
           <span className="min-w-0 truncate text-xs text-muted-foreground">v{activeVersion + 1} / {versions.length}</span>
           <div className="flex-1" />
           <Button
@@ -568,19 +566,19 @@ export function AdvancedImageEditor({
             disabled={isApplying}
             onClick={() => setCompareOriginal((current) => !current)}
           >
-            {compareOriginal ? "返回当前版本" : "原图对比"}
+            {compareOriginal ? uiText("返回当前版本") : uiText("原图对比")}
           </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label="关闭编辑" onClick={onClose}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label={uiText("关闭编辑")} onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </header>
 
-        <nav className="row-start-2 flex flex-col items-center gap-1 border-r border-border bg-muted/30 py-3" aria-label="区域工具">
+        <nav className="row-start-2 flex flex-col items-center gap-1 border-r border-border bg-muted/30 py-3" aria-label={uiText("区域工具")}>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label="Relax Flow 画笔"
+                aria-label={uiText("Relax Flow 画笔")}
                 disabled={isApplying}
                 onClick={() => setRelaxFlowOpen(true)}
                 className="flex h-9 w-9 items-center justify-center rounded-md text-[hsl(var(--ai-accent))] transition-colors hover:bg-[hsl(var(--ai-muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
@@ -588,7 +586,7 @@ export function AdvancedImageEditor({
                 <WandSparkles className="h-4 w-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">Relax Flow 画笔</TooltipContent>
+            <TooltipContent side="right">{uiText("Relax Flow 画笔")}</TooltipContent>
           </Tooltip>
           <div className="my-1 h-px w-6 bg-border" />
           {toolButton("rect", <MousePointer2 className="h-4 w-4" />)}
@@ -599,7 +597,7 @@ export function AdvancedImageEditor({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label="识别主体区域"
+                aria-label={uiText("识别主体区域")}
                 disabled={!canDetectSubject || detecting || isApplying}
                 onClick={() => void detectRegion(false)}
                 className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
@@ -607,13 +605,13 @@ export function AdvancedImageEditor({
                 {detecting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <UserRound className="h-4 w-4" />}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{canDetectSubject ? "识别主体区域" : "配置文本 Provider 后可用"}</TooltipContent>
+            <TooltipContent side="right">{canDetectSubject ? uiText("识别主体区域") : uiText("配置文本 Provider 后可用")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label="选择背景区域"
+                aria-label={uiText("选择背景区域")}
                 disabled={!canDetectSubject || detecting || isApplying}
                 onClick={() => void detectRegion(true)}
                 className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
@@ -621,14 +619,14 @@ export function AdvancedImageEditor({
                 <ImageIcon className="h-4 w-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{canDetectSubject ? "选择主体外的背景区域" : "配置文本 Provider 后可用"}</TooltipContent>
+            <TooltipContent side="right">{canDetectSubject ? uiText("选择主体外的背景区域") : uiText("配置文本 Provider 后可用")}</TooltipContent>
           </Tooltip>
           <div className="my-1 h-px w-6 bg-border" />
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label="清除蒙版"
+                aria-label={uiText("清除蒙版")}
                 disabled={!hasMask || isApplying}
                 onClick={clearMask}
                 className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
@@ -636,25 +634,25 @@ export function AdvancedImageEditor({
                 <RotateCcw className="h-4 w-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">清除蒙版</TooltipContent>
+            <TooltipContent side="right">{uiText("清除蒙版")}</TooltipContent>
           </Tooltip>
         </nav>
 
-        <main ref={stageRef} className="relative row-start-2 min-h-0 min-w-0 overflow-hidden bg-muted/45" aria-label="高级编辑画布">
+        <main ref={stageRef} className="relative row-start-2 min-h-0 min-w-0 overflow-hidden bg-muted/45" aria-label={uiText("高级编辑画布")}>
           <div
             className="absolute left-1/2 top-1/2 overflow-hidden rounded-lg bg-black/5 shadow-md [transform:translate(-50%,-54%)]"
             style={{ width: stageSize.width, height: stageSize.height }}
           >
             <img
               src={displaySource}
-              alt={compareOriginal ? "原始版本" : "高级编辑目标图"}
+              alt={compareOriginal ? uiText("原始版本") : uiText("高级编辑目标图")}
               draggable={false}
               className="absolute inset-0 h-full w-full select-none object-fill"
               onLoad={(event) => setNaturalSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
             />
             <canvas
               ref={maskRef}
-              aria-label="编辑区域蒙版"
+              aria-label={uiText("编辑区域蒙版")}
               className={cn(
                 "absolute inset-0 h-full w-full touch-none",
                 (compareOriginal || isApplying) && "pointer-events-none",
@@ -667,7 +665,7 @@ export function AdvancedImageEditor({
               onPointerCancel={handlePointerUp}
             />
             {compareOriginal ? (
-              <span className="absolute left-2 top-2 rounded-md bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm">原图</span>
+              <span className="absolute left-2 top-2 rounded-md bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm">{uiText("原图")}</span>
             ) : null}
             {isApplying && !compareOriginal ? (
               <div
@@ -681,17 +679,16 @@ export function AdvancedImageEditor({
                   : <Loader2 aria-hidden className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />}
                 <div className="min-w-0 text-center">
                   <p className="text-sm font-medium leading-5">
-                    {allEditsQueued ? "高级编辑排队中" : `正在应用编辑${queuedEditCount ? ` · ${queuedEditCount} 个版本排队中` : ""}`}
+                    {allEditsQueued ? uiText("高级编辑排队中") : uiText("正在应用编辑{{ui:0}}", [queuedEditCount ? ` · ${queuedEditCount} 个版本排队中` : ""])}
                   </p>
                   {allEditsQueued ? (
-                    <p className="text-pretty text-xs leading-4">已有 {MAX_CONCURRENT_GENERATIONS} 个任务正在处理，稍后自动开始</p>
+                    <p className="text-pretty text-xs leading-4">{uiText("已有 ")}{MAX_CONCURRENT_GENERATIONS} {uiText("个任务正在处理，稍后自动开始")}</p>
                   ) : editingTiming.overdue ? (
                     <p className="text-pretty text-xs leading-4">
-                      已用 <time className="tabular-nums">{editingTiming.elapsedLabel}</time> · 比预计久一点，任务仍在处理中
-                    </p>
+                      {uiText("已用 ")}<time className="tabular-nums">{editingTiming.elapsedLabel}</time> {uiText("· 比预计久一点，任务仍在处理中")}</p>
                   ) : (
                     <p className="text-xs leading-4">
-                      已用 <time className="tabular-nums">{editingTiming.elapsedLabel}</time> · 预计剩余{" "}
+                      {uiText("已用 ")}<time className="tabular-nums">{editingTiming.elapsedLabel}</time> {uiText("· 预计剩余")}{" "}
                       <time className="tabular-nums">{editingTiming.remainingLabel}</time>
                     </p>
                   )}
@@ -705,7 +702,7 @@ export function AdvancedImageEditor({
               <button
                 key={`${version.path}-${index}`}
                 type="button"
-                aria-label={`切换到版本 ${index + 1}`}
+                aria-label={uiText("切换到版本 {{ui:0}}", [index + 1])}
                 aria-pressed={index === activeVersion}
                 disabled={isApplying}
                 onClick={() => onSwitchVersion(image.id, index)}
@@ -734,19 +731,19 @@ export function AdvancedImageEditor({
           </div>
         </main>
 
-        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label="编辑设置">
+        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label={uiText("编辑设置")}>
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3.5">
-            <strong className="text-sm font-semibold">编辑设置</strong>
+            <strong className="text-sm font-semibold">{uiText("编辑设置")}</strong>
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <ScanSearch className="h-3.5 w-3.5" />
-              {hasMask ? "已选择区域" : "未选择区域"}
+              {hasMask ? uiText("已选择区域") : uiText("未选择区域")}
             </span>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <section className="border-b border-border p-3.5">
-              <span className="mb-2 block text-xs font-medium text-muted-foreground">编辑方式</span>
-              <div className="flex rounded-md bg-muted p-0.5" role="group" aria-label="编辑方式">
+              <span className="mb-2 block text-xs font-medium text-muted-foreground">{uiText("编辑方式")}</span>
+              <div className="flex rounded-md bg-muted p-0.5" role="group" aria-label={uiText("编辑方式")}>
                 {(Object.keys(METHOD_LABELS) as EditMethod[]).map((value) => (
                   <button
                     key={value}
@@ -771,7 +768,7 @@ export function AdvancedImageEditor({
             </section>
 
             <section className="border-b border-border p-3.5">
-              <label htmlFor="advanced-edit-instruction" className="mb-2 block text-xs font-medium text-muted-foreground">修改要求</label>
+              <label htmlFor="advanced-edit-instruction" className="mb-2 block text-xs font-medium text-muted-foreground">{uiText("修改要求")}</label>
               <Textarea
                 id="advanced-edit-instruction"
                 value={instruction}
@@ -793,7 +790,7 @@ export function AdvancedImageEditor({
                   event.preventDefault();
                   void addPastedReferences(files);
                 }}
-                placeholder={method === "remove" ? "可补充移除后的背景要求…" : "描述选中区域要如何修改…"}
+                placeholder={method === "remove" ? uiText("可补充移除后的背景要求…") : uiText("描述选中区域要如何修改…")}
                 className="min-h-28 resize-y text-sm leading-5"
               />
             </section>
@@ -801,7 +798,7 @@ export function AdvancedImageEditor({
             {(tool === "brush" || tool === "eraser") ? (
               <section className="border-b border-border p-3.5">
                 <label htmlFor="advanced-brush-size" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>{tool === "eraser" ? "擦除大小" : "画笔大小"}</span>
+                  <span>{tool === "eraser" ? uiText("擦除大小") : uiText("画笔大小")}</span>
                   <span className="tabular-nums">{brushSize}px</span>
                 </label>
                 <input
@@ -818,7 +815,7 @@ export function AdvancedImageEditor({
             ) : null}
 
             <section className="border-b border-border p-3.5">
-              <span className="mb-2 block text-xs font-medium text-muted-foreground">保持不变</span>
+              <span className="mb-2 block text-xs font-medium text-muted-foreground">{uiText("保持不变")}</span>
               <div className="space-y-2.5">
                 {([
                   ["outside", "未选中的区域"],
@@ -840,8 +837,8 @@ export function AdvancedImageEditor({
 
             <section className="p-3.5">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">参考图片</span>
-                <span className="text-[11px] text-muted-foreground">最多 {MAX_REFERENCES} 张</span>
+                <span className="text-xs font-medium text-muted-foreground">{uiText("参考图片")}</span>
+                <span className="text-[11px] text-muted-foreground">{uiText("最多 ")}{MAX_REFERENCES} {uiText("张")}</span>
               </div>
               <input ref={referenceInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(event) => void addReferences(event)} />
               <div className="flex flex-wrap gap-2">
@@ -850,7 +847,7 @@ export function AdvancedImageEditor({
                     <img src={reference.dataUrl} alt={reference.name} className="h-full w-full object-cover" />
                     <button
                       type="button"
-                      aria-label={`移除参考图 ${reference.name}`}
+                      aria-label={uiText("移除参考图 {{ui:0}}", [reference.name])}
                       onClick={() => setReferences((current) => current.filter((item) => item.id !== reference.id))}
                       className="absolute inset-0 flex items-center justify-center bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                     >
@@ -861,7 +858,7 @@ export function AdvancedImageEditor({
                 {references.length < MAX_REFERENCES ? (
                   <button
                     type="button"
-                    aria-label="添加参考图片"
+                    aria-label={uiText("添加参考图片")}
                     disabled={addingReferences}
                     onClick={() => referenceInputRef.current?.click()}
                     className="flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/40 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
@@ -879,7 +876,7 @@ export function AdvancedImageEditor({
             ) : error ? (
               <p role="alert" className="mb-2 text-xs leading-4 text-destructive">{error}</p>
             ) : (
-              <p className="mb-2 truncate text-[11px] text-muted-foreground">由 {providerName} 生成，新结果会加入版本链</p>
+              <p className="mb-2 truncate text-[11px] text-muted-foreground">{uiText("由 ")}{providerName} {uiText("生成，新结果会加入版本链")}</p>
             )}
             <Button
               type="button"
@@ -890,7 +887,7 @@ export function AdvancedImageEditor({
               {allEditsQueued
                 ? <Clock3 className="h-4 w-4" />
                 : isApplying ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Check className="h-4 w-4" />}
-              {allEditsQueued ? "排队中" : isApplying ? "正在应用" : "应用高级编辑"}
+              {allEditsQueued ? uiText("排队中") : isApplying ? uiText("正在应用") : uiText("应用高级编辑")}
             </Button>
           </footer>
         </aside>

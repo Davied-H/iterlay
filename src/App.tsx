@@ -1,76 +1,48 @@
+import { useBoardHistory } from "@/features/boards/use-board-history";
+import { legacyBillingSnapshot } from "@/compat/billing";
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
+import { createSettingsActions } from "@/features/settings/create-settings-actions";
+import { useSettingsState } from "@/features/settings/use-settings-state";
+import { createImageGenerationController } from "@/features/generation/create-generation-controller";
+import type { ActiveBoard, CanvasLayoutState, CanvasPersistedNode } from "@/features/boards/types";
+import { generationFingerprint } from "@/compat/paid-media";
+import { providerSupportsGenerateReferences } from "@shared/provider-capabilities";
+import { reconcileBoardSave } from "@/features/boards/reconcile-board-save";
+import { useBoardPersistence } from "@/features/boards/use-board-persistence";
+import { useWindowSave } from "@/features/boards/use-window-save";
 import { MediaToolsDialog, MediaToolsNotice } from "@/features/media-tools/MediaToolsDialog";
 import { useMediaTools } from "@/features/media-tools/use-media-tools";
 import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
-import {
-duplicateClipboardImages,
-type CanvasClipboardItem
-} from "@/components/canvas/canvas-clipboard";
-import { centerNodeAtDrop,type CanvasDropPoint } from "@/components/canvas/canvas-drop";
-import type {
-CanvasNodeLayout,
-CanvasRestoreSnapshot,
-CanvasSelectionSnapshot
-} from "@/components/canvas/canvas-history";
-import {
-VIDEO_GENERATION_NODE_HEIGHT,
-VIDEO_NODE_HEIGHT,
-VIDEO_NODE_WIDTH
-} from "@/components/canvas/canvas-node-layout";
+import { duplicateClipboardImages, type CanvasClipboardItem } from "@/components/canvas/canvas-clipboard";
+import { centerNodeAtDrop, type CanvasDropPoint } from "@/components/canvas/canvas-drop";
+import type { CanvasNodeLayout, CanvasRestoreSnapshot, CanvasSelectionSnapshot } from "@/components/canvas/canvas-history";
+import { VIDEO_GENERATION_NODE_HEIGHT, VIDEO_NODE_HEIGHT, VIDEO_NODE_WIDTH } from "@/components/canvas/canvas-node-layout";
 import type { EmptyCanvasMode } from "@/components/canvas/EmptyCanvasStart";
+import { placeGenerationReferenceImages, type GenerationReferencePlacementTarget } from "@/components/canvas/generation-reference-paste";
 import {
-placeGenerationReferenceImages,
-type GenerationReferencePlacementTarget
-} from "@/components/canvas/generation-reference-paste";
-import {
-getPendingEditCount,
-IMAGE_NODE_WIDTH,
-imageKey,
-type GeneratedImage,
-type ImageVersion,
-type VersionSeparationPlacement
+  getPendingEditCount,
+  IMAGE_NODE_WIDTH,
+  imageKey,
+  type GeneratedImage,
+  type VersionSeparationPlacement
 } from "@/components/canvas/image-node-model";
-import {
-copyImageVersions,
-createDetachedVersionImage,
-extractImageVersion,
-separateImageVersions
-} from "@/components/canvas/image-versions";
+import { copyImageVersions, createDetachedVersionImage, extractImageVersion, separateImageVersions } from "@/components/canvas/image-versions";
 import type { SliceSelection } from "@/components/canvas/ImageSliceDialog";
-import { ParticleBurst,type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
+import { ParticleBurst, type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
 import { getSliceResultCell } from "@/components/canvas/slice-result-layout";
 import { resolveVideoGenerationImageInputs } from "@/components/canvas/video-generation-image-inputs";
-import {
-VIDEO_MAX_REFERENCE_IMAGES,
-type GeneratedVideo,
-type VideoReferenceInput
-} from "@/components/canvas/video-node-model";
+import { VIDEO_MAX_REFERENCE_IMAGES, type GeneratedVideo, type VideoReferenceInput } from "@/components/canvas/video-node-model";
 import { useLicense } from "@/components/licensing/license-context";
 import type { TourDefinition } from "@/components/onboarding/FeatureTour";
-import {
-BOARD_TOUR,
-EDIT_TOUR,
-GALLERY_TOUR,
-LIBRARY_TOUR,
-TOUR_DEMO_IMAGE_ID,
-TOUR_DEMO_PROMPT
-} from "@/components/onboarding/tours";
+import { BOARD_TOUR, EDIT_TOUR, GALLERY_TOUR, LIBRARY_TOUR, TOUR_DEMO_IMAGE_ID, TOUR_DEMO_PROMPT } from "@/components/onboarding/tours";
 import { StartupLoading } from "@/components/system/StartupLoading";
 import { Button } from "@/components/ui/button";
-import {
-Dialog,
-DialogContent,
-DialogDescription,
-DialogFooter,
-DialogHeader,
-DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
 import { Toaster } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-CreateChatGenerationPlan,
-CreateChatResult
-} from "@/components/workbench/CreateChatPage";
+import type { CreateChatGenerationPlan, CreateChatResult } from "@/components/workbench/CreateChatPage";
 import { PiTemplateAgentStatus } from "@/components/workbench/PiTemplateAgentStatus";
 import type { AssistantGenerationRequest } from "@/components/workbench/PromptDock";
 import { ProviderStatusNotice } from "@/components/workbench/ProviderStatusNotice";
@@ -78,179 +50,136 @@ import { ReferralInviteDialog } from "@/components/workbench/ReferralInviteDialo
 import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
 import type { AssistantDockLayout } from "@/lib/assistant-panel-docking";
 import { BoardDetailCache } from "@/lib/board-detail-cache";
-import { createEmptyPromptSpec,resetBoardDraft } from "@/lib/board-draft";
-import {
-hydrateBoardNodeImageLayout,
-hydrateGeneratedImage,
-serializeGeneratedImage
-} from "@/lib/board-node-image";
+import { createEmptyPromptSpec, resetBoardDraft } from "@/lib/board-draft";
+import { hydrateBoardNodeImageLayout, hydrateGeneratedImage } from "@/lib/board-node-image";
 import { createComicDramaMutationPlan } from "@/lib/comic-drama-assistant";
 import { DataUrlLruCache } from "@/lib/data-url-lru-cache";
 import { hasGalleryTourContent } from "@/lib/gallery-onboarding";
-import { collectGalleryPreloadPaths,preloadGalleryThumbnails } from "@/lib/gallery-preload";
-import { createMissingGenerationOutputConnections } from "@/lib/generation-output-connections";
-import {
-centerGenerationOutputs,
-removeGeneratedPlaceholders,
-settleGeneratedPlaceholders
-} from "@/lib/generation-placeholders";
+import { collectGalleryPreloadPaths, preloadGalleryThumbnails } from "@/lib/gallery-preload";
+
 import { GenerationQueue } from "@/lib/generation-queue";
-import { GENERATION_ESTIMATE_MS } from "@/lib/generation-timing";
+
 import {
-getImageWorkbenchApi,
-getWorkbenchErrorMessage,
-hasImageWorkbenchApi,
-missingImageWorkbenchMessage
+  getImageWorkbenchApi,
+  getWorkbenchErrorMessage,
+  hasImageWorkbenchApi,
+  missingImageWorkbenchMessage
 } from "@/lib/image-workbench-api";
 import { mergeVideoProviderModelCatalogs } from "@/lib/official-video-models";
 import {
-clearTourSeen,
-hasSeenDemoStart,
-hasSeenTour,
-initializeOnboardingPersistence,
-markDemoStartSeen,
-markTourSeen
+  clearTourSeen,
+  hasSeenDemoStart,
+  hasSeenTour,
+  initializeOnboardingPersistence,
+  markDemoStartSeen,
+  markTourSeen
 } from "@/lib/onboarding";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
 import { getProviderMaxImageCount } from "@/lib/provider-image-count";
-import { providerSupportsTransparentBackground } from "@/lib/provider-transparent-background";
+
 import { startSceneCollaborationStream } from "@/lib/scene-collaboration-stream";
 import { isSendEnter } from "@/lib/send-on-enter";
 import { resolveEditSmartSuggestionsEnabled } from "@/lib/smart-suggestions";
 import { selectStartupBoard } from "@/lib/startup-board";
 import { generateTemplateVerification } from "@/lib/template-verification";
-import { resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
+import { canUseTextAgent, resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
 import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
 import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-notification";
-import { promoteRecentlyUsedBoard,sortBoardsByRecentUse } from "@shared/board-order";
+import { promoteRecentlyUsedBoard, sortBoardsByRecentUse } from "@shared/board-order";
 import { isComicDramaNode } from "@shared/comic-drama";
 import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
-import { selectProviderModel } from "@shared/provider-models";
-import type {
-AppSettings,
-AppSettingsPatch,
-AssetComment,
-AssetLibraryItem,
-AssetReference,
-AssistantIntentSuggestionCount,
-BoardComicDramaEntryNode,
-BoardConnection,
-BoardDetail,
-BoardEnterOrigin,
-BoardGenerationNode,
-BoardMutationPlan,
-BoardMutationResult,
-BoardNode,
-BoardNodeSnapshot,
-BoardSummary,
-BoardTextNode,
-BoardVideoGenerationNode,
-BoardVideoNode,
-BoardVideoSequenceEntryNode,
-BoardViewport,
-CollaborateSceneRequest,
-CollaborateSceneResult,
-ComicCharacterNode,
-ComicDramaBoardNode,
-ComicDramaBoardSnapshot,
-CopyImageFormat,
-CreditStatus,
-EditInfoMode,
-GenerateButtonStyle,
-GenerateImageInput,
-GenerateResponse,
-GenerationJob,
-ImageCropRect,
-ImageDoubleClickAction,
-ImageWorkflowMode,
-MemoryUsageLevel,
-VideoSequence as PersistedVideoSequence,
-PromptSpec,
-ProviderApiMode,
-ProviderConfig,
-ReferenceImagePayload,
-ReferenceImageRole,
-RestoreTrashedBoardImageResult,
-SceneTemplateImportResult,
-SliceSubjectDetection,
-TemplateSubmissionResult,
-TextProviderConfig,
-UiDesignBrief,
-VersionSeparationMode,
-VideoGenerationInput,
-VideoGenerationJob,
-VideoProviderConfig,
-VideoProviderModelOption,
-VideoSequenceTask,
-VideoSequenceTemplate
-} from "@shared/types";
-import {
-DEFAULT_VIDEO_PROVIDER_CONFIG,DEFAULT_VIDEO_PROVIDER_ID,IMAGE_CREDIT_COST,isBoardGenerationNode,
-isBoardImageNode,
-isBoardTextNode,
-isBoardVideoGenerationNode,
-isBoardVideoNode
-} from "@shared/types";
-import { getDefaultQuality,getDefaultUseCase,parseGptImageSize } from "@shared/workflow";
-import { AnimatePresence,motion,useAnimationControls,useReducedMotion } from "framer-motion";
-import { X } from "lucide-react";
-import { lazy,memo,Suspense,useCallback,useEffect,useMemo,useRef,useState } from "react";
-import { toast } from "sonner";
-import { COMMUNITY_IMAGE_PROVIDER,COMMUNITY_TEXT_PROVIDER } from '../shared/community-providers';
 
 import type {
-VideoSequence as EditorVideoSequence,
-VideoSequenceExportOptions,
-VideoSequenceTaskState
-} from "@/components/video-sequence";
-import type {
-TemplateExtractionSaveDecision,
-TemplateExtractionSource
-} from "@/components/workbench/TemplateExtractionDialog";
+  AssetComment,
+  AssetLibraryItem,
+  AssetReference,
+  BoardComicDramaEntryNode,
+  BoardConnection,
+  BoardDetail,
+  BoardEnterOrigin,
+  BoardGenerationNode,
+  BoardMutationPlan,
+  BoardMutationResult,
+  BoardSummary,
+  BoardVideoGenerationNode,
+  BoardVideoNode,
+  BoardViewport,
+  CollaborateSceneRequest,
+  CollaborateSceneResult,
+  ComicCharacterNode,
+  ComicDramaBoardSnapshot,
+  GenerateImageInput,
+  GenerationJob,
+  ImageCropRect,
+  ImageWorkflowMode,
+  VideoSequence as PersistedVideoSequence,
+  PromptSpec,
+  ProviderConfig,
+  ReferenceImagePayload,
+  ReferenceImageRole,
+  RestoreTrashedBoardImageResult,
+  SceneTemplateImportResult,
+  SliceSubjectDetection,
+  TemplateSubmissionResult,
+  UiDesignBrief,
+  VideoGenerationInput,
+  VideoGenerationJob,
+  VideoProviderConfig,
+  VideoProviderModelOption,
+  VideoSequenceTask,
+  VideoSequenceTemplate
+} from "@shared/types";
+import {
+  DEFAULT_VIDEO_PROVIDER_CONFIG,
+  IMAGE_CREDIT_COST,
+  isBoardGenerationNode,
+  isBoardImageNode,
+  isBoardTextNode,
+  isBoardVideoGenerationNode,
+  isBoardVideoNode
+} from "@shared/types";
+import { getDefaultQuality, getDefaultUseCase, parseGptImageSize } from "@shared/workflow";
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { X } from "lucide-react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { COMMUNITY_IMAGE_PROVIDER } from '../shared/community-providers';
+
+import type { VideoSequence as EditorVideoSequence, VideoSequenceExportOptions, VideoSequenceTaskState } from "@/components/video-sequence";
+import type { TemplateExtractionSaveDecision, TemplateExtractionSource } from "@/components/workbench/TemplateExtractionDialog";
 import { useI18n } from "@/i18n";
-import {
-DEFAULT_BOARD_ENTRY_VISIBLE_PRELOAD_LIMIT,
-selectBoardEntryPreload
-} from "@/lib/board-entry-preload";
+import { DEFAULT_BOARD_ENTRY_VISIBLE_PRELOAD_LIMIT, selectBoardEntryPreload } from "@/lib/board-entry-preload";
 import { preloadBoardImages } from "@/lib/board-preload";
-import {
-isShortcutHelpCommand,
-MAX_BOARD_SHORTCUTS,
-resolveBoardShortcutIndex
-} from "@/lib/board-shortcuts";
+import { isShortcutHelpCommand, MAX_BOARD_SHORTCUTS, resolveBoardShortcutIndex } from "@/lib/board-shortcuts";
 import { removeImageBackground } from "@/lib/remove-image-background";
 import {
-createCustomScene,
-createCustomSceneFromScene,
-findSceneForMode,
-parseSceneFields,
-PRESET_SCENES,
-readCustomScenes,
-readFavoriteSceneIds,
-updateCustomScene,
-writeCustomScenes,
-writeFavoriteSceneIds,
-type NewSceneInput,
-type SceneDefinition
+  createCustomScene,
+  createCustomSceneFromScene,
+  findSceneForMode,
+  parseSceneFields,
+  PRESET_SCENES,
+  readCustomScenes,
+  readFavoriteSceneIds,
+  updateCustomScene,
+  writeCustomScenes,
+  writeFavoriteSceneIds,
+  type NewSceneInput,
+  type SceneDefinition
 } from "@/lib/scene-library";
 import {
-buildTemplateExtractionInstruction,
-buildTemplatePreviewInstruction,
-createTemplateExtractionFromAssistant,
-createTemplatePromptSet,
-parseTemplateExtractionItems,
-retargetTemplateExtractionContext,
-type TemplateExtractionResult,
-type TemplateExtractionScenario,
-type TemplatePromptSet
+  buildTemplateExtractionInstruction,
+  buildTemplatePreviewInstruction,
+  createTemplateExtractionFromAssistant,
+  createTemplatePromptSet,
+  parseTemplateExtractionItems,
+  retargetTemplateExtractionContext,
+  type TemplateExtractionResult,
+  type TemplateExtractionScenario,
+  type TemplatePromptSet
 } from "@/lib/template-workflow";
-import {
-buildUiDesignBriefInstruction,
-createUiDesignBrief,
-inferUiMaterialRole
-} from "@/lib/ui-design-workflow";
-import { parseIterlayDeepLink,type IterlayDeepLink } from "@shared/deep-link";
+import { buildUiDesignBriefInstruction, createUiDesignBrief, inferUiMaterialRole } from "@/lib/ui-design-workflow";
+import { parseIterlayDeepLink, type IterlayDeepLink } from "@shared/deep-link";
 import type { McpSkillUpgradeDetail } from "@shared/mcp-integration";
 
 const CanvasBoard = lazy(() =>
@@ -386,7 +315,6 @@ const GALLERY_REVEAL_DURATION = 0.18;
 const GALLERY_EXIT_DURATION = 0.14;
 const IS_MAC_PLATFORM = /Mac|iPhone|iPad|iPod/u.test(navigator.platform);
 
-type UiTheme = AppSettings["theme"];
 type LibraryInitialTab = "boards" | "assets" | "scenes" | "trash" | "inspiration";
 
 const defaultProvider: ProviderConfig = { ...COMMUNITY_IMAGE_PROVIDER };
@@ -412,33 +340,6 @@ const initialInput: GenerateImageInput = {
 function getInitialStatus(): string {
   return hasImageWorkbenchApi() ? "请选择 Provider 路线并保存配置。" : missingImageWorkbenchMessage;
 }
-
-function getProviderApiMode(provider: ProviderConfig): ProviderApiMode {
-  if (provider.type !== "openai-compatible") return "responses";
-  return provider.apiMode || (/\/responses\/?$/.test(provider.generationEndpoint) ? "responses" : "images");
-}
-
-function providerSupportsGenerateReferences(provider: ProviderConfig): boolean {
-  if (!provider.supportsReferenceImages) return false;
-  if (provider.type !== "openai-compatible") return provider.type !== "poe";
-  return getProviderApiMode(provider) === "responses";
-}
-
-interface ActiveBoard {
-  id: string;
-  name: string;
-  kind?: "standard" | "comic-drama";
-  parentBoardId?: string;
-  viewport?: BoardViewport;
-}
-
-interface CanvasLayoutState {
-  positions: Record<string, CanvasNodeLayout>;
-  viewport?: BoardViewport;
-  connections: BoardConnection[];
-}
-
-type CanvasPersistedNode = BoardTextNode | BoardGenerationNode | BoardVideoNode | BoardVideoGenerationNode | ComicDramaBoardNode | BoardComicDramaEntryNode | BoardVideoSequenceEntryNode;
 
 interface GenerationConfirmationItem {
   id: string;
@@ -473,26 +374,28 @@ function GenerationConfirmationDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <Dialog open={confirmation !== null} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="max-h-[min(720px,calc(100dvh-32px))] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{confirmation?.title ?? "确认生成"}</DialogTitle>
-          <DialogDescription>确认后才会提交以下生成任务；取消不会调用 Provider。</DialogDescription>
+          <DialogDescription>{uiText("确认后才会提交以下生成任务；取消不会调用 Provider。")}</DialogDescription>
         </DialogHeader>
         {confirmation ? <div className="grid gap-4">
           <dl className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-md bg-muted/60 p-3 text-xs">
             <div><dt className="text-muted-foreground">Provider</dt><dd className="mt-0.5 break-words font-medium">{confirmation.providerLabel}</dd></div>
-            <div><dt className="text-muted-foreground">模型</dt><dd className="mt-0.5 break-words font-medium">{confirmation.model}</dd></div>
-            <div><dt className="text-muted-foreground">任务数</dt><dd className="mt-0.5 font-medium">{confirmation.items.length}</dd></div>
-            <div><dt className="text-muted-foreground">总费用</dt><dd className="mt-0.5 font-medium">{confirmation.totalCostLabel}</dd></div>
+            <div><dt className="text-muted-foreground">{uiText("模型")}</dt><dd className="mt-0.5 break-words font-medium">{confirmation.model}</dd></div>
+            <div><dt className="text-muted-foreground">{uiText("任务数")}</dt><dd className="mt-0.5 font-medium">{confirmation.items.length}</dd></div>
+            <div><dt className="text-muted-foreground">{uiText("总费用")}</dt><dd className="mt-0.5 font-medium">{confirmation.totalCostLabel}</dd></div>
             <div className="col-span-2"><dt className="text-muted-foreground">Quote expiry</dt><dd className="mt-0.5 font-medium">{
               confirmation.items.some((item) => item.quoteExpiresAt)
                 ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(Math.min(...confirmation.items.flatMap((item) => item.quoteExpiresAt ? [Date.parse(item.quoteExpiresAt)] : []))))
-                : "外部 Provider 未提供 Iterlay 报价有效期"
+                : uiText("外部 Provider 未提供 Iterlay 报价有效期")
             }</dd></div>
           </dl>
-          <div className="divide-y divide-border border-y border-border" aria-label="生成确认任务">
+          <div className="divide-y divide-border border-y border-border" aria-label={uiText("生成确认任务")}>
             {confirmation.items.map((item) => <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 text-sm">
               <span className="min-w-0"><b className="block break-words">{item.label}</b><small className="mt-0.5 block break-words text-muted-foreground">{item.task}{item.quoteId ? ` · Quote ${item.quoteId}` : ""}</small></span>
               <b className="self-center whitespace-nowrap text-xs">{item.costLabel}</b>
@@ -500,7 +403,7 @@ function GenerationConfirmationDialog({
           </div>
         </div> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>取消</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>{uiText("取消")}</Button>
           <Button type="button" onClick={onConfirm}>{confirmation?.confirmLabel ?? "确认提交"}</Button>
         </DialogFooter>
       </DialogContent>
@@ -555,31 +458,6 @@ function adoptableSize(image: GeneratedImage): string | null {
 }
 
 /** 画板库卡片封面：把首图缩到目标宽度的 JPEG，避免整张原图塞进画板 JSON。 */
-function downscaleDataUrl(dataUrl: string, targetWidth: number): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      try {
-        const scale = Math.min(1, targetWidth / (image.naturalWidth || targetWidth));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-        const context = canvas.getContext("2d");
-        if (!context) {
-          resolve(undefined);
-          return;
-        }
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
-      } catch {
-        resolve(undefined);
-      }
-    };
-    image.onerror = () => resolve(undefined);
-    image.src = dataUrl;
-  });
-}
 
 function scheduleRemainingBoardPreload(detail: BoardDetail, isCurrentRequest: () => boolean): void {
   const preload = (): void => {
@@ -680,59 +558,9 @@ function toEditorVideoSequence(
   };
 }
 
-async function generationFingerprint(value: unknown): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function paidGenerationMetadata(
-  inputFingerprint: string,
-  stage: "character" | "first-frame" | "last-frame" | "video",
-  request: {
-    kind: "image" | "video";
-    providerId: string;
-    boardId: string;
-    requestScope: string;
-    operation: "image:generate" | "video:start";
-    imageCount?: number;
-    durationSeconds?: number;
-    model?: string;
-    resolution?: string;
-    generateAudio?: boolean;
-  }
-) {
-  const generationAttemptId = crypto.randomUUID();
-  const quote = await getImageWorkbenchApi().quotePaidMedia({
-    kind: request.kind,
-    clientRequestId: generationAttemptId,
-    inputFingerprint,
-    boardId: request.boardId,
-    requestScope: request.requestScope,
-    operation: request.operation,
-    providerId: request.providerId,
-    imageCount: request.imageCount,
-    durationSeconds: request.durationSeconds,
-    model: request.model,
-    resolution: request.resolution,
-    generateAudio: request.generateAudio,
-    stage
-  });
-  return {
-    inputFingerprint,
-    generationAttemptId,
-    quoteId: quote.quoteId,
-    quoteExpiresAt: quote.expiresAt,
-    idempotencyKey: [generationAttemptId, inputFingerprint, quote.quoteId].join(":"),
-    priceSnapshot: quote.priceSnapshot,
-    quoteBoardId: request.boardId,
-    quoteRequestScope: request.requestScope,
-    quotePurpose: stage,
-    quoteOperation: request.operation
-  };
-}
-
 export default function App(): React.ReactElement {
+  const uiText = useUiText();
+
   const { language, locale, setLanguage } = useI18n();
   const {
     status: licenseStatus,
@@ -741,25 +569,93 @@ export default function App(): React.ReactElement {
     startupError: licenseStartupError,
     retryStatus: retryLicenseStatus
   } = useLicense();
-  const [providers, setProviders] = useState<ProviderConfig[]>([defaultProvider]);
-  const [activeProviderId, setActiveProviderId] = useState<string>(defaultProvider.id);
-  const [textProviders, setTextProviders] = useState<TextProviderConfig[]>([{ ...COMMUNITY_TEXT_PROVIDER }]);
-  const [activeTextProviderId, setActiveTextProviderId] = useState<string>(COMMUNITY_TEXT_PROVIDER.id);
-  const [videoProviders, setVideoProviders] = useState<VideoProviderConfig[]>([{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }]);
-  const [activeVideoProviderId, setActiveVideoProviderId] = useState<string>(DEFAULT_VIDEO_PROVIDER_ID);
-  const [providerKeyStatus, setProviderKeyStatus] = useState<Record<string, boolean>>({});
-  const [creditStatus, setCreditStatus] = useState<CreditStatus | null>(null);
-  const [creditLoading, setCreditLoading] = useState(false);
-  const [creditError, setCreditError] = useState<string | null>(null);
-  const [setupComplete, setSetupComplete] = useState(false);
-  const [theme, setTheme] = useState<UiTheme>(() => {
-    const bootTheme = new URLSearchParams(window.location.search).get("bootTheme");
-    return bootTheme === "dark" || bootTheme === "light" ? bootTheme : "system";
-  });
+  const settingsState = useSettingsState(defaultProvider);
+  const {
+  providers,
+  setProviders,
+  activeProviderId,
+  setActiveProviderId,
+  textProviders,
+  setTextProviders,
+  activeTextProviderId,
+  setActiveTextProviderId,
+  videoProviders,
+  setVideoProviders,
+  activeVideoProviderId,
+  setActiveVideoProviderId,
+  providerKeyStatus,
+  setProviderKeyStatus,
+  setupComplete,
+  setSetupComplete,
+  theme,
+  setTheme,
+  promptDockAutoCollapse,
+  setPromptDockAutoCollapse,
+  advancedVideoModesEnabled,
+  setAdvancedVideoModesEnabled,
+  canvasThumbnailPreview,
+  setCanvasThumbnailPreview,
+  canvasMinimapVisible,
+  setCanvasMinimapVisible,
+  canvasImageToolbarOnHover,
+  setCanvasImageToolbarOnHover,
+  canvasRelationshipHoverHighlight,
+  setCanvasRelationshipHoverHighlight,
+  wechatStickerExportEnabled,
+  setWechatStickerExportEnabled,
+  onlineImageSharingEnabled,
+  setOnlineImageSharingEnabled,
+  copyImageFormat,
+  setCopyImageFormat,
+  boardSmartSuggestionsEnabled,
+  setBoardSmartSuggestionsEnabled,
+  boardAssistantEnabled,
+  setBoardAssistantEnabled,
+  boardAssistantAgentModeEnabled,
+  setBoardAssistantAgentModeEnabled,
+  piAgentBuiltinTools,
+  setPiAgentBuiltinTools,
+  piAgentIterlayTools,
+  setPiAgentIterlayTools,
+  piAgentSkillPaths,
+  setPiAgentSkillPaths,
+  piAgentExtensionPaths,
+  setPiAgentExtensionPaths,
+  piAgentCustomSkillPaths,
+  setPiAgentCustomSkillPaths,
+  piAgentCustomExtensionPaths,
+  setPiAgentCustomExtensionPaths,
+  piAgentMaxTurns,
+  setPiAgentMaxTurns,
+  piAgentWebSearchMaxResults,
+  setPiAgentWebSearchMaxResults,
+  boardAssistantAwarenessEnabled,
+  setBoardAssistantAwarenessEnabled,
+  boardAssistantIntentSuggestionsEnabled,
+  setBoardAssistantIntentSuggestionsEnabled,
+  boardAssistantIntentSuggestionCount,
+  setBoardAssistantIntentSuggestionCount,
+  memoryEnabled,
+  setMemoryEnabled,
+  memoryUsageLevel,
+  setMemoryUsageLevel,
+  editInfoMode,
+  setEditInfoMode,
+  imageDoubleClickAction,
+  setImageDoubleClickAction,
+  downloadDirectory,
+  setDownloadDirectory,
+  versionSeparationMode,
+  setVersionSeparationMode,
+  generateButtonStyle,
+  setGenerateButtonStyle
+} = settingsState;
+
+  const { creditStatus, creditLoading, creditError, refreshCreditStatus } = legacyBillingSnapshot();
+
   const [input, setInput] = useState<GenerateImageInput>(initialInput);
   const [customScenes, setCustomScenes] = useState<SceneDefinition[]>(readCustomScenes);
   const [favoriteSceneIds, setFavoriteSceneIds] = useState<string[]>(readFavoriteSceneIds);
-  const [history, setHistory] = useState<GenerationJob[]>([]);
   const [videoHistory, setVideoHistory] = useState<VideoGenerationJob[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [workflowNodes, setWorkflowNodes] = useState<CanvasPersistedNode[]>([]);
@@ -809,7 +705,7 @@ export default function App(): React.ReactElement {
       const expired = current.items.some((item) => item.quoteExpiresAt && Date.parse(item.quoteExpiresAt) <= Date.now());
       if (expired) {
         current.resolve(false);
-        toast.error("报价已过期，请重新获取报价后确认。");
+        toast.error(translateSourceText("报价已过期，请重新获取报价后确认。"));
         return null;
       }
       current.resolve(true);
@@ -833,45 +729,12 @@ export default function App(): React.ReactElement {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDialogMounted, setSettingsDialogMounted] = useState(false);
   const [settingsEntryPoint, setSettingsEntryPoint] = useState<"default" | "provider-setup" | "model-management">("default");
-  const [promptDockAutoCollapse, setPromptDockAutoCollapse] = useState(false);
-  const [advancedVideoModesEnabled, setAdvancedVideoModesEnabled] = useState(false);
-  const [canvasThumbnailPreview, setCanvasThumbnailPreview] = useState(true);
-  const [canvasMinimapVisible, setCanvasMinimapVisible] = useState(true);
-  const [canvasImageToolbarOnHover, setCanvasImageToolbarOnHover] = useState(false);
-  const [canvasRelationshipHoverHighlight, setCanvasRelationshipHoverHighlight] = useState(false);
-  const [wechatStickerExportEnabled, setWechatStickerExportEnabled] = useState(false);
-  const [onlineImageSharingEnabled, setOnlineImageSharingEnabled] = useState(true);
-  const [copyImageFormat, setCopyImageFormat] = useState<CopyImageFormat>("png");
-  const [boardSmartSuggestionsEnabled, setBoardSmartSuggestionsEnabled] = useState(false);
-  const [boardAssistantEnabled, setBoardAssistantEnabled] = useState(true);
-  const [boardAssistantAgentModeEnabled, setBoardAssistantAgentModeEnabled] = useState(false);
-  const [piAgentBuiltinTools, setPiAgentBuiltinTools] = useState<AppSettings["piAgentBuiltinTools"]>([
-    "read",
-    "grep",
-    "find",
-    "ls"
-  ]);
-  const [piAgentIterlayTools, setPiAgentIterlayTools] = useState<string[]>([]);
-  const [piAgentSkillPaths, setPiAgentSkillPaths] = useState<string[]>([]);
-  const [piAgentExtensionPaths, setPiAgentExtensionPaths] = useState<string[]>([]);
-  const [piAgentCustomSkillPaths, setPiAgentCustomSkillPaths] = useState<string[]>([]);
-  const [piAgentCustomExtensionPaths, setPiAgentCustomExtensionPaths] = useState<string[]>([]);
-  const [piAgentMaxTurns, setPiAgentMaxTurns] = useState(12);
-  const [piAgentWebSearchMaxResults, setPiAgentWebSearchMaxResults] = useState(5);
-  const [boardAssistantAwarenessEnabled, setBoardAssistantAwarenessEnabled] = useState(true);
-  const [boardAssistantIntentSuggestionsEnabled, setBoardAssistantIntentSuggestionsEnabled] = useState(true);
-  const [boardAssistantIntentSuggestionCount, setBoardAssistantIntentSuggestionCount] =
-    useState<AssistantIntentSuggestionCount>(3);
+
   const [assistantDockLayout, setAssistantDockLayout] = useState<AssistantDockLayout | null>(null);
   const [editSmartSuggestionsPreference, setEditSmartSuggestionsPreference] = useState<boolean | undefined>(true);
-  const [memoryEnabled, setMemoryEnabled] = useState(true);
-  const [memoryUsageLevel, setMemoryUsageLevel] = useState<MemoryUsageLevel>("balanced");
+
   // 编辑态点击图片查看提示词的方式（flip=翻转 / panel=右侧打字机面板）。
-  const [editInfoMode, setEditInfoMode] = useState<EditInfoMode>("flip");
-  const [imageDoubleClickAction, setImageDoubleClickAction] = useState<ImageDoubleClickAction>("edit");
-  const [downloadDirectory, setDownloadDirectory] = useState("");
-  const [versionSeparationMode, setVersionSeparationMode] = useState<VersionSeparationMode>("copy");
-  const [generateButtonStyle, setGenerateButtonStyle] = useState<GenerateButtonStyle>("folded");
+
   const [focusTarget, setFocusTarget] = useState<{ key: string; nonce: number } | null>(null);
   const [selectionTarget, setSelectionTarget] = useState<{ ids: string[]; nonce: number } | null>(null);
   const [promptFocusNonce, setPromptFocusNonce] = useState(0);
@@ -972,11 +835,11 @@ export default function App(): React.ReactElement {
       frame = window.requestAnimationFrame(() => {
         iterlayToast.update({
           badge: "Skill",
-          title: "Iterlay Skill 已升级",
+          title: translateSourceText("Iterlay Skill 已升级"),
           detail: details.length > 1
-            ? `已同步到 ${details.length} 个 Coding Agent`
-            : `已同步到 ${details[0].client === "codex" ? "Codex" : "Claude Code"}`,
-          actionLabel: "查看详情",
+            ? translateSourceText("已同步到 {{ui:0}} 个 Coding Agent", [details.length])
+            : translateSourceText("已同步到 {{ui:0}}", [details[0].client === "codex" ? "Codex" : "Claude Code"]),
+          actionLabel: translateSourceText("查看详情"),
           onOpen: () => setSkillUpgradeDetailsOpen(true)
         });
       });
@@ -1009,9 +872,6 @@ export default function App(): React.ReactElement {
   inputRef.current = input;
   const activeBoardRef = useRef<ActiveBoard | null>(activeBoard);
   activeBoardRef.current = activeBoard;
-  const boardSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const boardSaveInFlightRef = useRef<Promise<void> | null>(null);
-  const boardSaveQueuedRef = useRef(false);
   const mcpPendingImageIdsRef = useRef(new Map<string, string[]>());
   const mcpPendingEditTargetIdsRef = useRef(new Map<string, string>());
   const deletedBoardIdsRef = useRef(new Set<string>());
@@ -1043,7 +903,7 @@ export default function App(): React.ReactElement {
       ? `“${activeProvider.name}”当前只接收一张图片，无法同时发送目标图和区域蒙版。请在 Provider 设置中改为 image_urls，或切换其他 Provider。`
       : undefined;
   const activeHasKey = Boolean(providerKeyStatus[activeProvider.id]);
-  const isOfficialProvider = activeProvider.type === "official";
+  const isOfficialProvider = false;
   const activeTextProvider = useMemo(
     () => textProviders.find((p) => p.id === activeTextProviderId) ?? textProviders[0],
     [textProviders, activeTextProviderId]
@@ -1124,15 +984,6 @@ export default function App(): React.ReactElement {
     if (advancedEditOpen) setAssistantDockLayout(null);
   }, [advancedEditOpen]);
 
-  useEffect(() => { setCreditLoading(false); setCreditError(null); }, []);
-
-  // Credits 独立于当前路由常驻刷新，保证模型菜单里的官方余额始终可见。
-  const refreshCreditStatusRef = useRef<() => void>(() => {});
-  refreshCreditStatusRef.current = (): void => {};
-  const refreshCreditStatus = useCallback((): void => {
-    refreshCreditStatusRef.current();
-  }, []);
-
   const requestEditSuggestions = useCallback((notifyOnError = false): void => {
     const requestId = ++editSuggestionRequestRef.current;
     if (!editSmartSuggestionsEnabled || !textProviderReady || !editTarget?.path) {
@@ -1158,7 +1009,7 @@ export default function App(): React.ReactElement {
         if (editSuggestionRequestRef.current !== requestId) return;
         console.warn("自动生成图片修改建议失败", error);
         if (notifyOnError) {
-          toast.error("智能建议生成失败", {
+          toast.error(translateSourceText("智能建议生成失败"), {
             description: getWorkbenchErrorMessage(error, "请稍后重试。")
           });
         }
@@ -1187,18 +1038,20 @@ export default function App(): React.ReactElement {
     requestEditSuggestions(true);
   }, [requestEditSuggestions]);
 
-  const refreshHistory = useCallback(async (): Promise<void> => {
-    const api = getWorkbenchApi();
-    if (!api) return;
-
-    try {
-      const [jobs, videoJobs] = await Promise.all([api.listHistory(), api.listVideoJobs()]);
-      setHistory(jobs);
-      setVideoHistory(videoJobs);
-    } catch (error) {
-      reportWorkbenchError(error);
-    }
-  }, [getWorkbenchApi, reportWorkbenchError]);
+  const {
+  history,
+  sceneHistory,
+  galleryHistory,
+  historyTotal,
+  historyHasMore,
+  historyLoading,
+  refreshHistory,
+  loadMoreHistory,
+  clearLoadedHistory
+} = useBoardHistory({
+    boardId: activeBoard?.id, activeBoard: activeBoardRef, libraryOpen, galleryOpen,
+    getApi: getWorkbenchApi, onVideos: setVideoHistory, onError: reportWorkbenchError
+  });
 
   const clearCurrentBoardHistory = useCallback(async (): Promise<void> => {
     const boardId = activeBoardRef.current?.id;
@@ -1208,125 +1061,49 @@ export default function App(): React.ReactElement {
 
     try {
       const [result, videoCount] = await Promise.all([api.clearHistory(boardId), api.clearVideoJobs(boardId)]);
-      setHistory((current) => current.filter((job) => job.boardId !== boardId));
+      clearLoadedHistory();
       setVideoHistory((current) => current.filter((job) => job.input.boardId !== boardId));
       const count = result.count + videoCount;
-      toast.success(count > 0 ? `已清空 ${count} 条生成历史` : "生成历史已为空");
+      toast.success(count > 0 ? translateSourceText("已清空 {{ui:0}} 条生成历史", [count]) : translateSourceText("生成历史已为空"));
     } catch (error) {
       reportWorkbenchError(error);
       throw error;
     }
-  }, [getWorkbenchApi, reportWorkbenchError]);
+  }, [clearLoadedHistory, getWorkbenchApi, reportWorkbenchError]);
 
   // ---------- 画板：自动保存与切换 ----------
 
-  const persistBoardSnapshot = useCallback(async (): Promise<void> => {
-    const board = activeBoardRef.current;
-    if (!board || deletedBoardIdsRef.current.has(board.id)) return;
-    const api = getWorkbenchApi();
-    if (!api) return;
-
-    const persistable = imagesRef.current.filter((image) => !image.pending && image.path);
-    const persistableIds = new Set([
-      ...persistable.map((image) => image.id),
-      ...workflowNodesRef.current.map((node) => node.id)
-    ]);
-    const positions = canvasStateRef.current.positions;
-    const imageNodes: BoardNodeSnapshot[] = persistable.map((image) => serializeGeneratedImage(image, {
-      x: positions[image.id]?.x ?? 0,
-      y: positions[image.id]?.y ?? 0,
-      width: positions[image.id]?.width,
-      height: positions[image.id]?.height
-    }));
-    const workflowBoardNodes = workflowNodesRef.current.map((node) => ({
-      ...node,
-      x: positions[node.id]?.x ?? node.x,
-      y: positions[node.id]?.y ?? node.y,
-      displayWidth: positions[node.id]?.width ?? node.displayWidth,
-      displayHeight: positions[node.id]?.height ?? node.displayHeight
-    }));
-    const nodes: BoardNode[] = [...imageNodes, ...workflowBoardNodes];
-    const connections = canvasStateRef.current.connections.filter(
-      (connection) => persistableIds.has(connection.source) && persistableIds.has(connection.target)
-    );
-    const viewport = canvasStateRef.current.viewport;
-    // 布局变化不应反复解码和编码封面；只在首图内容变化时重建缩略图。
-    const cover = persistable[0];
-    const coverKey = cover ? `${cover.path}:${cover.activeVersion ?? -1}` : "";
-    const thumbnailDataUrl = coverKey === boardThumbnailRef.current.key
-      ? boardThumbnailRef.current.dataUrl
-      : cover ? (await downscaleDataUrl(cover.dataUrl, 480)) ?? "" : "";
-    if (activeBoardRef.current?.id === board.id) {
-      boardThumbnailRef.current = { key: coverKey, dataUrl: thumbnailDataUrl };
-    }
-    // 删除动作可能发生在缩略图编码期间；此时不要再向主进程发送可重建画板的保存请求。
-    if (deletedBoardIdsRef.current.has(board.id)) return;
-
-    try {
-      const summary = await api.saveBoard({
-        id: board.id,
-        name: board.name,
-        replaceManagedNodes: true,
-        nodes,
-        connections,
-        viewport,
-        thumbnailDataUrl
+  const { boardSaveCoordinator, persistBoard, scheduleBoardSave, flushBoardSave, observeBoard } = useBoardPersistence({
+    activeBoard: activeBoardRef, deletedBoardIds: deletedBoardIdsRef,
+    images: imagesRef, workflowNodes: workflowNodesRef, layout: canvasStateRef,
+    thumbnail: boardThumbnailRef, detailCache: boardDetailCacheRef, getApi: getWorkbenchApi,
+    onSummary: (summary) => setBoards((current) => sortBoardsByRecentUse(
+      current.map((item) => item.id === summary.id ? summary : item)
+    )),
+    onRebased: (saved, submitted) => {
+      if (activeBoardRef.current?.id !== saved.id) return;
+      const reconciled = reconcileBoardSave(saved, submitted, {
+        images: imagesRef.current, workflowNodes: workflowNodesRef.current, positions: canvasStateRef.current.positions
       });
-      boardDetailCacheRef.current.delete(board.id);
-      if (activeBoardRef.current?.id === board.id) {
-        void api.getComicDramaBoardSnapshot(board.id).then((snapshot) => {
-          if (activeBoardRef.current?.id === board.id) setComicDramaSnapshot(snapshot);
-        }).catch(() => undefined);
-      }
-      setBoards((current) => sortBoardsByRecentUse(
-        current.map((item) => (item.id === summary.id ? summary : item))
-      ));
-    } catch (error) {
-      // 自动保存失败不打断创作流，仅留痕；下一次改动会再试。
-      console.warn("画板自动保存失败", error);
+      imagesRef.current = reconciled.images;
+      workflowNodesRef.current = reconciled.workflowNodes;
+      canvasStateRef.current = { ...canvasStateRef.current, positions: reconciled.positions, connections: reconciled.connections };
+      setImages(reconciled.images);
+      setWorkflowNodes(reconciled.workflowNodes);
+      setCanvasConnectionsVersion((version) => version + 1);
+      setCanvasRestoreSnapshot((current) => ({
+        nonce: (current?.nonce ?? 0) + 1, positions: reconciled.positions, connections: reconciled.connections,
+        selectedIds: selectedCanvasNodeIds.filter((id) => reconciled.positions[id])
+      }));
+    },
+    onSaved: (boardId) => {
+      if (activeBoardRef.current?.id !== boardId) return;
+      void getWorkbenchApi()?.getComicDramaBoardSnapshot(boardId).then((snapshot) => {
+        if (activeBoardRef.current?.id === boardId) setComicDramaSnapshot(snapshot);
+      }).catch(() => undefined);
     }
-  }, [getWorkbenchApi]);
-
-  // 同一画板最多只有一次保存正在执行；期间发生的多次变化合并为一次最新快照。
-  const persistBoard = useCallback(async (): Promise<void> => {
-    if (boardSaveInFlightRef.current) {
-      boardSaveQueuedRef.current = true;
-      await boardSaveInFlightRef.current;
-      return;
-    }
-
-    do {
-      boardSaveQueuedRef.current = false;
-      const request = persistBoardSnapshot();
-      boardSaveInFlightRef.current = request;
-      try {
-        await request;
-      } finally {
-        boardSaveInFlightRef.current = null;
-      }
-    } while (boardSaveQueuedRef.current);
-  }, [persistBoardSnapshot]);
-
-  const scheduleBoardSave = useCallback((): void => {
-    if (!activeBoardRef.current) return;
-    if (boardSaveTimerRef.current) clearTimeout(boardSaveTimerRef.current);
-    boardSaveTimerRef.current = setTimeout(() => {
-      boardSaveTimerRef.current = null;
-      void persistBoard();
-    }, 800);
-  }, [persistBoard]);
-
-  const flushBoardSave = useCallback(async (): Promise<void> => {
-    if (boardSaveTimerRef.current) {
-      clearTimeout(boardSaveTimerRef.current);
-      boardSaveTimerRef.current = null;
-      await persistBoard();
-    }
-    while (boardSaveInFlightRef.current) {
-      await boardSaveInFlightRef.current;
-      await Promise.resolve();
-    }
-  }, [persistBoard]);
+  });
+  useWindowSave(flushBoardSave);
 
   const handleCanvasChange = useCallback(
     (
@@ -1562,7 +1339,7 @@ export default function App(): React.ReactElement {
         const detail = await detailPromise;
         if (requestSequence !== boardOpenSequenceRef.current) return;
         if (!detail) {
-          toast.error("画板不存在或已损坏。");
+          toast.error(translateSourceText("画板不存在或已损坏。"));
           return;
         }
         const entryPreload = selectBoardEntryPreload(detail, {
@@ -1603,6 +1380,7 @@ export default function App(): React.ReactElement {
           setSuggestedEdits([]);
           setParticleBurst(null);
         }
+        observeBoard(detail);
         const openedAt = new Date().toISOString();
         setBoards((current) => promoteRecentlyUsedBoard(current, detail.id, openedAt));
         const openedBoard: ActiveBoard = {
@@ -1685,7 +1463,7 @@ export default function App(): React.ReactElement {
         }
       }
     },
-    [flushBoardSave, getWorkbenchApi, loadBoardDetail, reportWorkbenchError, stageControls]
+    [flushBoardSave, getWorkbenchApi, loadBoardDetail, observeBoard, reportWorkbenchError, stageControls]
   );
 
   const notifyVideoJob = useStableCallback((job: VideoGenerationJob): void => {
@@ -1830,11 +1608,8 @@ export default function App(): React.ReactElement {
           }
           // A delayed autosave contains the pre-MCP in-memory canvas. Letting it run
           // after appendNodes would overwrite the external result with that stale snapshot.
-          if (activeBoardRef.current?.id === boardId && boardSaveTimerRef.current) {
-            clearTimeout(boardSaveTimerRef.current);
-            boardSaveTimerRef.current = null;
-          }
-          const saveInFlight = boardSaveInFlightRef.current;
+          if (activeBoardRef.current?.id === boardId) boardSaveCoordinator.discardPending();
+          const saveInFlight = boardSaveCoordinator.pending;
           if (saveInFlight) await saveInFlight;
           const movedNodeId = typeof detail.movedNodeId === "string" ? detail.movedNodeId : undefined;
           const movedX = typeof detail.x === "number" && Number.isFinite(detail.x) ? detail.x : undefined;
@@ -1884,12 +1659,14 @@ export default function App(): React.ReactElement {
         setActiveGenerations((current) => Math.max(0, current - 1));
         setActiveBoardGenerations((current) => current.filter((task) => task.id !== operationId));
         setStatus(error ?? "MCP 图片生成完成。");
+        void refreshHistory();
       }
     };
 
     window.addEventListener("iterlay:mcp", onMcpEvent);
-    return () => window.removeEventListener("iterlay:mcp", onMcpEvent);
-  }, [flushBoardSave, getWorkbenchApi, openBoard, refreshBoards, setStatus]);
+    const unsubscribe = getWorkbenchApi()?.onWorkbenchEvent((detail) => onMcpEvent(new CustomEvent("iterlay:mcp", { detail })));
+    return () => { unsubscribe?.(); window.removeEventListener("iterlay:mcp", onMcpEvent); };
+  }, [boardSaveCoordinator, flushBoardSave, getWorkbenchApi, openBoard, refreshBoards, refreshHistory, setStatus]);
 
   // 生成结果可能来自已切走的画板。统一按图片路径定位，编辑版本也能命中所属原图。
   const locateGenerationResult = useCallback(async (boardId: string, imagePaths: string[]): Promise<void> => {
@@ -2031,9 +1808,53 @@ export default function App(): React.ReactElement {
     return () => {
       active = false;
     };
-  }, [getWorkbenchApi, hydrateVideoProviderCatalogs, openBoard, refreshHistory, reportWorkbenchError, setLanguage]);
-
-
+  }, [
+    getWorkbenchApi,
+    hydrateVideoProviderCatalogs,
+    openBoard,
+    refreshHistory,
+    reportWorkbenchError,
+    setActiveProviderId,
+    setActiveTextProviderId,
+    setActiveVideoProviderId,
+    setAdvancedVideoModesEnabled,
+    setBoardAssistantAgentModeEnabled,
+    setBoardAssistantAwarenessEnabled,
+    setBoardAssistantEnabled,
+    setBoardAssistantIntentSuggestionCount,
+    setBoardAssistantIntentSuggestionsEnabled,
+    setBoardSmartSuggestionsEnabled,
+    setCanvasImageToolbarOnHover,
+    setCanvasMinimapVisible,
+    setCanvasRelationshipHoverHighlight,
+    setCanvasThumbnailPreview,
+    setCopyImageFormat,
+    setDownloadDirectory,
+    setEditInfoMode,
+    setGenerateButtonStyle,
+    setImageDoubleClickAction,
+    setLanguage,
+    setMemoryEnabled,
+    setMemoryUsageLevel,
+    setOnlineImageSharingEnabled,
+    setPiAgentBuiltinTools,
+    setPiAgentCustomExtensionPaths,
+    setPiAgentCustomSkillPaths,
+    setPiAgentExtensionPaths,
+    setPiAgentIterlayTools,
+    setPiAgentMaxTurns,
+    setPiAgentSkillPaths,
+    setPiAgentWebSearchMaxResults,
+    setPromptDockAutoCollapse,
+    setProviderKeyStatus,
+    setProviders,
+    setSetupComplete,
+    setTextProviders,
+    setTheme,
+    setVersionSeparationMode,
+    setVideoProviders,
+    setWechatStickerExportEnabled
+  ]);
 
   useEffect(() => {
     if (startupLoading) return;
@@ -2184,8 +2005,7 @@ export default function App(): React.ReactElement {
   const canGenerate = useMemo(() => {
     // Note: intentionally does NOT block on in-flight generations — multiple can run at once.
     if (bridgeError) return false;
-    if (!isOfficialProvider && (!setupComplete || !activeHasKey)) return false;
-    if (isOfficialProvider && (!creditStatus?.providerAvailable || creditLoading)) return false;
+    if (!setupComplete || !activeHasKey) return false;
     // 编辑模式只在编辑会话中出现，目标图由会话隐式提供。
     if (input.workflowMode === "edit" && (!editTargetId || providerBlocksEditing)) return false;
     if (providerBlocksGenerateReferences && input.workflowMode === "generate" && input.referenceImages.length > 0) {
@@ -2196,275 +2016,66 @@ export default function App(): React.ReactElement {
     bridgeError,
     editTargetId,
     activeHasKey,
-    creditLoading,
-    creditStatus?.providerAvailable,
     input.referenceImages.length,
     input.workflowMode,
     providerBlocksEditing,
     providerBlocksGenerateReferences,
-    isOfficialProvider,
     setupComplete
   ]);
 
   // 输入框切换当前 provider：更新激活项、同步默认 model，并落盘 activeProviderId。
-  function persistSettingsPatch(patch: AppSettingsPatch): void {
-    const api = getWorkbenchApi();
-    if (!api) return;
-    void api
-      .updateSettings(patch)
-      .then(() => setSetupComplete(true))
-      .catch(reportWorkbenchError);
-  }
-
-  function selectActiveProvider(id: string, model?: string): void {
-    const target = providers.find((p) => p.id === id);
-    if (!target) return;
-    const nextTarget = model ? selectProviderModel(target, model) : target;
-    const nextProviders = providers.map((provider) => provider.id === id ? nextTarget : provider);
-    setProviders(nextProviders);
-    setActiveProviderId(id);
-    setInput((current) => ({
-      ...current,
-      model: nextTarget.model,
-      size: current.size
-    }));
-    persistSettingsPatch({ providers: nextProviders, activeProviderId: id });
-  }
-
-  function changeTheme(next: UiTheme, _origin?: { x: number; y: number }): void {
-    void _origin;
-    setTheme(next);
-    persistSettingsPatch({ theme: next });
-  }
-
-  function changeLanguage(next: AppSettings["language"]): void {
-    setLanguage(next);
-    persistSettingsPatch({ language: next });
-  }
+  const {
+  selectActiveProvider,
+  changeTheme,
+  changeLanguage,
+  persistProviders,
+  changePromptDockAutoCollapse,
+  changeAdvancedVideoModesEnabled,
+  changeCanvasThumbnailPreview,
+  changeCanvasMinimapVisible,
+  changeCanvasImageToolbarOnHover,
+  changeCanvasRelationshipHoverHighlight,
+  changeBoardSmartSuggestionsEnabled,
+  changeWechatStickerExportEnabled,
+  changeOnlineImageSharingEnabled,
+  changeCopyImageFormat,
+  changeBoardAssistantIntentSuggestionsEnabled,
+  changeBoardAssistantAwarenessEnabled,
+  changeBoardAssistantEnabled,
+  changeBoardAssistantAgentModeEnabled,
+  changePiAgentBuiltinTools,
+  changePiAgentIterlayTools,
+  changePiAgentSkillPaths,
+  changePiAgentExtensionPaths,
+  changePiAgentCustomSkillPaths,
+  changePiAgentCustomExtensionPaths,
+  changePiAgentMaxTurns,
+  changePiAgentWebSearchMaxResults,
+  changeBoardAssistantIntentSuggestionCount,
+  changeEditSmartSuggestionsEnabled,
+  changeMemoryEnabled,
+  changeMemoryUsageLevel,
+  changeEditInfoMode,
+  changeImageDoubleClickAction,
+  changeVersionSeparationMode,
+  changeGenerateButtonStyle
+} = createSettingsActions({
+  settings: settingsState,
+  getWorkbenchApi,
+  reportWorkbenchError,
+  setInput,
+  setLanguage,
+  language,
+  editSmartSuggestionsPreference,
+  hydrateVideoProviderCatalogs,
+  setStatus,
+  setWechatExportRequest,
+  setQuickImageShareImages,
+  activeTextProvider,
+  setEditSmartSuggestionsPreference
+});
 
   // 设置页保存多个 provider（含各自的 API Key）后回调：落盘并用主进程回读的结果刷新本地状态。
-  async function persistProviders(next: {
-    providers: ProviderConfig[];
-    activeProviderId: string;
-    textProviders: TextProviderConfig[];
-    activeTextProviderId: string;
-    videoProviders: VideoProviderConfig[];
-    activeVideoProviderId: string;
-    apiKeyByProviderId?: Record<string, string>;
-  }): Promise<void> {
-    const api = getWorkbenchApi();
-    if (!api) return;
-    try {
-      await api.saveSettings({
-        providers: next.providers,
-        activeProviderId: next.activeProviderId,
-        textProviders: next.textProviders,
-        activeTextProviderId: next.activeTextProviderId,
-        videoProviders: next.videoProviders,
-        activeVideoProviderId: next.activeVideoProviderId,
-        language,
-        theme,
-        promptDockAutoCollapse,
-        advancedVideoModesEnabled,
-        canvasThumbnailPreview,
-        canvasMinimapVisible,
-        canvasImageToolbarOnHover,
-        canvasRelationshipHoverHighlight,
-        wechatStickerExportEnabled,
-        onlineImageSharingEnabled,
-        copyImageFormat,
-        boardSmartSuggestionsEnabled,
-        editSmartSuggestionsEnabled: editSmartSuggestionsPreference,
-        memoryEnabled,
-        memoryUsageLevel,
-        editInfoMode,
-        imageDoubleClickAction,
-        downloadDirectory,
-        versionSeparationMode,
-        generateButtonStyle,
-        apiKeyByProviderId: next.apiKeyByProviderId
-      });
-      const fresh = await api.getSettings();
-      setProviders(fresh.providers);
-      setActiveProviderId(fresh.activeProviderId);
-      setTextProviders(fresh.textProviders);
-      setActiveTextProviderId(fresh.activeTextProviderId);
-      const freshVideoProviders = fresh.videoProviders;
-      setVideoProviders(await hydrateVideoProviderCatalogs(freshVideoProviders));
-      setActiveVideoProviderId(fresh.activeVideoProviderId);
-      setProviderKeyStatus(fresh.providerKeyStatus);
-      setSetupComplete(true);
-      const active = fresh.providers.find((p) => p.id === fresh.activeProviderId) ?? fresh.providers[0];
-      if (active) setInput((current) => ({ ...current, model: active.model }));
-      setStatus("配置已保存。");
-      toast.success("配置已保存");
-    } catch (error) {
-      reportWorkbenchError(error);
-    }
-  }
-
-  function changePromptDockAutoCollapse(next: boolean): void {
-    setPromptDockAutoCollapse(next);
-    persistSettingsPatch({ promptDockAutoCollapse: next });
-  }
-
-  function changeAdvancedVideoModesEnabled(next: boolean): void {
-    setAdvancedVideoModesEnabled(next);
-    persistSettingsPatch({ advancedVideoModesEnabled: next });
-  }
-
-  function changeCanvasThumbnailPreview(next: boolean): void {
-    setCanvasThumbnailPreview(next);
-    persistSettingsPatch({ canvasThumbnailPreview: next });
-  }
-
-  function changeCanvasMinimapVisible(next: boolean): void {
-    setCanvasMinimapVisible(next);
-    persistSettingsPatch({ canvasMinimapVisible: next });
-  }
-
-  function changeCanvasImageToolbarOnHover(next: boolean): void {
-    setCanvasImageToolbarOnHover(next);
-    persistSettingsPatch({ canvasImageToolbarOnHover: next });
-  }
-
-  function changeCanvasRelationshipHoverHighlight(next: boolean): void {
-    setCanvasRelationshipHoverHighlight(next);
-    persistSettingsPatch({ canvasRelationshipHoverHighlight: next });
-  }
-
-  function changeBoardSmartSuggestionsEnabled(next: boolean): void {
-    setBoardSmartSuggestionsEnabled(next);
-    persistSettingsPatch({ boardSmartSuggestionsEnabled: next });
-  }
-
-  function changeWechatStickerExportEnabled(next: boolean): void {
-    setWechatStickerExportEnabled(next);
-    if (!next) setWechatExportRequest(null);
-    persistSettingsPatch({ wechatStickerExportEnabled: next });
-  }
-
-  function changeOnlineImageSharingEnabled(next: boolean): void {
-    setOnlineImageSharingEnabled(next);
-    if (!next) setQuickImageShareImages(null);
-    persistSettingsPatch({ onlineImageSharingEnabled: next });
-  }
-
-  function changeCopyImageFormat(next: CopyImageFormat): void {
-    setCopyImageFormat(next);
-    persistSettingsPatch({ copyImageFormat: next });
-  }
-
-  function changeBoardAssistantIntentSuggestionsEnabled(next: boolean): void {
-    setBoardAssistantIntentSuggestionsEnabled(next);
-    persistSettingsPatch({ boardAssistantIntentSuggestionsEnabled: next });
-  }
-
-  function changeBoardAssistantAwarenessEnabled(next: boolean): void {
-    setBoardAssistantAwarenessEnabled(next);
-    persistSettingsPatch({ boardAssistantAwarenessEnabled: next });
-  }
-
-  function changeBoardAssistantEnabled(next: boolean): void {
-    setBoardAssistantEnabled(next);
-    persistSettingsPatch({ boardAssistantEnabled: next });
-  }
-
-  function changeBoardAssistantAgentModeEnabled(next: boolean): void {
-    const enabled = next && Boolean(creditStatus?.textFunctionCallingAvailable);
-    setBoardAssistantAgentModeEnabled(enabled);
-    persistSettingsPatch({
-      assistantAgentModeEnabled: enabled,
-      boardAssistantAgentModeEnabled: enabled
-    });
-  }
-
-  function changePiAgentBuiltinTools(next: NonNullable<AppSettings["piAgentBuiltinTools"]>): void {
-    setPiAgentBuiltinTools(next);
-    persistSettingsPatch({ piAgentBuiltinTools: next });
-  }
-
-  function changePiAgentIterlayTools(next: string[]): void {
-    setPiAgentIterlayTools(next);
-    persistSettingsPatch({ piAgentIterlayTools: next });
-  }
-
-  function changePiAgentSkillPaths(next: string[]): void {
-    setPiAgentSkillPaths(next);
-    persistSettingsPatch({ piAgentSkillPaths: next });
-  }
-
-  function changePiAgentExtensionPaths(next: string[]): void {
-    setPiAgentExtensionPaths(next);
-    persistSettingsPatch({ piAgentExtensionPaths: next });
-  }
-
-  function changePiAgentCustomSkillPaths(next: string[]): void {
-    setPiAgentCustomSkillPaths(next);
-    persistSettingsPatch({ piAgentCustomSkillPaths: next });
-  }
-
-  function changePiAgentCustomExtensionPaths(next: string[]): void {
-    setPiAgentCustomExtensionPaths(next);
-    persistSettingsPatch({ piAgentCustomExtensionPaths: next });
-  }
-
-  function changePiAgentMaxTurns(next: number): void {
-    setPiAgentMaxTurns(next);
-    persistSettingsPatch({ piAgentMaxTurns: next });
-  }
-
-  function changePiAgentWebSearchMaxResults(next: number): void {
-    setPiAgentWebSearchMaxResults(next);
-    persistSettingsPatch({ piAgentWebSearchMaxResults: next });
-  }
-
-  function changeBoardAssistantIntentSuggestionCount(next: AssistantIntentSuggestionCount): void {
-    setBoardAssistantIntentSuggestionCount(next);
-    persistSettingsPatch({ boardAssistantIntentSuggestionCount: next });
-  }
-
-  function changeEditSmartSuggestionsEnabled(next: boolean): void {
-    setEditSmartSuggestionsPreference(next);
-    persistSettingsPatch({ editSmartSuggestionsEnabled: next });
-  }
-
-  function persistMemoryPreferences(enabled: boolean, usageLevel: MemoryUsageLevel): void {
-    setMemoryEnabled(enabled);
-    setMemoryUsageLevel(usageLevel);
-    persistSettingsPatch({
-      memoryEnabled: enabled,
-      memoryUsageLevel: usageLevel
-    });
-  }
-
-  function changeMemoryEnabled(next: boolean): void {
-    persistMemoryPreferences(next, memoryUsageLevel);
-  }
-
-  function changeMemoryUsageLevel(next: MemoryUsageLevel): void {
-    persistMemoryPreferences(memoryEnabled, next);
-  }
-
-  function changeEditInfoMode(next: EditInfoMode): void {
-    setEditInfoMode(next);
-    persistSettingsPatch({ editInfoMode: next });
-  }
-
-  function changeImageDoubleClickAction(next: ImageDoubleClickAction): void {
-    setImageDoubleClickAction(next);
-    persistSettingsPatch({ imageDoubleClickAction: next });
-  }
-
-  function changeVersionSeparationMode(next: VersionSeparationMode): void {
-    setVersionSeparationMode(next);
-    persistSettingsPatch({ versionSeparationMode: next });
-  }
-
-  function changeGenerateButtonStyle(next: GenerateButtonStyle): void {
-    setGenerateButtonStyle(next);
-    persistSettingsPatch({ generateButtonStyle: next });
-  }
 
   // ---------- 画板：库页操作 ----------
 
@@ -2475,7 +2086,7 @@ export default function App(): React.ReactElement {
       const board = await api.createBoard();
       await refreshBoards();
       await openBoard(board.id, undefined, { resetPromptDraft: true });
-      toast.success(`已创建「${board.name}」`);
+      toast.success(translateSourceText("已创建「{{ui:0}}」", [board.name]));
     } catch (error) {
       reportWorkbenchError(error);
     }
@@ -2671,18 +2282,18 @@ export default function App(): React.ReactElement {
         }]
       : []);
     if (failures.length > 0) {
-      toast.error(`${completed}/${results.length} 个角色生成完成`, {
+      toast.error(translateSourceText("{{ui:0}}/{{ui:1}} 个角色生成完成", [completed, results.length]), {
         description: failures.map((failure) => `${failure.name}：${failure.reason}`).join("\n")
       });
       return;
     }
-    toast.success(`${completed}/${results.length} 个角色生成完成，等待逐项采用`);
+    toast.success(translateSourceText("{{ui:0}}/{{ui:1}} 个角色生成完成，等待逐项采用", [completed, results.length]));
   }
 
   async function retryComicCharacterGeneration(character: ComicCharacterNode): Promise<void> {
     const boardId = activeBoardRef.current?.id;
     if (!boardId) {
-      toast.error("当前漫剧画板尚未就绪，请返回后重新进入。");
+      toast.error(translateSourceText("当前漫剧画板尚未就绪，请返回后重新进入。"));
       return;
     }
     if (paidSubmissionInFlightRef.current.has(character.id)) {
@@ -2765,11 +2376,8 @@ export default function App(): React.ReactElement {
   async function refreshComicDramaAfterAgent(): Promise<void> {
     const boardId = activeBoardRef.current?.id;
     if (!boardId) return;
-    if (boardSaveTimerRef.current) {
-      clearTimeout(boardSaveTimerRef.current);
-      boardSaveTimerRef.current = null;
-    }
-    boardSaveQueuedRef.current = false;
+    boardSaveCoordinator.discardPending();
+    boardSaveCoordinator.discardPending();
     boardDetailCacheRef.current.delete(boardId);
     await openBoard(boardId, undefined, {
       forceReload: true,
@@ -2811,7 +2419,7 @@ export default function App(): React.ReactElement {
     try {
       const copy = await api.duplicateBoard(id);
       await refreshBoards();
-      if (copy) toast.success(`已创建「${copy.name}」`);
+      if (copy) toast.success(translateSourceText("已创建「{{ui:0}}」", [copy.name]));
     } catch (error) {
       reportWorkbenchError(error);
     }
@@ -2827,11 +2435,8 @@ export default function App(): React.ReactElement {
       // 删的是当前画板时，先取消待写入的自动保存，避免删除后又把文件写回来。
       if (deletingCurrentBoard) {
         deletedBoardIdsRef.current.add(id);
-        if (boardSaveTimerRef.current) {
-          clearTimeout(boardSaveTimerRef.current);
-          boardSaveTimerRef.current = null;
-        }
-        boardSaveQueuedRef.current = false;
+        boardSaveCoordinator.discardPending();
+        boardSaveCoordinator.discardPending();
         activeBoardRef.current = null;
         setActiveBoard(null);
         setImages([]);
@@ -2839,7 +2444,7 @@ export default function App(): React.ReactElement {
         workflowNodesRef.current = [];
         setWorkflowNodes([]);
         // 已发送的保存会先完成，再执行删除；尚在缩略图编码阶段的保存会被 tombstone 截断。
-        if (boardSaveInFlightRef.current) await boardSaveInFlightRef.current;
+        if (boardSaveCoordinator.pending) await boardSaveCoordinator.pending;
       }
       const deleted = await api.deleteBoard(id);
       if (!deleted.ok) throw new Error("画板不存在或已经移入回收站。");
@@ -2857,7 +2462,7 @@ export default function App(): React.ReactElement {
         await openBoard(list[0].id, undefined, { keepLibraryOpen: true });
       }
       await refreshHistory();
-      toast.success("画板已移入回收站");
+      toast.success(translateSourceText("画板已移入回收站"));
     } catch (error) {
       if (deletingCurrentBoard && !deletionCommitted) {
         deletedBoardIdsRef.current.delete(id);
@@ -2883,7 +2488,7 @@ export default function App(): React.ReactElement {
       if (activeBoardRef.current?.id === id) await flushBoardSave();
       const result = await api.exportBoard(id);
       if (result.ok && result.path) {
-        iterlayToast.exported({ title: "画板已导出", path: result.path });
+        iterlayToast.exported({ title: translateSourceText("画板已导出"), path: result.path });
       }
     } catch (error) {
       reportWorkbenchError(error);
@@ -2924,529 +2529,47 @@ export default function App(): React.ReactElement {
         imported.push(summary);
       } catch (error) {
         const message = error instanceof Error ? error.message : "导入失败。";
-        toast.error(`导入 ${file.name} 失败：${message}`);
+        toast.error(translateSourceText("导入 {{ui:0}} 失败：{{ui:1}}", [file.name, message]));
       }
     }
     await Promise.all([refreshBoards(), refreshHistory()]);
     imported.forEach(announceImportedBoard);
   }
 
-
-  async function generate(
-    sourceRect?: ParticleBurstTrigger["rect"],
-    inputOverride?: Partial<GenerateImageInput>,
-    options?: {
-      skipOfficialCreditCheck?: boolean;
-      preservePrompt?: boolean;
-      createDerivedEditNode?: boolean;
-      placementAnchorId?: string;
-      preserveModelOverride?: boolean;
-    }
-  ): Promise<GeneratedImage[]> {
-    let generationInput: GenerateImageInput = { ...inputRef.current, ...inputOverride };
-    const blockedMessage = getBlockedGenerateMessage(generationInput);
-    if (blockedMessage) {
-      const message = blockedMessage;
-      setStatus(message);
-      toast.error(message);
-      return [];
-    }
-    const api = getWorkbenchApi();
-    if (!api) return [];
-    const originBoard = activeBoardRef.current;
-    if (!originBoard) {
-      toast.error("请先打开一个画板。");
-      return [];
-    }
-    if (inputOverride?.boardId && inputOverride.boardId !== originBoard.id) {
-      toast.error("画板已切换，请回到原画板重新发起生成。");
-      return [];
-    }
-    const originBoardSequence = boardOpenSequenceRef.current;
-    const isOriginBoardCurrent = (): boolean =>
-      activeBoardRef.current?.id === originBoard.id
-      && boardOpenSequenceRef.current === originBoardSequence;
-    const editTargetImage =
-      generationInput.workflowMode === "edit" && editTargetId
-        ? (imagesRef.current.find((image) => image.id === editTargetId) ?? null)
-        : null;
-    if (!providerSupportsTransparentBackground(activeProvider)) {
-      generationInput = { ...generationInput, background: "auto", outputFormat: "png" };
-    }
-    if (isOfficialProvider && !generationInput.idempotencyKey) {
-      const inputFingerprint = await generationFingerprint({
-        boardId: originBoard.id,
-        prompt: generationInput.prompt,
-        model: options?.preserveModelOverride ? generationInput.model : activeProvider.model || generationInput.model,
-        size: parseGptImageSize(generationInput.size),
-        count: Math.max(1, generationInput.n),
-        workflowMode: generationInput.workflowMode,
-        background: generationInput.background ?? "auto",
-        outputFormat: generationInput.outputFormat ?? "png",
-        references: generationInput.referenceImages.map((reference) => ({ id: reference.id, role: reference.role, sourceNodeId: reference.sourceNodeId }))
-      });
-      generationInput = {
-        ...generationInput,
-        ...await paidGenerationMetadata(inputFingerprint, generationInput.comicDramaContextSnapshot?.role ?? "first-frame", {
-          kind: "image", providerId: activeProviderId, boardId: originBoard.id,
-          requestScope: generationInput.generationNodeId ?? generationInput.sceneId ?? inputFingerprint, operation: "image:generate",
-          imageCount: Math.max(1, generationInput.n)
-        })
-      };
-    }
-    if (isOfficialProvider && !options?.skipOfficialCreditCheck) {
-      const required = Math.max(1, generationInput.n) * IMAGE_CREDIT_COST;
-      const balance = creditStatus?.credits.balance ?? 0;
-      if (balance < required) {
-        iterlayToast.balance({
-          balance,
-          required,
-          onActivate: licenseStatus?.state === "LICENSED" ? undefined : openLicenseActivation
-        });
-        return [];
-      }
-    }
-
-    const submittedPrompt = generationInput.prompt.trim();
-
-    // 编辑会话把生成结果叠加为当前图片的新版本。
-    const isEditSession = editTargetImage !== null && !options?.createDerivedEditNode;
-    const requestedEditCount = Math.max(1, generationInput.n);
-    let editReferencePayload: ReferenceImagePayload | null = null;
-    if (editTargetImage) {
-      try {
-        const source = editTargetImage.dataUrl.startsWith("data:")
-          ? editTargetImage.dataUrl
-          : await api.readAssetDataUrl(editTargetImage.path);
-        editReferencePayload = dataUrlToReferencePayload(source, "编辑目标", "edit-target");
-      } catch {
-        editReferencePayload = null;
-      }
-    }
-    if (editTargetImage && !editReferencePayload) {
-      toast.error("无法读取目标图片，请重试。");
-      return [];
-    }
-    // Quotes and reference reads can yield while the user switches boards.
-    // Never insert placeholders or clear the composer in a different board.
-    if (!isOriginBoardCurrent()) {
-      toast.error("画板已切换，本次生成尚未提交，请回到原画板重试。");
-      return [];
-    }
-
-    const activeGenerationId = crypto.randomUUID();
-    const queueTicket = generationQueueRef.current!.enqueue(activeGenerationId);
-
-    // Put loading placeholder nodes on the canvas immediately; they keep their id
-    // through pending → done so the finished image lands in the same spot.
-    // Placeholders carry the requested output dimensions so the pending card
-    // already shows the final aspect ratio instead of a generic square.
-    const placeholderSize = parseSizeDimensions(generationInput.size);
-    const outputConnectionSourceId = generationInput.generationNodeId ?? options?.placementAnchorId;
-    const clientIds: string[] = isEditSession
-      ? []
-      : Array.from({ length: Math.max(1, generationInput.n) }, () => crypto.randomUUID());
-    if (isEditSession) {
-      const editingStartedAt = queueTicket.queued ? undefined : Date.now();
-      setImages((current) =>
-        current.map((image) =>
-          image.id === editTargetImage.id
-            ? {
-                ...image,
-                editing: true,
-                pendingEditCount: getPendingEditCount(image) + requestedEditCount,
-                queuedEditCount: (image.queuedEditCount ?? 0) + (queueTicket.queued ? requestedEditCount : 0),
-                editingStartedAt: image.editingStartedAt ?? editingStartedAt
-              }
-            : image
-        )
-      );
-    } else {
-      const pendingStartedAt = queueTicket.queued ? undefined : Date.now();
-      const referenceAnchorId = options?.placementAnchorId ?? (options?.createDerivedEditNode && editTargetImage
-        ? editTargetImage.id
-        : generationInput.referenceImages
-        .map((reference) => reference.sourceNodeId)
-        .find((nodeId): nodeId is string => Boolean(nodeId && imagesRef.current.some((image) => image.id === nodeId))));
-      const placeholderDrafts: GeneratedImage[] = clientIds.map((id, index) => ({
-        id,
-        path: "",
-        dataUrl: "",
-        jobId: "",
-        pending: true,
-        generationStatus: queueTicket.queued ? "queued" : "running",
-        pendingStartedAt,
-        pendingPrompt: submittedPrompt,
-        pendingReferenceImages: generationInput.referenceImages.map((reference) => ({
-          name: reference.name,
-          dataUrl: `data:${reference.mimeType};base64,${reference.dataBase64}`
-        })),
-        placementAnchorId: generationInput.generationNodeId
-          ? generationInput.generationNodeId
-          : index === 0 ? referenceAnchorId : clientIds[index - 1],
-        selectOnCreate: Boolean(options?.createDerivedEditNode),
-        source: "generated",
-        width: placeholderSize?.width,
-        height: placeholderSize?.height
-      }));
-      let nextImages = [...placeholderDrafts, ...imagesRef.current];
-      if (generationInput.generationNodeId) {
-        const anchor = canvasStateRef.current.positions[generationInput.generationNodeId];
-        if (anchor) {
-          nextImages = centerGenerationOutputs(
-            nextImages,
-            generationInput.generationNodeId,
-            anchor,
-            canvasStateRef.current.positions
-          );
-        }
-      }
-      imagesRef.current = nextImages;
-      setImages(nextImages);
-      if (outputConnectionSourceId && workflowNodesRef.current.some((node) => node.id === outputConnectionSourceId)) {
-        const sourceNode = workflowNodesRef.current.find((node) => node.id === outputConnectionSourceId);
-        const connections = canvasStateRef.current.connections;
-        const additions = createMissingGenerationOutputConnections({
-          sourceId: outputConnectionSourceId,
-          targetIds: clientIds,
-          existing: connections,
-          label: sourceNode?.type === "comic-character" ? "角色形象" : "生成结果"
-        });
-        if (additions.length > 0) {
-          canvasStateRef.current = {
-            ...canvasStateRef.current,
-            connections: [...connections, ...additions]
-          };
-          window.setTimeout(() => {
-            setCanvasConnectionsVersion((value) => value + 1);
-          }, 80);
-        }
-      }
-      // Reuse the same targeted canvas focus used by history clicks. The placeholder keeps
-      // this id after completion, so the camera does not jump again when the result arrives.
-      const firstPlaceholderId = clientIds[0];
-      if (firstPlaceholderId) {
-        setFocusTarget((current) => ({ key: firstPlaceholderId, nonce: (current?.nonce ?? 0) + 1 }));
-      }
-    }
-    // The composer text "left" as particles — clear it so the input is ready for the next prompt.
-    if (!options?.preservePrompt) {
-      setInput((current) => ({ ...current, prompt: "" }));
-    }
-
-    // Track the placeholder by id so the burst follows it while React Flow pans or zooms.
-    if (!isEditSession && sourceRect && submittedPrompt) {
-      const firstId = clientIds[0];
-      if (firstId) triggerParticleBurst(submittedPrompt, sourceRect, firstId);
-    }
-
-    setActiveGenerations((count) => count + 1);
-    setActiveBoardGenerations((current) => [
-      ...current,
-      {
-        id: activeGenerationId,
-        boardId: originBoard.id,
-        mode: generationInput.workflowMode,
-        prompt: submittedPrompt,
-        requestedCount: Math.max(1, generationInput.n),
-        startedAt: Date.now(),
-        status: queueTicket.queued ? "queued" : "running"
-      }
-    ]);
-    setStatus(queueTicket.queued
-      ? "任务排队中..."
-      : options?.createDerivedEditNode || generationInput.workflowMode !== "edit" ? "正在生成图片..." : "正在编辑图片...");
-    let delayedNoticeId: string | number | undefined;
-    let delayedNoticeTimer: number | null = null;
-    try {
-      await queueTicket.ready;
-      if (queueTicket.queued) {
-        const startedAt = Date.now();
-        setActiveBoardGenerations((current) => current.map((task) =>
-          task.id === activeGenerationId ? { ...task, status: "running", startedAt } : task
-        ));
-        if (isEditSession && activeBoardRef.current?.id === originBoard.id) {
-          setImages((current) => current.map((image) => {
-            if (image.id !== editTargetImage.id) return image;
-            return {
-              ...image,
-              queuedEditCount: Math.max(0, (image.queuedEditCount ?? 0) - requestedEditCount) || undefined,
-              editingStartedAt: image.editingStartedAt ?? startedAt
-            };
-          }));
-        } else if (activeBoardRef.current?.id === originBoard.id) {
-          const clientIdSet = new Set(clientIds);
-          setImages((current) => current.map((image) => clientIdSet.has(image.id)
-            ? { ...image, generationStatus: "running", pendingStartedAt: startedAt }
-            : image));
-        }
-      }
-      setStatus(options?.createDerivedEditNode || generationInput.workflowMode !== "edit" ? "正在生成图片..." : "正在编辑图片...");
-      if (!isEditSession) {
-        delayedNoticeTimer = window.setTimeout(() => {
-          delayedNoticeId = iterlayToast.generationPending();
-        }, GENERATION_ESTIMATE_MS);
-      }
-      // 负面提示（避免出现）在发送时并入提示词，真正到达 provider（对纯文本与结构化都生效）。
-      const avoid = generationInput.promptSpec?.avoid?.trim();
-      const finalPrompt =
-        avoid && !/(^|\n)\s*avoid\s*[:：]/i.test(generationInput.prompt)
-          ? `${generationInput.prompt}\n\nAvoid: ${avoid}`
-          : generationInput.prompt;
-      const payload: GenerateImageInput = {
-        ...generationInput,
-        prompt: finalPrompt,
-        model: options?.preserveModelOverride
-          ? generationInput.model
-          : activeProvider.model || generationInput.model,
-        size: parseGptImageSize(generationInput.size),
-        background: generationInput.background,
-        outputFormat: generationInput.outputFormat,
-        boardId: originBoard.id,
-        providerId: activeProviderId,
-        // 编辑任务始终把当前目标图（当前激活版本）作为首个参考图传给 Provider。
-        referenceImages: editReferencePayload
-          ? [editReferencePayload, ...generationInput.referenceImages]
-          : generationInput.referenceImages
-      };
-      const result: GenerateResponse = await api.generateImage(payload);
-      if (result.credits) {
-        setCreditStatus((current) => ({
-          ...(current ?? { providerAvailable: true }),
-          credits: result.credits!,
-          providerAvailable: current?.providerAvailable ?? true
-        }));
-      }
-      const produced = await Promise.all(
-        result.images.map(async (image) => {
-          const size = await loadImageSize(image.dataUrl);
-          return { ...image, width: size.width || undefined, height: size.height || undefined };
-        })
-      );
-      if (isEditSession) {
-        // 结果按顺序追加为新版本（n>1 时全部入栈，版本条里翻着对比），激活最新版。
-        const newVersions: ImageVersion[] = produced.map((output) => ({
-          path: output.path,
-          dataUrl: output.dataUrl,
-          jobId: result.job.id,
-          width: output.width,
-          height: output.height
-        }));
-        // 无论当前在哪个画板，先把新版本落盘到发起画板，保证在途编辑结果始终可恢复
-        // （退出编辑 / 退出画板再进来都能看到）；后续自动保存是全量覆盖，内容一致不会重复。
-        await api.appendBoardNodeVersions(
-          originBoard.id,
-          editTargetImage.id,
-          newVersions.map((version) => ({
-            imagePath: version.path,
-            jobId: version.jobId,
-            width: version.width,
-            height: version.height
-          }))
-        );
-        boardDetailCacheRef.current.delete(originBoard.id);
-        if (activeBoardRef.current?.id === originBoard.id) {
-          // 当前就在发起画板：同步更新内存即时呈现（与已落盘内容一致）。
-          setImages((current) =>
-            current.map((image) => {
-              if (image.id !== editTargetImage.id) return image;
-              const base: ImageVersion[] = image.versions ?? [
-                { path: image.path, dataUrl: image.dataUrl, jobId: image.jobId, width: image.width, height: image.height }
-              ];
-              const versions = [...base, ...newVersions];
-              const newest = versions[versions.length - 1];
-              const pendingEditCount = Math.max(0, getPendingEditCount(image) - requestedEditCount);
-              const queuedEditCount = Math.min(pendingEditCount, image.queuedEditCount ?? 0);
-              return {
-                ...image,
-                versions,
-                activeVersion: versions.length - 1,
-                path: newest.path,
-                dataUrl: newest.dataUrl,
-                jobId: newest.jobId,
-                width: newest.width,
-                height: newest.height,
-                editing: pendingEditCount > 0,
-                pendingEditCount: pendingEditCount || undefined,
-                queuedEditCount: queuedEditCount || undefined,
-                editingStartedAt: pendingEditCount > queuedEditCount ? image.editingStartedAt : undefined
-              };
-            })
-          );
-        } else {
-          // 编辑期间切走了画板：已落盘，刷新画板库摘要即可。
-          void refreshBoards();
-        }
-        setStatus("编辑完成。");
-        iterlayToast.result({
-          count: newVersions.length,
-          title: newVersions.length > 1 ? `已生成 ${newVersions.length} 个编辑版本` : "编辑已应用",
-          detail: activeBoardRef.current?.id === originBoard.id ? "新版本已叠加到原图" : `已存入「${originBoard.name}」`,
-          previews: newVersions.map((version) => version.dataUrl),
-          onNavigate: () => void locateGenerationResult(
-            originBoard.id,
-            newVersions.map((version) => version.path)
-          )
-        });
-        if (result.warnings?.length) result.warnings.forEach((warning) => toast.warning(warning));
-        await refreshHistory();
-        return newVersions.map((version) => ({
-          id: crypto.randomUUID(),
-          path: version.path,
-          dataUrl: version.dataUrl,
-          jobId: version.jobId,
-          pending: false,
-          source: "generated" as const,
-          width: version.width,
-          height: version.height
-        }));
-      }
-
-      let completedImages: GeneratedImage[] = produced.map((output, index) => ({
-        id: clientIds[index] ?? crypto.randomUUID(),
-        path: output.path,
-        dataUrl: output.dataUrl,
-        jobId: result.job.id,
-        pending: false,
-        source: "generated" as const,
-        width: output.width,
-        height: output.height
-      }));
-      if (generationInput.generationNodeId) {
-        completedImages = completedImages.map((image) => ({
-          ...image,
-          placementAnchorId: generationInput.generationNodeId
-        }));
-      }
-      const completedOnOriginBoard = activeBoardRef.current?.id === originBoard.id;
-      if (completedOnOriginBoard) {
-        let nextImages = settleGeneratedPlaceholders(imagesRef.current, clientIds, completedImages);
-        if (generationInput.generationNodeId) {
-          const anchor = canvasStateRef.current.positions[generationInput.generationNodeId];
-          if (anchor) {
-            nextImages = centerGenerationOutputs(
-              nextImages,
-              generationInput.generationNodeId,
-              anchor,
-              canvasStateRef.current.positions
-            );
-            const completedById = new Map(nextImages.map((image) => [image.id, image]));
-            completedImages = completedImages.map((image) => completedById.get(image.id) ?? image);
-          }
-        }
-        imagesRef.current = nextImages;
-        setImages(nextImages);
-        if (generationInput.generationNodeId) {
-          updateWorkflowNode(generationInput.generationNodeId, {
-            status: "succeeded",
-            lastGenerationId: result.job.id,
-            error: undefined
-          });
-        }
-        if (outputConnectionSourceId) {
-          const connections = canvasStateRef.current.connections;
-          const sourceNode = workflowNodesRef.current.find((node) => node.id === outputConnectionSourceId);
-          const additions = createMissingGenerationOutputConnections({
-            sourceId: outputConnectionSourceId,
-            targetIds: completedImages.map((image) => image.id),
-            existing: connections,
-            label: sourceNode?.type === "comic-character" ? "角色形象" : "生成结果"
-          });
-          if (additions.length > 0) {
-            canvasStateRef.current = {
-              ...canvasStateRef.current,
-              connections: [...connections, ...additions]
-            };
-            setCanvasConnectionsVersion((value) => value + 1);
-          }
-        }
-        // 创作页会在 generate 返回后立刻展示成功结果。先把终态落盘，避免用户
-        // 随即进入画板时仍读到 pending 占位节点。
-        await persistBoard();
-        setStatus(`已生成 ${result.images.length} 张图片。`);
-        if (produced.length < clientIds.length) {
-          iterlayToast.partial({ actual: produced.length, expected: clientIds.length });
-        } else {
-          iterlayToast.result({
-            count: result.images.length,
-            previews: completedImages.map((output) => output.dataUrl),
-            onNavigate: () => void locateGenerationResult(
-              originBoard.id,
-              completedImages.map((output) => output.path)
-            )
-          });
-        }
-      } else {
-        // 用户已切到别的画板：结果直接写进发起画板的文件（摆在现有内容右侧）。
-        await api.appendBoardNodes(
-          originBoard.id,
-          completedImages.map((output) => ({
-            id: output.id,
-            imagePath: output.path,
-            jobId: output.jobId,
-            source: output.source ?? "generated",
-            width: output.width,
-            height: output.height
-          }))
-        );
-        boardDetailCacheRef.current.delete(originBoard.id);
-        void refreshBoards();
-        setStatus(`已生成 ${result.images.length} 张图片。`);
-        iterlayToast.result({
-          count: result.images.length,
-          boardName: originBoard.name,
-          previews: produced.map((output) => output.dataUrl),
-          onNavigate: () => void locateGenerationResult(
-            originBoard.id,
-            completedImages.map((output) => output.path)
-          )
-        });
-      }
-      // Provider 侧的非致命问题（部分失败/返回张数不足）要说清楚，不能让占位符静默消失。
-      if (result.warnings?.length) {
-        result.warnings.forEach((warning) => toast.warning(warning));
-      } else if (produced.length < clientIds.length && !completedOnOriginBoard) {
-        toast.warning(`请求 ${clientIds.length} 张，实际返回 ${produced.length} 张。`);
-      }
-      await refreshHistory();
-      return completedImages;
-    } catch (error) {
-      const message = getWorkbenchErrorMessage(error, "生成失败。");
-      if (isEditSession && activeBoardRef.current?.id === originBoard.id) {
-        setImages((current) =>
-          current.map((image) =>
-            image.id === editTargetImage.id
-              ? (() => {
-                  const pendingEditCount = Math.max(0, getPendingEditCount(image) - requestedEditCount);
-                  const queuedEditCount = Math.min(pendingEditCount, image.queuedEditCount ?? 0);
-                  return {
-                    ...image,
-                    editing: pendingEditCount > 0,
-                    pendingEditCount: pendingEditCount || undefined,
-                    queuedEditCount: queuedEditCount || undefined,
-                    editingStartedAt: pendingEditCount > queuedEditCount ? image.editingStartedAt : undefined
-                  };
-                })()
-              : image
-          )
-        );
-      } else if (!isEditSession && activeBoardRef.current?.id === originBoard.id) {
-        const nextImages = removeGeneratedPlaceholders(imagesRef.current, clientIds);
-        imagesRef.current = nextImages;
-        setImages(nextImages);
-      }
-      setStatus(message);
-      toast.error(message);
-      await refreshHistory();
-      return [];
-    } finally {
-      if (delayedNoticeTimer !== null) window.clearTimeout(delayedNoticeTimer);
-      if (delayedNoticeId !== undefined) iterlayToast.dismiss(delayedNoticeId);
-      generationQueueRef.current?.release(activeGenerationId);
-      setActiveGenerations((count) => count - 1);
-      setActiveBoardGenerations((current) => current.filter((task) => task.id !== activeGenerationId));
-    }
-  }
+    const generate = createImageGenerationController({
+    inputRef,
+    getBlockedGenerateMessage,
+    setStatus,
+    getWorkbenchApi,
+    activeBoardRef,
+    boardOpenSequenceRef,
+    editTargetId,
+    imagesRef,
+    activeProvider,
+    activeProviderId,
+    dataUrlToReferencePayload,
+    generationQueueRef,
+    parseSizeDimensions,
+    setImages,
+    canvasStateRef,
+    workflowNodesRef,
+    setCanvasConnectionsVersion,
+    setFocusTarget,
+    setInput,
+    triggerParticleBurst,
+    setActiveGenerations,
+    setActiveBoardGenerations,
+    loadImageSize,
+    boardDetailCacheRef,
+    refreshBoards,
+    locateGenerationResult,
+    refreshHistory,
+    updateWorkflowNode,
+    persistBoard,
+    window,
+    toast,
+    iterlayToast
+  });
 
   function createWorkflowNode(
     type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
@@ -3559,7 +2682,7 @@ export default function App(): React.ReactElement {
         suppressLoadingScreen: true
       });
       setComicDramaEntryPosition(null);
-      toast.success(`已进入「${result.childBoard.name}」漫剧画板`);
+      toast.success(translateSourceText("已进入「{{ui:0}}」漫剧画板", [result.childBoard.name]));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "创建漫剧子画板失败。"));
     }
@@ -3659,7 +2782,7 @@ export default function App(): React.ReactElement {
     const originBoardId = activeBoardRef.current?.id;
     if (!originBoardId) return [];
     if ((resolved.versionConflicts?.length ?? 0) > 0) {
-      toast.error(`固定版本冲突：${resolved.versionConflicts![0]}`);
+      toast.error(translateSourceText("固定版本冲突：{{ui:0}}", [resolved.versionConflicts![0]]));
       return [];
     }
     if (paidSubmissionInFlightRef.current.has(node.id)) return [];
@@ -3771,12 +2894,12 @@ export default function App(): React.ReactElement {
     }
   ): Promise<void> {
     if ((resolved.versionConflicts?.length ?? 0) > 0) {
-      toast.error(`固定版本冲突：${resolved.versionConflicts![0]}`);
+      toast.error(translateSourceText("固定版本冲突：{{ui:0}}", [resolved.versionConflicts![0]]));
       return;
     }
     const boardId = activeBoardRef.current?.id;
     if (!boardId) {
-      toast.error("请先打开一个画板。");
+      toast.error(translateSourceText("请先打开一个画板。"));
       return;
     }
     const api = getWorkbenchApi();
@@ -3786,11 +2909,11 @@ export default function App(): React.ReactElement {
     }
     const prompt = resolved.prompt.trim();
     if (resolved.referenceImages.length > VIDEO_MAX_REFERENCE_IMAGES) {
-      toast.error(`当前模型最多接收 ${VIDEO_MAX_REFERENCE_IMAGES} 张参考图，请先移除多余连接。`);
+      toast.error(translateSourceText("当前模型最多接收 {{ui:0}} 张参考图，请先移除多余连接。", [VIDEO_MAX_REFERENCE_IMAGES]));
       return;
     }
     if (!prompt && resolved.images.length === 0 && resolved.referenceVideos.length === 0 && !node.sourceVideoPath) {
-      toast.error("请填写运动描述，或连接图片/视频参考。");
+      toast.error(translateSourceText("请填写运动描述，或连接图片/视频参考。"));
       return;
     }
     const selectedVideoProvider = videoProviders.find((provider) => provider.id === (node.providerId || activeVideoProviderId));
@@ -3802,7 +2925,7 @@ export default function App(): React.ReactElement {
     }
 
     if (resolved.requiresFirstLastFrame && (!resolved.startFrame || !resolved.endFrame)) {
-      toast.error("请先分别采用首帧和尾帧，并保持固定版本连接。");
+      toast.error(translateSourceText("请先分别采用首帧和尾帧，并保持固定版本连接。"));
       return;
     }
     if (paidSubmissionInFlightRef.current.has(node.id)) return;
@@ -4014,7 +3137,7 @@ export default function App(): React.ReactElement {
             referenceAudioPaths: Array.from(new Set([...(node.referenceAudioPaths ?? []), imported.path])),
             referenceAudioNames: { ...(node.referenceAudioNames ?? {}), [imported.path]: file.name }
           });
-          toast.success("参考音频已添加");
+          toast.success(translateSourceText("参考音频已添加"));
         } catch (error) {
           toast.error(getWorkbenchErrorMessage(error, "参考音频导入失败。"));
         }
@@ -4143,7 +3266,7 @@ export default function App(): React.ReactElement {
         status: "polling_stopped",
         error: "仅停止本地等待，远端任务可能继续运行并产生费用。"
       });
-      toast.info("已停止本地等待，远端任务可能仍在运行");
+      toast.info(translateSourceText("已停止本地等待，远端任务可能仍在运行"));
     } catch (error) {
       videoPollingStoppedRef.current.delete(node.lastGenerationId);
       toast.error(getWorkbenchErrorMessage(error, "停止本地等待失败。"));
@@ -4457,8 +3580,8 @@ export default function App(): React.ReactElement {
       if (!copies) return;
       setImages((current) => current.flatMap((image) => image.id === imageId ? [image, ...copies] : [image]));
       iterlayToast.placed({
-        title: versionIndex === undefined ? `已复制分离 ${copies.length} 个版本` : `v${versionIndex + 1} 已复制分离`,
-        detail: "原版本仍保留在版本栈中",
+        title: versionIndex === undefined ? translateSourceText("已复制分离 {{ui:0}} 个版本", [copies.length]) : translateSourceText("v{{ui:0}} 已复制分离", [versionIndex + 1]),
+        detail: translateSourceText("原版本仍保留在版本栈中"),
         previews: copies.map((image) => image.dataUrl)
       });
       return;
@@ -4470,8 +3593,8 @@ export default function App(): React.ReactElement {
     if (!extracted) return;
     setImages((current) => current.flatMap((image) => image.id === imageId ? extracted : [image]));
     iterlayToast.placed({
-      title: versionIndex === undefined ? `已直接分离 ${extracted.length} 个版本` : `v${versionIndex + 1} 已直接分离`,
-      detail: "已作为独立图片放入画板",
+      title: versionIndex === undefined ? translateSourceText("已直接分离 {{ui:0}} 个版本", [extracted.length]) : translateSourceText("v{{ui:0}} 已直接分离", [versionIndex + 1]),
+      detail: translateSourceText("已作为独立图片放入画板"),
       previews: extracted.map((image) => image.dataUrl)
     });
   }, [versionSeparationMode]);
@@ -4534,7 +3657,7 @@ export default function App(): React.ReactElement {
   const openImageSourceTemplate = useCallback((image: GeneratedImage): void => {
     const scene = findImageSourceTemplate(image);
     if (!scene) {
-      toast.error("来源模板已删除，无法打开。");
+      toast.error(translateSourceText("来源模板已删除，无法打开。"));
       return;
     }
     setHistoryOpen(false);
@@ -4552,7 +3675,7 @@ export default function App(): React.ReactElement {
       quality: qualityEditedByUser ? current.quality : getDefaultQuality(scene.mode, scene.useCase)
     }));
     setLibraryOpen(false);
-    toast.success(`已套用模板「${scene.name}」`);
+    toast.success(translateSourceText("已套用模板「{{ui:0}}」", [scene.name]));
   }, [qualityEditedByUser]);
 
   const saveScene = useCallback((draft: NewSceneInput): SceneDefinition => {
@@ -4593,7 +3716,7 @@ export default function App(): React.ReactElement {
       writeFavoriteSceneIds(next);
       return next;
     });
-    toast.success("模板已删除");
+    toast.success(translateSourceText("模板已删除"));
   }, []);
 
   async function exportSceneTemplate(scene: SceneDefinition): Promise<void> {
@@ -4602,7 +3725,7 @@ export default function App(): React.ReactElement {
     try {
       const result = await api.exportScene(scene);
       if (result.ok && result.path) {
-        iterlayToast.exported({ title: "模板已导出", path: result.path });
+        iterlayToast.exported({ title: translateSourceText("模板已导出"), path: result.path });
       }
     } catch (error) {
       reportWorkbenchError(error);
@@ -4617,7 +3740,7 @@ export default function App(): React.ReactElement {
     const api = getWorkbenchApi();
     if (!api) throw new Error("桌面应用通信未就绪，请重启 Iterlay 后重试。");
     const submission = await api.submitSceneTemplate(scene, authorName, exampleResultIds);
-    toast.success("发布申请已提交，审核通过后会出现在模板广场");
+    toast.success(translateSourceText("发布申请已提交，审核通过后会出现在模板广场"));
     return submission;
   }
 
@@ -4652,8 +3775,8 @@ export default function App(): React.ReactElement {
       const scene = result.scene;
       toast.success(
         result.instanceCount > 0
-          ? `已导入模板「${scene.name}」和 ${result.instanceCount} 个实例`
-          : `已导入模板「${scene.name}」`
+          ? translateSourceText("已导入模板「{{ui:0}}」和 {{ui:1}} 个实例", [scene.name, result.instanceCount])
+          : translateSourceText("已导入模板「{{ui:0}}」", [scene.name])
       );
     });
     return importedScenes;
@@ -4667,7 +3790,7 @@ export default function App(): React.ReactElement {
       try {
         results.push(await api.importSceneData(await file.arrayBuffer()));
       } catch (error) {
-        toast.error(`导入 ${file.name} 失败：${getWorkbenchErrorMessage(error, "导入模板失败。")}`);
+        toast.error(translateSourceText("导入 {{ui:0}} 失败：{{ui:1}}", [file.name, getWorkbenchErrorMessage(error, "导入模板失败。")]));
       }
     }
     return persistImportedSceneResults(results);
@@ -4797,7 +3920,7 @@ export default function App(): React.ReactElement {
 
   const openTemplateExtraction = useCallback((image: GeneratedImage): void => {
     if (!textProviderReady) {
-      toast.error("沉淀模板需要先配置可用的文本 AI。");
+      toast.error(translateSourceText("沉淀模板需要先配置可用的文本 AI。"));
       openProviderSetup();
       return;
     }
@@ -4806,7 +3929,7 @@ export default function App(): React.ReactElement {
     const job = history.find((item) => item.id === jobId);
     const sourcePrompt = job?.prompt?.trim() || job?.input.prompt?.trim() || "";
     if (!image.dataUrl && !image.path) {
-      toast.error("无法读取这张画板图片，暂时不能沉淀为模板。");
+      toast.error(translateSourceText("无法读取这张画板图片，暂时不能沉淀为模板。"));
       return;
     }
     const workflowMode = job?.input.workflowMode ?? "generate";
@@ -4966,7 +4089,7 @@ export default function App(): React.ReactElement {
     // 浏览器拖出图片时常同时携带临时文件与远程 URL，优先本地文件避免重复导入。
     const remoteUrls = imageFiles.length > 0 ? [] : imageUrls;
     if (imageFiles.length === 0 && remoteUrls.length === 0) {
-      if (boardFiles.length === 0 && videoFiles.length === 0) toast.error("未识别到图片、视频或可导入链接。");
+      if (boardFiles.length === 0 && videoFiles.length === 0) toast.error(translateSourceText("未识别到图片、视频或可导入链接。"));
       return [];
     }
     const api = getWorkbenchApi();
@@ -5015,7 +4138,7 @@ export default function App(): React.ReactElement {
       const message = first?.status === "rejected"
         ? getWorkbenchErrorMessage(first.reason, "图片链接下载失败。")
         : "图片链接下载失败。";
-      toast.error(remoteUrls.length === 1 ? message : `${failedRemote.length} 个图片链接导入失败：${message}`);
+      toast.error(remoteUrls.length === 1 ? message : translateSourceText("{{ui:0}} 个图片链接导入失败：{{ui:1}}", [failedRemote.length, message]));
     }
 
     const imported = [...uploadedFiles, ...uploadedRemote];
@@ -5051,22 +4174,22 @@ export default function App(): React.ReactElement {
         void refreshBoards();
         iterlayToast.result({
           count: persistable.length,
-          title: `已添加 ${persistable.length} 张图片`,
+          title: translateSourceText("已添加 {{ui:0}} 张图片", [persistable.length]),
           boardName: originBoard.name,
           previews: persistable.map((image) => image.dataUrl),
           onNavigate: () => void openBoard(originBoard.id)
         });
       }
       if (persistable.length < uploaded.length) {
-        toast.warning(`${uploaded.length - persistable.length} 张图片未能保存到来源画板。`);
+        toast.warning(translateSourceText("{{ui:0}} 张图片未能保存到来源画板。", [uploaded.length - persistable.length]));
       }
       return [];
     }
     setImages((current) => [...uploaded, ...current]);
     if (options.notifyPlacement !== false) {
       iterlayToast.placed({
-        title: `已添加 ${uploaded.length} 张图片到画布`,
-        detail: "可用作生成参考图",
+        title: translateSourceText("已添加 {{ui:0}} 张图片到画布", [uploaded.length]),
+        detail: translateSourceText("可用作生成参考图"),
         previews: uploaded.map((image) => image.dataUrl),
         onUseReference: () => uploaded.forEach((image) => void addImageReference(image))
       });
@@ -5079,7 +4202,7 @@ export default function App(): React.ReactElement {
     if (videoFiles.length === 0) return;
     const originBoard = activeBoardRef.current;
     if (!originBoard) {
-      toast.error("请先打开一个画板。");
+      toast.error(translateSourceText("请先打开一个画板。"));
       return;
     }
     const api = getImageWorkbenchApi();
@@ -5121,7 +4244,7 @@ export default function App(): React.ReactElement {
         return unpositioned;
       }));
       boardDetailCacheRef.current.delete(originBoard.id);
-      toast.success(`已将 ${imported.length} 个视频加入「${originBoard.name}」`);
+      toast.success(translateSourceText("已将 {{ui:0}} 个视频加入「{{ui:1}}」", [imported.length, originBoard.name]));
       return;
     }
     setVideoUrls((current) => Object.fromEntries([
@@ -5134,7 +4257,7 @@ export default function App(): React.ReactElement {
       return next;
     });
     scheduleBoardSave();
-    toast.success(imported.length === 1 ? "视频已添加到画布" : `已添加 ${imported.length} 个视频到画布`);
+    toast.success(imported.length === 1 ? translateSourceText("视频已添加到画布") : translateSourceText("已添加 {{ui:0}} 个视频到画布", [imported.length]));
   }
 
   const addUploadedImagesRef = useRef(addUploadedImages);
@@ -5168,9 +4291,9 @@ export default function App(): React.ReactElement {
     setImages((current) => [...current, ...copies]);
     iterlayToast.placed({
       title: action === "duplicate"
-        ? copies.length === 1 ? "已创建图片副本" : `已创建 ${copies.length} 个图片副本`
-        : `已粘贴 ${copies.length} 张图片`,
-      detail: action === "duplicate" ? "副本已排列在原图旁" : "已放到鼠标位置",
+        ? copies.length === 1 ? translateSourceText("已创建图片副本") : translateSourceText("已创建 {{ui:0}} 个图片副本", [copies.length])
+        : translateSourceText("已粘贴 {{ui:0}} 张图片", [copies.length]),
+      detail: action === "duplicate" ? translateSourceText("副本已排列在原图旁") : translateSourceText("已放到鼠标位置"),
       previews: copies.map((image) => image.dataUrl)
     });
   }, []);
@@ -5220,8 +4343,8 @@ export default function App(): React.ReactElement {
       scheduleBoardSave();
     }
     iterlayToast.placed({
-      title: assets.length === 1 ? "已将素材放入画板" : `已将 ${assets.length} 项素材放入画板`,
-      detail: assets.length === 1 ? `来自「${assets[0].boardName}」` : "已按选择顺序排列",
+      title: assets.length === 1 ? translateSourceText("已将素材放入画板") : translateSourceText("已将 {{ui:0}} 项素材放入画板", [assets.length]),
+      detail: assets.length === 1 ? translateSourceText("来自「{{ui:0}}」", [assets[0].boardName]) : translateSourceText("已按选择顺序排列"),
       previews: assets.map((asset) => asset.thumbnailUrl || asset.dataUrl)
     });
   }, [scheduleBoardSave]);
@@ -5371,7 +4494,7 @@ export default function App(): React.ReactElement {
   const addImageReference = useCallback(async (image: GeneratedImage): Promise<void> => {
     const current = inputRef.current;
     if (current.referenceImages.length >= 4) {
-      toast.error("最多引用 4 张参考图。");
+      toast.error(translateSourceText("最多引用 4 张参考图。"));
       return;
     }
     const role: ReferenceImageRole = current.workflowMode === "edit" ? "edit-target" : "reference";
@@ -5381,13 +4504,13 @@ export default function App(): React.ReactElement {
       try {
         source = await getImageWorkbenchApi().readAssetDataUrl(image.path);
       } catch {
-        toast.error("无法读取该图片。");
+        toast.error(translateSourceText("无法读取该图片。"));
         return;
       }
     }
     const payload = dataUrlToReferencePayload(source, name, role);
     if (!payload) {
-      toast.error("无法将该图片用作参考图。");
+      toast.error(translateSourceText("无法将该图片用作参考图。"));
       return;
     }
     payload.sourceNodeId = image.id;
@@ -5425,13 +4548,13 @@ export default function App(): React.ReactElement {
     const current = inputRef.current;
     const availableSlots = Math.max(0, 4 - current.referenceImages.length);
     if (availableSlots === 0) {
-      toast.error("最多引用 4 张参考图。");
+      toast.error(translateSourceText("最多引用 4 张参考图。"));
       return;
     }
 
     const images = selectedImages.filter((image) => !image.pending);
     if (images.length === 0) {
-      toast.error("生成中的图片暂不能用作参考图。");
+      toast.error(translateSourceText("生成中的图片暂不能用作参考图。"));
       return;
     }
 
@@ -5490,7 +4613,7 @@ export default function App(): React.ReactElement {
 
     if (payloads.length === 0) {
       if (duplicateCount > 0 && failedCount === 0) toast("所选图片已在参考图中");
-      else toast.error("无法将所选图片用作参考图。");
+      else toast.error(translateSourceText("无法将所选图片用作参考图。"));
       return;
     }
 
@@ -5511,7 +4634,7 @@ export default function App(): React.ReactElement {
     const uploaded = await addUploadedImagesRef.current(files, [], undefined, { notifyPlacement: false });
     if (uploaded.length === 0) return;
     if (inputRef.current.referenceImages.length >= 4) {
-      toast.info("图片已上传到画板；参考图已达 4 张上限。");
+      toast.info(translateSourceText("图片已上传到画板；参考图已达 4 张上限。"));
       return;
     }
     await addImageReferences(uploaded, "已上传到画板");
@@ -5628,7 +4751,7 @@ export default function App(): React.ReactElement {
     position: NonNullable<AssetComment["position"]>
   ): void => {
     if (!image.path) {
-      toast.error("该图片尚未保存，暂不能评论。");
+      toast.error(translateSourceText("该图片尚未保存，暂不能评论。"));
       return;
     }
     // 点击图片后退出评论光标态，在点击处弹出输入框。
@@ -5682,7 +4805,7 @@ export default function App(): React.ReactElement {
 
   async function locateOnlineShare(boardId: string, nodeIds: string[]): Promise<void> {
     if (!boards.some((board) => board.id === boardId)) {
-      toast.error("分享内容所在的画板已被删除。");
+      toast.error(translateSourceText("分享内容所在的画板已被删除。"));
       return;
     }
     await openBoard(boardId);
@@ -5691,7 +4814,7 @@ export default function App(): React.ReactElement {
         imagesRef.current.some((image) => image.id === nodeId)
       );
       if (availableIds.length === 0) {
-        toast.error("分享的图片已不在来源画板中。");
+        toast.error(translateSourceText("分享的图片已不在来源画板中。"));
         return;
       }
       if (availableIds.length === 1) {
@@ -5712,11 +4835,11 @@ export default function App(): React.ReactElement {
   async function locateSceneHistory(job: GenerationJob, imagePath: string): Promise<void> {
     const boardId = job.boardId ?? activeBoardRef.current?.id;
     if (!boardId) {
-      toast.error("这条历史没有可用的来源画板。");
+      toast.error(translateSourceText("这条历史没有可用的来源画板。"));
       return;
     }
     if (job.boardId && !boards.some((board) => board.id === job.boardId)) {
-      toast.error("来源画板已删除，无法定位这张图片。");
+      toast.error(translateSourceText("来源画板已删除，无法定位这张图片。"));
       return;
     }
 
@@ -5818,7 +4941,7 @@ export default function App(): React.ReactElement {
     if (link.kind === "template") {
       const scene = scenes.find((candidate) => candidate.id === link.templateId);
       if (!scene) {
-        toast.error("链接中的模板不存在或已被删除。");
+        toast.error(translateSourceText("链接中的模板不存在或已被删除。"));
         return;
       }
       closeTransientSurfaces();
@@ -5837,14 +4960,14 @@ export default function App(): React.ReactElement {
 
     if (link.kind === "compose") {
       if (link.boardId && !await loadBoardDetail(link.boardId)) {
-        toast.error("链接中的画板不存在或已被删除。");
+        toast.error(translateSourceText("链接中的画板不存在或已被删除。"));
         return;
       }
       const template = link.templateId
         ? scenes.find((candidate) => candidate.id === link.templateId)
         : undefined;
       if (link.templateId && !template) {
-        toast.error("链接中的模板不存在或已被删除。");
+        toast.error(translateSourceText("链接中的模板不存在或已被删除。"));
         return;
       }
       closeTransientSurfaces();
@@ -5865,7 +4988,7 @@ export default function App(): React.ReactElement {
 
     if (link.kind === "import") {
       if (!activeBoardRef.current) {
-        toast.error("请先打开一个画板，再使用分享的创作设置。");
+        toast.error(translateSourceText("请先打开一个画板，再使用分享的创作设置。"));
         return;
       }
       const api = getWorkbenchApi();
@@ -5886,13 +5009,13 @@ export default function App(): React.ReactElement {
         referenceImages: importedReferences
       }));
       setPromptFocusNonce((current) => current + 1);
-      toast.success("已将提示词和参考图片导入当前画板。");
+      toast.success(translateSourceText("已将提示词和参考图片导入当前画板。"));
       return;
     }
 
     if (link.kind === "gallery") {
       if (link.boardId && !await loadBoardDetail(link.boardId)) {
-        toast.error("链接中的画板不存在或已被删除。");
+        toast.error(translateSourceText("链接中的画板不存在或已被删除。"));
         return;
       }
       closeTransientSurfaces();
@@ -5904,11 +5027,11 @@ export default function App(): React.ReactElement {
 
     const detail = await loadBoardDetail(link.boardId);
     if (!detail) {
-      toast.error("链接中的画板不存在或已被删除。");
+      toast.error(translateSourceText("链接中的画板不存在或已被删除。"));
       return;
     }
     if (link.nodeId && !detail.nodes.some((node) => node.id === link.nodeId)) {
-      toast.error("链接中的图片节点不存在或已被删除。");
+      toast.error(translateSourceText("链接中的图片节点不存在或已被删除。"));
       return;
     }
     closeTransientSurfaces();
@@ -5920,7 +5043,7 @@ export default function App(): React.ReactElement {
       requestAnimationFrame(() => {
         const target = imagesRef.current.find((image) => image.id === link.nodeId);
         if (!target) {
-          toast.error("链接中的图片节点不存在或已被删除。");
+          toast.error(translateSourceText("链接中的图片节点不存在或已被删除。"));
           return;
         }
         setFocusTarget((current) => ({
@@ -6001,7 +5124,7 @@ export default function App(): React.ReactElement {
     if (isActiveBoard) {
       // 当前画板可能还有尚未写入的节点，先落盘再由主进程原子移入回收站。
       await flushBoardSave();
-      if (boardSaveInFlightRef.current) await boardSaveInFlightRef.current;
+      if (boardSaveCoordinator.pending) await boardSaveCoordinator.pending;
     }
     const detail = await api.getBoard(boardId);
     const targetNode = detail?.nodes.find((node) => node.id === nodeId);
@@ -6024,7 +5147,7 @@ export default function App(): React.ReactElement {
           (connection) => connection.source !== nodeId && connection.target !== nodeId
         );
       }
-      toast.success("已从画板移除视频");
+      toast.success(translateSourceText("已从画板移除视频"));
       return;
     }
     const result = await api.trashBoardImages(boardId, [nodeId]);
@@ -6040,7 +5163,7 @@ export default function App(): React.ReactElement {
         setAdvancedEditOpen(false);
       }
     }
-    toast.success("进入了回收站");
+    toast.success(translateSourceText("进入了回收站"));
   }
 
   // ---------- 删除画布图片（生成 / 上传） ----------
@@ -6097,7 +5220,7 @@ export default function App(): React.ReactElement {
     try {
       // 先冲刷可能尚未落盘的节点，再由主进程原子地记录回收站并移除画板节点。
       await flushBoardSave();
-      if (boardSaveInFlightRef.current) await boardSaveInFlightRef.current;
+      if (boardSaveCoordinator.pending) await boardSaveCoordinator.pending;
       const api = getWorkbenchApi();
       if (!api) throw new Error(missingImageWorkbenchMessage);
       const result = await api.trashBoardImages(boardId, ids);
@@ -6123,7 +5246,7 @@ export default function App(): React.ReactElement {
       setEditTargetId(null);
       setAdvancedEditOpen(false);
     }
-    toast.success(movedCount > 1 ? `${movedCount} 张图片已移入回收站` : "图片已移入回收站");
+    toast.success(movedCount > 1 ? translateSourceText("{{ui:0}} 张图片已移入回收站", [movedCount]) : translateSourceText("图片已移入回收站"));
   }
 
   async function restoreTrashedBoardImage(result: RestoreTrashedBoardImageResult): Promise<void> {
@@ -6159,14 +5282,14 @@ export default function App(): React.ReactElement {
 
   const copyText = useCallback((text: string): void => {
     void navigator.clipboard.writeText(text);
-    iterlayToast.copied({ title: "已复制文本" });
+    iterlayToast.copied({ title: translateSourceText("已复制文本") });
   }, []);
 
   const copyImageReferences = useCallback(async (references: AssetReference[]): Promise<void> => {
     const current = inputRef.current;
     const available = Math.max(0, 4 - current.referenceImages.length);
     if (available === 0) {
-      toast.error("参考图已达 4 张上限。");
+      toast.error(translateSourceText("参考图已达 4 张上限。"));
       return;
     }
     const role: ReferenceImageRole = current.workflowMode === "edit" ? "edit-target" : "reference";
@@ -6185,7 +5308,7 @@ export default function App(): React.ReactElement {
       }
     }
     if (payloads.length === 0) {
-      toast.error("没有可复制的引用图片。");
+      toast.error(translateSourceText("没有可复制的引用图片。"));
       return;
     }
     addReferencePayloads(payloads);
@@ -6208,14 +5331,14 @@ export default function App(): React.ReactElement {
         reportWorkbenchError(error);
       }
     },
-    [reportWorkbenchError, setStatus]
+    [reportWorkbenchError, setDownloadDirectory, setStatus]
   );
 
   const saveVideo = useCallback(async (video: GeneratedVideo): Promise<void> => {
     if (!video.path) return;
     try {
       const result = await getImageWorkbenchApi().saveVideo(video.path);
-      if (result.ok) toast.success("视频已保存");
+      if (result.ok) toast.success(translateSourceText("视频已保存"));
     } catch (error) {
       reportWorkbenchError(error);
     }
@@ -6237,14 +5360,14 @@ export default function App(): React.ReactElement {
         }
         setStatus(processed.alreadyTransparent ? "透明原图已下载。" : "背景已去除并下载。");
         iterlayToast.exported({
-          title: processed.alreadyTransparent ? "原图已有透明背景，已下载" : "背景已去除并下载",
+          title: processed.alreadyTransparent ? translateSourceText("原图已有透明背景，已下载") : translateSourceText("背景已去除并下载"),
           path: result.path
         });
       } catch (error) {
         reportWorkbenchError(error);
       }
     },
-    [reportWorkbenchError, setStatus]
+    [reportWorkbenchError, setDownloadDirectory, setStatus]
   );
 
   const saveImagesAsZip = useCallback(
@@ -6264,18 +5387,18 @@ export default function App(): React.ReactElement {
         iterlayToast.exported({
           count,
           path: result.path,
-          detail: skipped > 0 ? `另有 ${skipped} 张图片无法读取，已跳过` : undefined
+          detail: skipped > 0 ? translateSourceText("另有 {{ui:0}} 张图片无法读取，已跳过", [skipped]) : undefined
         });
       } catch (error) {
         reportWorkbenchError(error);
       }
     },
-    [reportWorkbenchError, setStatus]
+    [reportWorkbenchError, setDownloadDirectory, setStatus]
   );
 
   const openSliceDialog = useCallback((image: GeneratedImage): void => {
     if (!image.path || !image.width || !image.height || image.pending) {
-      toast.error("当前图片暂不能切图。");
+      toast.error(translateSourceText("当前图片暂不能切图。"));
       return;
     }
     setSliceTargetId(image.id);
@@ -6305,7 +5428,7 @@ export default function App(): React.ReactElement {
       };
       setImages((current) => [image, ...current]);
       scheduleBoardSave();
-      toast.success("当前帧已添加到画布");
+      toast.success(translateSourceText("当前帧已添加到画布"));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "当前帧提取失败。"));
     }
@@ -6314,7 +5437,7 @@ export default function App(): React.ReactElement {
   const openWechatExportDialog = useCallback((selectedImages: GeneratedImage[]): void => {
     const available = selectedImages.filter((image) => !image.pending && Boolean(image.path));
     if (available.length === 0) {
-      toast.error("所选图片暂不可导出为微信表情。");
+      toast.error(translateSourceText("所选图片暂不可导出为微信表情。"));
       return;
     }
     setWechatExportRequest({
@@ -6363,7 +5486,7 @@ export default function App(): React.ReactElement {
   ): Promise<void> {
     const mask = dataUrlToReferencePayload(request.maskDataUrl, "区域蒙版", "reference");
     if (!mask) {
-      toast.error("无法生成区域蒙版，请重新选择编辑区域。 ");
+      toast.error(translateSourceText("无法生成区域蒙版，请重新选择编辑区域。 "));
       return;
     }
     const references = request.referenceImages
@@ -6564,7 +5687,7 @@ export default function App(): React.ReactElement {
       }))
       .filter((request) => request.prompt);
     if (normalized.length === 0) {
-      toast.error("AI 助手没有提供可生成的提示词。");
+      toast.error(translateSourceText("AI 助手没有提供可生成的提示词。"));
       return;
     }
     const blockedMessage = getBlockedGenerateMessage({
@@ -6576,22 +5699,11 @@ export default function App(): React.ReactElement {
       toast.error(blockedMessage);
       return;
     }
-    if (isOfficialProvider) {
-      const required = normalized.reduce((total, request) => total + request.count, 0) * IMAGE_CREDIT_COST;
-      const balance = creditStatus?.credits.balance ?? 0;
-      if (balance < required) {
-        iterlayToast.balance({
-          balance,
-          required,
-          onActivate: licenseStatus?.state === "LICENSED" ? undefined : openLicenseActivation
-        });
-        return;
-      }
-    }
+
     await Promise.all(normalized.map((request) => generate(
       undefined,
       { prompt: request.prompt, n: request.count, sceneId: undefined, assistantConversationId },
-      { skipOfficialCreditCheck: isOfficialProvider, preservePrompt: request.preservePrompt }
+      { preservePrompt: request.preservePrompt }
     )));
   }
 
@@ -6740,7 +5852,7 @@ export default function App(): React.ReactElement {
       setVideoSequenceTemplates(await getImageWorkbenchApi().listVideoSequenceTemplates());
       await openBoard(activeBoard.id, undefined, { forceReload: true, suppressLoadingScreen: true });
       setActiveVideoSequence(sequence);
-      toast.success(`已创建 ${selected.length - 1} 个视频片段`);
+      toast.success(translateSourceText("已创建 {{ui:0}} 个视频片段", [selected.length - 1]));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "创建镜头序列失败。"));
     }
@@ -6914,7 +6026,13 @@ export default function App(): React.ReactElement {
     setActiveVideoSequence((value) => value ? { ...value, sequenceTasks: [...(value.sequenceTasks ?? []), ...result.jobs] } : value);
     await refreshActiveVideoSequence();
     return result.jobs;
-  }, [activeVideoProviderId, prepareActiveVideoSequence, refreshActiveVideoSequence, requestGenerationConfirmation, videoProviders]);
+  }, [
+    activeVideoProviderId,
+    prepareActiveVideoSequence,
+    refreshActiveVideoSequence,
+    requestGenerationConfirmation,
+    videoProviders
+  ]);
 
   const exportActiveVideoSequence = useCallback(async (options: VideoSequenceExportOptions): Promise<void> => {
     const retry = (): void => { void exportActiveVideoSequence(options); };
@@ -6922,7 +6040,7 @@ export default function App(): React.ReactElement {
     try {
       let current = await prepareActiveVideoSequence();
       if (!current) return;
-      toastId = toast.loading(options.updateBeforeExport ? "正在更新待生成片段..." : "正在准备导出...");
+      toastId = toast.loading(options.updateBeforeExport ? translateSourceText("正在更新待生成片段...") : translateSourceText("正在准备导出..."));
       if (options.updateBeforeExport) {
         const staleIds = current.segments
           .filter((segment) => segment.renderedRevision !== segment.desiredRevision || !segment.activeVersionId)
@@ -6951,7 +6069,7 @@ export default function App(): React.ReactElement {
           if (!finished) throw new Error("等待本次片段更新超时，已停止导出。");
         }
       }
-      toast.loading("正在拼接视频...", { id: toastId });
+      toast.loading(translateSourceText("正在拼接视频..."), { id: toastId });
       let job = await getImageWorkbenchApi().exportVideoSequence({
         boardId: current.boardId, sequenceId: current.id, expectedRevision: current.revision,
         fileName: options.fileName, resolution: options.resolution, fps: options.fps, includeAudio: options.includeAudio
@@ -6962,7 +6080,7 @@ export default function App(): React.ReactElement {
         const latest = await getImageWorkbenchApi().getVideoSequenceExport(job.id);
         if (!latest) throw new Error("导出任务状态丢失，请重试导出。");
         job = latest;
-        toast.loading(`正在拼接视频... ${Math.round((job.progress ?? 0) * 100)}%`, { id: toastId });
+        toast.loading(translateSourceText("正在拼接视频... {{ui:0}}%", [Math.round((job.progress ?? 0) * 100)]), { id: toastId });
       }
       if (job.status !== "completed") {
         throw new Error(job.error?.message || (job.status === "cancelled" ? "导出已取消。" : "导出失败或等待超时。"));
@@ -6973,7 +6091,7 @@ export default function App(): React.ReactElement {
       const saved = await getImageWorkbenchApi().saveVideoSequenceExport({
         boardId: current.boardId, sequenceId: current.id, exportVersionId
       });
-      toast.success(saved.ok ? "视频已保存" : "导出已完成，可再次点击导出保存", { id: toastId });
+      toast.success(saved.ok ? translateSourceText("视频已保存") : translateSourceText("导出已完成，可再次点击导出保存"), { id: toastId });
       await refreshActiveVideoSequence();
     } catch (error) {
       const message = getWorkbenchErrorMessage(error, "视频导出失败。");
@@ -7114,7 +6232,7 @@ export default function App(): React.ReactElement {
   if (startupLoading || licenseLoading || boardLoading) {
     return (
       <StartupLoading
-        label={boardLoading && !startupLoading ? "正在打开画板" : "正在打开 Iterlay"}
+        label={boardLoading && !startupLoading ? uiText("正在打开画板") : uiText("正在打开 Iterlay")}
         error={licenseLoading ? licenseStartupError : undefined}
         onRetry={licenseLoading ? retryLicenseStatus : undefined}
       />
@@ -7239,7 +6357,6 @@ export default function App(): React.ReactElement {
           />
         ) : null}
 
-
         {/* 画板铺满窗口，顶栏以毛玻璃浮层叠在画板上方。 */}
         <motion.div
           data-canvas-visible-area=""
@@ -7262,17 +6379,17 @@ export default function App(): React.ReactElement {
               exit={{ opacity: 0 }}
               role="dialog"
               aria-modal="true"
-              aria-label="视频版本比较"
+              aria-label={uiText("视频版本比较")}
             >
               <header className="flex h-12 shrink-0 items-center border-b border-border px-4">
-                <span className="text-sm font-semibold">视频版本比较</span>
-                <span className="ml-2 text-xs text-muted-foreground">独立播放并检查画面、节奏与声音</span>
+                <span className="text-sm font-semibold">{uiText("视频版本比较")}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{uiText("独立播放并检查画面、节奏与声音")}</span>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="ml-auto h-8 w-8"
-                  aria-label="关闭视频版本比较"
+                  aria-label={uiText("关闭视频版本比较")}
                   onClick={() => setVideoCompare(null)}
                 >
                   <X className="h-4 w-4" />
@@ -7282,9 +6399,9 @@ export default function App(): React.ReactElement {
                 {[videoCompare.left, videoCompare.right].map((video, index) => (
                   <section key={`${video.id}-${index}`} className="flex min-h-0 flex-col p-4">
                     <div className="mb-3 flex items-center justify-between text-xs">
-                      <strong>版本 {video.version ?? index + 1}</strong>
+                      <strong>{uiText("版本 ")}{video.version ?? index + 1}</strong>
                       <span className="text-muted-foreground">
-                        {video.width && video.height ? `${video.width}×${video.height}` : "自适应画幅"}
+                        {video.width && video.height ? `${video.width}×${video.height}` : uiText("自适应画幅")}
                       </span>
                     </div>
                     <video
@@ -7294,7 +6411,7 @@ export default function App(): React.ReactElement {
                       preload="metadata"
                       playsInline
                       className="min-h-0 flex-1 bg-black object-contain"
-                      aria-label={`版本 ${video.version ?? index + 1} 播放器`}
+                      aria-label={uiText("版本 {{ui:0}} 播放器", [video.version ?? index + 1])}
                     />
                   </section>
                 ))}
@@ -7355,6 +6472,10 @@ export default function App(): React.ReactElement {
                 onFocusJob={focusJob}
                 onReuseJob={reuseJob}
                 onClear={clearCurrentBoardHistory}
+                totalHistoryCount={historyTotal}
+                hasMore={historyHasMore}
+                loadingMore={historyLoading}
+                onLoadMore={loadMoreHistory}
                 onClose={() => setHistoryOpen(false)}
               />
             </Suspense>
@@ -7435,9 +6556,7 @@ export default function App(): React.ReactElement {
           boardSmartSuggestionsEnabled={boardSmartSuggestionsEnabled}
            assistantEnabled={boardAssistantEnabled}
            assistantAgentModeEnabled={
-             boardAssistantAgentModeEnabled &&
-             activeTextProvider?.type === "official" &&
-             Boolean(creditStatus?.textFunctionCallingAvailable)
+             boardAssistantAgentModeEnabled && canUseTextAgent(activeTextProvider, providerKeyStatus)
            }
           assistantAwarenessEnabled={boardAssistantEnabled && boardAssistantAwarenessEnabled}
           assistantIntentSuggestionsEnabled={boardAssistantEnabled && boardAssistantIntentSuggestionsEnabled}
@@ -7532,7 +6651,7 @@ export default function App(): React.ReactElement {
                 active={galleryOpen}
                 boardId={activeBoard?.id ?? ""}
                 boardName={activeBoard?.name ?? "未命名画板"}
-                history={visibleHistory}
+                history={galleryHistory.length ? galleryHistory : visibleHistory}
                 canCollaborate={textProviderReady}
                 onCollaborate={collaborateScene}
                 onLocate={(nodeId) => {
@@ -7601,7 +6720,7 @@ export default function App(): React.ReactElement {
                 onGetSceneSubmission={getSceneTemplateSubmission}
                 onImportScene={importSceneTemplate}
                 onImportSceneFiles={importSceneTemplateFiles}
-                sceneHistory={history}
+                sceneHistory={sceneHistory}
                 canOptimizeScene={textProviderReady}
                 canCollaborateScene={textProviderReady}
                 onGenerateTemplateVerification={(submission, task) => {
@@ -7648,7 +6767,7 @@ export default function App(): React.ReactElement {
         <div className="fixed inset-0 z-[90] flex flex-col bg-background">
           <MediaToolsNotice state={mediaTools.state} onInstall={() => { void ensureMediaToolsReady().then((ready) => { if (ready) void refreshActiveVideoSequence(); }); }} />
           <div className="min-h-0 flex-1">
-          <Suspense fallback={<StartupLoading label="正在打开镜头序列" />}>
+          <Suspense fallback={<StartupLoading label={uiText("正在打开镜头序列")} />}>
             <VideoSequenceEditor
               sequence={editorVideoSequence}
               mediaUrls={activeVideoSequence.mediaUrls}
@@ -7756,19 +6875,8 @@ export default function App(): React.ReactElement {
              boardAssistantEnabled={boardAssistantEnabled}
              onBoardAssistantEnabledChange={changeBoardAssistantEnabled}
              boardAssistantAgentModeEnabled={boardAssistantAgentModeEnabled}
-             boardAssistantAgentModeAvailable={
-               resolveTextProviderReadiness(
-                 activeTextProvider,
-                 providerKeyStatus,
-                 creditStatus,
-                 creditError
-               ) === "ready" &&
-               (
-                 activeTextProvider?.type !== "official" ||
-                 Boolean(creditStatus?.textFunctionCallingAvailable)
-               )
-             }
-             boardAssistantAgentModeModel={creditStatus?.textModel}
+             boardAssistantAgentModeAvailable={canUseTextAgent(activeTextProvider, providerKeyStatus)}
+             boardAssistantAgentModeModel={activeTextProvider?.model}
              onBoardAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
              piAgentBuiltinTools={piAgentBuiltinTools ?? []}
              onPiAgentBuiltinToolsChange={changePiAgentBuiltinTools}
@@ -7816,8 +6924,7 @@ export default function App(): React.ReactElement {
 
       {commentMode ? (
         <div className="pointer-events-none fixed left-1/2 top-16 z-40 -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur">
-          评论模式 · 点击图片添加评论 · Esc 退出
-        </div>
+          {uiText("评论模式 · 点击图片添加评论 · Esc 退出")}</div>
       ) : null}
       {pendingComment ? (
         <>
@@ -7844,20 +6951,20 @@ export default function App(): React.ReactElement {
       <Dialog open={comicDramaEntryPosition !== null} onOpenChange={(open) => !open && setComicDramaEntryPosition(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>漫剧项目</DialogTitle>
-            <DialogDescription>打开已有项目，或创建一个新的独立漫剧子画板。</DialogDescription>
+            <DialogTitle>{uiText("漫剧项目")}</DialogTitle>
+            <DialogDescription>{uiText("打开已有项目，或创建一个新的独立漫剧子画板。")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             {workflowNodes.filter((node) => node.type === "comic-drama-entry").map((node) => {
               return <Button key={node.id} type="button" variant="outline" className="h-auto justify-start py-3 text-left" onClick={() => openComicDramaProject(node)}>
-                <span><b className="block">打开 · {node.name}</b><small className="mt-0.5 block font-normal text-muted-foreground">进入独立漫剧制作画板</small></span>
+                <span><b className="block">{uiText("打开 · ")}{node.name}</b><small className="mt-0.5 block font-normal text-muted-foreground">{uiText("进入独立漫剧制作画板")}</small></span>
               </Button>;
             })}
             <Button type="button" variant="outline" className="h-auto justify-start py-3 text-left" onClick={() => comicDramaEntryPosition && void createComicDramaProjectAt(comicDramaEntryPosition)}>
-              <span><b className="block">新建漫剧项目</b><small className="mt-0.5 block font-normal text-muted-foreground">创建入口卡与独立子画板，不调用 Provider</small></span>
+              <span><b className="block">{uiText("新建漫剧项目")}</b><small className="mt-0.5 block font-normal text-muted-foreground">{uiText("创建入口卡与独立子画板，不调用 Provider")}</small></span>
             </Button>
           </div>
-          <DialogFooter><Button type="button" variant="ghost" onClick={() => setComicDramaEntryPosition(null)}>取消</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="ghost" onClick={() => setComicDramaEntryPosition(null)}>{uiText("取消")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -7880,19 +6987,16 @@ export default function App(): React.ReactElement {
           }}
         >
           <DialogHeader>
-            <DialogTitle>删除图片</DialogTitle>
+            <DialogTitle>{uiText("删除图片")}</DialogTitle>
             <DialogDescription>
-              将从画布移除
-              {deleteTargetIds && deleteTargetIds.length > 1 ? ` ${deleteTargetIds.length} 张图片` : "这张图片"}
-              。图片会移入回收站，可在自动清理前恢复（评论仍会保留）。
-            </DialogDescription>
+              {uiText("将从画布移除")}{deleteTargetIds && deleteTargetIds.length > 1 ? uiText(" {{ui:0}} 张图片", [deleteTargetIds.length]) : uiText("这张图片")}
+              {uiText("。图片会移入回收站，可在自动清理前恢复（评论仍会保留）。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" disabled={trashingImages} onClick={cancelDeleteImages}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button variant="destructive" disabled={trashingImages} onClick={() => void confirmDeleteImages()}>
-              {trashingImages ? "正在移入回收站…" : "移入回收站（回车）"}
+              {trashingImages ? uiText("正在移入回收站…") : uiText("移入回收站（回车）")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -7904,21 +7008,18 @@ export default function App(): React.ReactElement {
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>删除漫剧项目？</DialogTitle>
+            <DialogTitle>{uiText("删除漫剧项目？")}</DialogTitle>
             <DialogDescription>
               {workflowDeleteTargetIds && workflowDeleteTargetIds.length > 1
-                ? `将删除选中的 ${workflowDeleteTargetIds.length} 个漫剧项目入口，并把对应子画板移入回收站。`
-                : "将删除这个漫剧项目入口，并把对应子画板移入回收站。"}
-              可使用撤销恢复，之后也可重做删除。
-            </DialogDescription>
+                ? uiText("将删除选中的 {{ui:0}} 个漫剧项目入口，并把对应子画板移入回收站。", [workflowDeleteTargetIds.length])
+                : uiText("将删除这个漫剧项目入口，并把对应子画板移入回收站。")}
+              {uiText("可使用撤销恢复，之后也可重做删除。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={cancelDeleteWorkflowNodes}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button variant="destructive" onClick={confirmDeleteWorkflowNodes}>
-              删除项目
-            </Button>
+              {uiText("删除项目")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -7955,7 +7056,7 @@ export default function App(): React.ReactElement {
               if (result.directory) setDownloadDirectory(result.directory);
               setStatus(`已导出 ${count} 张微信表情。`);
               iterlayToast.exported({
-                title: "微信表情素材已导出",
+                title: translateSourceText("微信表情素材已导出"),
                 count,
                 path: result.folderPath ?? result.zipPath
               });
@@ -8049,6 +7150,8 @@ function CommentComposer({
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -8083,16 +7186,14 @@ function CommentComposer({
             onCancel();
           }
         }}
-        placeholder="写下评论建议…（Enter 发送 · Esc 取消）"
+        placeholder={uiText("写下评论建议…（Enter 发送 · Esc 取消）")}
         className="min-h-[76px] resize-none border-0 bg-transparent px-3 py-2.5 text-sm leading-6 shadow-none focus-visible:ring-0"
       />
       <div className="flex items-center justify-end gap-2 border-t border-border px-2.5 py-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          取消
-        </Button>
+          {uiText("取消")}</Button>
         <Button size="sm" disabled={!text.trim()} onClick={submit}>
-          评论
-        </Button>
+          {uiText("评论")}</Button>
       </div>
     </div>
   );

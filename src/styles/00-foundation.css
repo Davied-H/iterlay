@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Assistant recovery state: the latest error is actionable; older failures stay compact. */
+.assistant-error-previous summary::-webkit-details-marker { display: none; }
+.assistant-error-previous[open] .assistant-error-chevron { transform: rotate(180deg); }
+
+/*
+ * Neutral tool system with tightly scoped semantic color.
+ * Generated images remain the visual focus; graphite marks active tools,
+ * green confirms completed work, and amber is reserved for favorites.
+ */
+:root {
+  color-scheme: light;
+  --background: 0 0% 98%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 95%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 0 0% 94%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 90%;
+  --input: 0 0% 87%;
+  --ring: 0 0% 9%;
+  --focus-accent: 217 64% 50%;
+  --canvas-surface: 0.94 0.006 255;
+  --canvas-dot: 218 10% 66%;
+  --helper-line: 218 64% 50%;
+  --ai-accent: 215 8% 20%;
+  --ai-accent-foreground: 0 0% 100%;
+  --ai-muted: 215 12% 94%;
+  --canvas-ai-accent: 174 77% 26%;
+  --canvas-ai-accent-foreground: 0 0% 100%;
+  --canvas-ai-muted: 174 35% 93%;
+  --destructive-readable: 0 72% 42%;
+  --success: 145 42% 30%;
+  --success-muted: 145 30% 94%;
+  --favorite: 32 95% 44%;
+  --library-sidebar: 0.935 0.004 255;
+  --workspace-surface: 0.972 0.003 255;
+  --library-sidebar-active: 0.985 0.002 255;
+  --library-divider: 0.86 0.004 255;
+  --library-recents-border: 216 18% 88%;
+  --library-recents-surface: 216 16% 97%;
+  --library-recents-selected: 216 64% 95%;
+  --library-recents-selected-border: 216 42% 88%;
+  --library-recents-footer: 216 12% 94%;
+  --checker-a: #ececf0;
+  --checker-b: #f7f7f9;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 220 14% 15%;
+  --foreground: 210 20% 94%;
+  --card: 220 13% 18%;
+  --card-foreground: 210 20% 94%;
+  --popover: 219 13% 21%;
+  --popover-foreground: 210 20% 94%;
+  --primary: 211 24% 92%;
+  --primary-foreground: 220 16% 15%;
+  --secondary: 219 12% 23%;
+  --secondary-foreground: 210 18% 91%;
+  --muted: 219 11% 22%;
+  --muted-foreground: 214 12% 70%;
+  --accent: 218 12% 27%;
+  --accent-foreground: 210 20% 95%;
+  --destructive: 355 62% 48%;
+  --destructive-foreground: 355 30% 96%;
+  --border: 217 10% 29%;
+  --input: 216 11% 34%;
+  --ring: 217 82% 69%;
+  --focus-accent: 217 82% 69%;
+  --canvas-surface: 0.19 0.012 255;
+  --canvas-dot: 216 10% 38%;
+  --helper-line: 217 82% 69%;
+  --ai-accent: 210 16% 88%;
+  --ai-accent-foreground: 220 14% 15%;
+  --ai-muted: 216 10% 24%;
+  --canvas-ai-accent: 174 58% 56%;
+  --canvas-ai-accent-foreground: 220 14% 15%;
+  --canvas-ai-muted: 174 22% 23%;
+  --destructive-readable: 355 78% 72%;
+  --success: 145 40% 62%;
+  --success-muted: 145 18% 22%;
+  --favorite: 39 88% 62%;
+  --library-sidebar: 0.205 0.012 255;
+  --workspace-surface: 0.22 0.012 255;
+  --library-sidebar-active: 0.255 0.016 255;
+  --library-divider: 0.32 0.014 255;
+  --library-recents-border: 217 10% 29%;
+  --library-recents-surface: 220 13% 18%;
+  --library-recents-selected: 216 24% 25%;
+  --library-recents-selected-border: 216 30% 39%;
+  --library-recents-footer: 219 11% 22%;
+  --checker-a: oklch(0.255 0.012 255);
+  --checker-b: oklch(0.3 0.014 255);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * Electron's Windows controls overlay occupies the right edge of the 48px app
+ * header. The CSS environment values collapse to zero in browsers and on macOS.
+ */
+.window-titlebar-overlay-safe {
+  --window-titlebar-content-padding: 1rem;
+  padding-right: calc(
+    100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) +
+      var(--window-titlebar-content-padding)
+  );
+}
+
+.window-titlebar-overlay-safe--compact {
+  --window-titlebar-content-padding: 0.75rem;
+}
+
+[data-workspace-topbar][data-window-platform="macos"] {
+  padding-left: 84px;
+}
+
+[data-workspace-topbar][data-window-platform="windows"] {
+  padding-left: 0.75rem;
+}
+
+/*
+ * Iterlay notifications stay compact and neutral so image work remains the focus.
+ * Semantic color is reserved for the status icon, not the entire surface.
+ */
+.iterlay-toaster[data-sonner-toaster] {
+  width: min(var(--width), calc(100vw - 2rem));
+  font-family: inherit;
+  -webkit-app-region: no-drag;
+}
+

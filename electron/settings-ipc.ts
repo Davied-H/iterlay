@@ -1,11 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
-import type {
-  AppSettings,
-  AppSettingsPatch,
-  CodexAuthStatus,
-  OnboardingState,
-  OnboardingStatus
-} from "../shared/types.js";
+import type { AppSettings, AppSettingsPatch, CodexAuthStatus, OnboardingState, OnboardingStatus } from "../shared/types.js";
 import { CodexOAuthService } from "./auth/codex-oauth.js";
 import { OnboardingStore } from "./storage/onboarding-store.js";
 import { SettingsStore } from "./storage/settings-store.js";
@@ -66,7 +60,8 @@ export function registerSettingsIpc({
   });
   ipcMain.handle("onboarding:clear", (_event, key: string) => onboarding.clearSeen(key));
 
-  ipcMain.handle("settings:save", (event, payload: SettingsPayload) => {
+  ipcMain.handle("settings:save", async (event, payload: SettingsPayload) => {
+    await settings.transaction(() => {
     settings.saveSettings({
       providers: payload.providers,
       activeProviderId: payload.activeProviderId,
@@ -108,14 +103,15 @@ export function registerSettingsIpc({
       appIcon: payload.appIcon,
       boardTrashRetentionDays: payload.boardTrashRetentionDays
     });
-    if (payload.boardTrashRetentionDays !== undefined) onBoardTrashRetentionChanged();
-    trackSettingsUpdated();
-    onThemeChanged(event, payload.theme);
     if (payload.apiKeyByProviderId) {
       for (const [providerId, apiKey] of Object.entries(payload.apiKeyByProviderId)) {
         if (typeof apiKey === "string") settings.setApiKey(providerId, apiKey);
       }
     }
+    });
+    if (payload.boardTrashRetentionDays !== undefined) onBoardTrashRetentionChanged();
+    trackSettingsUpdated();
+    onThemeChanged(event, payload.theme);
     codexAuth.retainProviders(new Set(
       [
         ...payload.providers
@@ -129,8 +125,8 @@ export function registerSettingsIpc({
     return { ok: true };
   });
 
-  ipcMain.handle("settings:update", (event, patch: AppSettingsPatch) => {
-    settings.updateSettings(patch);
+  ipcMain.handle("settings:update", async (event, patch: AppSettingsPatch) => {
+    await settings.transaction(() => settings.updateSettings(patch));
     if (patch.boardTrashRetentionDays !== undefined) onBoardTrashRetentionChanged();
     if (patch.theme) onThemeChanged(event, patch.theme);
     return { ok: true };

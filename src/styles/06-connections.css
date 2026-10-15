@@ -1,0 +1,718 @@
+.canvas-connection-result-flow {
+  fill: none;
+  stroke: var(--canvas-connection-color, hsl(var(--canvas-ai-accent)));
+  stroke-width: calc(var(--canvas-connection-width, 1.5px) + 0.5px);
+  stroke-dasharray: 2 12;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  animation: canvas-connection-result-flow 900ms linear infinite;
+}
+
+@keyframes canvas-connection-result-flow {
+  to { stroke-dashoffset: -14; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-connection-result-flow {
+    display: none;
+    animation: none;
+  }
+}
+
+.canvas-connection-marker-fill {
+  fill: var(--canvas-connection-color, hsl(var(--primary)));
+  stroke: hsl(var(--card));
+  stroke-width: 1.15;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+.canvas-connection-segment-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 18;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+  cursor: grab;
+  transition: stroke 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-connection-segment-hit:hover {
+  stroke: hsl(var(--primary) / 0.08);
+}
+
+.canvas-connection-segment-hit:active { cursor: grabbing; }
+
+.figma-canvas .react-flow__edge:hover .canvas-connection-edge,
+.figma-canvas .react-flow__edge.selected .canvas-connection-edge,
+.figma-canvas .canvas-connection-edge.is-selected {
+  stroke: var(--canvas-connection-color, hsl(var(--primary)));
+  filter: drop-shadow(0 0 1.5px hsl(var(--primary) / 0.64));
+}
+
+.canvas-connection-bridge-gap,
+.canvas-connection-bridge-stroke {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.canvas-connection-bridge-gap {
+  stroke: hsl(var(--background));
+  stroke-width: calc(var(--canvas-connection-width, 1.5px) + 4px);
+}
+
+.canvas-connection-bridge-stroke {
+  stroke: var(--canvas-connection-color, hsl(var(--primary)));
+  stroke-width: var(--canvas-connection-width, 1.5px);
+}
+
+.canvas-connection-label {
+  position: absolute;
+  z-index: 14;
+  max-width: min(22rem, 60vw);
+  pointer-events: all;
+  cursor: grab;
+  user-select: none;
+}
+
+.canvas-connection-label:active { cursor: grabbing; }
+
+.canvas-connection-label:not(:has(input)) {
+  padding: 4px 7px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 5px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: 0 1px 3px hsl(220 14% 12% / 0.14);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.canvas-connection-label input {
+  width: min(14rem, 28vw);
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid hsl(var(--primary));
+  border-radius: 5px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.14);
+  font: inherit;
+  outline: none;
+}
+
+.canvas-connection-endpoint {
+  position: absolute;
+  /* Selected nodes are raised by React Flow, so connected anchors must sit above them. */
+  z-index: 1001;
+  pointer-events: all;
+  width: 12px;
+  height: 12px;
+  border: 2px solid hsl(var(--background));
+  border-radius: 50%;
+  background: hsl(var(--foreground));
+  box-shadow: 0 1px 3px hsl(220 14% 12% / 0.24);
+  cursor: grab !important;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), background-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-connection-endpoint:hover,
+.canvas-connection-endpoint:focus-visible {
+  background: hsl(var(--primary));
+  cursor: grab !important;
+  outline: none;
+}
+
+.canvas-connection-endpoint:active {
+  cursor: grabbing !important;
+}
+
+.canvas-connection-center-anchor {
+  position: absolute;
+  z-index: 1000;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  border: 2px solid hsl(var(--primary) / 0.72);
+  border-radius: 50%;
+  background: hsl(var(--background) / 0.96);
+  box-shadow:
+    0 0 0 3px hsl(var(--background) / 0.72),
+    0 2px 6px hsl(220 14% 12% / 0.18);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.canvas-connection-center-anchor[data-snapped="true"] {
+  border-color: hsl(var(--canvas-ai-accent));
+  background: hsl(var(--canvas-ai-muted));
+  box-shadow:
+    0 0 0 4px hsl(var(--canvas-ai-accent) / 0.16),
+    0 2px 7px hsl(220 14% 12% / 0.2);
+}
+
+.canvas-connection-waypoint,
+.canvas-connection-midpoint {
+  position: absolute;
+  z-index: 1002;
+  box-sizing: border-box;
+  pointer-events: all;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 2px solid hsl(var(--background));
+  background: hsl(var(--primary));
+  box-shadow: 0 1px 3px hsl(220 14% 12% / 0.22);
+}
+
+.canvas-connection-waypoint {
+  border-radius: 2px;
+  cursor: move;
+}
+
+.canvas-connection-midpoint {
+  width: 8px;
+  height: 8px;
+  border-width: 1.5px;
+  border-radius: 50%;
+  background: hsl(var(--background));
+  cursor: crosshair;
+  opacity: 0.58;
+  transition: opacity 120ms cubic-bezier(0.22, 1, 0.36, 1), background-color 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-connection-midpoint:hover,
+.canvas-connection-midpoint:focus-visible {
+  background: hsl(var(--primary));
+  opacity: 1;
+}
+
+.canvas-connection-waypoint:focus-visible,
+.canvas-connection-endpoint:focus-visible,
+.canvas-connection-midpoint:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.canvas-connection-toolbar {
+  position: absolute;
+  z-index: 1010;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--background));
+  box-shadow: 0 3px 10px hsl(220 14% 12% / 0.18);
+  pointer-events: all;
+}
+
+.canvas-connection-toolbar > button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.canvas-connection-color {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.canvas-connection-color:hover,
+.canvas-connection-color:focus-within {
+  background: hsl(var(--accent));
+}
+
+.canvas-connection-color input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.canvas-connection-color input::-webkit-color-swatch-wrapper {
+  padding: 1px;
+}
+
+.canvas-connection-color input::-webkit-color-swatch {
+  border: 0;
+  border-radius: 1px;
+}
+
+.canvas-connection-marker-size {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.canvas-connection-marker-size:hover,
+.canvas-connection-marker-size:focus-within {
+  background: hsl(var(--accent));
+}
+
+.canvas-connection-marker-size input {
+  width: 52px;
+  accent-color: hsl(var(--foreground));
+  cursor: ew-resize;
+}
+
+.canvas-connection-marker-size input:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.canvas-connection-marker-size input:disabled {
+  opacity: 0.36;
+  cursor: default;
+}
+
+.canvas-connection-toolbar > button:hover,
+.canvas-connection-toolbar > button:focus-visible,
+.canvas-connection-toolbar > button[aria-pressed="true"] {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+  outline: none;
+}
+
+.canvas-connection-toolbar > button:focus-visible {
+  box-shadow: inset 0 0 0 2px hsl(var(--ring));
+}
+
+.canvas-connection-toolbar > button:disabled {
+  opacity: 0.36;
+  cursor: default;
+}
+
+.canvas-connection-toolbar > button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.canvas-connection-toolbar > span {
+  width: 1px;
+  height: 18px;
+  margin: 0 1px;
+  background: hsl(var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figma-canvas .canvas-connection-edge,
+  .canvas-connection-segment-hit,
+  .canvas-connection-endpoint,
+  .canvas-connection-center-anchor,
+  .canvas-connection-midpoint {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .figma-canvas .canvas-connection-edge,
+  .canvas-connection-bridge-stroke {
+    stroke: CanvasText;
+  }
+
+  .canvas-connection-endpoint,
+  .canvas-connection-center-anchor,
+  .canvas-connection-waypoint,
+  .canvas-connection-midpoint {
+    border-color: Canvas;
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .canvas-connection-toolbar,
+  .canvas-connection-label:not(:has(input)) {
+    border-color: CanvasText;
+  }
+}
+
+.figma-canvas .image-node-pending--selected {
+  box-shadow:
+    0 14px 30px hsl(220 14% 12% / 0.18),
+    0 3px 8px hsl(220 14% 12% / 0.1);
+}
+
+.figma-canvas .image-node-pending--selected > [data-generation-status] {
+  border-color: hsl(216 16% 62% / 0.74);
+}
+
+.dark .figma-canvas .image-node-pending--selected {
+  box-shadow:
+    0 16px 34px hsl(0 0% 0% / 0.42),
+    0 3px 9px hsl(0 0% 0% / 0.24);
+}
+
+.dark .figma-canvas .image-node-pending--selected > [data-generation-status] {
+  border-color: hsl(216 16% 58% / 0.62);
+}
+
+.image-node-resize-handle {
+  left: auto !important;
+  top: auto !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  translate: 0 0 !important;
+  transform-origin: bottom right;
+  z-index: 30;
+  display: flex;
+  width: 22px !important;
+  height: 22px !important;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 4px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: #92928c;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+  cursor: nwse-resize;
+  transition:
+    color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.image-node-card:hover > .image-node-resize-handle,
+.image-node-resize-handle.is-visible {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.image-node-size-indicator {
+  position: absolute;
+  z-index: 34;
+  right: 0;
+  left: 0;
+  display: inline-flex;
+  width: max-content;
+  min-width: 104px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: hsl(220 12% 10% / 0.88);
+  color: hsl(0 0% 100%);
+  box-shadow: 0 2px 8px hsl(220 14% 12% / 0.2);
+  font-size: 11px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-inline: auto;
+  pointer-events: none;
+  transform-origin: top center;
+  animation: image-node-size-indicator-in 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes image-node-size-indicator-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.comment-marker {
+  transform: translate(-50%, calc(-100% + 2px));
+}
+
+.comment-marker__trigger {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--ai-accent-foreground));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.comment-marker__icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
+.comment-marker__trigger:hover,
+.comment-marker__trigger:focus-visible {
+  transform: scale(1.06);
+}
+
+.comment-marker__trigger:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.comment-marker[data-dragging="true"] .comment-marker__trigger {
+  cursor: grabbing;
+  transform: scale(1.04);
+}
+
+.comment-marker__preview {
+  pointer-events: none;
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  width: 240px;
+  max-width: min(240px, calc(100vw - 32px));
+  padding: 9px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--popover) / 0.98);
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 4px 8px rgb(0 0 0 / 0.18);
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transform-origin: bottom center;
+  visibility: hidden;
+  transition:
+    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 160ms;
+}
+
+.comment-marker__preview::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: calc(50% - 4px);
+  width: 9px;
+  height: 9px;
+  border-right: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--popover) / 0.98);
+  transform: rotate(45deg);
+}
+
+.comment-marker__preview::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -12px;
+  left: 0;
+  height: 12px;
+}
+
+.comment-marker[data-align="start"] .comment-marker__preview {
+  left: -4px;
+  transform: translate(0, 4px);
+  transform-origin: bottom left;
+}
+
+.comment-marker[data-align="start"] .comment-marker__preview::after {
+  left: 14px;
+}
+
+.comment-marker[data-align="end"] .comment-marker__preview {
+  right: -4px;
+  left: auto;
+  transform: translate(0, 4px);
+  transform-origin: bottom right;
+}
+
+.comment-marker[data-align="end"] .comment-marker__preview::after {
+  right: 14px;
+  left: auto;
+}
+
+.comment-marker:hover .comment-marker__preview,
+.comment-marker:focus-within .comment-marker__preview {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.comment-marker[data-dragging="true"] .comment-marker__preview {
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.comment-marker[data-align="start"]:hover .comment-marker__preview,
+.comment-marker[data-align="start"]:focus-within .comment-marker__preview,
+.comment-marker[data-align="end"]:hover .comment-marker__preview,
+.comment-marker[data-align="end"]:focus-within .comment-marker__preview {
+  transform: translate(0, 0);
+}
+
+.comment-marker__delete {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  transition:
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.comment-marker__delete:hover {
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+}
+
+.comment-marker__delete:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.image-node-resize-handle:hover,
+.image-node-resize-handle:focus-visible {
+  color: #3f3f3c;
+  opacity: 1;
+}
+
+.image-node-resize-handle:focus-visible {
+  outline: none;
+}
+
+.image-node-resize-handle:active {
+  color: #242422;
+}
+
+.dark .image-node-resize-handle {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .image-node-resize-handle:hover,
+.dark .image-node-resize-handle:focus-visible,
+.dark .image-node-resize-handle:active {
+  color: hsl(var(--foreground) / 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-node-resize-handle,
+  .image-node-size-indicator,
+  .comment-marker__trigger,
+  .comment-marker__preview,
+  .comment-marker__delete {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Image node menus extend beyond their cards. Only elevate nodes that own that chrome;
+   raising the Relax Flow source image would cover annotations rendered in ViewportPortal. */
+.figma-canvas .react-flow__node:has(.image-node-card):hover,
+.figma-canvas .react-flow__node:has(.image-node-card):focus-within {
+  z-index: 20 !important;
+}
+
+/* Relax Flow keeps analysis feedback attached to the target instead of blocking the canvas. */
+.relax-flow-target {
+  outline: 1px solid transparent;
+  outline-offset: 3px;
+  transition:
+    outline-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.relax-flow-target--analyzing {
+  outline-color: hsl(var(--ai-accent) / 0.72);
+  box-shadow:
+    0 2px 8px hsl(0 0% 0% / 0.16),
+    0 0 0 5px hsl(var(--ai-accent) / 0.1);
+}
+
+.relax-flow-target--understood {
+  outline-color: hsl(var(--ai-accent) / 0.44);
+}
+
+.relax-flow-target__scan {
+  position: absolute;
+  inset: -20% 0 auto;
+  height: 22%;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    hsl(var(--ai-accent) / 0.1) 55%,
+    hsl(var(--ai-accent) / 0.42) 96%,
+    transparent
+  );
+  mix-blend-mode: multiply;
+  transform: translateY(-100%);
+  will-change: transform;
+  animation: relax-flow-target-scan 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.dark .relax-flow-target__scan {
+  mix-blend-mode: screen;
+}
+
+@keyframes relax-flow-target-scan {
+  to {
+    transform: translateY(650%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relax-flow-target {
+    transition: none;
+  }
+
+  .relax-flow-target__scan {
+    inset: 0;
+    height: 100%;
+    transform: none;
+    animation: none;
+    background: hsl(var(--ai-accent) / 0.08);
+  }
+}
+
+/* Keep generation feedback on the compositor; animated gradients can invalidate the canvas. */
+@keyframes pending-shimmer-pulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.78; }
+}
+
+.pending-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  border: 1.5px solid hsl(var(--foreground) / 0.58);
+  pointer-events: none;
+  will-change: opacity;
+  animation: pending-shimmer-pulse 1.8s ease-in-out infinite;
+}
+
+.prompt-dock-card {
+  container: prompt-dock / inline-size;
+}
+

@@ -14,3 +14,11 @@ export async function runTaskPool<T>(
     }
   }));
 }
+
+export async function mapTaskPool<T, R>(items: readonly T[], concurrency: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const output = new Array<R>(items.length);
+  await runTaskPool(items.map((item, index) => ({ item, index })), concurrency, async ({ item, index }) => {
+    output[index] = await worker(item, index);
+  });
+  return output;
+}

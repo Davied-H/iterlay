@@ -31,3 +31,8 @@ export function resolveTextProviderReadiness(
     ? "ready"
     : "unconfigured";
 }
+
+/** Community Agent mode uses the configured text connection, never a retired wallet. */
+export function canUseTextAgent(provider: TextProviderConfig | undefined, keyStatus: Record<string, boolean>): boolean {
+  return provider?.type !== "official" && resolveTextProviderReadiness(provider, keyStatus, null, null) === "ready";
+}

@@ -1,27 +1,15 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type {
-  BoardMutationResult,
-  CollaborateSceneRequest,
-  ComicDramaBoardSnapshot
-} from "@shared/types";
+import type { BoardMutationResult, CollaborateSceneRequest, ComicDramaBoardSnapshot } from "@shared/types";
 import {
   AiAssistant,
   type AiAssistantInteractionState,
   type AiAssistantInteractionValues,
   type AiAssistantMessage
 } from "@/components/assistant/AiAssistant";
-import {
-  comicDramaAssistantContext,
-  comicDramaAssistantGuide
-} from "@/lib/comic-drama-assistant";
-import {
-  formatAssistantInteractionAnswers,
-  resolveAssistantInteraction
-} from "@/lib/assistant-interaction";
-import {
-  startSceneCollaborationStream,
-  type SceneCollaborationStreamHandle
-} from "@/lib/scene-collaboration-stream";
+import { comicDramaAssistantContext, comicDramaAssistantGuide } from "@/lib/comic-drama-assistant";
+import { formatAssistantInteractionAnswers, resolveAssistantInteraction } from "@/lib/assistant-interaction";
+import { startSceneCollaborationStream, type SceneCollaborationStreamHandle } from "@/lib/scene-collaboration-stream";
 import { useI18n } from "@/i18n";
 import "./ComicDramaWorkspace.css";
 
@@ -51,6 +39,8 @@ export function ComicDramaWorkspace({
   onBeforeAgentRequest,
   onAgentMutation
 }: ComicDramaWorkspaceProps): React.ReactElement {
+  const uiText = useUiText();
+
   const { locale } = useI18n();
   const guide = useMemo(
     () => comicDramaAssistantGuide(snapshot, selectedNodeIds),
@@ -258,21 +248,20 @@ export function ComicDramaWorkspace({
   return (
     <main className="comic-drama-workspace">
       <button type="button" className="comic-drama-workspace__back" onClick={onBack}>
-        ← 返回主画板
-      </button>
-      <section className="comic-drama-workspace__canvas" aria-label="漫剧制作画板">
+        {uiText("← 返回主画板")}</button>
+      <section className="comic-drama-workspace__canvas" aria-label={uiText("漫剧制作画板")}>
         {children}
       </section>
       <aside className="comic-drama-workspace__assistant">
         <AiAssistant
           variant="docked"
           dockSide="right"
-          title="AI 助手"
+          title={uiText("AI 助手")}
           subtitle={`漫剧制作 · ${comicDramaAssistantContext(snapshot, selectedNodeIds)}`}
           compact
           messages={messages}
           value={value}
-          placeholder="描述你想创作或修改的内容…"
+          placeholder={uiText("描述你想创作或修改的内容…")}
           streaming={streaming}
           activityLabel={activity ?? undefined}
           interaction={interaction}

@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,10 +13,12 @@ interface LineageBreadcrumbProps {
 }
 
 export function LineageBreadcrumb({ items }: LineageBreadcrumbProps): React.ReactElement | null {
+  const uiText = useUiText();
+
   if (items.length === 0) return null;
 
   return (
-    <nav className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground" aria-label="版本血缘">
+    <nav className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground" aria-label={uiText("版本血缘")}>
       {items.map((item, index) => (
         <span key={index} className="flex items-center gap-1">
           {index > 0 && <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />}

@@ -1,16 +1,9 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Handle, NodeResizeControl, Position, useStore, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { toast } from "sonner";
-import {
-  Clock3,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  MessageSquareText,
-  Plus,
-  Scissors,
-  TriangleAlert
-} from "lucide-react";
+import { Clock3, ChevronDown, ChevronUp, Loader2, MessageSquareText, Plus, Scissors, TriangleAlert } from "lucide-react";
 import type { AssetComment, CopyImageFormat } from "@shared/types";
 import { cn } from "@/lib/utils";
 import { getGenerationTiming } from "@/lib/generation-timing";
@@ -109,42 +102,44 @@ function usePendingTiming(active: boolean, startedAt?: number): ReturnType<typeo
 }
 
 function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const {
-    image,
-    comments = [],
-    onOpenComments,
-    onMoveComment,
-    onDeleteComment,
-    canEdit,
-    useThumbnailPreview,
-    imageToolbarOnHover = false,
-    copyImageFormat = "png",
-    onCopy,
-    onDuplicate,
-    onSave,
-    onQuickShare,
-    onExportWechat,
-    onReconstructInMasterGo,
-    onRemoveBackground,
-    onUseReference,
-    canAddReference = true,
-    isReference = false,
-    onEdit,
-    onSlice,
-    onSaveAsTemplate,
-    onOpenSourceTemplate,
-    onViewDetails,
-    onSwitchVersion,
-    onSeparateVersions,
-    onDelete,
-    resizable = true,
-    onResizeStart,
-    onResizeEnd,
-    onConnectionHandlePointerDown,
-    connectionTargetActive,
-    connectionSnapTargetHandle,
-    connectionRevision
-  } = data as unknown as ImageNodeData;
+  image,
+  comments = [],
+  onOpenComments,
+  onMoveComment,
+  onDeleteComment,
+  canEdit,
+  useThumbnailPreview,
+  imageToolbarOnHover = false,
+  copyImageFormat = "png",
+  onCopy,
+  onDuplicate,
+  onSave,
+  onQuickShare,
+  onExportWechat,
+  onReconstructInMasterGo,
+  onRemoveBackground,
+  onUseReference,
+  canAddReference = true,
+  isReference = false,
+  onEdit,
+  onSlice,
+  onSaveAsTemplate,
+  onOpenSourceTemplate,
+  onViewDetails,
+  onSwitchVersion,
+  onSeparateVersions,
+  onDelete,
+  resizable = true,
+  onResizeStart,
+  onResizeEnd,
+  onConnectionHandlePointerDown,
+  connectionTargetActive,
+  connectionSnapTargetHandle,
+  connectionRevision
+} = data as unknown as ImageNodeData;
   const updateNodeInternals = useUpdateNodeInternals();
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => updateNodeInternals(id));
@@ -241,8 +236,8 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
         }}
         tabIndex={image.pendingPrompt || image.pendingReferenceImages?.length ? 0 : undefined}
         aria-label={image.pendingPrompt
-          ? `${generationQueued ? "排队中" : "正在生成"}。提示词：${image.pendingPrompt}${image.pendingReferenceImages?.length ? `。引用图片 ${image.pendingReferenceImages.length} 张` : ""}`
-          : generationQueued ? "排队中" : "正在生成"}
+          ? uiText("{{ui:0}}。提示词：{{ui:1}}{{ui:2}}", [generationQueued ? "排队中" : "正在生成", image.pendingPrompt, image.pendingReferenceImages?.length ? `。引用图片 ${image.pendingReferenceImages.length} 张` : ""])
+          : generationQueued ? uiText("排队中") : uiText("正在生成")}
         className={cn(
           "group relative cursor-grab rounded-lg duration-500 animate-in fade-in zoom-in-95 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none",
           selected && "image-node-pending--selected"
@@ -263,21 +258,20 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
             />
           )}
           <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs font-medium text-foreground">{generationQueued ? "排队中" : "正在生成"}</span>
+            <span className="text-xs font-medium text-foreground">{generationQueued ? uiText("排队中") : uiText("正在生成")}</span>
             {generationQueued ? (
-              <p className="max-w-[13rem] text-pretty text-[11px] leading-4 text-muted-foreground">已有 {MAX_CONCURRENT_GENERATIONS} 个任务正在处理，稍后自动开始</p>
+              <p className="max-w-[13rem] text-pretty text-[11px] leading-4 text-muted-foreground">{uiText("已有 ")}{MAX_CONCURRENT_GENERATIONS} {uiText("个任务正在处理，稍后自动开始")}</p>
             ) : (
               <p className="text-[11px] leading-4 text-muted-foreground">
-                已用 <time className="tabular-nums">{pendingTiming.elapsedLabel}</time>
+                {uiText("已用 ")}<time className="tabular-nums">{pendingTiming.elapsedLabel}</time>
               </p>
             )}
             {!generationQueued && pendingTiming.overdue ? (
               <p className="max-w-[13rem] text-pretty text-[11px] leading-4 text-muted-foreground">
-                比预计久一点，任务仍在处理中
-              </p>
+                {uiText("比预计久一点，任务仍在处理中")}</p>
             ) : !generationQueued ? (
               <p className="text-[11px] leading-4 text-muted-foreground">
-                预计剩余 <time className="tabular-nums">{pendingTiming.remainingLabel}</time>
+                {uiText("预计剩余 ")}<time className="tabular-nums">{pendingTiming.remainingLabel}</time>
               </p>
             ) : null}
           </div>
@@ -292,7 +286,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
           >
             <div className="flex shrink-0 items-center gap-1.5 border-b border-white/15 pb-2 text-[11px] font-medium text-white/70">
               <MessageSquareText aria-hidden className="h-3.5 w-3.5" />
-              <span>提示词</span>
+              <span>{uiText("提示词")}</span>
             </div>
             {image.pendingPrompt ? (
               <>
@@ -316,7 +310,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
                       setPendingPromptExpanded((value) => !value);
                     }}
                   >
-                    {pendingPromptExpanded ? "收起" : "查看更多"}
+                    {pendingPromptExpanded ? uiText("收起") : uiText("查看更多")}
                     {pendingPromptExpanded
                       ? <ChevronUp aria-hidden className="h-3 w-3" />
                       : <ChevronDown aria-hidden className="h-3 w-3" />}
@@ -326,7 +320,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
             ) : null}
             {image.pendingReferenceImages?.length ? (
               <div className="mt-3 shrink-0">
-                <p className="mb-2 text-[11px] font-medium text-white/70">引用图片</p>
+                <p className="mb-2 text-[11px] font-medium text-white/70">{uiText("引用图片")}</p>
                 <div className="flex flex-wrap gap-2">
                   {image.pendingReferenceImages.map((reference, index) => (
                     <div key={`${reference.name}:${index}`} className="h-12 w-12 overflow-hidden rounded-md border border-white/20 bg-white/10">
@@ -391,7 +385,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
             />
             <button
               type="button"
-              aria-label={`从${({ top: "上", right: "右", bottom: "下", left: "左" } as const)[side]}侧创建连接`}
+              aria-label={uiText("从{{ui:0}}侧创建连接", [({ top: "上", right: "右", bottom: "下", left: "左" } as const)[side]])}
               className="nodrag nopan image-node-connection-trigger"
               onPointerDownCapture={(event) => {
                 event.preventDefault();
@@ -434,9 +428,9 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
             setResizeSize({ width: params.width, height: params.height });
             if (params.width >= IMAGE_NODE_MAX_WIDTH - 0.5 && !maxResizeNoticeShownRef.current) {
               maxResizeNoticeShownRef.current = true;
-              toast.info("已达到最大尺寸", {
+              toast.info(translateSourceText("已达到最大尺寸"), {
                 id: `image-resize-max-${id}`,
-                description: `图片最大可放大至 ${IMAGE_NODE_MAX_WIDTH} px 宽`
+                description: translateSourceText("图片最大可放大至 {{ui:0}} px 宽", [IMAGE_NODE_MAX_WIDTH])
               });
             }
           }}
@@ -465,7 +459,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
         {displayUrl ? (
           <img
             src={displayUrl}
-            alt={image.source === "upload" ? "上传图片" : image.source === "slice" ? "切图结果" : "生成结果"}
+            alt={image.source === "upload" ? uiText("上传图片") : image.source === "slice" ? uiText("切图结果") : uiText("生成结果")}
             className="h-full w-full object-cover"
             draggable={false}
             decoding="async"
@@ -474,7 +468,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
         {imageLoadFailed ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <TriangleAlert className="h-5 w-5" aria-hidden="true" />
-            <span className="px-4 text-[11px] font-medium">图片暂时无法读取</span>
+            <span className="px-4 text-[11px] font-medium">{uiText("图片暂时无法读取")}</span>
           </div>
         ) : null}
       </div>
@@ -516,14 +510,12 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
       ) : null}
       {showNodeChrome && image.source === "upload" ? (
         <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-background/95 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-opacity group-hover:opacity-0">
-          上传
-        </span>
+          {uiText("上传")}</span>
       ) : null}
       {showNodeChrome && image.source === "slice" ? (
         <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/95 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-opacity group-hover:opacity-0">
           <Scissors className="h-3 w-3" />
-          切图
-        </span>
+          {uiText("切图")}</span>
       ) : null}
 
       <ImageNodeVersions
@@ -539,8 +531,8 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
             ? <Clock3 className="h-3 w-3" />
             : <Loader2 className="h-3 w-3 animate-spin" />}
           {image.queuedEditCount === pendingEditCount
-            ? `排队中${pendingEditCount > 1 ? ` ${pendingEditCount} 个版本` : ""}`
-            : `编辑中${image.queuedEditCount ? ` · ${image.queuedEditCount} 个排队` : pendingEditCount > 1 ? ` ${pendingEditCount} 个版本` : ""}`}{" "}
+            ? uiText("排队中{{ui:0}}", [pendingEditCount > 1 ? ` ${pendingEditCount} 个版本` : ""])
+            : uiText("编辑中{{ui:0}}", [image.queuedEditCount ? ` · ${image.queuedEditCount} 个排队` : pendingEditCount > 1 ? ` ${pendingEditCount} 个版本` : ""])}{" "}
           {image.queuedEditCount === pendingEditCount ? null : <time className="tabular-nums">{editingTiming.elapsedLabel}</time>}
         </span>
       ) : null}

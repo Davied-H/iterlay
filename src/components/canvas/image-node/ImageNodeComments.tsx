@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { MessageSquareText, Trash2 } from "lucide-react";
 import type { AssetComment } from "@shared/types";
@@ -44,6 +45,8 @@ function CommentMarker({
   onMoveComment?: (id: string, position: NonNullable<AssetComment["position"]>) => void;
   onDeleteComment?: (id: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const position = comment.position ?? { x: 0.5, y: 0.5 };
   const [draftPosition, setDraftPosition] = useState(position);
   const [dragging, setDragging] = useState(false);
@@ -147,7 +150,7 @@ function CommentMarker({
       <button
         type="button"
         className="comment-marker__trigger"
-        aria-label={`评论 ${number}：${comment.text}。可拖动或使用方向键调整位置`}
+        aria-label={uiText("评论 {{ui:0}}：{{ui:1}}。可拖动或使用方向键调整位置", [number, comment.text])}
         aria-describedby={previewId}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -162,15 +165,15 @@ function CommentMarker({
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <MessageSquareText aria-hidden className="h-3.5 w-3.5 shrink-0" />
-            <span className="shrink-0">评论 {number}</span><span aria-hidden>·</span>
+            <span className="shrink-0">{uiText("评论 ")}{number}</span><span aria-hidden>·</span>
             <time className="truncate tabular-nums">{new Date(comment.createdAt).toLocaleString()}</time>
           </div>
           {onDeleteComment ? (
             <button
               type="button"
               className="comment-marker__delete"
-              aria-label={`删除评论 ${number}`}
-              title="删除评论"
+              aria-label={uiText("删除评论 {{ui:0}}", [number])}
+              title={uiText("删除评论")}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => { event.stopPropagation(); onDeleteComment(comment.id); }}
             >

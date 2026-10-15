@@ -1,0 +1,188 @@
+.canvas-create-toolbar {
+  isolation: isolate;
+  display: flex;
+  width: 48px;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid hsl(var(--border) / 0.9);
+  border-radius: 8px;
+  background: hsl(var(--popover) / 0.94);
+  padding: 5px;
+  box-shadow:
+    0 1px 1px hsl(var(--background) / 0.95) inset,
+    0 1px 2px rgb(15 23 42 / 0.08),
+    0 8px 24px rgb(15 23 42 / 0.1);
+  backdrop-filter: blur(16px) saturate(1.12);
+}
+.canvas-create-toolbar button {
+  position: relative;
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
+}
+.canvas-create-toolbar button svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.75;
+}
+.canvas-create-toolbar button:hover,
+.canvas-create-toolbar button:focus-visible {
+  border-color: hsl(var(--border) / 0.8);
+  background: hsl(var(--accent) / 0.72);
+  color: hsl(var(--foreground));
+  outline: none;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+}
+.canvas-create-toolbar button:focus-visible {
+  border-color: hsl(var(--focus-accent) / 0.6);
+  box-shadow: 0 0 0 2px hsl(var(--focus-accent) / 0.16);
+}
+.canvas-create-toolbar button:active {
+  transform: translateY(1px) scale(0.97);
+}
+.canvas-create-toolbar__divider {
+  width: 28px;
+  height: 1px;
+  margin: 4px 0;
+  background: hsl(var(--border) / 0.9);
+}
+.canvas-create-toolbar button[data-emphasis="true"] {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.52);
+  color: hsl(var(--foreground));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+.canvas-create-toolbar button[data-emphasis="true"]:hover,
+.canvas-create-toolbar button[data-emphasis="true"]:focus-visible {
+  border-color: hsl(var(--foreground) / 0.2);
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+.canvas-create-toolbar__tooltip {
+  display: flex;
+  min-height: 34px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 9px;
+}
+.canvas-create-toolbar__tooltip strong {
+  color: hsl(var(--primary-foreground));
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 15px;
+}
+.canvas-create-toolbar__tooltip span {
+  color: hsl(var(--primary-foreground) / 0.68);
+  font-size: 9px;
+  line-height: 13px;
+}
+.dark .canvas-create-toolbar button[data-emphasis="true"] {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.48);
+  color: hsl(var(--foreground));
+}
+.dark .canvas-create-toolbar button[data-emphasis="true"]:hover,
+.dark .canvas-create-toolbar button[data-emphasis="true"]:focus-visible {
+  border-color: hsl(var(--foreground) / 0.24);
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-create-toolbar button { transition: none; }
+}
+
+/* Comic production cards stay neutral; type and state are carried by content, not color coding. */
+.comic-drama-node {
+  width: 100%;
+  min-height: 100%;
+  border-radius: 10px;
+  background: hsl(var(--card));
+  overflow-wrap: anywhere;
+}
+.comic-drama-node__header { height: 38px; flex-basis: 38px; gap: 7px; padding: 0 9px; border-bottom: 1px solid hsl(var(--border)); border-radius: 9px 9px 0 0; }
+.comic-drama-node__icon { width: 23px; height: 23px; flex-basis: 23px; border-radius: 6px; color: hsl(var(--background)); }
+.comic-drama-node__icon svg { width: 13px; height: 13px; stroke-width: 1.8; }
+.comic-drama-node__title { display: block; overflow: hidden; font-size: 12px; font-weight: 650; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.comic-drama-node__title:focus-visible { border-radius: 3px; outline: 2px solid hsl(var(--focus-accent)); outline-offset: 2px; }
+.comic-drama-node__header-status { min-width: 0; height: 18px; flex: none; gap: 3px; padding: 0 5px; border: 1px solid transparent; border-radius: 5px; background: hsl(var(--muted) / 0.56); color: hsl(var(--muted-foreground)); font-size: 9px; font-weight: 600; }
+.comic-drama-node__header-status::before { width: 5px; height: 5px; flex: none; border-radius: 50%; background: currentColor; content: ""; opacity: 0.65; }
+.comic-drama-node__header-status svg { width: 11px; height: 11px; stroke-width: 2; }
+.comic-drama-node__header-status:has(svg)::before { display: none; }
+.comic-drama-node__header-status--saved { background: transparent; color: hsl(var(--muted-foreground)); }
+.comic-drama-node__header-status--error { border-color: hsl(var(--destructive) / 0.18); background: hsl(var(--destructive) / 0.07); color: hsl(var(--destructive-readable)); }
+.comic-drama-node__header-status--adopted { background: hsl(var(--success-muted) / 0.72); color: hsl(var(--success)); }
+.comic-drama-node__status-spinner { animation: comic-drama-status-spin 900ms linear infinite; }
+@keyframes comic-drama-status-spin { to { transform: rotate(360deg); } }
+.comic-drama-node__body { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 8px; margin: 12px 12px 0; overflow: hidden; border: 1px solid hsl(var(--input)); border-radius: 8px; background: hsl(var(--muted) / 0.38); padding: 12px; font-size: 11px; line-height: 17px; }
+.comic-drama-node__section-label { color: hsl(var(--muted-foreground)); font-size: 9px; font-weight: 600; line-height: 13px; }
+.comic-drama-node__synopsis { display: -webkit-box; overflow: hidden; white-space: pre-wrap; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.comic-drama-node__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.comic-drama-node__chips span { border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--background)); padding: 2px 6px; color: hsl(var(--muted-foreground)); font-size: 10px; }
+.comic-drama-node__meta { display: flex; align-items: center; gap: 4px; margin-top: auto; color: hsl(var(--muted-foreground)); font-size: 10px; }
+.comic-drama-node__meta svg { width: 11px; height: 11px; }
+.comic-drama-node__character-empty { display: flex; min-height: 72px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed hsl(var(--border)); border-radius: 6px; background: hsl(var(--background) / 0.7); color: hsl(var(--muted-foreground)); text-align: center; }
+.comic-drama-node__character-empty > small { display: -webkit-box; max-width: 100%; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 9px; line-height: 13px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.comic-drama-node__character-empty[data-error="true"] { border-color: hsl(var(--destructive) / 0.3); background: hsl(var(--destructive) / 0.04); }
+.comic-drama-node__character-empty[data-error="true"] > span { color: hsl(var(--destructive-readable)); font-weight: 600; }
+.comic-drama-node__details { display: grid; gap: 3px; }
+.comic-drama-node__role, .comic-drama-node__anchors, .comic-drama-node__purpose { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comic-drama-node__script { display: -webkit-box; overflow: hidden; white-space: pre-wrap; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+.comic-drama-node__footer { display: flex; min-height: 52px; align-items: center; gap: 6px; padding: 0 10px 0 12px; }
+.comic-drama-node__footer-meta { min-width: 0; flex: 1; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 9px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.comic-drama-node__primary-action { flex: none; }
+.comic-drama-node__edit-action { height: 30px; flex: none; padding: 0 7px; font-size: 10px; }
+.comic-drama-node__connection-trigger {
+  inset: auto -10px auto auto;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.comic-drama-node__connection-trigger svg { width: 11px; height: 11px; stroke-width: 2; }
+.comic-drama-node:hover > .comic-drama-node__connection-trigger,
+.comic-drama-node:focus-within > .comic-drama-node__connection-trigger,
+.comic-drama-node.canvas-workflow-node--selected > .comic-drama-node__connection-trigger {
+  opacity: 1;
+  pointer-events: auto;
+}
+.comic-drama-node__connection-trigger:hover,
+.comic-drama-node__connection-trigger:focus-visible {
+  transform: translateY(-50%) scale(1.06);
+}
+
+.comic-plan-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.comic-plan-step { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 4px; color: hsl(var(--muted-foreground)); font-size: 9px; }
+.comic-plan-step::before { z-index: 1; width: 6px; height: 6px; border: 1px solid hsl(var(--border)); border-radius: 50%; background: hsl(var(--background)); content: ""; }
+.comic-plan-step:not(:first-child)::after { position: absolute; top: 3px; right: 50%; width: 100%; height: 1px; background: hsl(var(--border)); content: ""; }
+.comic-plan-step[data-complete="true"]::before { border-color: hsl(var(--muted-foreground)); background: hsl(var(--muted-foreground)); }
+.comic-plan-step[aria-current="step"] { color: hsl(var(--foreground)); font-weight: 650; }
+.comic-plan-step[aria-current="step"]::before { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); box-shadow: 0 0 0 2px hsl(var(--background)); }
+/* Provider-returned summaries stay separate from the assistant's answer. */
+.assistant-reasoning{margin:4px 0 10px;color:hsl(var(--muted-foreground));font-size:12px;max-width:100%}
+.assistant-reasoning summary{display:flex;align-items:center;gap:7px;min-height:30px;cursor:pointer;list-style:none;width:fit-content;border-radius:6px;padding:3px 5px}
+.assistant-reasoning summary::-webkit-details-marker{display:none}
+.assistant-reasoning summary:hover{background:hsl(var(--muted))}
+.assistant-reasoning summary:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.assistant-reasoning summary svg{height:14px;width:14px;flex:none}
+.assistant-reasoning-chevron{transition:transform 150ms}
+.assistant-reasoning[open] .assistant-reasoning-chevron{transform:rotate(180deg)}
+.assistant-reasoning-content{margin:5px 0 0 11px;padding:4px 12px;border-left:1px solid hsl(var(--border));max-height:200px;overflow:auto;scrollbar-width:thin;scrollbar-color:hsl(var(--border)) transparent}
+.assistant-reasoning-content p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
+@media(prefers-reduced-motion:reduce){.assistant-reasoning *{animation:none!important;transition:none!important}}

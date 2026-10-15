@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readUiSource as readFileSync } from "./helpers/ui-source";
 import { describe, expect, it } from "vitest";
 
 const promptDock = readFileSync(new URL("../src/components/workbench/PromptDock.tsx", import.meta.url), "utf8");

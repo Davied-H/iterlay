@@ -1,17 +1,8 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Info,
-  Maximize2,
-  Minus,
-  Plus,
-  RotateCcw,
-  X
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Info, Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
@@ -127,6 +118,8 @@ export function ImageZoomLightbox({
   onNext,
   onClose
 }: ImageZoomLightboxProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = useReducedMotion();
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -290,7 +283,7 @@ export function ImageZoomLightbox({
     <motion.div
       ref={containerRef}
       role="dialog"
-      aria-label="图片全屏预览"
+      aria-label={uiText("图片全屏预览")}
       aria-modal="true"
       className={cn(
         "image-preview fixed inset-0 z-[60] isolate overflow-hidden text-white",
@@ -312,7 +305,7 @@ export function ImageZoomLightbox({
       <button
         type="button"
         autoFocus
-        aria-label="关闭图片预览"
+        aria-label={uiText("关闭图片预览")}
         onClick={onClose}
         style={closeButtonPlacement === "image"
           ? {
@@ -331,7 +324,7 @@ export function ImageZoomLightbox({
       {onPrevious ? (
         <button
           type="button"
-          aria-label="上一张图片"
+          aria-label={uiText("上一张图片")}
           onClick={onPrevious}
           className="absolute left-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.09] text-white/70 transition-colors hover:bg-white/[0.15] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
@@ -341,7 +334,7 @@ export function ImageZoomLightbox({
       {onNext ? (
         <button
           type="button"
-          aria-label="下一张图片"
+          aria-label={uiText("下一张图片")}
           onClick={onNext}
           className={cn(
             "absolute right-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.09] text-white/70 transition-colors hover:bg-white/[0.15] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
@@ -418,31 +411,31 @@ export function ImageZoomLightbox({
       >
         <span className="max-w-44 truncate px-2 text-xs text-white/68 max-[540px]:hidden">{previewTitle}</span>
         <span className="mx-0.5 h-5 w-px bg-white/10 max-[540px]:hidden" aria-hidden />
-        <PreviewTool label="缩小" disabled={scale <= MIN_SCALE} onClick={() => setZoom(scale - 0.25)}>
+        <PreviewTool label={uiText("缩小")} disabled={scale <= MIN_SCALE} onClick={() => setZoom(scale - 0.25)}>
           <Minus />
         </PreviewTool>
         <button
           type="button"
-          aria-label="复位缩放"
+          aria-label={uiText("复位缩放")}
           onClick={resetView}
           className="h-8 min-w-12 rounded-full px-2 text-[11px] tabular-nums text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
           {Math.round(scale * 100)}%
         </button>
-        <PreviewTool label="放大" disabled={scale >= MAX_SCALE} onClick={() => setZoom(scale + 0.25)}>
+        <PreviewTool label={uiText("放大")} disabled={scale >= MAX_SCALE} onClick={() => setZoom(scale + 0.25)}>
           <Plus />
         </PreviewTool>
-        <PreviewTool label="适应画面" onClick={resetView}>
+        <PreviewTool label={uiText("适应画面")} onClick={resetView}>
           {scale === 1 ? <Maximize2 /> : <RotateCcw />}
         </PreviewTool>
         {onDownload ? (
-          <PreviewTool label="下载图片" disabled={downloading} onClick={() => void downloadImage()}>
+          <PreviewTool label={uiText("下载图片")} disabled={downloading} onClick={() => void downloadImage()}>
             <Download />
           </PreviewTool>
         ) : null}
         {showDetailsPanel ? (
           <span className="min-[900px]:hidden">
-            <PreviewTool label="图片信息" active={infoOpen} onClick={() => setInfoOpen((value) => !value)}>
+            <PreviewTool label={uiText("图片信息")} active={infoOpen} onClick={() => setInfoOpen((value) => !value)}>
               <Info />
             </PreviewTool>
           </span>
@@ -464,9 +457,11 @@ function PreviewInspector({
   title: string;
   details: Array<{ label: string; value: string }>;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <aside className="absolute bottom-0 right-0 top-0 hidden w-[304px] overflow-y-auto border-l border-white/[0.07] bg-[#050505] px-7 pb-8 pt-24 min-[900px]:block">
-      <h2 className="sr-only">{title} 图片信息</h2>
+      <h2 className="sr-only">{title} {uiText("图片信息")}</h2>
       <dl className="space-y-6">
         {details.map((detail) => (
           <div key={detail.label}>
@@ -490,10 +485,12 @@ function AnimateMobileInspector({
   details: Array<{ label: string; value: string }>;
   onClose: () => void;
 }): React.ReactElement | null {
+  const uiText = useUiText();
+
   if (!open) return null;
   return (
     <motion.aside
-      aria-label={`${title} 图片信息`}
+      aria-label={uiText("{{ui:0}} 图片信息", [title])}
       className="absolute inset-x-3 bottom-20 z-20 max-h-[38vh] overflow-y-auto rounded-xl bg-[#181818] p-4 shadow-xl min-[900px]:hidden"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -504,7 +501,7 @@ function AnimateMobileInspector({
         <h2 className="truncate text-sm font-medium text-white">{title}</h2>
         <button
           type="button"
-          aria-label="关闭图片信息"
+          aria-label={uiText("关闭图片信息")}
           onClick={onClose}
           className="flex h-7 w-7 items-center justify-center rounded-md text-white/55 hover:bg-white/[0.08] hover:text-white"
         >

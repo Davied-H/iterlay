@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useMemo } from "react";
 import { OptionWheel } from "@/components/workbench/gallery/OptionWheel";
 
@@ -16,6 +17,8 @@ interface TimelineWheelProps {
 const CLICK_SOUND_URL = "data:audio/mpeg;base64,SUQzBAAAAAAAIlRTU0UAAAAOAAADTGF2ZjYyLjMuMTAwAAAAAAAAAAAAAAD/+1DAAAAAAAAAAAAAAAAAAAAAAABJbmZvAAAADwAAAAIAAAJxAKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr//////////////////////////////////////////////////////////////////wAAAABMYXZjNjIuMTEAAAAAAAAAAAAAAAAkBYYAAAAAAAACcU7MYgYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//tQxAAACghZUlTHgAGDlWufHzAAAVWgJg3EszX3mlF95pSk7enve+GBDEMNMg4R8BLACwAsA7BVjjOhDEMQxWKx5EcJwfB/KBiU8/wI7QH+BHaA/ynv6PB8/LgQEMgD78CHO/oGiAIBAQBAYFAA1hDi4z22DmJ7Et+PSEd1f8Y4PmLI5uDYKAWyCmBlSZJ3gAmD0RBEUDS/HKFzC5iZIr/5FTIvE0Yl3/8ipkXi8Yl0u/xEFQVER7/WCoiCoKiL/4VBURPOqgAQuacbblgZh//7UsQEg8aUBv9cMIAgAAA0gAAABIKqErhFDZUNQ7PRK4S8s8r1HiuGlHuSnenrcW9yvO/PcFflep5XqPKfrO9NTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
 
 export function TimelineWheel({ buckets, selectedKey, onSelect }: TimelineWheelProps): React.ReactElement {
+  const uiText = useUiText();
+
   const items = useMemo(
     () => buckets.map((bucket) => bucket.label),
     [buckets]
@@ -33,7 +36,7 @@ export function TimelineWheel({ buckets, selectedKey, onSelect }: TimelineWheelP
         aria-hidden
         className="gallery-timeline-fade pointer-events-none absolute inset-y-0 left-0 -z-10 w-[640px] max-[860px]:w-[520px] max-[620px]:hidden"
       />
-      <span className="sr-only">生成时间</span>
+      <span className="sr-only">{uiText("生成时间")}</span>
       {buckets.length > 0 ? (
         <>
           <OptionWheel
@@ -65,11 +68,11 @@ export function TimelineWheel({ buckets, selectedKey, onSelect }: TimelineWheelP
           {selectedBucket ? (
             <div className="pointer-events-none absolute bottom-6 left-20 flex items-baseline gap-2 text-white/42 max-[860px]:left-12 max-[620px]:hidden">
               <span className="text-sm font-medium tabular-nums text-white/72">{selectedBucket.count}</span>
-              <span className="text-xs">次生成</span>
+              <span className="text-xs">{uiText("次生成")}</span>
             </div>
           ) : null}
           <select
-            aria-label="选择回顾日期"
+            aria-label={uiText("选择回顾日期")}
             value={selectedKey ?? ""}
             onChange={(event) => onSelect(event.target.value)}
             className="mx-4 mt-2 hidden h-8 min-w-0 rounded-md border border-white/10 bg-white/[0.06] px-2 text-xs text-white outline-none focus:border-white/30 max-[620px]:block"
@@ -82,7 +85,7 @@ export function TimelineWheel({ buckets, selectedKey, onSelect }: TimelineWheelP
           </select>
         </>
       ) : (
-        <div className="flex h-full items-center px-20 text-sm text-white/38 max-[860px]:px-12">暂无记录</div>
+        <div className="flex h-full items-center px-20 text-sm text-white/38 max-[860px]:px-12">{uiText("暂无记录")}</div>
       )}
     </aside>
   );

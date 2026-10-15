@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { motion, useReducedMotion } from "framer-motion";
 import { Images, Trash2, X } from "lucide-react";
 import type { AssetComment } from "@shared/types";
@@ -24,6 +25,8 @@ export function CommentRail({
   onDeleteComment,
   onClose
 }: CommentRailProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = useReducedMotion();
   return (
     <motion.aside
@@ -33,10 +36,10 @@ export function CommentRail({
     >
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">评论</span>
+          <span className="text-sm font-semibold">{uiText("评论")}</span>
           <Badge variant="muted">{comments.length}</Badge>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label="收起评论">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label={uiText("收起评论")}>
           <X className="h-4 w-4" />
         </Button>
       </header>
@@ -45,8 +48,7 @@ export function CommentRail({
         <div className="flex flex-col gap-2 p-3">
           {comments.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm leading-relaxed text-muted-foreground">
-              还没有评论。按 C 进入评论模式，点击画布上的图片即可添加评论建议。
-            </p>
+              {uiText("还没有评论。按 C 进入评论模式，点击画布上的图片即可添加评论建议。")}</p>
           ) : (
             comments.map((comment) => {
               const thumb = thumbFor(comment.imagePath);
@@ -58,7 +60,7 @@ export function CommentRail({
                   <button
                     type="button"
                     onClick={() => onFocusImage(comment.imagePath)}
-                    title="定位到画布图片"
+                    title={uiText("定位到画布图片")}
                     className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {thumb ? (
@@ -76,8 +78,8 @@ export function CommentRail({
                   <button
                     type="button"
                     onClick={() => onDeleteComment(comment.id)}
-                    aria-label="删除评论"
-                    title="删除评论"
+                    aria-label={uiText("删除评论")}
+                    title={uiText("删除评论")}
                     className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground opacity-0 transition-opacity duration-150 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

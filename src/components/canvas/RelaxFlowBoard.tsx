@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import {
   memo,
   useCallback,
@@ -49,11 +50,7 @@ import {
   WandSparkles,
   X
 } from "lucide-react";
-import {
-  AiAssistant,
-  type AiAssistantMessage,
-  type AiAssistantWorkflow
-} from "@/components/assistant/AiAssistant";
+import { AiAssistant, type AiAssistantMessage, type AiAssistantWorkflow } from "@/components/assistant/AiAssistant";
 import { Button } from "@/components/ui/button";
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -200,6 +197,8 @@ function resizeAutoText(
 }
 
 function ImageFlowNode({ data }: NodeProps<RelaxImageNode>): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg">
       <div
@@ -213,17 +212,17 @@ function ImageFlowNode({ data }: NodeProps<RelaxImageNode>): React.ReactElement 
         <img
           key={data.source}
           src={data.source}
-          alt={`Relax Flow 图片版本 ${data.activeVersion + 1}`}
+          alt={uiText("Relax Flow 图片版本 {{ui:0}}", [data.activeVersion + 1])}
           draggable={false}
           className="h-full w-full select-none object-fill animate-in fade-in-0 duration-200 motion-reduce:animate-none"
         />
         <span className="pointer-events-none absolute left-2 top-2 z-10 flex items-center gap-1.5 rounded bg-background/92 px-1.5 py-1 text-[10px] font-medium text-foreground shadow-sm">
           {data.analysisState === "understanding" ? <Loader2 className="h-3 w-3 animate-spin text-[hsl(var(--ai-accent))] motion-reduce:animate-none" /> : null}
           {data.analysisState === "understanding"
-            ? `正在理解 ${data.annotationCount} 个标注`
+            ? uiText("正在理解 {{ui:0}} 个标注", [data.annotationCount])
             : data.analysisState === "understood"
-              ? "编辑意图已识别"
-              : "编辑目标"}
+              ? uiText("编辑意图已识别")
+              : uiText("编辑目标")}
         </span>
         {data.analysisState === "understanding" ? <span className="relax-flow-target__scan" aria-hidden /> : null}
       </div>
@@ -232,6 +231,8 @@ function ImageFlowNode({ data }: NodeProps<RelaxImageNode>): React.ReactElement 
 }
 
 function GeneratedVersionFlowNode({ data }: NodeProps<GeneratedVersionNode>): React.ReactElement {
+  const uiText = useUiText();
+
   const timing = useGenerationTiming(data.pending, data.startedAt);
 
   return (
@@ -240,7 +241,7 @@ function GeneratedVersionFlowNode({ data }: NodeProps<GeneratedVersionNode>): Re
         <img
           key={data.source}
           src={data.source}
-          alt={`Relax Flow 新版本 ${data.versionNumber}`}
+          alt={uiText("Relax Flow 新版本 {{ui:0}}", [data.versionNumber])}
           draggable={false}
           className="h-full w-full select-none object-fill animate-in fade-in-0 duration-200 motion-reduce:animate-none"
         />
@@ -252,24 +253,23 @@ function GeneratedVersionFlowNode({ data }: NodeProps<GeneratedVersionNode>): Re
         >
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground [animation-duration:1.4s] motion-reduce:animate-none" />
           <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs font-medium text-foreground">正在生成新版本</span>
+            <span className="text-xs font-medium text-foreground">{uiText("正在生成新版本")}</span>
             <p className="text-[11px] leading-4 text-muted-foreground">
-              已用 <time className="tabular-nums">{timing.elapsedLabel}</time>
+              {uiText("已用 ")}<time className="tabular-nums">{timing.elapsedLabel}</time>
             </p>
             {timing.overdue ? (
               <p className="max-w-[13rem] text-pretty text-[11px] leading-4 text-muted-foreground">
-                比预计久一点，任务仍在处理中
-              </p>
+                {uiText("比预计久一点，任务仍在处理中")}</p>
             ) : (
               <p className="text-[11px] leading-4 text-muted-foreground">
-                预计剩余 <time className="tabular-nums">{timing.remainingLabel}</time>
+                {uiText("预计剩余 ")}<time className="tabular-nums">{timing.remainingLabel}</time>
               </p>
             )}
           </div>
         </div>
       )}
       <span className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-background/92 px-1.5 py-1 text-[10px] font-medium text-foreground shadow-sm">
-        {data.pending ? "生成中" : `新版本 v${data.versionNumber}`}
+        {data.pending ? uiText("生成中") : uiText("新版本 v{{ui:0}}", [data.versionNumber])}
       </span>
     </div>
   );
@@ -602,6 +602,8 @@ function SelectionFrame({
   bounds: RelaxBounds;
   onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>, direction: ResizeDirection) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const handles: Array<{ direction: ResizeDirection; className: string }> = [
     { direction: "nw", className: "-left-1.5 -top-1.5 cursor-nwse-resize" },
     { direction: "ne", className: "-right-1.5 -top-1.5 cursor-nesw-resize" },
@@ -614,7 +616,7 @@ function SelectionFrame({
         <button
           key={handle.direction}
           type="button"
-          aria-label={`缩放 ${handle.direction}`}
+          aria-label={uiText("缩放 {{ui:0}}", [handle.direction])}
           className={cn("pointer-events-auto absolute h-3 w-3 rounded-[2px] border-2 border-background bg-[hsl(var(--ai-accent))]", handle.className)}
           onPointerDown={(event) => onResizeStart(event, handle.direction)}
         />
@@ -638,6 +640,8 @@ export function RelaxFlowBoard({
   onBack,
   onClose
 }: RelaxFlowBoardProps): React.ReactElement {
+  const uiText = useUiText();
+
   const segmentedLayoutId = useId();
   const wheelInteraction = useMemo(() => resolveCanvasWheelInteraction(), []);
   const flowRef = useRef<ReactFlowInstance<Node<Record<string, unknown>>, never> | null>(null);
@@ -1329,17 +1333,17 @@ export function RelaxFlowBoard({
             : "grid-cols-[48px_minmax(0,1fr)_304px] max-[920px]:grid-cols-[44px_minmax(0,1fr)_256px]"
         )}>
         <header className="col-span-3 flex min-w-0 items-center gap-2 border-b border-border bg-background py-0 pl-[84px] pr-3 [-webkit-app-region:drag]">
-          <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 [-webkit-app-region:no-drag]" disabled={submitting && !generationActive} onClick={onBack}><ArrowLeft className="h-4 w-4" />高级编辑</Button>
+          <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 [-webkit-app-region:no-drag]" disabled={submitting && !generationActive} onClick={onBack}><ArrowLeft className="h-4 w-4" />{uiText("高级编辑")}</Button>
           <div className="h-4 w-px bg-border" />
           <WandSparkles className="h-4 w-4 text-[hsl(var(--ai-accent))]" />
           <strong className="text-sm font-semibold">Relax Flow</strong>
           <span className="text-xs tabular-nums text-muted-foreground">v{resolvedActiveVersion + 1} / {versions.length}</span>
           <div className="flex-1" />
-          <span className="text-[11px] text-muted-foreground">{visibleCount} 个元素</span>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label="关闭编辑" onClick={onClose}><X className="h-4 w-4" /></Button>
+          <span className="text-[11px] text-muted-foreground">{visibleCount} {uiText("个元素")}</span>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label={uiText("关闭编辑")} onClick={onClose}><X className="h-4 w-4" /></Button>
         </header>
 
-        <nav className="row-start-2 flex flex-col items-center gap-1 border-r border-border bg-background py-2.5" aria-label="Relax Flow 工具">
+        <nav className="row-start-2 flex flex-col items-center gap-1 border-r border-border bg-background py-2.5" aria-label={uiText("Relax Flow 工具")}>
           <ToolButton tool="select" activeTool={tool} disabled={submitting} icon={<MousePointer2 className="h-4 w-4" />} onSelect={setTool} />
           <div className="my-0.5 h-px w-6 bg-border" />
           <ToolButton tool="brush" activeTool={tool} disabled={submitting} icon={<Brush className="h-4 w-4" />} onSelect={setTool} />
@@ -1349,12 +1353,12 @@ export function RelaxFlowBoard({
           <ToolButton tool="text" activeTool={tool} disabled={submitting} icon={<Type className="h-4 w-4" />} onSelect={setTool} />
           <ToolButton tool="eraser" activeTool={tool} disabled={submitting} icon={<Eraser className="h-4 w-4" />} onSelect={setTool} />
           <div className="my-0.5 h-px w-6 bg-border" />
-          <Tooltip><TooltipTrigger asChild><button type="button" aria-label="撤销" disabled={past.length === 0 || submitting} onClick={undo} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35"><Undo2 className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">撤销</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><button type="button" aria-label="重做" disabled={future.length === 0 || submitting} onClick={redo} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35"><Redo2 className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">重做</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><button type="button" aria-label="适应画板" onClick={() => void flowRef.current?.fitView({ padding: 0.24, duration: 220, maxZoom: 1.15 })} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><Focus className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">适应画板</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button type="button" aria-label={uiText("撤销")} disabled={past.length === 0 || submitting} onClick={undo} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35"><Undo2 className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">{uiText("撤销")}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button type="button" aria-label={uiText("重做")} disabled={future.length === 0 || submitting} onClick={redo} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35"><Redo2 className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">{uiText("重做")}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button type="button" aria-label={uiText("适应画板")} onClick={() => void flowRef.current?.fitView({ padding: 0.24, duration: 220, maxZoom: 1.15 })} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><Focus className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">{uiText("适应画板")}</TooltipContent></Tooltip>
         </nav>
 
-        <main className="relative row-start-2 min-h-0 min-w-0 overflow-hidden bg-muted/35" aria-label="Relax Flow 画板" aria-busy={submitting || undefined}>
+        <main className="relative row-start-2 min-h-0 min-w-0 overflow-hidden bg-muted/35" aria-label={uiText("Relax Flow 画板")} aria-busy={submitting || undefined}>
           <ReactFlow<Node<Record<string, unknown>>, never>
             nodes={[...imageNodes, ...generatedVersionNodes]}
             edges={[]}
@@ -1421,12 +1425,12 @@ export function RelaxFlowBoard({
             <div
               className="pointer-events-auto absolute bottom-4 left-1/2 z-30 flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-1.5 rounded-lg border border-border bg-background/96 p-1.5 shadow-sm backdrop-blur-sm"
               role="group"
-              aria-label="图片版本"
+              aria-label={uiText("图片版本")}
               onPointerDown={(event) => event.stopPropagation()}
             >
               <button
                 type="button"
-                aria-label="上一个版本"
+                aria-label={uiText("上一个版本")}
                 disabled={submitting || resolvedActiveVersion <= 0}
                 onClick={() => switchSourceVersion(resolvedActiveVersion - 1)}
                 className="flex h-9 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30"
@@ -1438,7 +1442,7 @@ export function RelaxFlowBoard({
                   <button
                     key={`${version.path}-${index}`}
                     type="button"
-                    aria-label={`切换到版本 ${index + 1}`}
+                    aria-label={uiText("切换到版本 {{ui:0}}", [index + 1])}
                     aria-pressed={index === resolvedActiveVersion}
                     disabled={submitting}
                     onClick={() => switchSourceVersion(index)}
@@ -1458,7 +1462,7 @@ export function RelaxFlowBoard({
               </div>
               <button
                 type="button"
-                aria-label="下一个版本"
+                aria-label={uiText("下一个版本")}
                 disabled={submitting || resolvedActiveVersion >= versions.length - 1}
                 onClick={() => switchSourceVersion(resolvedActiveVersion + 1)}
                 className="flex h-9 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30"
@@ -1472,17 +1476,17 @@ export function RelaxFlowBoard({
             <div className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2" aria-live="polite">
               <div className="flex items-center gap-2 rounded-md bg-background/96 px-3 py-2 text-xs font-medium shadow-md">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-[hsl(var(--ai-accent))] motion-reduce:animate-none" />
-                {generationActive ? "正在生成新版本" : `正在理解 ${visibleCount} 个标注`}
+                {generationActive ? uiText("正在生成新版本") : uiText("正在理解 {{ui:0}} 个标注", [visibleCount])}
               </div>
             </div>
           ) : null}
         </main>
 
-        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label="Relax Flow 检查器">
+        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label={uiText("Relax Flow 检查器")}>
           {assistantOpen ? (
             <AiAssistant
               variant="docked"
-              title="Relax Flow AI 助手"
+              title={uiText("Relax Flow AI 助手")}
               subtitle={understandingActive
                 ? "正在分析标注与图片的关系"
                 : generationActive
@@ -1492,7 +1496,7 @@ export function RelaxFlowBoard({
                     : "理解画板并生成编辑方案"}
               messages={assistantMessages}
               value={assistantValue}
-              placeholder={intentReady ? "继续描述你想怎样调整…" : "完成 AI 理解后可继续对话修改"}
+              placeholder={intentReady ? uiText("继续描述你想怎样调整…") : uiText("完成 AI 理解后可继续对话修改")}
               streaming={assistantStreaming}
               workflow={assistantWorkflow}
               disabled={submitting || !intentReady}
@@ -1513,43 +1517,43 @@ export function RelaxFlowBoard({
             />
           ) : <>
           <div className="flex h-11 shrink-0 items-end border-b border-border px-2">
-            <button type="button" aria-pressed={inspectorTab === "properties"} onClick={() => setInspectorTab("properties")} className={cn("flex h-10 min-w-0 flex-1 items-center justify-center gap-1 border-b-2 border-transparent text-xs font-medium text-muted-foreground", inspectorTab === "properties" && "border-foreground text-foreground")}><SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />属性</button>
-            <button type="button" aria-pressed={inspectorTab === "layers"} onClick={() => setInspectorTab("layers")} className={cn("flex h-10 min-w-0 flex-1 items-center justify-center gap-1 border-b-2 border-transparent text-xs font-medium text-muted-foreground", inspectorTab === "layers" && "border-foreground text-foreground")}><Layers3 className="h-3.5 w-3.5 shrink-0" />图层</button>
-            <button type="button" aria-pressed="false" onClick={() => setAssistantOpen(true)} className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 border-b-2 border-transparent text-xs font-medium text-[hsl(var(--ai-accent))] hover:bg-accent/60"><WandSparkles className="h-3.5 w-3.5 shrink-0" />AI 助手</button>
+            <button type="button" aria-pressed={inspectorTab === "properties"} onClick={() => setInspectorTab("properties")} className={cn("flex h-10 min-w-0 flex-1 items-center justify-center gap-1 border-b-2 border-transparent text-xs font-medium text-muted-foreground", inspectorTab === "properties" && "border-foreground text-foreground")}><SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />{uiText("属性")}</button>
+            <button type="button" aria-pressed={inspectorTab === "layers"} onClick={() => setInspectorTab("layers")} className={cn("flex h-10 min-w-0 flex-1 items-center justify-center gap-1 border-b-2 border-transparent text-xs font-medium text-muted-foreground", inspectorTab === "layers" && "border-foreground text-foreground")}><Layers3 className="h-3.5 w-3.5 shrink-0" />{uiText("图层")}</button>
+            <button type="button" aria-pressed="false" onClick={() => setAssistantOpen(true)} className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 border-b-2 border-transparent text-xs font-medium text-[hsl(var(--ai-accent))] hover:bg-accent/60"><WandSparkles className="h-3.5 w-3.5 shrink-0" />{uiText("AI 助手")}</button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {inspectorTab === "properties" ? (
               <>
                 <section className="border-b border-border p-3.5">
-                  <div className="mb-2.5 flex items-center justify-between"><span className="text-xs font-medium text-foreground">{selectedElement ? relaxElementLabel(selectedElement) : TOOL_LABELS[tool]}</span>{selectedElement ? <div className="flex items-center gap-0.5"><button type="button" aria-label="复制元素" onClick={duplicateSelected} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button><button type="button" aria-label="删除元素" onClick={deleteSelected} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></div> : null}</div>
-                  <div className="grid grid-cols-4 gap-2" role="group" aria-label="颜色">
-                    {COLORS.map((swatch) => <button key={swatch} type="button" aria-label={`选择颜色 ${swatch}`} aria-pressed={activeColor === swatch} onClick={() => { if (selectedElement) { pushSnapshot(elementsRef.current); updateSelected({ color: swatch }); } setColor(swatch); }} className={cn("h-7 rounded-md border border-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", activeColor === swatch && "ring-2 ring-foreground ring-offset-2 ring-offset-background")} style={{ backgroundColor: swatch }} />)}
+                  <div className="mb-2.5 flex items-center justify-between"><span className="text-xs font-medium text-foreground">{selectedElement ? relaxElementLabel(selectedElement) : TOOL_LABELS[tool]}</span>{selectedElement ? <div className="flex items-center gap-0.5"><button type="button" aria-label={uiText("复制元素")} onClick={duplicateSelected} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button><button type="button" aria-label={uiText("删除元素")} onClick={deleteSelected} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></div> : null}</div>
+                  <div className="grid grid-cols-4 gap-2" role="group" aria-label={uiText("颜色")}>
+                    {COLORS.map((swatch) => <button key={swatch} type="button" aria-label={uiText("选择颜色 {{ui:0}}", [swatch])} aria-pressed={activeColor === swatch} onClick={() => { if (selectedElement) { pushSnapshot(elementsRef.current); updateSelected({ color: swatch }); } setColor(swatch); }} className={cn("h-7 rounded-md border border-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", activeColor === swatch && "ring-2 ring-foreground ring-offset-2 ring-offset-background")} style={{ backgroundColor: swatch }} />)}
                   </div>
                 </section>
                 {selectedBounds ? (
                   <section className="border-b border-border p-3.5">
-                    <span className="mb-2 block text-xs font-medium text-muted-foreground">位置与尺寸</span>
+                    <span className="mb-2 block text-xs font-medium text-muted-foreground">{uiText("位置与尺寸")}</span>
                     <div className="grid grid-cols-2 gap-2">
                       {(["x", "y", "width", "height"] as const).map((key) => <label key={key} className="flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2 text-[11px] text-muted-foreground"><span className="w-3 uppercase">{key === "width" ? "W" : key === "height" ? "H" : key}</span><input type="number" value={Math.round(selectedBounds[key])} onFocus={beginPropertyMutation} onBlur={endPropertyMutation} onChange={(event) => updateSelectedBounds(key, Number(event.target.value))} className="min-w-0 flex-1 bg-transparent text-right text-xs tabular-nums text-foreground outline-none" /></label>)}
                     </div>
                   </section>
                 ) : null}
                 {(selectedElement ? selectedElement.kind !== "text" : tool !== "text") ? <section className="border-b border-border p-3.5">
-                  <label htmlFor="relax-stroke-width" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground"><span>线条</span><span className="tabular-nums text-foreground">{activeWidth}px</span></label>
+                  <label htmlFor="relax-stroke-width" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground"><span>{uiText("线条")}</span><span className="tabular-nums text-foreground">{activeWidth}px</span></label>
                   <input id="relax-stroke-width" type="range" min="2" max="32" step="1" value={activeWidth} onPointerDown={beginPropertyMutation} onPointerUp={endPropertyMutation} onChange={(event) => { const next = Number(event.target.value); setStrokeWidth(next); updateSelected({ strokeWidth: next }); }} className="w-full accent-primary" />
                 </section> : null}
                 {(selectedElement?.kind === "rect" || selectedElement?.kind === "ellipse" || (!selectedElement && (tool === "rect" || tool === "ellipse"))) ? (
-                  <section className="border-b border-border p-3.5"><label htmlFor="relax-fill" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground"><span>填充</span><span className="tabular-nums text-foreground">{Math.round(activeFill * 100)}%</span></label><input id="relax-fill" type="range" min="0" max="0.5" step="0.02" value={activeFill} onPointerDown={beginPropertyMutation} onPointerUp={endPropertyMutation} onChange={(event) => { const next = Number(event.target.value); setFillOpacity(next); if (selectedElement?.kind === "rect" || selectedElement?.kind === "ellipse") updateSelected({ fillOpacity: next }); }} className="w-full accent-primary" /></section>
+                  <section className="border-b border-border p-3.5"><label htmlFor="relax-fill" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground"><span>{uiText("填充")}</span><span className="tabular-nums text-foreground">{Math.round(activeFill * 100)}%</span></label><input id="relax-fill" type="range" min="0" max="0.5" step="0.02" value={activeFill} onPointerDown={beginPropertyMutation} onPointerUp={endPropertyMutation} onChange={(event) => { const next = Number(event.target.value); setFillOpacity(next); if (selectedElement?.kind === "rect" || selectedElement?.kind === "ellipse") updateSelected({ fillOpacity: next }); }} className="w-full accent-primary" /></section>
                 ) : null}
                 {(selectedElement?.kind === "text" || (!selectedElement && tool === "text")) ? (
                   <section className="border-b border-border p-3.5">
                     <label htmlFor="relax-font-size" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground">
-                      <span>字号</span>
+                      <span>{uiText("字号")}</span>
                       <span className="tabular-nums text-foreground">{activeFontSize}px</span>
                     </label>
                     <input id="relax-font-size" type="range" min="12" max="72" step="1" value={activeFontSize} onPointerDown={beginPropertyMutation} onPointerUp={endPropertyMutation} onChange={(event) => updateFontSize(Number(event.target.value))} className="w-full accent-primary" />
                     {selectedElement?.kind === "text" ? (
-                      <div className="mt-3 flex rounded-md bg-muted p-0.5" role="group" aria-label="文字对齐">
+                      <div className="mt-3 flex rounded-md bg-muted p-0.5" role="group" aria-label={uiText("文字对齐")}>
                         {(["left", "center", "right"] as const).map((align) => {
                           const Icon = align === "left" ? AlignLeft : align === "center" ? AlignCenter : AlignRight;
                           const active = selectedElement.align === align;
@@ -1557,7 +1561,7 @@ export function RelaxFlowBoard({
                             <button
                               key={align}
                               type="button"
-                              aria-label={`文字${align}`}
+                              aria-label={uiText("文字{{ui:0}}", [align])}
                               aria-pressed={active}
                               onClick={() => {
                                 pushSnapshot(elementsRef.current);
@@ -1582,11 +1586,11 @@ export function RelaxFlowBoard({
                     ) : null}
                   </section>
                 ) : null}
-                <section className="border-b border-border p-3.5"><label htmlFor="relax-opacity" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground"><span>不透明度</span><span className="tabular-nums text-foreground">{Math.round(activeOpacity * 100)}%</span></label><input id="relax-opacity" type="range" min="0.1" max="1" step="0.05" value={activeOpacity} onPointerDown={beginPropertyMutation} onPointerUp={endPropertyMutation} onChange={(event) => { const next = Number(event.target.value); setOpacity(next); updateSelected({ opacity: next }); }} className="w-full accent-primary" /></section>
+                <section className="border-b border-border p-3.5"><label htmlFor="relax-opacity" className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground"><span>{uiText("不透明度")}</span><span className="tabular-nums text-foreground">{Math.round(activeOpacity * 100)}%</span></label><input id="relax-opacity" type="range" min="0.1" max="1" step="0.05" value={activeOpacity} onPointerDown={beginPropertyMutation} onPointerUp={endPropertyMutation} onChange={(event) => { const next = Number(event.target.value); setOpacity(next); updateSelected({ opacity: next }); }} className="w-full accent-primary" /></section>
               </>
             ) : (
               <div className="p-2">
-                <div className="mb-1 flex h-8 items-center justify-between px-1.5"><span className="text-[11px] font-medium text-muted-foreground">{elements.length} 个图层</span>{selectedElement ? <div className="flex"><button type="button" aria-label="上移图层" onClick={() => moveLayer(selectedElement.id, 1)} className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label="下移图层" onClick={() => moveLayer(selectedElement.id, -1)} className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowDown className="h-3.5 w-3.5" /></button></div> : null}</div>
+                <div className="mb-1 flex h-8 items-center justify-between px-1.5"><span className="text-[11px] font-medium text-muted-foreground">{elements.length} {uiText("个图层")}</span>{selectedElement ? <div className="flex"><button type="button" aria-label={uiText("上移图层")} onClick={() => moveLayer(selectedElement.id, 1)} className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label={uiText("下移图层")} onClick={() => moveLayer(selectedElement.id, -1)} className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowDown className="h-3.5 w-3.5" /></button></div> : null}</div>
                 <div className="space-y-0.5">
                   {[...elements].reverse().map((element) => (
                     <div key={element.id} className={cn("flex h-9 w-full items-center rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground", selectedId === element.id && "bg-accent text-foreground")}>
@@ -1594,7 +1598,7 @@ export function RelaxFlowBoard({
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border bg-background" style={{ color: element.color }}>{elementIcon(element.kind)}</span>
                         <span className="min-w-0 flex-1 truncate">{relaxElementLabel(element)}</span>
                       </button>
-                      <button type="button" aria-label={element.visible ? "隐藏图层" : "显示图层"} onClick={() => setElementVisibility(element.id)} className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded hover:bg-background">
+                      <button type="button" aria-label={element.visible ? uiText("隐藏图层") : uiText("显示图层")} onClick={() => setElementVisibility(element.id)} className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded hover:bg-background">
                         {element.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                       </button>
                     </div>

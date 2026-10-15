@@ -1,4 +1,6 @@
 export const zhCN = {
+  "history.loadMore": "加载更多",
+  "history.loadingMore": "正在加载…",
   "common.close": "关闭",
   "common.import": "导入",
   "common.settings": "设置",
@@ -265,6 +267,8 @@ export const zhCN = {
 export type MessageKey = keyof typeof zhCN;
 
 export const enUS: Record<MessageKey, string> = {
+  "history.loadMore": "Load more",
+  "history.loadingMore": "Loading…",
   "common.close": "Close",
   "common.import": "Import",
   "common.settings": "Settings",

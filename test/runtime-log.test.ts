@@ -23,9 +23,12 @@ describe("runtime logs", () => {
 
   it("persists messages, errors and earlier sessions", async () => {
     const directory = await temporaryDirectory();
-    new RuntimeLog(directory).record("main", "info", "first session");
+    const first = new RuntimeLog(directory);
+    first.record("main", "info", "first session");
+    await first.flush();
     const logger = new RuntimeLog(directory);
     logger.record("renderer:1", "error", new Error("second session"));
+    await logger.flush();
     const content = await readFile(logger.filePath, "utf8");
     expect(content).toContain("[main] [info] first session");
     expect(content).toContain("[renderer:1] [error] Error: second session");
@@ -36,6 +39,7 @@ describe("runtime logs", () => {
     const directory = await temporaryDirectory();
     const logger = new RuntimeLog(directory, 100);
     for (let index = 0; index < 10; index++) logger.record("main", "info", "x".repeat(100), index);
+    await logger.flush();
     await writeFile(path.join(directory, "pi-agent.jsonl"), '{"summary":"agent","token":"private"}');
     await writeFile(path.join(directory, "settings.json"), "PRIVATE SETTINGS");
     const destination = path.join(directory, "export.zip");

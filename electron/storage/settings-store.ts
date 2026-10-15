@@ -1,40 +1,42 @@
 import { safeStorage } from "electron";
-import { existsSync,mkdirSync,readFileSync,writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { MutationQueue, writeJsonAtomic, writeJsonAtomicSync } from "./atomic-json.js";
 import path from "node:path";
-import { COMMUNITY_IMAGE_PROVIDER,COMMUNITY_TEXT_PROVIDER } from '../../shared/community-providers.js';
-import { normalizeAppLanguage,type AppLanguage } from "../../shared/i18n.js";
+import { COMMUNITY_IMAGE_PROVIDER, COMMUNITY_TEXT_PROVIDER } from '../../shared/community-providers.js';
+import { normalizeAppLanguage, type AppLanguage } from "../../shared/i18n.js";
 import { getProviderModels } from "../../shared/provider-models.js";
 import type {
-AppIconLibrary,
-AppIconPreference,
-AppSettings,
-AppSettingsPatch,
-AssistantIntentSuggestionCount,
-BoardTrashRetentionDays,
-CopyImageFormat,
-CustomAppIcon,
-GenerateButtonStyle,
-ImageDoubleClickAction,
-MemoryUsageLevel,
-PiAgentBuiltinToolName,
-ProviderConfig,
-TextProviderConfig,
-VersionSeparationMode,
-VideoProviderConfig
+  AppIconLibrary,
+  AppIconPreference,
+  AppSettings,
+  AppSettingsPatch,
+  AssistantIntentSuggestionCount,
+  BoardTrashRetentionDays,
+  CopyImageFormat,
+  CustomAppIcon,
+  GenerateButtonStyle,
+  ImageDoubleClickAction,
+  MemoryUsageLevel,
+  PiAgentBuiltinToolName,
+  ProviderConfig,
+  TextProviderConfig,
+  VersionSeparationMode,
+  VideoProviderConfig
 } from "../../shared/types.js";
 import {
-DEFAULT_VIDEO_PROVIDER_CONFIG,
-DEFAULT_VIDEO_PROVIDER_ID,
-OFFICIAL_PROVIDER_CONFIG,
-OFFICIAL_PROVIDER_ID,
-OFFICIAL_TEXT_PROVIDER_CONFIG,
-OFFICIAL_TEXT_PROVIDER_ID,
-OFFICIAL_VIDEO_PROVIDER_CONFIG,
-OFFICIAL_VIDEO_PROVIDER_ID,
-PI_AGENT_DEFAULT_ITERLAY_TOOLS
+  DEFAULT_VIDEO_PROVIDER_CONFIG,
+  DEFAULT_VIDEO_PROVIDER_ID,
+  OFFICIAL_PROVIDER_CONFIG,
+  OFFICIAL_PROVIDER_ID,
+  OFFICIAL_TEXT_PROVIDER_CONFIG,
+  OFFICIAL_TEXT_PROVIDER_ID,
+  OFFICIAL_VIDEO_PROVIDER_CONFIG,
+  OFFICIAL_VIDEO_PROVIDER_ID,
+  PI_AGENT_DEFAULT_ITERLAY_TOOLS
 } from "../../shared/types.js";
 
 interface SettingsSchema {
+  schemaVersion?: 1;
   providers: ProviderConfig[];
   activeProviderId: string;
   textProviders?: TextProviderConfig[];
@@ -179,6 +181,9 @@ export class SettingsStore {
   private readonly filePath: string;
   private cached: SettingsSchema | undefined;
   private saved: boolean;
+  private readonly mutations = new MutationQueue();
+  private staged: SettingsSchema | undefined;
+  private staging = false;
 
   constructor(dataDir: string) {
     this.filePath = path.join(dataDir, "settings.json");
@@ -243,6 +248,28 @@ export class SettingsStore {
 
   hasSavedSettings(): boolean {
     return this.saved;
+  }
+
+  /** Settings and encrypted keys commit together, or restore the prior snapshot. */
+  transaction<T>(update: () => T): Promise<T> {
+    return this.mutations.run(async () => {
+      const previous = this.cached;
+      const saved = this.saved;
+      this.staging = true;
+      this.staged = undefined;
+      try {
+        const result = update();
+        if (this.staged) await writeJsonAtomic(this.filePath, this.staged);
+        return result;
+      } catch (error) {
+        this.cached = previous;
+        this.saved = saved;
+        throw error;
+      } finally {
+        this.staging = false;
+        this.staged = undefined;
+      }
+    });
   }
 
   saveSettings(settings: AppSettings): void {
@@ -477,15 +504,23 @@ export class SettingsStore {
       });
     }
     const raw = readFileSync(this.filePath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<SettingsSchema> & LegacySettingsSchema;
+    let parsed: Partial<SettingsSchema> & LegacySettingsSchema;
+    try {
+      parsed = JSON.parse(raw) as Partial<SettingsSchema> & LegacySettingsSchema;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("配置不是对象。");
+      if (parsed.schemaVersion !== undefined && parsed.schemaVersion !== 1) throw new Error("配置版本不受支持。");
+    } catch (error) {
+      throw new Error(`设置文件损坏或版本不兼容：${this.filePath}。原文件已保留，请修复后重试。`, { cause: error });
+    }
     this.cached = migrate(parsed);
     return cloneSettings(this.cached);
   }
 
   private writeSettings(settings: SettingsSchema): void {
-    mkdirSync(path.dirname(this.filePath), { recursive: true });
-    writeFileSync(this.filePath, JSON.stringify(settings, null, 2), "utf8");
-    this.cached = cloneSettings(settings);
+    const next = { ...settings, schemaVersion: 1 as const };
+    if (this.staging) this.staged = next;
+    else writeJsonAtomicSync(this.filePath, next);
+    this.cached = cloneSettings(next);
     this.saved = true;
   }
 }

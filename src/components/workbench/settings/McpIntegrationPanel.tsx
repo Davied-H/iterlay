@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useState } from "react";
 import { ArrowRight, Check, CheckCircle2, Copy, Download, FolderOpen, Loader2, Plug, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,8 @@ export function McpIntegrationPanel({
   onExportPluginPackage: (client: "codex" | "claude-code") => Promise<void>;
   onOpenPluginPackage: (targetPath: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [removalTarget, setRemovalTarget] = useState<{
     id: "codex" | "claude-code";
     title: string;
@@ -59,15 +62,14 @@ export function McpIntegrationPanel({
   return (
     <>
       <DialogTitle className="sr-only">Coding Agent</DialogTitle>
-      <DialogDescription className="sr-only">将 Iterlay 连接到本机的 Coding Agent。</DialogDescription>
+      <DialogDescription className="sr-only">{uiText("将 Iterlay 连接到本机的 Coding Agent。")}</DialogDescription>
       <div className="flex w-full flex-col gap-8 px-6 py-7">
         <div className="max-w-[62ch]">
-          <h2 className="text-sm font-semibold text-foreground">连接 Coding Agent</h2>
+          <h2 className="text-sm font-semibold text-foreground">{uiText("连接 Coding Agent")}</h2>
           <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
-            配置后，Coding Agent 可以通过 MCP 在 Iterlay 中打开并预填创作任务。配置仅写入当前用户的本地设置，不会覆盖其他 MCP 服务。
-          </p>
+            {uiText("配置后，Coding Agent 可以通过 MCP 在 Iterlay 中打开并预填创作任务。配置仅写入当前用户的本地设置，不会覆盖其他 MCP 服务。")}</p>
         </div>
-        <SettingsGroup title="MCP 集成">
+        <SettingsGroup title={uiText("MCP 集成")}>
           {entries.map((entry) => {
             const client = clients.find((item) => item.id === entry.id);
             const settingUp = action === `setup:${entry.id}`;
@@ -80,7 +82,7 @@ export function McpIntegrationPanel({
               <SettingsRow
                 key={entry.id}
                 title={entry.title}
-                description={client?.configured ? `MCP 已配置 · ${client.configPath}` : entry.description}
+                description={client?.configured ? uiText("MCP 已配置 · {{ui:0}}", [client.configPath]) : entry.description}
                 control={
                   <div className="flex shrink-0 gap-2">
                     <Button
@@ -92,7 +94,7 @@ export function McpIntegrationPanel({
                       onClick={() => void onSetup(entry.id)}
                     >
                       {settingUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : setupComplete ? <Check className="h-3.5 w-3.5" /> : <Plug className="h-3.5 w-3.5" />}
-                      {settingUp ? "处理中" : setupComplete ? "已连接" : "配置并安装"}
+                      {settingUp ? uiText("处理中") : setupComplete ? uiText("已连接") : uiText("配置并安装")}
                     </Button>
                     {hasIntegration ? (
                       <Button
@@ -101,8 +103,8 @@ export function McpIntegrationPanel({
                         size="icon"
                         className="transition-colors duration-200 motion-reduce:transition-none"
                         disabled={disabled || Boolean(action)}
-                        aria-label={`移除 ${entry.title} 集成`}
-                        title={`移除 ${entry.title} 集成`}
+                        aria-label={uiText("移除 {{ui:0}} 集成", [entry.title])}
+                        title={uiText("移除 {{ui:0}} 集成", [entry.title])}
                         onClick={() => setRemovalTarget(entry)}
                       >
                         {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -116,16 +118,16 @@ export function McpIntegrationPanel({
             );
           })}
           <SettingsRow
-            title="终端命令"
-            description="也可以在终端运行一条命令完成同样的连接。"
+            title={uiText("终端命令")}
+            description={uiText("也可以在终端运行一条命令完成同样的连接。")}
             stackControlOnNarrow
             control={
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
-                aria-label="复制终端安装命令"
-                title="复制终端安装命令"
+                aria-label={uiText("复制终端安装命令")}
+                title={uiText("复制终端安装命令")}
                 onClick={() => {
                   void navigator.clipboard.writeText("npx iterlay add");
                   setCommandCopied(true);
@@ -141,8 +143,8 @@ export function McpIntegrationPanel({
         </SettingsGroup>
         <PiAgentLogPanel />
         {error ? <p className="text-xs leading-5 text-destructive" role="alert">{error}</p> : null}
-        <p className="text-xs leading-5 text-muted-foreground">完成后请重新启动对应的 Coding Agent，使其加载新的 MCP 配置。</p>
-        <SettingsGroup title="插件包" className="max-[520px]:w-[calc(100vw-136px)]">
+        <p className="text-xs leading-5 text-muted-foreground">{uiText("完成后请重新启动对应的 Coding Agent，使其加载新的 MCP 配置。")}</p>
+        <SettingsGroup title={uiText("插件包")} className="max-[520px]:w-[calc(100vw-136px)]">
           {packageEntries.map((entry) => {
             const exporting = pluginPackageAction === entry.id;
             const resultPath = pluginPackagePaths[entry.id] ?? null;
@@ -162,15 +164,15 @@ export function McpIntegrationPanel({
                       onClick={() => void onExportPluginPackage(entry.id)}
                     >
                       {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                      {exporting ? "导出中" : "导出 ZIP"}
+                      {exporting ? uiText("导出中") : uiText("导出 ZIP")}
                     </Button>
                     {resultPath ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label={`在文件夹中显示 ${entry.title}`}
-                        title={`在文件夹中显示 ${entry.title}`}
+                        aria-label={uiText("在文件夹中显示 {{ui:0}}", [entry.title])}
+                        title={uiText("在文件夹中显示 {{ui:0}}", [entry.title])}
                         onClick={() => onOpenPluginPackage(resultPath)}
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
@@ -181,7 +183,7 @@ export function McpIntegrationPanel({
               >
                 {resultPath ? (
                   <p className="w-full min-w-0 truncate text-xs leading-5 text-muted-foreground" title={resultPath}>
-                    已导出 · {resultPath}
+                    {uiText("已导出 · ")}{resultPath}
                   </p>
                 ) : null}
               </SettingsRow>
@@ -217,6 +219,8 @@ function IntegrationDetail({
   processing: boolean;
   statusLabel?: string;
 }): React.ReactElement | null {
+  const uiText = useUiText();
+
   if (processing) {
     return (
       <p className="flex items-center gap-1.5 text-xs leading-5 text-muted-foreground" aria-live="polite">
@@ -229,7 +233,7 @@ function IntegrationDetail({
   return (
     <p className="flex items-center gap-1.5 text-xs leading-5 text-muted-foreground">
       <CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--success))]" aria-hidden="true" />
-      Skill 已安装 · {client.skillPath}
+      {uiText("Skill 已安装 · ")}{client.skillPath}
     </p>
   );
 }
@@ -245,22 +249,22 @@ function RemoveMcpIntegrationDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <Dialog open={Boolean(entry)} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-5 py-4 text-left">
-          <DialogTitle className="text-base">移除 {entry?.title} 集成？</DialogTitle>
+          <DialogTitle className="text-base">{uiText("移除 ")}{entry?.title} {uiText("集成？")}</DialogTitle>
           <DialogDescription className="pt-1 text-xs leading-5">
-            将一并移除 Iterlay 的 MCP 配置和 Skill，不会影响你的其他配置或 Skill。移除后不会再自动安装，可随时重新连接恢复。
-          </DialogDescription>
+            {uiText("将一并移除 Iterlay 的 MCP 配置和 Skill，不会影响你的其他配置或 Skill。移除后不会再自动安装，可随时重新连接恢复。")}</DialogDescription>
         </DialogHeader>
         <div className="flex items-center justify-end gap-2 px-5 py-4">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
+            {uiText("取消")}</Button>
           <Button type="button" variant="destructive" size="sm" disabled={busy} onClick={onConfirm}>
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-            {busy ? "移除中" : "移除集成"}
+            {busy ? uiText("移除中") : uiText("移除集成")}
           </Button>
         </div>
       </DialogContent>
@@ -275,6 +279,8 @@ function CodexExamplesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const examples = [
@@ -314,10 +320,9 @@ function CodexExamplesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-5 py-4 text-left">
-          <DialogTitle className="text-base">Codex 已连接</DialogTitle>
+          <DialogTitle className="text-base">{uiText("Codex 已连接")}</DialogTitle>
           <DialogDescription className="pt-1 text-xs leading-5">
-            选择一个任务即可通过 Codex URL scheme 新建线程，并预填任务说明。
-          </DialogDescription>
+            {uiText("选择一个任务即可通过 Codex URL scheme 新建线程，并预填任务说明。")}</DialogDescription>
         </DialogHeader>
         <div className="divide-y divide-border">
           {examples.map((example) => (
@@ -334,8 +339,7 @@ function CodexExamplesDialog({
                 onClick={() => void openExample(example.id, example.prompt)}
               >
                 {openingId === example.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                在 Codex 中打开
-              </Button>
+                {uiText("在 Codex 中打开")}</Button>
             </div>
           ))}
         </div>

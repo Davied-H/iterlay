@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { lazy, Suspense, useEffect, useId, useRef, useState, type ClipboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -11,7 +13,7 @@ import {
   Plus,
   Trash2,
   Upload,
-  WandSparkles,
+  WandSparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -29,14 +31,7 @@ import type {
 import { getDefaultUseCase } from "@shared/workflow";
 import { Button } from "@/components/ui/button";
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,20 +81,13 @@ import {
   type SceneField
 } from "@/lib/scene-library";
 import type { SceneGenerationDefaults } from "@/lib/scene-media";
-import {
-  startSceneCollaborationStream,
-  type SceneCollaborationStreamHandle
-} from "@/lib/scene-collaboration-stream";
+import { startSceneCollaborationStream, type SceneCollaborationStreamHandle } from "@/lib/scene-collaboration-stream";
 import {
   buildTemplateExampleRecommendationInstruction,
   buildTemplateExampleReviewInstruction,
   extractTemplateExampleRecommendation
 } from "@/lib/template-workflow";
-import {
-  finishActiveSceneGeneration,
-  startActiveSceneGeneration,
-  useActiveSceneGeneration
-} from "@/lib/active-scene-generation";
+import { finishActiveSceneGeneration, startActiveSceneGeneration, useActiveSceneGeneration } from "@/lib/active-scene-generation";
 import { GENERATION_ESTIMATE_MS, getGenerationTiming, type GenerationTiming } from "@/lib/generation-timing";
 import { cn } from "@/lib/utils";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage, hasImageWorkbenchApi } from "@/lib/image-workbench-api";
@@ -251,6 +239,8 @@ export function SceneCreator({
   onOpenSettings,
   mediaBySceneId = {}
 }: SceneCreatorProps): React.ReactElement {
+  const uiText = useUiText();
+
   const indicatorId = useId();
   const [draft, setDraft] = useState<SceneDraft>(() => {
     const initialDraft = initialScene
@@ -474,11 +464,11 @@ export function SceneCreator({
     const existing = new Set(current.map((reference) => reference.fingerprint));
     const candidates = files.filter((file) => {
       if (!SUPPORTED_ASSISTANT_REFERENCE_TYPES.has(file.type)) {
-        toast.error(`“${file.name}”格式不受支持，请使用 PNG、JPEG、WebP 或 GIF。`);
+        toast.error(translateSourceText("“{{ui:0}}”格式不受支持，请使用 PNG、JPEG、WebP 或 GIF。", [file.name]));
         return false;
       }
       if (file.size > MAX_ASSISTANT_REFERENCE_BYTES) {
-        toast.error(`“${file.name}”超过 20 MB，请压缩后重试。`);
+        toast.error(translateSourceText("“{{ui:0}}”超过 20 MB，请压缩后重试。", [file.name]));
         return false;
       }
       const fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
@@ -512,7 +502,7 @@ export function SceneCreator({
         toast(`已添加 ${added.length} 张，最多支持 ${SCENE_CREATOR_MAX_REFERENCE_COUNT} 张参考图。`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "无法读取参考图。");
+      toast.error(error instanceof Error ? error.message : translateSourceText("无法读取参考图。"));
     }
   }
 
@@ -756,7 +746,7 @@ export function SceneCreator({
   ): void {
     const instruction = instructionValue.trim();
     if (!canCollaborate) {
-      toast.error("请先配置支持文本能力的 Provider。");
+      toast.error(translateSourceText("请先配置支持文本能力的 Provider。"));
       onOpenSettings();
       return;
     }
@@ -938,13 +928,13 @@ export function SceneCreator({
 
   function buildSceneInput(): NewSceneInput | null {
     if (!draft.name.trim()) {
-      toast.error("请填写模板名称。");
+      toast.error(translateSourceText("请填写模板名称。"));
       return null;
     }
     const fields = compactSceneFields(draft.fields);
     const prompt = serializeSceneFields(fields);
     if (!prompt) {
-      toast.error("至少填写 1 个提示词字段。");
+      toast.error(translateSourceText("至少填写 1 个提示词字段。"));
       return null;
     }
 
@@ -980,7 +970,7 @@ export function SceneCreator({
 
   async function recommendExampleBrief(): Promise<void> {
     if (!canCollaborate) {
-      toast.error("请先配置支持文本能力的 Provider。");
+      toast.error(translateSourceText("请先配置支持文本能力的 Provider。"));
       onOpenSettings();
       return;
     }
@@ -1212,11 +1202,11 @@ export function SceneCreator({
   async function selectExampleSourceImage(file?: File): Promise<void> {
     if (!file) return;
     if (!SUPPORTED_ASSISTANT_REFERENCE_TYPES.has(file.type)) {
-      toast.error("仅支持 PNG、JPEG、WebP 或 GIF 图片。");
+      toast.error(translateSourceText("仅支持 PNG、JPEG、WebP 或 GIF 图片。"));
       return;
     }
     if (file.size > MAX_ASSISTANT_REFERENCE_BYTES) {
-      toast.error("源图不能超过 20 MB。");
+      toast.error(translateSourceText("源图不能超过 20 MB。"));
       return;
     }
     try {
@@ -1232,7 +1222,7 @@ export function SceneCreator({
         }
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "无法读取源图。");
+      toast.error(error instanceof Error ? error.message : translateSourceText("无法读取源图。"));
     }
   }
 
@@ -1247,22 +1237,22 @@ export function SceneCreator({
     const brief = exampleBrief.trim();
     if (!brief || exampleGenerationActive || reviewingExample || assistantLoading) return;
     if (!canOptimize) {
-      toast.error("请先配置支持文本能力的 Provider。");
+      toast.error(translateSourceText("请先配置支持文本能力的 Provider。"));
       onOpenSettings();
       return;
     }
     if (!hasImageWorkbenchApi() || !generationDefaults.canGenerate) {
-      toast.error("请先完成图片 Provider 配置。");
+      toast.error(translateSourceText("请先完成图片 Provider 配置。"));
       onOpenSettings();
       return;
     }
     if (draft.mode === "edit" && !generationDefaults.supportsEditing) {
-      toast.error("当前图片 Provider 不支持编辑模板。");
+      toast.error(translateSourceText("当前图片 Provider 不支持编辑模板。"));
       onOpenSettings();
       return;
     }
     if (draft.mode === "edit" && !exampleSourceImage) {
-      toast.error("编辑模板需要先上传一张源图。");
+      toast.error(translateSourceText("编辑模板需要先上传一张源图。"));
       return;
     }
 
@@ -1306,8 +1296,8 @@ export function SceneCreator({
       if (delayedNoticeId !== undefined) iterlayToast.dismiss(delayedNoticeId);
       iterlayToast.result({
         count: result.images.length,
-        title: `已生成 ${result.images.length} 张示例`,
-        detail: "示例已保存到当前模板",
+        title: translateSourceText("已生成 {{ui:0}} 张示例", [result.images.length]),
+        detail: translateSourceText("示例已保存到当前模板"),
         previews: result.images.map((image) => image.dataUrl)
       });
       result.warnings?.forEach((warning) => toast.warning(warning));
@@ -1356,19 +1346,19 @@ export function SceneCreator({
           variant="ghost"
           size="icon"
           className="h-8 w-8 [-webkit-app-region:no-drag]"
-          aria-label="返回模版库"
-          title="返回模版库"
+          aria-label={uiText("返回模版库")}
+          title={uiText("返回模版库")}
           onClick={onCancel}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span className="hidden text-sm text-muted-foreground sm:inline">模版库</span>
+        <span className="hidden text-sm text-muted-foreground sm:inline">{uiText("模版库")}</span>
         <span className="hidden text-muted-foreground sm:inline">/</span>
-        <span className="truncate text-sm font-semibold">{initialScene ? "编辑模板" : "新建模板"}</span>
+        <span className="truncate text-sm font-semibold">{initialScene ? uiText("编辑模板") : uiText("新建模板")}</span>
 
         <div className="ml-auto flex items-center gap-2 [-webkit-app-region:no-drag]">
           <span className="hidden text-xs text-muted-foreground md:inline">
-            {persistedScene && persistedScene !== initialScene ? "已保存，可继续生成示例" : "草稿自动保存"}
+            {persistedScene && persistedScene !== initialScene ? uiText("已保存，可继续生成示例") : uiText("草稿自动保存")}
           </span>
           <Button size="sm" className="gap-1.5" disabled={!canSave} onClick={saveScene}>
             <Check className="h-3.5 w-3.5" />
@@ -1383,11 +1373,11 @@ export function SceneCreator({
           <section className="border-b border-border pb-7">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h1 className="text-lg font-semibold text-balance">模板信息</h1>
+                <h1 className="text-lg font-semibold text-balance">{uiText("模板信息")}</h1>
               </div>
               <div
                 role="group"
-                aria-label="工作流类型"
+                aria-label={uiText("工作流类型")}
                 className="flex h-9 w-fit items-center rounded-md bg-muted p-0.5"
               >
                 {WORKFLOW_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -1419,17 +1409,17 @@ export function SceneCreator({
 
             <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
               <label className="space-y-1.5">
-                <span className="text-xs font-medium">模板名称</span>
+                <span className="text-xs font-medium">{uiText("模板名称")}</span>
                 <Input
                   autoFocus
                   value={draft.name}
                   onChange={(event) => updateDraft({ name: event.target.value })}
-                  placeholder="例如：极简产品主图"
+                  placeholder={uiText("例如：极简产品主图")}
                   className="h-10"
                 />
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-medium">分类</span>
+                <span className="text-xs font-medium">{uiText("分类")}</span>
                 <Select
                   value={draft.category}
                   onValueChange={(value) => updateDraft({ category: value as SceneDraft["category"] })}
@@ -1444,12 +1434,12 @@ export function SceneCreator({
               </label>
               <label className="space-y-1.5 sm:col-span-2">
                 <span className="text-xs font-medium">
-                  简短说明 <span className="font-normal text-muted-foreground">可选</span>
+                  {uiText("简短说明 ")}<span className="font-normal text-muted-foreground">{uiText("可选")}</span>
                 </span>
                 <Input
                   value={draft.description}
                   onChange={(event) => updateDraft({ description: event.target.value })}
-                  placeholder="例如：适合留白充足的电商首图"
+                  placeholder={uiText("例如：适合留白充足的电商首图")}
                   className="h-10"
                 />
               </label>
@@ -1459,9 +1449,9 @@ export function SceneCreator({
           <section className="pt-7">
             <div className="flex flex-wrap items-start gap-3">
               <div>
-                <h2 className="text-sm font-semibold">提示词字段</h2>
+                <h2 className="text-sm font-semibold">{uiText("提示词字段")}</h2>
                 <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                  已填写 {completion.filled} / {completion.total}
+                  {uiText("已填写 ")}{completion.filled} / {completion.total}
                 </p>
               </div>
             </div>
@@ -1476,7 +1466,7 @@ export function SceneCreator({
                     <Input
                       value={field.label}
                       onChange={(event) => updateField(field.id, { label: event.target.value })}
-                      aria-label={`第 ${index + 1} 个字段名称`}
+                      aria-label={uiText("第 {{ui:0}} 个字段名称", [index + 1])}
                       className="h-9 border-transparent bg-transparent px-2 text-xs font-medium text-muted-foreground hover:border-input focus-visible:bg-background focus-visible:text-foreground"
                     />
                     <textarea
@@ -1489,8 +1479,8 @@ export function SceneCreator({
                           window.requestAnimationFrame(() => input.select());
                         }
                       }}
-                      aria-label={`${field.label || `第 ${index + 1} 个字段`}内容`}
-                      placeholder={`填写${field.label || "字段内容"}`}
+                      aria-label={uiText("{{ui:0}}内容", [field.label || `第 ${index + 1} 个字段`])}
+                      placeholder={uiText("填写{{ui:0}}", [field.label || "字段内容"])}
                       className="min-h-9 w-full resize-none rounded-md border border-transparent bg-transparent px-2 py-2 text-sm leading-5 outline-none [field-sizing:content] placeholder:text-muted-foreground hover:border-input focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
                     />
                   </div>
@@ -1498,8 +1488,8 @@ export function SceneCreator({
                     variant="ghost"
                     size="icon"
                     className="h-9 w-9 shrink-0 text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover/field:opacity-100 focus-visible:opacity-100 max-sm:opacity-100"
-                    aria-label={`删除${field.label || `第 ${index + 1} 个字段`}`}
-                    title="删除字段"
+                    aria-label={uiText("删除{{ui:0}}", [field.label || `第 ${index + 1} 个字段`])}
+                    title={uiText("删除字段")}
                     onClick={() => removeField(field.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1510,17 +1500,15 @@ export function SceneCreator({
 
             <Button variant="ghost" size="sm" className="mt-3 gap-1.5" onClick={addField}>
               <Plus className="h-3.5 w-3.5" />
-              添加字段
-            </Button>
+              {uiText("添加字段")}</Button>
           </section>
 
           <section className="mt-7 border-t border-border pt-7">
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold">生成示例</h2>
+                <h2 className="text-sm font-semibold">{uiText("生成示例")}</h2>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  输入一条真实需求，直接生成效果图来验证这套模板。
-                </p>
+                  {uiText("输入一条真实需求，直接生成效果图来验证这套模板。")}</p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <Button
@@ -1533,10 +1521,10 @@ export function SceneCreator({
                   {recommendingExample
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <WandSparkles className="h-3.5 w-3.5" />}
-                  {recommendingExample ? "正在推荐" : "助手推荐"}
+                  {recommendingExample ? uiText("正在推荐") : uiText("助手推荐")}
                 </Button>
                 {!canOptimize || !generationDefaults.canGenerate ? (
-                  <Button variant="ghost" size="sm" onClick={onOpenSettings}>配置 Provider</Button>
+                  <Button variant="ghost" size="sm" onClick={onOpenSettings}>{uiText("配置 Provider")}</Button>
                 ) : null}
               </div>
             </div>
@@ -1549,18 +1537,18 @@ export function SceneCreator({
                 event.preventDefault();
                 void generateExample();
               }}
-              placeholder="例如：一款夏季防晒霜，小红书首发，突出轻薄不黏腻"
+              placeholder={uiText("例如：一款夏季防晒霜，小红书首发，突出轻薄不黏腻")}
               className="mt-4 min-h-24 resize-y text-sm leading-6 placeholder:text-muted-foreground"
             />
 
             {draft.mode === "edit" ? (
               <div className="mt-4">
-                <p className="text-xs font-medium">编辑源图</p>
+                <p className="text-xs font-medium">{uiText("编辑源图")}</p>
                 {exampleSourceImage ? (
                   <div className="mt-2 flex items-center gap-3">
                     <img
                       src={exampleSourceImage.previewUrl}
-                      alt="示例编辑源图"
+                      alt={uiText("示例编辑源图")}
                       className="h-16 w-16 rounded-md border border-border object-cover"
                     />
                     <div className="min-w-0 flex-1">
@@ -1570,8 +1558,7 @@ export function SceneCreator({
                         className="mt-1 text-xs text-muted-foreground hover:text-foreground"
                         onClick={() => setExampleSourceImage(null)}
                       >
-                        移除源图
-                      </button>
+                        {uiText("移除源图")}</button>
                     </div>
                   </div>
                 ) : (
@@ -1590,8 +1577,7 @@ export function SceneCreator({
                     />
                     <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                       <Upload className="h-4 w-4" />
-                      上传或直接粘贴源图
-                    </span>
+                      {uiText("上传或直接粘贴源图")}</span>
                   </label>
                 )}
               </div>
@@ -1599,7 +1585,7 @@ export function SceneCreator({
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <select
-                aria-label="示例尺寸"
+                aria-label={uiText("示例尺寸")}
                 value={exampleSize}
                 onChange={(event) => setExampleSize(event.target.value)}
                 disabled={exampleGenerationActive || reviewingExample}
@@ -1613,7 +1599,7 @@ export function SceneCreator({
                 ))}
               </select>
               <select
-                aria-label="示例质量"
+                aria-label={uiText("示例质量")}
                 value={exampleQuality}
                 onChange={(event) => setExampleQuality(event.target.value as ImageQuality)}
                 disabled={exampleGenerationActive || reviewingExample}
@@ -1623,7 +1609,7 @@ export function SceneCreator({
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              <div className="flex h-9 items-center rounded-md bg-muted p-0.5" role="group" aria-label="示例张数">
+              <div className="flex h-9 items-center rounded-md bg-muted p-0.5" role="group" aria-label={uiText("示例张数")}>
                 {([1, 2, 3] as GenerationCount[]).map((value) => (
                   <button
                     key={value}
@@ -1642,7 +1628,7 @@ export function SceneCreator({
                         className="rounded bg-background shadow-sm"
                       />
                     ) : null}
-                    <span className="relative z-10">{value} 张</span>
+                    <span className="relative z-10">{value} {uiText("张")}</span>
                   </button>
                 ))}
               </div>
@@ -1661,12 +1647,12 @@ export function SceneCreator({
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <WandSparkles className="h-4 w-4" />}
                 {reviewingExample
-                  ? "正在复盘"
+                  ? uiText("正在复盘")
                   : exampleGenerationActive && exampleGenerationTiming
                     ? exampleGenerationTiming.overdue
-                      ? `仍在生成 ${exampleGenerationTiming.elapsedLabel}`
-                      : `预计剩余 ${exampleGenerationTiming.remainingLabel}`
-                    : exampleGenerationActive ? "正在生成" : "生成示例"}
+                      ? uiText("仍在生成 {{ui:0}}", [exampleGenerationTiming.elapsedLabel])
+                      : uiText("预计剩余 {{ui:0}}", [exampleGenerationTiming.remainingLabel])
+                    : exampleGenerationActive ? uiText("正在生成") : uiText("生成示例")}
               </Button>
             </div>
 
@@ -1682,12 +1668,12 @@ export function SceneCreator({
                   className="h-3.5 w-3.5 shrink-0 animate-spin [animation-duration:1.4s] motion-reduce:animate-none"
                 />
                 <span>
-                  已用 <time className="tabular-nums">{exampleGenerationTiming.elapsedLabel}</time>
+                  {uiText("已用 ")}<time className="tabular-nums">{exampleGenerationTiming.elapsedLabel}</time>
                   <span aria-hidden> · </span>
                   {exampleGenerationTiming.overdue ? (
                     "比预计久一点，任务仍在处理中"
                   ) : (
-                    <>预计剩余 <time className="tabular-nums">{exampleGenerationTiming.remainingLabel}</time></>
+                    <>{uiText("预计剩余 ")}<time className="tabular-nums">{exampleGenerationTiming.remainingLabel}</time></>
                   )}
                 </span>
               </div>
@@ -1696,10 +1682,10 @@ export function SceneCreator({
             {exampleImages.length > 0 ? (
               <div className="mt-5">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium">本次结果</p>
+                  <p className="text-xs font-medium">{uiText("本次结果")}</p>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     {reviewingExample ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                    {reviewingExample ? "助手正在对照参考图" : "已保存到模板"}
+                    {reviewingExample ? uiText("助手正在对照参考图") : uiText("已保存到模板")}
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1709,7 +1695,7 @@ export function SceneCreator({
                       <button
                         key={`${src}:${index}`}
                         type="button"
-                        aria-label={`放大预览${alt}`}
+                        aria-label={uiText("放大预览{{ui:0}}", [alt])}
                         className="group relative aspect-square min-w-0 overflow-hidden rounded-md border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         onClick={(event) => {
                           const rect = event.currentTarget.getBoundingClientRect();
@@ -1745,7 +1731,7 @@ export function SceneCreator({
 
             {examplePrompt ? (
               <details className="mt-4 border-t border-border pt-3">
-                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">查看本次提示词</summary>
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">{uiText("查看本次提示词")}</summary>
                 <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-foreground/80">{examplePrompt}</p>
               </details>
             ) : null}
@@ -1760,8 +1746,7 @@ export function SceneCreator({
                 onClick={() => setDeleteOpen(true)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                删除模板
-              </Button>
+                {uiText("删除模板")}</Button>
             </section>
           ) : null}
         </div>
@@ -1776,15 +1761,15 @@ export function SceneCreator({
           <Suspense fallback={<div className="h-full border-l border-border bg-card max-lg:border-l-0 max-lg:border-t" aria-busy="true" />}>
             <AiAssistant
                 variant="docked"
-                title="模板共创助手"
+                title={uiText("模板共创助手")}
                 subtitle={draft.extractionScenario
                   ? getTemplateExtractionScenarioTemplateLabel(draft.extractionScenario)
                   : "基于当前模板"}
                 messages={assistantMessages}
                 value={assistantPrompt}
                 placeholder={assistantReferenceCount > 0
-                  ? "描述希望借鉴的内容，也可直接发送图片…"
-                  : "继续描述，或粘贴参考图…"}
+                  ? uiText("描述希望借鉴的内容，也可直接发送图片…")
+                  : uiText("继续描述，或粘贴参考图…")}
                 streaming={assistantLoading}
                 activityLabel={assistantActivity ?? undefined}
                 interaction={assistantInteraction?.state}
@@ -1797,12 +1782,11 @@ export function SceneCreator({
                     variant="ghost"
                     size="sm"
                     className="h-8 shrink-0 gap-1.5 px-2 text-xs text-[#686865] hover:bg-[#e8e8e4] hover:text-[#242422] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
-                    aria-label={`选择提供给 AI 助手的模板示例，已选 ${assistantExampleReferences.length} 张`}
+                    aria-label={uiText("选择提供给 AI 助手的模板示例，已选 {{ui:0}} 张", [assistantExampleReferences.length])}
                     onClick={() => setAssistantExamplesOpen(true)}
                   >
                     <GalleryHorizontalEnd className="h-3.5 w-3.5" />
-                    示例
-                    {assistantExampleReferences.length > 0 ? (
+                    {uiText("示例")}{assistantExampleReferences.length > 0 ? (
                       <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#30302e] px-1 text-[10px] font-semibold leading-none text-white dark:bg-primary dark:text-primary-foreground">
                         {assistantExampleReferences.length}
                       </span>
@@ -1833,11 +1817,11 @@ export function SceneCreator({
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>删除“{persistedScene?.name ?? draft.name}”？</DialogTitle>
-            <DialogDescription>模板及其示例会被删除，此操作无法恢复。</DialogDescription>
+            <DialogTitle>{uiText("删除“")}{persistedScene?.name ?? draft.name}”？</DialogTitle>
+            <DialogDescription>{uiText("模板及其示例会被删除，此操作无法恢复。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>取消</Button>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>{uiText("取消")}</Button>
             <Button
               variant="destructive"
               disabled={deletingTemplate}
@@ -1859,8 +1843,7 @@ export function SceneCreator({
               }}
             >
               {deletingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              删除模板
-            </Button>
+              {uiText("删除模板")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1868,17 +1851,16 @@ export function SceneCreator({
       <Dialog open={assistantExamplesOpen} onOpenChange={setAssistantExamplesOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>选择提供给 AI 的示例</DialogTitle>
+            <DialogTitle>{uiText("选择提供给 AI 的示例")}</DialogTitle>
             <DialogDescription>
-              AI 只会查看你在这里选择的示例。选择状态不会改变模板中的示例。
-            </DialogDescription>
+              {uiText("AI 只会查看你在这里选择的示例。选择状态不会改变模板中的示例。")}</DialogDescription>
           </DialogHeader>
           {availableAssistantExamples.length > 0 ? (
             <>
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span>已生成 {availableAssistantExamples.length} 张</span>
+                <span>{uiText("已生成 ")}{availableAssistantExamples.length} {uiText("张")}</span>
                 <span className="tabular-nums">
-                  已选 {assistantExampleReferences.length} / {SCENE_CREATOR_MAX_REFERENCE_COUNT}
+                  {uiText("已选 ")}{assistantExampleReferences.length} / {SCENE_CREATOR_MAX_REFERENCE_COUNT}
                 </span>
               </div>
               <div className="grid max-h-[min(56vh,520px)] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
@@ -1898,7 +1880,7 @@ export function SceneCreator({
                       <button
                         type="button"
                         className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                        aria-label={`${selected ? "取消选择" : "选择"}${alt}提供给 AI 助手`}
+                        aria-label={uiText("{{ui:0}}{{ui:1}}提供给 AI 助手", [selected ? "取消选择" : "选择", alt])}
                         aria-pressed={selected}
                         disabled={loading}
                         onClick={() => void toggleAssistantExample(result, index)}
@@ -1921,7 +1903,7 @@ export function SceneCreator({
                         variant="secondary"
                         size="icon"
                         className="absolute bottom-2 right-2 h-8 w-8 bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover/example:opacity-100 focus-visible:opacity-100"
-                        aria-label={`放大预览${alt}`}
+                        aria-label={uiText("放大预览{{ui:0}}", [alt])}
                         onClick={(event) => {
                           const container = event.currentTarget.parentElement;
                           const image = container?.querySelector("img");
@@ -1951,14 +1933,13 @@ export function SceneCreator({
           ) : (
             <div className="flex min-h-48 flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/20 px-6 text-center">
               <GalleryHorizontalEnd className="h-7 w-7 text-muted-foreground/70" />
-              <p className="mt-3 text-sm font-medium">还没有生成示例</p>
+              <p className="mt-3 text-sm font-medium">{uiText("还没有生成示例")}</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                在左侧生成示例后，就可以选择提供给 AI 助手。
-              </p>
+                {uiText("在左侧生成示例后，就可以选择提供给 AI 助手。")}</p>
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setAssistantExamplesOpen(false)}>完成</Button>
+            <Button onClick={() => setAssistantExamplesOpen(false)}>{uiText("完成")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

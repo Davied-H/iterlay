@@ -1,15 +1,9 @@
+import { useUiText } from "@/i18n";
 import { useRef, useState } from "react";
 import { Check, Loader2, LockKeyhole, Plus, Trash2 } from "lucide-react";
 import type { AppIconPreference, CustomAppIcon } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import appIconMascot from "@/assets/app-icon-mascot.png";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +33,8 @@ export function AppIconPickerDialog({
   onUpload,
   onDelete
 }: AppIconPickerDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomAppIcon | null>(null);
@@ -69,8 +65,8 @@ export function AppIconPickerDialog({
       <Dialog open={open} onOpenChange={changeOpen}>
         <DialogContent className="w-[calc(100vw-32px)] max-w-lg gap-4 p-5">
           <DialogHeader className="pr-8">
-            <DialogTitle>伙伴头像</DialogTitle>
-            <DialogDescription>选择系统头像，或上传自己的头像。</DialogDescription>
+            <DialogTitle>{uiText("伙伴头像")}</DialogTitle>
+            <DialogDescription>{uiText("选择系统头像，或上传自己的头像。")}</DialogDescription>
           </DialogHeader>
 
           <input
@@ -88,7 +84,7 @@ export function AppIconPickerDialog({
           <div
             className="grid max-h-[min(430px,60vh)] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4"
             role="radiogroup"
-            aria-label="伙伴头像"
+            aria-label={uiText("伙伴头像")}
             onDragEnter={(event) => {
               if (!busy && event.dataTransfer.types.includes("Files")) setDragging(true);
             }}
@@ -138,7 +134,7 @@ export function AppIconPickerDialog({
               )}
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-              <span className="text-xs font-medium">{dragging ? "松开上传" : "上传头像"}</span>
+              <span className="text-xs font-medium">{dragging ? uiText("松开上传") : uiText("上传头像")}</span>
             </button>
           </div>
 
@@ -151,11 +147,11 @@ export function AppIconPickerDialog({
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && !busy && setDeleteTarget(null)}>
         <DialogContent className="w-[calc(100vw-32px)] max-w-sm">
           <DialogHeader>
-            <DialogTitle>删除“{deleteTarget?.name}”？</DialogTitle>
-            <DialogDescription>头像会从历史中移除，删除后无法恢复。</DialogDescription>
+            <DialogTitle>{uiText("删除“")}{deleteTarget?.name}”？</DialogTitle>
+            <DialogDescription>{uiText("头像会从历史中移除，删除后无法恢复。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => setDeleteTarget(null)}>取消</Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setDeleteTarget(null)}>{uiText("取消")}</Button>
             <Button
               type="button"
               variant="destructive"
@@ -166,8 +162,7 @@ export function AppIconPickerDialog({
               }}
             >
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              删除
-            </Button>
+              {uiText("删除")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -192,6 +187,8 @@ function AvatarOption({
   onSelect: () => void;
   onDelete?: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className={cn(
       "group/avatar relative aspect-square min-w-0 overflow-hidden rounded-lg border bg-muted/35",
@@ -201,7 +198,7 @@ function AvatarOption({
         type="button"
         role="radio"
         aria-checked={selected}
-        aria-label={`使用${name}`}
+        aria-label={uiText("使用{{ui:0}}", [name])}
         disabled={disabled}
         onClick={onSelect}
         className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
@@ -215,15 +212,15 @@ function AvatarOption({
         </span>
       ) : null}
       {system ? (
-        <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground" title="系统预置">
+        <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground" title={uiText("系统预置")}>
           <LockKeyhole className="h-3 w-3" />
         </span>
       ) : onDelete ? (
         <button
           type="button"
           disabled={disabled}
-          aria-label={`删除头像 ${name}`}
-          title={`删除 ${name}`}
+          aria-label={uiText("删除头像 {{ui:0}}", [name])}
+          title={uiText("删除 {{ui:0}}", [name])}
           onClick={onDelete}
           className="absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-background/90 text-muted-foreground opacity-100 shadow-sm transition-[opacity,color,background-color] hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:opacity-0 sm:group-hover/avatar:opacity-100 disabled:pointer-events-none"
         >

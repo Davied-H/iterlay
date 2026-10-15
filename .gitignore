@@ -20,3 +20,4 @@ cli/dist/
 cli/skills/
 .test-agent/
 *.orig
+resources/native/.build-stamp

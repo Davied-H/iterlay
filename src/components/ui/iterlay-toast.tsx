@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
@@ -125,6 +126,8 @@ function PreviewStack({
 }
 
 function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastId: ToastId }): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = useReducedMotion();
   const itemMotion = (delay = 0) => reduceMotion
     ? {}
@@ -162,7 +165,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
           <span className="iterlay-notice__status iterlay-notice__status--success"><ImagePlus aria-hidden="true" /></span>
         )}
         <NoticeCopy title={title} detail={notice.detail} />
-        <span className="iterlay-notice__capacity" aria-label={`当前 ${notice.count} 张，共可添加 ${total} 张`}>
+        <span className="iterlay-notice__capacity" aria-label={uiText("当前 {{ui:0}} 张，共可添加 {{ui:1}} 张", [notice.count, total])}>
           {Array.from({ length: total }, (_, index) => (
             <motion.i
               className={index < notice.count ? "is-filled" : undefined}
@@ -210,8 +213,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
             icon={<ExternalLink aria-hidden="true" />}
             onClick={() => runAction(() => openDownloadedPath(notice.path!))}
           >
-            打开
-          </NoticeAction>
+            {uiText("打开")}</NoticeAction>
         ) : null}
       </>
     );
@@ -224,8 +226,8 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
           animate={reduceMotion ? undefined : { rotate: 360 }}
           transition={{ duration: 0.85, repeat: Infinity, ease: "linear" }}
         />
-        <NoticeCopy title="生成仍在继续" detail="无需重复提交，完成后会自动显示" />
-        <span className="iterlay-notice__live"><i />进行中</span>
+        <NoticeCopy title={uiText("生成仍在继续")} detail="无需重复提交，完成后会自动显示" />
+        <span className="iterlay-notice__live"><i />{uiText("进行中")}</span>
       </>
     );
   } else if (notice.kind === "result") {
@@ -243,8 +245,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
             icon={<ArrowRight aria-hidden="true" />}
             onClick={() => runAction(navigate)}
           >
-            前往
-          </NoticeAction>
+            {uiText("前往")}</NoticeAction>
         ) : null}
       </>
     );
@@ -264,8 +265,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
             icon={<ArrowRight aria-hidden="true" />}
             onClick={() => runAction(notice.onNavigate!)}
           >
-            前往
-          </NoticeAction>
+            {uiText("前往")}</NoticeAction>
         ) : null}
       </>
     );
@@ -273,7 +273,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
     content = (
       <>
         <span className="iterlay-notice__status iterlay-notice__status--warning">!</span>
-        <NoticeCopy title={`已返回 ${notice.actual} / ${notice.expected} 张`} detail="其余图片未生成" />
+        <NoticeCopy title={uiText("已返回 {{ui:0}} / {{ui:1}} 张", [notice.actual, notice.expected])} detail="其余图片未生成" />
         <span className="iterlay-notice__output-slots" aria-hidden="true">
           {Array.from({ length: notice.expected }, (_, index) => (
             <motion.i className={index < notice.actual ? "is-done" : undefined} key={index} {...itemMotion(index * 0.035)}>
@@ -295,8 +295,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
             icon={<ImagePlus aria-hidden="true" />}
             onClick={() => runAction(useReference)}
           >
-            用作参考图
-          </NoticeAction>
+            {uiText("用作参考图")}</NoticeAction>
         ) : null}
       </>
     );
@@ -308,28 +307,26 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
         ) : (
           <span className="iterlay-notice__status iterlay-notice__status--success"><PanelTopOpen aria-hidden="true" /></span>
         )}
-        <NoticeCopy title={`已导入「${notice.name}」`} detail={`${notice.imageCount} 张图片`} />
+        <NoticeCopy title={uiText("已导入「{{ui:0}}」", [notice.name])} detail={`${notice.imageCount} 张图片`} />
         <NoticeAction
           kind="navigate"
           icon={<ArrowRight aria-hidden="true" />}
           onClick={() => runAction(notice.onNavigate)}
         >
-          前往
-        </NoticeAction>
+          {uiText("前往")}</NoticeAction>
       </>
     );
   } else if (notice.kind === "template") {
     content = (
       <>
         <span className="iterlay-notice__status iterlay-notice__status--success"><LayoutGrid aria-hidden="true" /></span>
-        <NoticeCopy title={notice.updated ? "模板已更新" : "模板已保存"} detail={`「${notice.name}」`} />
+        <NoticeCopy title={notice.updated ? uiText("模板已更新") : uiText("模板已保存")} detail={`「${notice.name}」`} />
         <NoticeAction
           kind="navigate"
           icon={<ArrowRight aria-hidden="true" />}
           onClick={() => runAction(notice.onNavigate)}
         >
-          查看详情
-        </NoticeAction>
+          {uiText("查看详情")}</NoticeAction>
       </>
     );
   } else if (notice.kind === "slice") {
@@ -341,14 +338,13 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
           ))}
           {notice.previews.length === 0 ? <LayoutGrid /> : null}
         </span>
-        <NoticeCopy title={`已切出 ${notice.count} 张图片`} detail="已放到画布右侧并全部选中" />
+        <NoticeCopy title={uiText("已切出 {{ui:0}} 张图片", [notice.count])} detail="已放到画布右侧并全部选中" />
         <NoticeAction
           kind="primary"
           icon={<Download aria-hidden="true" />}
           onClick={() => runAction(notice.onDownload)}
         >
-          下载 ZIP
-        </NoticeAction>
+          {uiText("下载 ZIP")}</NoticeAction>
       </>
     );
   } else if (notice.kind === "balance") {
@@ -356,17 +352,16 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
     content = (
       <>
         <motion.span className="iterlay-notice__credit" {...itemMotion(0.04)}>
-          <em>当前</em> {notice.balance} <em>/ 需要</em> {notice.required}
+          <em>{uiText("当前")}</em> {notice.balance} <em>{uiText("/ 需要")}</em> {notice.required}
         </motion.span>
-        <NoticeCopy title="官方 Provider 余额不足" detail="Prompt 已为你保留" />
+        <NoticeCopy title={uiText("官方 Provider 余额不足")} detail="Prompt 已为你保留" />
         {activate ? (
           <NoticeAction
             kind="recovery"
             icon={<KeyRound aria-hidden="true" />}
             onClick={() => runAction(activate)}
           >
-            激活授权
-          </NoticeAction>
+            {uiText("激活授权")}</NoticeAction>
         ) : null}
       </>
     );

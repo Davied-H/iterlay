@@ -1,3 +1,4 @@
+import { translateSourceText } from "@/i18n/ui-text";
 import {
   useCallback,
   useMemo,
@@ -9,11 +10,7 @@ import {
 } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import { toast } from "sonner";
-import {
-  applyConnectionDraft,
-  applyConnectionSelectionCommand,
-  selectConnectionEdges
-} from "./connection-edge-commands";
+import { applyConnectionDraft, applyConnectionSelectionCommand, selectConnectionEdges } from "./connection-edge-commands";
 import type {
   CanvasConnectionEdgeActions,
   CanvasConnectionEdgeDraft,
@@ -71,7 +68,7 @@ export function useCanvasConnectionEdgeActions({
     try {
       if (localStorage.getItem(CONNECTION_SELECTION_HINT_STORAGE_KEY)) return;
       localStorage.setItem(CONNECTION_SELECTION_HINT_STORAGE_KEY, "1");
-      toast.info("已选中连接线", { description: "按 Delete 或 Backspace 删除" });
+      toast.info(translateSourceText("已选中连接线"), { description: translateSourceText("按 Delete 或 Backspace 删除") });
     } catch {
       // Storage may be unavailable in private or restricted browser contexts.
     }

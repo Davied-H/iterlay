@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readUiSource as readFileSync } from "./helpers/ui-source";
 import { describe, expect, it } from "vitest";
 
 const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
@@ -6,7 +6,7 @@ const board = readFileSync(new URL("../src/components/canvas/CanvasBoard.tsx", i
 const card = readFileSync(new URL("../src/components/canvas/ComicDramaNode.tsx", import.meta.url), "utf8");
 const projectCard = readFileSync(new URL("../src/components/canvas/ComicDramaEntryNode.tsx", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("../src/components/comic-drama/ComicDramaWorkspace.tsx", import.meta.url), "utf8");
-const preview = readFileSync(new URL("../src/dev-comic-drama-preview.tsx", import.meta.url), "utf8");
+const preview = readFileSync(new URL("../src/dev/previews/comic-drama-preview.tsx", import.meta.url), "utf8");
 
 describe("comic drama board entry and paid confirmation", () => {
   it("keeps one project card on the parent board and opens an independent comic child board", () => {

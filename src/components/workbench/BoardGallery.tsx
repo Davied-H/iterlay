@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, ArrowUpRight, Copy, ListFilter, RotateCcw, Sparkles, X } from "lucide-react";
@@ -9,15 +10,9 @@ import type {
   SceneAssistantReference
 } from "@shared/types";
 import { AiAssistant, type AiAssistantMessage } from "@/components/assistant/AiAssistant";
-import {
-  CircularGenerationGallery,
-  type CircularGenerationItem
-} from "@/components/workbench/gallery/CircularGenerationGallery";
+import { CircularGenerationGallery, type CircularGenerationItem } from "@/components/workbench/gallery/CircularGenerationGallery";
 import { FilmGenerationGallery } from "@/components/workbench/gallery/FilmGenerationGallery";
-import {
-  GalleryModeSwitcher,
-  type GalleryMode
-} from "@/components/workbench/gallery/GalleryModeSwitcher";
+import { GalleryModeSwitcher, type GalleryMode } from "@/components/workbench/gallery/GalleryModeSwitcher";
 import { GenerationStack } from "@/components/workbench/gallery/GenerationStack";
 import { LightboxGenerationGallery } from "@/components/workbench/gallery/LightboxGenerationGallery";
 import { TimelineWheel, type TimelineBucket } from "@/components/workbench/gallery/TimelineWheel";
@@ -79,6 +74,8 @@ export function BoardGallery({
   onOpenSettings,
   onClose
 }: BoardGalleryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = Boolean(useReducedMotion());
   const [boardAssets, setBoardAssets] = useState<AssetLibraryItem[] | null>(null);
   const [sourceFilter, setSourceFilter] = useState<GallerySourceFilter>("all");
@@ -349,7 +346,7 @@ export function BoardGallery({
     <section
       data-board-gallery=""
       data-gallery-mode={galleryMode}
-      aria-label={`${boardName}的图片画廊`}
+      aria-label={uiText("{{ui:0}}的图片画廊", [boardName])}
       className="dark absolute inset-0 z-40 isolate flex overflow-hidden bg-black text-foreground"
     >
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
@@ -366,11 +363,11 @@ export function BoardGallery({
             className="group flex h-8 items-center gap-2 rounded-md px-2 text-sm text-white/65 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 [-webkit-app-region:no-drag]"
           >
             <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5 motion-reduce:transition-none" />
-            <span className="max-[560px]:sr-only">返回画板</span>
+            <span className="max-[560px]:sr-only">{uiText("返回画板")}</span>
           </button>
           <div className="pointer-events-none min-w-0 max-w-[240px] max-[760px]:hidden">
             <p className="truncate text-xs font-medium text-white/78">{boardName}</p>
-            <p className="mt-0.5 text-[10px] tabular-nums text-white/34">{galleryItems.length} 张图片</p>
+            <p className="mt-0.5 text-[10px] tabular-nums text-white/34">{galleryItems.length} {uiText("张图片")}</p>
           </div>
           <div className="absolute left-1/2 -translate-x-1/2 [-webkit-app-region:no-drag]">
             <GalleryModeSwitcher value={galleryMode} onChange={changeGalleryMode} />
@@ -393,12 +390,12 @@ export function BoardGallery({
                   )}
                   data-tour="gallery-assistant"
                   onClick={() => setAssistantOpen((value) => !value)}
-                  aria-label={assistantOpen ? "关闭 AI 回顾助手" : "打开 AI 回顾助手"}
+                  aria-label={assistantOpen ? uiText("关闭 AI 回顾助手") : uiText("打开 AI 回顾助手")}
                 >
                   <Sparkles className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{assistantOpen ? "关闭 AI 回顾助手" : "AI 回顾助手"}</TooltipContent>
+              <TooltipContent>{assistantOpen ? uiText("关闭 AI 回顾助手") : uiText("AI 回顾助手")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -408,12 +405,12 @@ export function BoardGallery({
                   size="icon"
                   className="h-8 w-8 text-white/60 hover:bg-white/[0.07] hover:text-white"
                   onClick={onClose}
-                  aria-label="关闭画廊"
+                  aria-label={uiText("关闭画廊")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>关闭画廊 (G)</TooltipContent>
+              <TooltipContent>{uiText("关闭画廊 (G)")}</TooltipContent>
             </Tooltip>
           </div>
         </header>
@@ -456,7 +453,7 @@ export function BoardGallery({
             )}
             <GenerationStack
               open={stackOpen && Boolean(activeItem)}
-              title={activeItem ? galleryItemTitle(activeItem) : "图片"}
+              title={activeItem ? galleryItemTitle(activeItem) : uiText("图片")}
               imagePaths={activeItem ? [activeItem.imagePath] : []}
               imageUrls={imageUrlByPath}
               onClose={() => setStackOpen(false)}
@@ -483,11 +480,11 @@ export function BoardGallery({
             >
               <AiAssistant
                 variant="docked"
-                title="创作回顾助手"
+                title={uiText("创作回顾助手")}
                 subtitle={scopeLabel}
                 messages={assistantMessages}
                 value={assistantValue}
-                placeholder="比较结果、总结提示词或回顾创作变化…"
+                placeholder={uiText("比较结果、总结提示词或回顾创作变化…")}
                 streaming={assistantStreaming}
                 compact
                 className="h-full"
@@ -513,6 +510,8 @@ function GallerySourceMenu({
   counts: GallerySourceCounts;
   onChange: (value: GallerySourceFilter) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const label = SOURCE_FILTERS.find((option) => option.value === value)?.label ?? "全部图片";
   return (
     <DropdownMenu>
@@ -526,7 +525,7 @@ function GallerySourceMenu({
                 "h-8 gap-1.5 px-2 text-xs text-white/60 hover:bg-white/[0.07] hover:text-white",
                 value !== "all" && "bg-white/[0.09] text-white"
               )}
-              aria-label={`筛选图片，当前：${label}`}
+              aria-label={uiText("筛选图片，当前：{{ui:0}}", [label])}
             >
               <ListFilter className="h-3.5 w-3.5" />
               <span className="max-[760px]:sr-only">{label}</span>
@@ -534,7 +533,7 @@ function GallerySourceMenu({
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent>筛选图片</TooltipContent>
+        <TooltipContent>{uiText("筛选图片")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" className="dark min-w-[180px] border-white/10 bg-neutral-950 text-white">
         <DropdownMenuRadioGroup value={value} onValueChange={(next) => onChange(next as GallerySourceFilter)}>
@@ -556,8 +555,10 @@ function GallerySourceMenu({
 }
 
 function GalleryLoadingState(): React.ReactElement {
+  const uiText = useUiText();
+
   return (
-    <div className="flex h-full min-h-[240px] flex-1 items-center justify-center" aria-label="正在加载画板图片">
+    <div className="flex h-full min-h-[240px] flex-1 items-center justify-center" aria-label={uiText("正在加载画板图片")}>
       <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/60 motion-reduce:animate-none" />
     </div>
   );
@@ -576,11 +577,12 @@ function PromptInspector({
   onLocate: (nodeId: string) => void;
   onReuse: (job: GenerationJob) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   if (!item) {
     return (
       <section className="flex h-[116px] shrink-0 items-center justify-center px-8 pb-4 text-center text-sm text-white/44 max-[520px]:px-5">
-        当前筛选范围没有图片
-      </section>
+        {uiText("当前筛选范围没有图片")}</section>
     );
   }
   const reusableJob = item.source === "generated" ? item.job : undefined;
@@ -608,16 +610,16 @@ function PromptInspector({
       </div>
       <div className="flex shrink-0 items-center gap-1 pt-1">
         {item.prompt ? (
-          <InspectorAction label="复制提示词" onClick={() => onCopyText(item.prompt)}>
+          <InspectorAction label={uiText("复制提示词")} onClick={() => onCopyText(item.prompt)}>
             <Copy className="h-3.5 w-3.5" />
           </InspectorAction>
         ) : null}
         {reusableJob ? (
-          <InspectorAction label="复用提示词" onClick={() => onReuse(reusableJob)}>
+          <InspectorAction label={uiText("复用提示词")} onClick={() => onReuse(reusableJob)}>
             <RotateCcw className="h-3.5 w-3.5" />
           </InspectorAction>
         ) : null}
-        <InspectorAction label="回到画板定位" onClick={() => onLocate(item.nodeId)}>
+        <InspectorAction label={uiText("回到画板定位")} onClick={() => onLocate(item.nodeId)}>
           <ArrowUpRight className="h-3.5 w-3.5" />
         </InspectorAction>
       </div>

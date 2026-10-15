@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
@@ -202,6 +203,8 @@ export function FeatureTour({
   onWelcomeConnectProvider,
   onWelcomeOpenLicense
 }: FeatureTourProps): React.ReactElement | null {
+  const uiText = useUiText();
+
   const reduceMotion = useReducedMotion();
   // 挂载时解析一次可用步骤：锚点缺失的步骤剔除（无锚点的欢迎步与 lazy 步骤恒保留），避免指向不存在的元素。
   const [steps] = useState<TourStep[]>(() =>
@@ -466,7 +469,7 @@ export function FeatureTour({
       >
         <button
           type="button"
-          aria-label="跳过引导"
+          aria-label={uiText("跳过引导")}
           onClick={() => finish("skipped")}
           className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -489,15 +492,13 @@ export function FeatureTour({
             {step.autoAdvanceMs ? null : (
               <div className="flex items-center gap-1.5">
                 <Button variant="ghost" size="sm" onClick={() => finish("skipped")}>
-                  跳过
-                </Button>
+                  {uiText("跳过")}</Button>
                 {index > 0 ? (
                   <Button variant="ghost" size="sm" onClick={goPrev}>
-                    上一步
-                  </Button>
+                    {uiText("上一步")}</Button>
                 ) : null}
                 <Button ref={primaryButtonRef} size="sm" onClick={goNext}>
-                  {isLast ? "完成" : (step.nextLabel ?? "下一步")}
+                  {isLast ? uiText("完成") : (step.nextLabel ?? "下一步")}
                 </Button>
               </div>
             )}

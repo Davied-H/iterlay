@@ -1,16 +1,10 @@
+import { useUiText } from "@/i18n";
 import appIconUrl from "@/assets/app-icon-default.png";
 import lampImageUrl from "@/assets/tour-demo-lamp.jpg";
 import type { LicenseState } from "@shared/licensing";
-import { AnimatePresence,motion } from "framer-motion";
-import {
-ArrowRight,
-ChevronLeft,
-ChevronRight,
-PlayCircle,
-Plug,
-RotateCcw
-} from "lucide-react";
-import { lazy,Suspense,useEffect,useRef,useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, ChevronLeft, ChevronRight, PlayCircle, Plug, RotateCcw } from "lucide-react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import RotatingText from "./RotatingText";
 import { TextType } from "./TextType";
 import type { WelcomeDemoPlayerHandle } from "./WelcomeDemoPlayer";
@@ -128,6 +122,8 @@ export function WelcomeTourStep({
   reduceMotion,
   onConnectProvider,
 }: WelcomeTourStepProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [leaving, setLeaving] = useState(false);
   const [stage, setStage] = useState<WelcomeStage>(reduceMotion ? "choice" : "art");
   const [demoMode, setDemoMode] = useState<WelcomeDemoMode>("core");
@@ -290,14 +286,14 @@ export function WelcomeTourStep({
       {stage === "choice" ? (
         <motion.div
           className="welcome-tour__setup-panel"
-          aria-label="选择生成服务"
+          aria-label={uiText("选择生成服务")}
           initial={reduceMotion ? false : { opacity: 0, x: 54, filter: "blur(7px)" }}
           animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
           transition={{ duration: reduceMotion ? 0 : 0.72, ease: EASE_OUT }}
         >
           <div className="welcome-tour__setup-heading">
-            <span>生成服务</span>
-            <span className="welcome-tour__setup-step">最后一步</span>
+            <span>{uiText("生成服务")}</span>
+            <span className="welcome-tour__setup-step">{uiText("最后一步")}</span>
           </div>
           <button
             type="button"
@@ -308,13 +304,13 @@ export function WelcomeTourStep({
           >
             <span className="welcome-tour__service-icon"><Plug aria-hidden /></span>
             <span className="welcome-tour__service-copy">
-              <span className="welcome-tour__service-title">连接自己的模型服务</span>
-              <span className="welcome-tour__service-description">使用 ChatGPT / Codex 登录，或配置 API Key</span>
-              <span className="welcome-tour__service-meta">模型费用由对应服务商收取</span>
+              <span className="welcome-tour__service-title">{uiText("连接自己的模型服务")}</span>
+              <span className="welcome-tour__service-description">{uiText("使用 ChatGPT / Codex 登录，或配置 API Key")}</span>
+              <span className="welcome-tour__service-meta">{uiText("模型费用由对应服务商收取")}</span>
             </span>
             <ArrowRight aria-hidden className="welcome-tour__service-arrow" />
           </button>
-          <p className="welcome-tour__setup-note">Iterlay 永久免费，连接自己的模型服务即可生成。</p>
+          <p className="welcome-tour__setup-note">{uiText("Iterlay 永久免费，连接自己的模型服务即可生成。")}</p>
         </motion.div>
       ) : null}
 
@@ -325,7 +321,7 @@ export function WelcomeTourStep({
 
       <header className="welcome-tour__header">
         <span className="welcome-tour__edition">
-          {stage === "choice" ? "完成设置" : stage === "demo" && demoMode === "more" ? "更多示例" : "快速演示"}
+          {stage === "choice" ? uiText("完成设置") : stage === "demo" && demoMode === "more" ? uiText("更多示例") : uiText("快速演示")}
         </span>
       </header>
 
@@ -341,7 +337,7 @@ export function WelcomeTourStep({
                 exit={reduceMotion ? undefined : { opacity: 0, y: -6, filter: "blur(3px)" }}
                 transition={{ duration: reduceMotion ? 0 : 0.24, ease: EASE_OUT }}
               >
-                <div className="welcome-tour__demo-progress" aria-label={`功能演示 ${demoScene + 1} / ${narrationList.length}`}>
+                <div className="welcome-tour__demo-progress" aria-label={uiText("功能演示 {{ui:0}} / {{ui:1}}", [demoScene + 1, narrationList.length])}>
                   {narrationList.map((item, index) => (
                     <span key={item.title} data-active={index === demoScene} />
                   ))}
@@ -409,7 +405,7 @@ export function WelcomeTourStep({
                 transition={{ duration: reduceMotion ? 0 : 0.58, delay: reduceMotion ? 0 : 0.12, ease: EASE_OUT }}
               >
                 <h1 id={titleId} className="welcome-tour__choice-title">
-                  <span>现在，</span>
+                  <span>{uiText("现在，")}</span>
                   <RotatingText
                     texts={["选择怎么开始生成。", "连接你常用的服务。", "准备第一次创作。", "选择怎么开始生成。"]}
                     auto={!reduceMotion}
@@ -425,8 +421,7 @@ export function WelcomeTourStep({
                   />
                 </h1>
                 <p id={descriptionId} className="welcome-tour__choice-description">
-                  连接你已有的账号或 API Key，开始生成。
-                </p>
+                  {uiText("连接你已有的账号或 API Key，开始生成。")}</p>
                 <div className="welcome-tour__choice-actions">
                   <button
                     type="button"
@@ -435,8 +430,7 @@ export function WelcomeTourStep({
                     onClick={() => playDemo("core")}
                   >
                     <RotateCcw aria-hidden className="h-4 w-4" />
-                    重新观看
-                  </button>
+                    {uiText("重新观看")}</button>
                   <button
                     type="button"
                     className="welcome-tour__choice-secondary"
@@ -444,10 +438,9 @@ export function WelcomeTourStep({
                     onClick={() => playDemo("more")}
                   >
                     <PlayCircle aria-hidden className="h-4 w-4" />
-                    查看更多演示
-                  </button>
+                    {uiText("查看更多演示")}</button>
                 </div>
-                <span className="welcome-tour__choice-note">这些设置之后可以随时从画板中修改</span>
+                <span className="welcome-tour__choice-note">{uiText("这些设置之后可以随时从画板中修改")}</span>
               </motion.div>
             ) : (
               <motion.div
@@ -494,16 +487,15 @@ export function WelcomeTourStep({
                 disabled={leaving}
                 onClick={() => setStage("choice")}
               >
-                跳过演示
-                <ArrowRight aria-hidden className="h-4 w-4" />
+                {uiText("跳过演示")}<ArrowRight aria-hidden className="h-4 w-4" />
               </button>
-              <div className="welcome-tour__demo-navigation" role="group" aria-label="切换功能示例">
+              <div className="welcome-tour__demo-navigation" role="group" aria-label={uiText("切换功能示例")}>
                 <button
                   type="button"
                   className="welcome-tour__demo-nav"
                   disabled={demoScene === 0}
-                  aria-label="上一个示例"
-                  title="上一个示例"
+                  aria-label={uiText("上一个示例")}
+                  title={uiText("上一个示例")}
                   onClick={() => navigateDemo(-1)}
                 >
                   <ChevronLeft aria-hidden className="h-4 w-4" />
@@ -512,8 +504,8 @@ export function WelcomeTourStep({
                   type="button"
                   className="welcome-tour__demo-nav"
                   disabled={demoScene === narrationList.length - 1}
-                  aria-label="下一个示例"
-                  title="下一个示例"
+                  aria-label={uiText("下一个示例")}
+                  title={uiText("下一个示例")}
                   onClick={() => navigateDemo(1)}
                 >
                   <ChevronRight aria-hidden className="h-4 w-4" />
@@ -526,7 +518,7 @@ export function WelcomeTourStep({
 
       <footer className="welcome-tour__footer">
         <span className="welcome-tour__time">
-          {stage === "choice" ? "演示完成 · 选择后即可进入画板" : demoMode === "core" ? "约 35 秒" : "约 1 分钟"}
+          {stage === "choice" ? uiText("演示完成 · 选择后即可进入画板") : demoMode === "core" ? uiText("约 35 秒") : uiText("约 1 分钟")}
         </span>
       </footer>
     </motion.section>

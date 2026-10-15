@@ -1,5 +1,5 @@
-import { appendFileSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdirSync, statSync } from "node:fs";
+import { appendFile, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { format } from "node:util";
 import AdmZip from "adm-zip";
@@ -26,27 +26,71 @@ export class RuntimeLog {
     }
   }
 
+  private readonly queued: string[] = [];
+  private queuedBytes = 0;
+  private scheduled: ReturnType<typeof setImmediate> | null = null;
+  private writing: Promise<void> | null = null;
+  private dropped = 0;
+
   record(source: string, level: string, ...args: unknown[]): void {
-    const line = `${new Date().toISOString()} [${source}] [${level}] ${redactLog(format(...args))}\n`;
-    try {
-      if (this.bytes + Buffer.byteLength(line) > this.maxBytes) {
-        rmSync(`${this.filePath}.5`, { force: true });
-        for (let index = 4; index >= 0; index--) {
-          const from = index === 0 ? this.filePath : `${this.filePath}.${index}`;
-          try {
-            renameSync(from, `${this.filePath}.${index + 1}`);
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-          }
-        }
-        this.bytes = 0;
-      }
-      appendFileSync(this.filePath, line, { mode: 0o600 });
-      this.bytes += Buffer.byteLength(line);
-    } catch (error) {
-      // Do not recurse through console if the log disk is unavailable.
+    if (this.failed) return;
+    const message = redactLog(format(...args)).slice(0, 64 * 1024);
+    const line = `${new Date().toISOString()} [${source}] [${level}] ${message}\n`;
+    const bytes = Buffer.byteLength(line);
+    if (this.queuedBytes + bytes > 1024 * 1024) { this.dropped++; return; }
+    this.queued.push(line);
+    this.queuedBytes += bytes;
+    if (!this.scheduled) this.scheduled = setImmediate(() => {
+      this.scheduled = null;
+      void this.flush();
+    });
+  }
+
+  flush(): Promise<void> {
+    if (this.scheduled) clearImmediate(this.scheduled);
+    this.scheduled = null;
+    if (this.writing) return this.writing;
+    const task = this.drain().catch((error) => {
       if (!this.failed) process.stderr.write(`Runtime log write failed: ${String(error)}\n`);
       this.failed = true;
+      this.queued.length = 0;
+      this.queuedBytes = 0;
+    });
+    this.writing = task;
+    void task.finally(() => { if (this.writing === task) this.writing = null; });
+    return task;
+  }
+
+  private async drain(): Promise<void> {
+    while (this.queued.length) {
+      const lines = this.queued.splice(0);
+      this.queuedBytes = 0;
+      if (this.dropped) {
+        lines.push(`${new Date().toISOString()} [main] [warn] ${this.dropped} log messages omitted during a burst\n`);
+        this.dropped = 0;
+      }
+      let batch = "";
+      const append = async (): Promise<void> => {
+        if (!batch) return;
+        await appendFile(this.filePath, batch, { mode: 0o600 });
+        batch = "";
+      };
+      for (const line of lines) {
+        const size = Buffer.byteLength(line);
+        if (this.bytes + size > this.maxBytes) {
+          await append();
+          await rm(`${this.filePath}.5`, { force: true });
+          for (let index = 4; index >= 0; index--) {
+            const from = index === 0 ? this.filePath : `${this.filePath}.${index}`;
+            try { await rename(from, `${this.filePath}.${index + 1}`); }
+            catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+          }
+          this.bytes = 0;
+        }
+        batch += line;
+        this.bytes += size;
+      }
+      await append();
     }
   }
 

@@ -1,0 +1,28 @@
+/** Stable channels shared by the preload adapter and local MCP transport. */
+export const WORKBENCH_COMMANDS = {
+  "getSettings": "settings:get",
+  "generateImage": "image:generate",
+  "listHistory": "history:list",
+  "saveAssetsAsZip": "asset:saveBatch",
+  "importUploadedImage": "asset:importUpload",
+  "importVideo": "video:import",
+  "startVideoGeneration": "video:start",
+  "getVideoJob": "video:get",
+  "stopVideoPolling": "video:stopPolling",
+  "readAssetDataUrl": "asset:readDataUrl",
+  "listBoards": "boards:list",
+  "getBoard": "boards:get",
+  "createBoard": "boards:create",
+  "moveBoardImage": "boards:images:move",
+  "resizeBoardImage": "boards:images:resize",
+  "arrangeBoardImages": "boards:images:arrange",
+  "duplicateBoardImages": "boards:images:duplicate",
+  "setBoardImageVersion": "boards:images:setVersion",
+  "listTrashedBoardImages": "boards:images:trash:list",
+  "trashBoardImages": "boards:images:trash:move",
+  "restoreTrashedBoardImage": "boards:images:trash:restore",
+  "appendBoardNodes": "boards:appendNodes",
+  "appendBoardNodeVersions": "boards:appendVersions",
+  "getBoardsState": "boards:getState",
+  "listAssets": "assets:library"
+} as const;

@@ -1,0 +1,183 @@
+/* Figma-style canvas: arrow for selection, grab only while the hand/pan gesture is active. */
+.figma-canvas {
+  --xy-selection-background-color: hsl(var(--foreground) / 0.07);
+  --xy-selection-border: 1px solid hsl(var(--foreground) / 0.55);
+}
+
+/* Canvas menus stay above editor chrome and below dialogs (z-50). */
+.canvas-overlay-menu {
+  z-index: 45;
+}
+
+/* Keep white and low-contrast images legible against the expansive work surface. */
+.figma-canvas .image-node-card:not(.border-ring) {
+  border-color: hsl(var(--foreground) / 0.22);
+  box-shadow:
+    0 1px 2px hsl(220 14% 12% / 0.12),
+    0 0 0 1px hsl(0 0% 100% / 0.55);
+}
+
+.figma-canvas .image-node-card:not(.border-ring):hover {
+  box-shadow:
+    0 2px 6px hsl(220 14% 12% / 0.14),
+    0 0 0 1px hsl(0 0% 100% / 0.72);
+}
+
+.dark .figma-canvas .image-node-card:not(.border-ring) {
+  border-color: hsl(var(--foreground) / 0.28);
+  box-shadow:
+    0 1px 3px hsl(0 0% 0% / 0.28),
+    0 0 0 1px hsl(0 0% 100% / 0.05);
+}
+
+.figma-canvas .react-flow__pane,
+.figma-canvas .react-flow__pane.selection {
+  cursor: default;
+}
+
+.figma-canvas .react-flow__pane.draggable {
+  cursor: grab;
+}
+
+.figma-canvas .react-flow__pane.dragging,
+.figma-canvas .react-flow__pane.dragging * {
+  cursor: grabbing !important;
+}
+
+/* Keep the native cursor stable while a node moves under the pointer. */
+.figma-canvas .react-flow__node.draggable.dragging,
+.figma-canvas .react-flow__node.draggable.dragging * {
+  cursor: grabbing !important;
+}
+
+.figma-canvas .react-flow__node,
+.figma-canvas .react-flow__edge {
+  transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1), filter 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-relationship-active .figma-canvas .react-flow__node:not(.canvas-relationship-highlighted):not(.selected),
+.canvas-relationship-active .figma-canvas .react-flow__edge:not(.canvas-relationship-highlighted):not(.selected),
+.figma-canvas .react-flow__node.canvas-relationship-dimmed:not(.selected),
+.figma-canvas .react-flow__edge.canvas-relationship-dimmed {
+  opacity: 0.46;
+}
+
+.figma-canvas .react-flow__node.canvas-relationship-highlighted {
+  opacity: 1;
+}
+
+.figma-canvas .react-flow__edge.canvas-relationship-highlighted .canvas-connection-edge {
+  stroke-width: calc(var(--canvas-connection-width, 1.5px) + 0.75px);
+  filter: drop-shadow(0 0 3px hsl(var(--primary) / 0.26));
+}
+
+.canvas-helper-line {
+  background: hsl(var(--helper-line));
+  box-shadow: 0 0 0 0.5px hsl(var(--background) / 0.8);
+}
+
+.canvas-helper-line::before,
+.canvas-helper-line::after {
+  position: absolute;
+  content: "";
+  background: hsl(var(--helper-line));
+}
+
+.canvas-helper-line--vertical::before,
+.canvas-helper-line--vertical::after {
+  left: -2px;
+  width: 5px;
+  height: 1px;
+}
+
+.canvas-helper-line--vertical::before {
+  top: 0;
+}
+
+.canvas-helper-line--vertical::after {
+  bottom: 0;
+}
+
+.canvas-helper-line--horizontal::before,
+.canvas-helper-line--horizontal::after {
+  top: -2px;
+  width: 1px;
+  height: 5px;
+}
+
+.canvas-helper-line--horizontal::before {
+  left: 0;
+}
+
+.canvas-helper-line--horizontal::after {
+  right: 0;
+}
+
+.image-node-card {
+  contain: layout style;
+}
+
+/* Connection points stay out of the way until a canvas node is intentionally targeted. */
+.image-node-connection-point {
+  position: absolute;
+  z-index: 32;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.image-node-connection-point--top,
+.image-node-connection-point--bottom {
+  left: calc(50% - 10px);
+}
+
+.image-node-connection-point--top { top: -24px; }
+.image-node-connection-point--right { top: calc(50% - 10px); right: -24px; }
+.image-node-connection-point--bottom { bottom: -24px; }
+.image-node-connection-point--left { top: calc(50% - 10px); left: -24px; }
+
+.canvas-node-card:hover > .image-node-connection-point,
+.canvas-node-card:focus-within > .image-node-connection-point,
+.canvas-node-card[data-connection-points-visible="true"] > .image-node-connection-point,
+.canvas-node-card[data-connection-target-active="true"] > .image-node-connection-point,
+.canvas-node-card[data-selected="true"] > .image-node-connection-point {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.canvas-node-card[data-connection-target-active="true"] {
+  border-color: hsl(var(--focus-accent) / 0.5);
+  box-shadow:
+    0 0 0 2px hsl(var(--focus-accent) / 0.12),
+    0 3px 8px hsl(220 18% 18% / 0.12);
+}
+
+.canvas-node-card[data-connection-snap-target="target-top"] > .image-node-connection-point--top .image-node-connection-trigger,
+.canvas-node-card[data-connection-snap-target="target-right"] > .image-node-connection-point--right .image-node-connection-trigger,
+.canvas-node-card[data-connection-snap-target="target-bottom"] > .image-node-connection-point--bottom .image-node-connection-trigger,
+.canvas-node-card[data-connection-snap-target="target-left"] > .image-node-connection-point--left .image-node-connection-trigger {
+  border-color: hsl(var(--focus-accent));
+  background: hsl(var(--focus-accent));
+  color: white;
+  transform: scale(1.12);
+}
+
+/* Workflow nodes use a denser, tool-like surface than media cards. */
+.canvas-workflow-node {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 3px 8px hsl(220 18% 18% / 0.12);
+  font-family: Geist, "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  transition:
+    border-color 160ms ease,
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.canvas-workflow-node:hover {
+  border-color: hsl(var(--border) / 0.72);
+  box-shadow: 0 6px 16px hsl(220 18% 18% / 0.14);
+}
+

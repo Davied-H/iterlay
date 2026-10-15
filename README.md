@@ -55,16 +55,25 @@ Requirements:
 
 ```bash
 pnpm install
-pnpm electron:dev
+pnpm dev
 ```
+
+Open **http://127.0.0.1:5180** in your browser. `pnpm dev` (or `pnpm dev:web`) starts Vite and a hidden Electron service process, so the browser uses real boards, settings, generation tasks, and native media services. Renderer changes use Vite hot reload; changes to Electron services rebuild and restart the backend. Stop everything with Ctrl+C.
+
+Backend restarts and shutdown wait for pending board saves. If the workspace stays open because saving failed, development services remain available and automatic restarts pause. Resolve the save error in the browser, then press Ctrl+C again; the launcher never force-kills the workspace.
+
+Browser development stores its data separately in `tmp/browser-dev/user-data/`; existing app data stays separate. Set `ITERLAY_BROWSER_DEV_USER_DATA` to choose another development directory. The authenticated bridge listens on loopback and starts only in this development mode. Packaged apps keep using Electron IPC.
+
+Use the browser for routine debugging and verification. Run `pnpm electron:dev` for visible desktop app testing only when explicitly requested, including native window and application lifecycle behavior. `pnpm dev:ui` retains the standalone Vite server for isolated UI previews without backend services.
 
 Run the project checks:
 
 ```bash
-pnpm test
-pnpm lint
-pnpm build
+pnpm setup:subprojects
+pnpm check:all
 ```
+
+`setup:subprojects` installs the CLI and website dependencies using their own lockfiles. `check:all` covers type checks, lint, tests, and builds across all four projects. Use `pnpm typecheck`, `pnpm lint`, or `pnpm test` for focused checks. After building Electron, run `pnpm bench:storage` for a storage benchmark with temporary fixtures. See the [engineering notes (Chinese)](docs/engineering.md) for module boundaries, persistence formats, compatibility, and measured results.
 
 ### Repository layout
 

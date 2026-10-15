@@ -1,16 +1,22 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, LoaderCircle, MessageSquareText, Send, Trash2, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  LoaderCircle,
+  MessageSquareText,
+  Send,
+  Trash2,
+  X
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { FeedbackDetail, FeedbackHistoryItem, FeedbackKind, FeedbackStatus } from "../../../shared/feedback";
 
 const POSITION_KEY = "iterlay:feedback-widget-position:v1";
@@ -232,6 +238,8 @@ export function FeedbackWidget({
   boardName?: string;
   view: string;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const initialDraft = useRef(readDraft()).current;
   const [open, setOpen] = useState(false);
   const [viewState, setViewState] = useState<FeedbackView>("form");
@@ -617,8 +625,8 @@ export function FeedbackWidget({
             data-feedback
             data-feedback-docked={docked ? "true" : "false"}
             data-feedback-dock-side={dockSide}
-            aria-label="提交反馈"
-            title={docked ? "提交反馈" : "提交反馈；拖拽可移动位置"}
+            aria-label={uiText("提交反馈")}
+            title={docked ? uiText("提交反馈") : uiText("提交反馈；拖拽可移动位置")}
             className="fixed z-40 block h-14 w-12 touch-none bg-transparent text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
             style={{ left: position.x, top: position.y }}
             animate={{ x: docked ? dockedControlOffset : 0 }}
@@ -677,8 +685,8 @@ export function FeedbackWidget({
               >
                 <MessageSquareText className="size-3.5" aria-hidden="true" />
                 <span data-feedback-edge-text className="flex flex-col text-[10px] font-medium leading-none">
-                  <span>反</span>
-                  <span>馈</span>
+                  <span>{uiText("反")}</span>
+                  <span>{uiText("馈")}</span>
                 </span>
               </motion.span>
             </motion.span>
@@ -689,7 +697,7 @@ export function FeedbackWidget({
           align="end"
           sideOffset={12}
           className="z-40 w-72 rounded-lg p-3.5"
-          aria-label="反馈激励提示"
+          aria-label={uiText("反馈激励提示")}
           onPointerEnter={showHoverGuide}
           onPointerLeave={deferCloseHoverGuide}
         >
@@ -699,7 +707,7 @@ export function FeedbackWidget({
               <p className="text-sm font-medium">{activeNudge.title}</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeNudge.description}</p>
             </div>
-            <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 size-7 shrink-0" aria-label="关闭反馈激励提示" title="关闭提示" onClick={closeNudge}><X className="size-4" /></Button>
+            <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 size-7 shrink-0" aria-label={uiText("关闭反馈激励提示")} title={uiText("关闭提示")} onClick={closeNudge}><X className="size-4" /></Button>
           </div>
           <Button type="button" variant="secondary" size="sm" className="mt-3 w-full" onClick={openForm}>{activeNudge.action}</Button>
         </PopoverContent>
@@ -722,7 +730,7 @@ export function FeedbackWidget({
                   exit={reduceMotion ? undefined : { opacity: 0, y: -2 }}
                   transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  {viewState === "form" ? "提交反馈" : viewState === "success" ? "提交成功" : viewState === "history" ? "提交记录" : "提交详情"}
+                  {viewState === "form" ? uiText("提交反馈") : viewState === "success" ? uiText("提交成功") : viewState === "history" ? uiText("提交记录") : uiText("提交详情")}
                 </motion.span>
               </AnimatePresence>
               {viewState === "form" && (
@@ -731,15 +739,15 @@ export function FeedbackWidget({
                   variant="ghost"
                   size="icon"
                   className="size-7 shrink-0"
-                  aria-label="查看提交记录"
-                  title="查看提交记录"
+                  aria-label={uiText("查看提交记录")}
+                  title={uiText("查看提交记录")}
                   onClick={() => void showHistory()}
                 >
                   <ClipboardList className="size-4" />
                 </Button>
               )}
             </DialogTitle>
-            <DialogDescription className="sr-only">查看或提交产品反馈。</DialogDescription>
+            <DialogDescription className="sr-only">{uiText("查看或提交产品反馈。")}</DialogDescription>
           </DialogHeader>
 
           <motion.div layout transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="relative">
@@ -753,7 +761,7 @@ export function FeedbackWidget({
           >
           {viewState === "form" ? <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
             <div className="rounded-lg bg-muted p-1">
-              <div className="relative grid grid-cols-3" role="radiogroup" aria-label="反馈类型">
+              <div className="relative grid grid-cols-3" role="radiogroup" aria-label={uiText("反馈类型")}>
                 <span
                   data-feedback-kind-indicator
                   aria-hidden="true"
@@ -814,7 +822,7 @@ export function FeedbackWidget({
                   disabled={content.trim().length < 3 || submitting}
                 >
                   {submitting ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Send className="size-4" />}
-                  {submitting ? "正在提交" : "提交反馈"}
+                  {submitting ? uiText("正在提交") : uiText("提交反馈")}
                 </Button>
               </div>
               <p
@@ -826,30 +834,29 @@ export function FeedbackWidget({
               </p>
             </div>
           </form> : viewState === "success" ? (
-            <section className="flex flex-col gap-5" aria-label="提交成功">
+            <section className="flex flex-col gap-5" aria-label={uiText("提交成功")}>
               <div className="rounded-lg bg-muted px-4 py-4">
                 <div className="flex items-start gap-3">
                   <span className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background"><CheckCircle2 className="size-4" /></span>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">反馈已收到</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">我们会评估这条反馈，并在这里同步处理进度。</p>
+                    <p className="text-sm font-medium">{uiText("反馈已收到")}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{uiText("我们会评估这条反馈，并在这里同步处理进度。")}</p>
                   </div>
                 </div>
                 {selectedFeedback ? <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground"><span className="truncate">{selectedFeedback.content}</span><StatusPill status={selectedFeedback.status} /></div> : null}
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={openForm}>再提一条</Button>
-                <Button type="button" onClick={() => void showHistory()}>查看提交记录<ChevronRight className="size-4" /></Button>
+                <Button type="button" variant="ghost" onClick={openForm}>{uiText("再提一条")}</Button>
+                <Button type="button" onClick={() => void showHistory()}>{uiText("查看提交记录")}<ChevronRight className="size-4" /></Button>
               </div>
             </section>
           ) : viewState === "history" ? (
-            <section className="flex min-h-48 flex-col gap-3" aria-label="提交记录">
+            <section className="flex min-h-48 flex-col gap-3" aria-label={uiText("提交记录")}>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground">{history.length ? `共 ${history.length} 条记录` : "提交后会在这里显示"}</p>
+                <p className="text-sm text-muted-foreground">{history.length ? uiText("共 {{ui:0}} 条记录", [history.length]) : uiText("提交后会在这里显示")}</p>
                 <Button type="button" variant="ghost" size="sm" disabled={historyLoading} onClick={() => void showHistory()}>
                   {historyLoading ? <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" /> : null}
-                  刷新
-                </Button>
+                  {uiText("刷新")}</Button>
               </div>
               {historyError ? <p className="text-xs text-muted-foreground" role="status">{historyError}</p> : null}
               <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
@@ -862,30 +869,30 @@ export function FeedbackWidget({
                     <StatusPill status={item.status} />
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                   </button>
-                  {canDeleteFeedback(item.status) ? <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="删除反馈" title="删除反馈" onClick={() => { setDeleteError(""); setDeleteTarget(item); }}><Trash2 className="size-4" /></Button> : null}
+                  {canDeleteFeedback(item.status) ? <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={uiText("删除反馈")} title={uiText("删除反馈")} onClick={() => { setDeleteError(""); setDeleteTarget(item); }}><Trash2 className="size-4" /></Button> : null}
                 </div>)}
-                {!historyLoading && history.length === 0 ? <div className="px-3 py-8 text-center text-sm text-muted-foreground">还没有提交记录</div> : null}
+                {!historyLoading && history.length === 0 ? <div className="px-3 py-8 text-center text-sm text-muted-foreground">{uiText("还没有提交记录")}</div> : null}
               </div>
             </section>
           ) : (
-            <section className="flex min-h-48 flex-col gap-4" aria-label="提交详情">
+            <section className="flex min-h-48 flex-col gap-4" aria-label={uiText("提交详情")}>
                 <div className="flex items-center gap-1">
-                  <Button type="button" variant="ghost" size="icon" className="size-7" aria-label="返回提交记录" title="返回提交记录" onClick={() => void showHistory()}><ChevronLeft className="size-4" /></Button>
+                  <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={uiText("返回提交记录")} title={uiText("返回提交记录")} onClick={() => void showHistory()}><ChevronLeft className="size-4" /></Button>
                   {selectedFeedback ? <StatusPill status={selectedFeedback.status} /> : null}
-                  {selectedFeedback && canDeleteFeedback(selectedFeedback.status) ? <Button type="button" variant="ghost" size="sm" className="ml-auto text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => { setDeleteError(""); setDeleteTarget(selectedFeedback); }}><Trash2 className="size-3.5" />删除反馈</Button> : null}
+                  {selectedFeedback && canDeleteFeedback(selectedFeedback.status) ? <Button type="button" variant="ghost" size="sm" className="ml-auto text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => { setDeleteError(""); setDeleteTarget(selectedFeedback); }}><Trash2 className="size-3.5" />{uiText("删除反馈")}</Button> : null}
               </div>
               {selectedFeedback ? <>
                 <div className="rounded-lg bg-muted px-4 py-3">
                   <p className="whitespace-pre-wrap text-sm leading-6">{selectedFeedback.content}</p>
                 </div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                  <div><dt className="text-xs text-muted-foreground">类型</dt><dd className="mt-1">{kindLabels[selectedFeedback.kind]}</dd></div>
-                  <div><dt className="text-xs text-muted-foreground">提交时间</dt><dd className="mt-1">{formatSubmittedAt(selectedFeedback.createdAt)}</dd></div>
-                  <div className="col-span-2"><dt className="text-xs text-muted-foreground">所在界面</dt><dd className="mt-1 truncate">{selectedFeedback.pageContext.boardName || selectedFeedback.pageContext.view || "Iterlay"}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">{uiText("类型")}</dt><dd className="mt-1">{kindLabels[selectedFeedback.kind]}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">{uiText("提交时间")}</dt><dd className="mt-1">{formatSubmittedAt(selectedFeedback.createdAt)}</dd></div>
+                  <div className="col-span-2"><dt className="text-xs text-muted-foreground">{uiText("所在界面")}</dt><dd className="mt-1 truncate">{selectedFeedback.pageContext.boardName || selectedFeedback.pageContext.view || "Iterlay"}</dd></div>
                 </dl>
-                {selectedFeedback.decisionSummary ? <div className="border-t border-border pt-4"><p className="text-xs text-muted-foreground">处理说明</p><p className="mt-1.5 text-sm leading-6">{selectedFeedback.decisionSummary}</p></div> : null}
-                {"runs" in selectedFeedback && selectedFeedback.runs.length ? <div className="border-t border-border pt-4"><p className="text-xs text-muted-foreground">处理进度</p><div className="mt-2 space-y-2">{selectedFeedback.runs[0].events.slice(-3).map((event) => <div key={event.id} className="flex gap-2 text-sm"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-foreground/45" /><span>{event.summary}</span></div>)}</div></div> : null}
-              </> : <p className="text-sm text-muted-foreground">正在加载详情…</p>}
+                {selectedFeedback.decisionSummary ? <div className="border-t border-border pt-4"><p className="text-xs text-muted-foreground">{uiText("处理说明")}</p><p className="mt-1.5 text-sm leading-6">{selectedFeedback.decisionSummary}</p></div> : null}
+                {"runs" in selectedFeedback && selectedFeedback.runs.length ? <div className="border-t border-border pt-4"><p className="text-xs text-muted-foreground">{uiText("处理进度")}</p><div className="mt-2 space-y-2">{selectedFeedback.runs[0].events.slice(-3).map((event) => <div key={event.id} className="flex gap-2 text-sm"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-foreground/45" /><span>{event.summary}</span></div>)}</div></div> : null}
+              </> : <p className="text-sm text-muted-foreground">{uiText("正在加载详情…")}</p>}
               {historyError ? <p className="text-xs text-muted-foreground" role="status">{historyError}</p> : null}
             </section>
           )}
@@ -898,13 +905,13 @@ export function FeedbackWidget({
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => { if (!next && !deleting) { setDeleteError(""); setDeleteTarget(null); } }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-sm gap-5 rounded-lg p-6">
           <DialogHeader>
-            <DialogTitle>删除这条反馈？</DialogTitle>
-            <DialogDescription>删除后将无法恢复，也不会影响已经处理完成的反馈。</DialogDescription>
+            <DialogTitle>{uiText("删除这条反馈？")}</DialogTitle>
+            <DialogDescription>{uiText("删除后将无法恢复，也不会影响已经处理完成的反馈。")}</DialogDescription>
           </DialogHeader>
           {deleteError ? <p className="text-sm text-destructive" role="alert">{deleteError}</p> : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" disabled={deleting} onClick={() => { setDeleteError(""); setDeleteTarget(null); }}>取消</Button>
-            <Button type="button" variant="destructive" disabled={deleting} onClick={() => void deleteFeedback()}>{deleting ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Trash2 className="size-4" />}{deleting ? "正在删除" : "删除反馈"}</Button>
+            <Button type="button" variant="ghost" disabled={deleting} onClick={() => { setDeleteError(""); setDeleteTarget(null); }}>{uiText("取消")}</Button>
+            <Button type="button" variant="destructive" disabled={deleting} onClick={() => void deleteFeedback()}>{deleting ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Trash2 className="size-4" />}{deleting ? uiText("正在删除") : uiText("删除反馈")}</Button>
           </div>
         </DialogContent>
       </Dialog>

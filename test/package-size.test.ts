@@ -65,4 +65,19 @@ describe("packaged application audit", () => {
     expect(report.violations.filter((item) => item.startsWith("Production JavaScript source map:"))).toHaveLength(3);
     expect(report.violations).toContain("Bundled ffmpeg resource directory");
   });
+
+  it("rejects development browser services and transport modules inside an actual ASAR", async () => {
+    const packaged = await fixture({
+      "dist-electron/electron/main.js": "console.log('production main');",
+      "dist-electron/electron/dev-browser-bridge.js": "console.log('development bridge');",
+      "dist-electron/electron/dev-browser-server.js": "console.log('development server');",
+      "dist-electron/shared/dev-browser-wire.js": "export const developmentWire = true;",
+      "dist-electron/shared/dev-asset-url.js": "export const developmentAssets = true;"
+    });
+    await expect(packaged.inspect()).rejects.toThrow();
+    const report = JSON.parse(await readFile(packaged.report, "utf8")) as { violations: string[] };
+    expect(report.violations).toHaveLength(4);
+    expect(report.violations).toContain("Browser development module: /dist-electron/electron/dev-browser-bridge.js");
+    expect(report.violations).toContain("Browser development module: /dist-electron/shared/dev-browser-wire.js");
+  });
 });

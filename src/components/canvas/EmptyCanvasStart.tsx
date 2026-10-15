@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "framer-motion";
 import {
@@ -14,14 +15,7 @@ import {
 } from "lucide-react";
 import type { AssetLibraryItem } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gsap, useGSAP } from "@/lib/gsap";
@@ -388,6 +382,8 @@ export function EmptyCanvasStart({
   showDemoStart,
   onOpenDemoStart
 }: EmptyCanvasStartProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = Boolean(useReducedMotion());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialStoredMode = useRef(readStoredMode()).current;
@@ -486,7 +482,7 @@ export function EmptyCanvasStart({
 
   return (
     <motion.section
-      aria-label="新画板"
+      aria-label={uiText("新画板")}
       aria-hidden={promptFocused}
       className={cn(
         "empty-canvas-start pointer-events-auto flex w-full max-w-[880px] flex-col items-center text-center",
@@ -534,10 +530,10 @@ export function EmptyCanvasStart({
                 >
                   <Library className="h-3.5 w-3.5" />
                   {!recentExpanded
-                    ? "查看更多"
+                    ? uiText("查看更多")
                     : recentTotal > RECENT_INLINE_LIMIT
-                      ? "查看全部"
-                      : "收起"}
+                      ? uiText("查看全部")
+                      : uiText("收起")}
                 </button>
               ) : null}
             </div>
@@ -625,8 +621,10 @@ function ModeRail({
   reduceMotion: boolean;
   onSelect: (mode: EmptyCanvasMode) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
-    <div role="tablist" aria-label="选择开始方式" className="flex items-center border-b border-border/80">
+    <div role="tablist" aria-label={uiText("选择开始方式")} className="flex items-center border-b border-border/80">
       {MODE_OPTIONS.map((option) => {
         const active = option.id === mode;
         const unavailable = option.id === "recent" && !recentAvailable;
@@ -639,7 +637,7 @@ function ModeRail({
             aria-selected={active}
             aria-controls={`${id}-${option.id}-panel`}
             disabled={unavailable}
-            title={unavailable ? "暂无最近素材" : undefined}
+            title={unavailable ? uiText("暂无最近素材") : undefined}
             onClick={() => onSelect(option.id)}
             className={cn(
               "relative h-9 min-w-[64px] px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-30",
@@ -678,6 +676,8 @@ function StartDeck({
   showDemoStart: boolean;
   onOpenDemoStart: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const actions = [
     { id: "import", title: "导入图片", detail: "选择本地素材", meta: "PNG · JPG · WebP", icon: FileImage, action: onChooseFiles, demo: false },
     { id: "prompt", title: "从描述开始", detail: "生成第一张画面", meta: "打开输入区", icon: Sparkles, action: onStartPrompt, demo: false },
@@ -731,7 +731,7 @@ function StartDeck({
               <span className="flex h-full flex-col">
                 <span className="relative h-[112px] overflow-hidden bg-muted">
                   <img src={demoStartImageUrl} alt="" className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.025] motion-reduce:transition-none" />
-                  <span className="absolute left-2.5 top-2.5 rounded bg-foreground px-2 py-1 text-[10px] font-medium text-background">首次推荐</span>
+                  <span className="absolute left-2.5 top-2.5 rounded bg-foreground px-2 py-1 text-[10px] font-medium text-background">{uiText("首次推荐")}</span>
                 </span>
                 <span className="flex h-[72px] items-center justify-between gap-3 px-4">
                   <span className="min-w-0">
@@ -777,6 +777,8 @@ function InspirationDeck({
   reduceMotion: boolean;
   onStartPrompt: (prompt?: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const keys = INSPIRATION_PROMPTS.map((item) => item.title);
   const positions = INSPIRATION_PROMPTS.map((_, index) => deckPosition(index, INSPIRATION_PROMPTS.length));
   const deckMotion = useGsapDeckMotion({
@@ -813,8 +815,7 @@ function InspirationDeck({
               <span className="mt-2 line-clamp-3 block text-xs leading-5 text-muted-foreground">{item.prompt}</span>
             </span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-              带入描述
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
+              {uiText("带入描述")}<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
             </span>
           </button>
         );
@@ -895,6 +896,8 @@ function RecentAssetPicker({
   onAddAssets: (assets: AssetLibraryItem[]) => void;
   onOpenAssetLibrary: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -931,13 +934,12 @@ function RecentAssetPicker({
       <DialogContent className="max-h-[82vh] max-w-[880px] gap-0 overflow-hidden p-0 text-left">
         <DialogHeader className="border-b border-border px-6 pb-4 pt-5 pr-14">
           <div className="flex items-center gap-3">
-            <DialogTitle>添加最近素材</DialogTitle>
+            <DialogTitle>{uiText("添加最近素材")}</DialogTitle>
             <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              {total} 项
-            </span>
+              {total} {uiText("项")}</span>
           </div>
           <DialogDescription>
-            {selectedKeys.size > 0 ? `已选择 ${selectedKeys.size} 项` : "从最近创作中选择要放入当前画板的素材。"}
+            {selectedKeys.size > 0 ? uiText("已选择 {{ui:0}} 项", [selectedKeys.size]) : uiText("从最近创作中选择要放入当前画板的素材。")}
           </DialogDescription>
         </DialogHeader>
 
@@ -948,7 +950,7 @@ function RecentAssetPicker({
               onClick={toggleAllLoaded}
               className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {selectedKeys.size === assets.length ? "取消全选" : `全选已加载 ${assets.length} 项`}
+              {selectedKeys.size === assets.length ? uiText("取消全选") : uiText("全选已加载 {{ui:0}} 项", [assets.length])}
             </button>
             {selectedKeys.size > 0 ? (
               <button
@@ -956,8 +958,7 @@ function RecentAssetPicker({
                 onClick={() => setSelectedKeys(new Set())}
                 className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                清除选择
-              </button>
+                {uiText("清除选择")}</button>
             ) : null}
           </div>
 
@@ -971,7 +972,7 @@ function RecentAssetPicker({
                     key={key}
                     type="button"
                     aria-pressed={selected}
-                    aria-label={`${selected ? "取消选择" : "选择"}素材「${asset.boardName}」`}
+                    aria-label={uiText("{{ui:0}}素材「{{ui:1}}」", [selected ? "取消选择" : "选择", asset.boardName])}
                     onClick={() => toggleAsset(asset)}
                     initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 18 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -1016,8 +1017,7 @@ function RecentAssetPicker({
               <div className="flex justify-center px-6 pb-6">
                 <Button type="button" variant="outline" size="sm" disabled={loadingMore} onClick={onLoadMore}>
                   {loadingMore ? <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <Plus className="h-3.5 w-3.5" />}
-                  加载更多
-                </Button>
+                  {uiText("加载更多")}</Button>
               </div>
             ) : null}
             {error ? <p className="px-6 pb-6 text-center text-xs text-destructive">{error}</p> : null}
@@ -1035,15 +1035,13 @@ function RecentAssetPicker({
             }}
           >
             <Library className="h-3.5 w-3.5" />
-            素材库
-          </Button>
+            {uiText("素材库")}</Button>
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button type="button" size="sm" disabled={selectedKeys.size === 0} onClick={addSelectedAssets}>
               <Plus className="h-3.5 w-3.5" />
-              添加{selectedKeys.size > 0 ? ` ${selectedKeys.size} 张` : ""}
+              {uiText("添加")}{selectedKeys.size > 0 ? uiText(" {{ui:0}} 张", [selectedKeys.size]) : ""}
             </Button>
           </div>
         </DialogFooter>
@@ -1065,6 +1063,8 @@ function RecentDeck({
   expanded: boolean;
   onAddAssets: (assets: AssetLibraryItem[]) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const pendingKeyRef = useRef<string | null>(null);
   const draggedKeyRef = useRef<string | null>(null);
@@ -1383,7 +1383,7 @@ function RecentDeck({
               onClick={() => {
                 if (draggedKeyRef.current !== key) addAsset(asset);
               }}
-              aria-label={`将${sourceLabel(asset.source)}素材「${asset.boardName}」添加到画板`}
+              aria-label={uiText("将{{ui:0}}素材「{{ui:1}}」添加到画板", [sourceLabel(asset.source), asset.boardName])}
               className="group h-full w-full touch-none cursor-grab overflow-hidden rounded-lg bg-card text-left shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <img
@@ -1399,8 +1399,7 @@ function RecentDeck({
                 </span>
                 <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                   <Plus className="h-3.5 w-3.5" />
-                  添加
-                </span>
+                  {uiText("添加")}</span>
               </span>
             </motion.button>
           </div>
@@ -1412,8 +1411,8 @@ function RecentDeck({
           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-md">
             <Library className="h-5 w-5" />
           </div>
-          <p className="mt-4 text-sm font-medium text-foreground">还没有最近素材</p>
-          <p className="mt-1 text-xs text-muted-foreground">导入或生成图片后会出现在这里。</p>
+          <p className="mt-4 text-sm font-medium text-foreground">{uiText("还没有最近素材")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{uiText("导入或生成图片后会出现在这里。")}</p>
         </div>
       ) : null}
     </div>

@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Compass, ExternalLink, Loader2, Search, Sparkles } from "lucide-react";
 import type { InspirationSource } from "@shared/inspiration-sources";
@@ -11,6 +12,8 @@ const ACCENT_CLASS = "text-muted-foreground";
 
 /** 来源由 Manage 下发；在本地筛选以避免每次输入都产生网络请求。 */
 export function InspirationSources(): React.ReactElement {
+  const uiText = useUiText();
+
   const [sources, setSources] = useState<InspirationSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -40,17 +43,17 @@ export function InspirationSources(): React.ReactElement {
     <header className="window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-4 border-b border-border bg-background px-4 [-webkit-app-region:drag]">
       <div className="flex shrink-0 items-center gap-2">
         <Compass className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-        <span className="text-sm font-semibold tracking-tight">灵感来源</span>
-        <span className="text-xs tabular-nums text-muted-foreground">{loading ? "正在读取" : `${visibleSources.length}${query.trim() ? ` / ${sources.length}` : ""} 个来源`}</span>
+        <span className="text-sm font-semibold tracking-tight">{uiText("灵感来源")}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{loading ? uiText("正在读取") : uiText("{{ui:0}}{{ui:1}} 个来源", [visibleSources.length, query.trim() ? ` / ${sources.length}` : ""])}</span>
       </div>
       <label className="ml-auto flex h-8 w-full max-w-md items-center gap-2 rounded-md border border-input bg-muted/55 px-2.5 text-muted-foreground transition-colors focus-within:border-ring focus-within:bg-background [-webkit-app-region:no-drag]">
         <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className="sr-only">搜索灵感来源</span>
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称、分类或网站" className="h-auto min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0" aria-label="搜索灵感来源" />
+        <span className="sr-only">{uiText("搜索灵感来源")}</span>
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={uiText("搜索名称、分类或网站")} className="h-auto min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0" aria-label={uiText("搜索灵感来源")} />
       </label>
     </header>
     <section
-      aria-label="已接入的灵感来源"
+      aria-label={uiText("已接入的灵感来源")}
       className="mx-auto grid w-full max-w-[1440px] [grid-template-columns:repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3 px-3 py-4 sm:gap-4 sm:px-5 sm:py-5 lg:px-8 lg:py-7"
     >
       {loading ? Array.from({ length: 8 }, (_, index) => (
@@ -85,7 +88,7 @@ export function InspirationSources(): React.ReactElement {
               <h2 className="text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]">{source.name}</h2>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 <span className="text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{source.category}</span>
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-4 text-muted-foreground">外部来源</span>
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-4 text-muted-foreground">{uiText("外部来源")}</span>
               </div>
             </div>
           </div>
@@ -99,15 +102,15 @@ export function InspirationSources(): React.ReactElement {
               onClick={() => void openSource(source.id)}
               className="h-8 shrink-0 whitespace-nowrap px-2.5"
               aria-label={`${opening ? "正在打开" : "浏览"}${source.name}`}
-              title={`浏览 ${source.name}`}
+              title={uiText("浏览 {{ui:0}}", [source.name])}
             >
               {opening ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />}
-              {opening ? "打开中" : "浏览"}
+              {opening ? uiText("打开中") : uiText("浏览")}
             </Button>
           </div>
         </article>;
       }) : null}
-      {!loading && visibleSources.length === 0 ? <p className="col-span-full py-16 text-center text-sm text-muted-foreground">未找到匹配的灵感来源</p> : null}
+      {!loading && visibleSources.length === 0 ? <p className="col-span-full py-16 text-center text-sm text-muted-foreground">{uiText("未找到匹配的灵感来源")}</p> : null}
     </section>
   </div>;
 }

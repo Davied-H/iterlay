@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useId } from "react";
 import { CircleDotDashed, Film, Grid2X2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,13 +19,15 @@ const MODES = [
 ];
 
 export function GalleryModeSwitcher({ value, onChange }: GalleryModeSwitcherProps): React.ReactElement {
+  const uiText = useUiText();
+
   const indicatorId = `${useId()}-gallery-mode-indicator`;
 
   return (
     <div
       data-tour="gallery-modes"
       role="tablist"
-      aria-label="画廊浏览模式"
+      aria-label={uiText("画廊浏览模式")}
       className="flex h-8 items-center rounded-md bg-white/[0.055] p-0.5 ring-1 ring-white/[0.09]"
     >
       {MODES.map((mode) => {

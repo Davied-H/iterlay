@@ -55,16 +55,25 @@ Iterlay 永久免费，所有功能无需激活或试用。桌面端、画布、
 
 ```bash
 pnpm install
-pnpm electron:dev
+pnpm dev
 ```
+
+在浏览器打开 **http://127.0.0.1:5180**。`pnpm dev`（或 `pnpm dev:web`）会同时启动 Vite 和隐藏的 Electron 服务进程，网页调用真实的画板、设置、生成任务和原生媒体服务。渲染层修改支持热更新；Electron 服务修改后会自动重新构建并重启后台。按 Ctrl+C 停止全部开发服务。
+
+后台重启和退出前会等待画板保存。如果保存失败导致工作区继续运行，开发服务会保留连接并暂停自动重启；先在网页处理保存错误，再按 Ctrl+C 重试。启动器不会强制结束仍在编辑的工作区。
+
+网页开发数据独立保存在 `tmp/browser-dev/user-data/`，与已安装 App 的数据分开；可通过 `ITERLAY_BROWSER_DEV_USER_DATA` 指定其他开发目录。带鉴权的桥接服务仅监听本机回环地址，并且只在此开发模式下启用。打包后的 App 继续通过 Electron IPC 工作。
+
+日常调试和验证默认在网页进行。仅在用户明确要求 App 测试时运行 `pnpm electron:dev`，用于验证原生窗口、应用生命周期等桌面行为。`pnpm dev:ui` 保留不启动后台服务的独立 Vite 预览入口。
 
 运行项目检查：
 
 ```bash
-pnpm test
-pnpm lint
-pnpm build
+pnpm setup:subprojects
+pnpm check:all
 ```
+
+`setup:subprojects` 按 CLI 和官网各自的 lockfile 安装依赖；`check:all` 覆盖四个项目的类型检查、lint、测试和构建。局部检查可运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`。构建 Electron 后可运行 `pnpm bench:storage` 获取独立临时数据的存储基准；架构、日志格式、兼容边界与验证结果见[工程说明](docs/engineering.md)。
 
 ### 仓库结构
 

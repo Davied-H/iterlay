@@ -1,5 +1,19 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Circle, CircleAlert, Clock3, FileText, Image as ImageIcon, Loader2, Minus, Play, Plus, SlidersHorizontal } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Circle,
+  CircleAlert,
+  Clock3,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  Minus,
+  Play,
+  Plus,
+  SlidersHorizontal
+} from "lucide-react";
 import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import type { ProviderConfig } from "@shared/types";
 import { cn } from "@/lib/utils";
@@ -74,35 +88,37 @@ export function generationStatusLabel(status: GenerationNodeStatus): string {
 }
 
 function GenerationNodeComponent({ id, data, selected }: NodeProps): React.ReactElement {
+  const uiText = useUiText();
+
   const connectionPoints = useDelayedConnectionPoints();
   const { getZoom } = useReactFlow();
   const nodeData = data as unknown as GenerationNodeData;
   const {
-    title = "图片生成",
-    prompt,
-    model,
-    size,
-    count,
-    status = "idle",
-    error,
-    upstreamPrompt = "",
-    referenceImages = [],
-    provider,
-    displayHeight = GENERATION_NODE_HEIGHT,
-    heightMode = "auto",
-    onBeforeChange,
-    onChange,
-    onRun,
-    onAdopt,
-    latestGenerationId,
-    lastGenerationId,
-    comicFrameRole,
-    onPasteReferenceImages,
-    onHeightChange,
-    onConnectionHandlePointerDown,
-    connectionTargetActive,
-    connectionSnapTargetHandle
-  } = nodeData;
+  title = "图片生成",
+  prompt,
+  model,
+  size,
+  count,
+  status = "idle",
+  error,
+  upstreamPrompt = "",
+  referenceImages = [],
+  provider,
+  displayHeight = GENERATION_NODE_HEIGHT,
+  heightMode = "auto",
+  onBeforeChange,
+  onChange,
+  onRun,
+  onAdopt,
+  latestGenerationId,
+  lastGenerationId,
+  comicFrameRole,
+  onPasteReferenceImages,
+  onHeightChange,
+  onConnectionHandlePointerDown,
+  connectionTargetActive,
+  connectionSnapTargetHandle
+} = nodeData;
   const [draft, setDraft] = useState<GenerationNodeConfig>(() => configFromData(nodeData));
   const [referenceExpanded, setReferenceExpanded] = useState(false);
   const [nodeHeight, setNodeHeight] = useState(() => clampGenerationNodeHeight(displayHeight));
@@ -191,7 +207,7 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
         selected && "canvas-workflow-node--selected"
       )}
       style={{ height: nodeHeight }}
-      aria-label={`${title}节点，${generationStatusLabel(status)}`}
+      aria-label={uiText("{{ui:0}}节点，{{ui:1}}", [title, generationStatusLabel(status)])}
       onPointerEnter={connectionPoints.showConnectionPoints}
       onPointerLeave={connectionPoints.scheduleConnectionPointsHide}
     >
@@ -229,13 +245,13 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
               <div className="canvas-generation-reference__head">
                 <FileText aria-hidden />
                 <span className="canvas-generation-reference__copy">
-                  <strong>引用：上游文本</strong>
+                  <strong>{uiText("引用：上游文本")}</strong>
                   <span>{upstreamPrompt}</span>
                 </span>
                 <button
                   type="button"
                   className="canvas-generation-reference__toggle"
-                  aria-label={referenceExpanded ? "收起提示词引用" : "展开提示词引用"}
+                  aria-label={referenceExpanded ? uiText("收起提示词引用") : uiText("展开提示词引用")}
                   aria-expanded={referenceExpanded}
                   onClick={() => setReferenceExpanded((current) => !current)}
                 >
@@ -248,10 +264,10 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
           <div className="canvas-generation-prompt-shell">
             <textarea
               ref={promptRef}
-              aria-label="生成提示词"
+              aria-label={uiText("生成提示词")}
               value={draft.prompt}
               maxLength={GENERATION_PROMPT_MAX_LENGTH}
-              placeholder="补充本次画面的主体、环境或风格..."
+              placeholder={uiText("补充本次画面的主体、环境或风格...")}
               disabled={busy}
               className={cn("canvas-generation-prompt", promptOwnsWheel && "nopan nowheel")}
               onChange={(event) => update({ prompt: event.target.value })}
@@ -282,8 +298,7 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
             />
             <div className="canvas-generation-prompt-meta">
               <span className={cn("canvas-generation-shortcut", draft.prompt.trim() && "canvas-generation-shortcut--active")}>
-                ⌘ Enter 生成
-              </span>
+                {uiText("⌘ Enter 生成")}</span>
               <span>{draft.prompt.length} / {GENERATION_PROMPT_MAX_LENGTH}</span>
             </div>
             <GenerationPromptResizeHandle
@@ -302,20 +317,20 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
             />
           </div>
           {referenceImages.length > 0 ? (
-            <div className="canvas-generation-image-tray" aria-label="参考图">
+            <div className="canvas-generation-image-tray" aria-label={uiText("参考图")}>
               {referenceImages.slice(0, 4).map((image, index) => (
                 <span className="canvas-generation-thumb" key={image.id}>
-                  <img src={image.dataUrl || image.path} alt={`参考图 ${index + 1}`} />
-                  <small>参考</small>
+                  <img src={image.dataUrl || image.path} alt={uiText("参考图 {{ui:0}}", [index + 1])} />
+                  <small>{uiText("参考")}</small>
                 </span>
               ))}
-              <span className="canvas-generation-reference-count">参考图 {Math.min(referenceImages.length, 4)}/4</span>
+              <span className="canvas-generation-reference-count">{uiText("参考图 ")}{Math.min(referenceImages.length, 4)}/4</span>
             </div>
           ) : null}
         </div>
         <div className="canvas-generation-settings">
           <input
-            aria-label="生成模型"
+            aria-label={uiText("生成模型")}
             value={draft.model}
             disabled={busy}
             className="canvas-generation-setting canvas-generation-setting--model"
@@ -341,13 +356,12 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
         </span>
         {comicFrameRole && latestGenerationId && latestGenerationId !== lastGenerationId ? (
           <button type="button" disabled={busy} className="canvas-generation-run" onClick={() => onAdopt?.(id, latestGenerationId)}>
-            <Check aria-hidden className="h-3.5 w-3.5" />采用此版本
-          </button>
+            <Check aria-hidden className="h-3.5 w-3.5" />{uiText("采用此版本")}</button>
         ) : null}
         <button
           type="button"
           disabled={busy}
-          aria-label={busy ? generationStatusLabel(status) : "运行生成节点"}
+          aria-label={busy ? generationStatusLabel(status) : uiText("运行生成节点")}
           className="canvas-generation-run"
           onClick={() => {
             flush();
@@ -355,7 +369,7 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
           }}
         >
           {busy ? <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <Play aria-hidden className="h-3.5 w-3.5" />}
-          {busy ? generationStatusLabel(status) : "生成图片"}
+          {busy ? generationStatusLabel(status) : uiText("生成图片")}
         </button>
       </footer>
     </section>
@@ -377,6 +391,8 @@ function GenerationNodeSettingsPicker({
   disabled: boolean;
   onChange: (patch: Partial<GenerationNodeConfig>) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [open, setOpen] = useState(false);
   const providerOptions = getProviderImageSizeOptions(provider);
   const options = providerOptions.some((option) => option.value === size)
@@ -398,14 +414,14 @@ function GenerationNodeSettingsPicker({
         <button
           type="button"
           disabled={disabled}
-          aria-label="生成设置"
+          aria-label={uiText("生成设置")}
           aria-expanded={open}
           className="canvas-generation-settings-trigger"
         >
           <SlidersHorizontal aria-hidden />
-          <span>{count} 张</span>
+          <span>{count} {uiText("张")}</span>
           <span aria-hidden className="canvas-generation-settings-trigger__divider" />
-          <span className="canvas-generation-settings-trigger__size">{size === "auto" ? "自动" : size}</span>
+          <span className="canvas-generation-settings-trigger__size">{size === "auto" ? uiText("自动") : size}</span>
           <ChevronDown aria-hidden className="canvas-generation-settings-trigger__chevron" />
         </button>
       </PopoverTrigger>
@@ -416,9 +432,9 @@ function GenerationNodeSettingsPicker({
         className="nodrag nopan nowheel w-64 p-2.5"
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <p className="mb-2.5 text-sm font-semibold text-foreground">生成设置</p>
+        <p className="mb-2.5 text-sm font-semibold text-foreground">{uiText("生成设置")}</p>
         <div>
-          <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">尺寸</p>
+          <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">{uiText("尺寸")}</p>
           <div className="flex flex-col gap-0.5">
             {options.map((option) => (
               <button
@@ -431,10 +447,10 @@ function GenerationNodeSettingsPicker({
                 )}
               >
                 <span className="text-xs font-medium tabular-nums text-foreground">
-                  {option.value === "auto" ? "自动" : option.value}
+                  {option.value === "auto" ? uiText("自动") : option.value}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  {option.value === "auto" ? "由模型决定" : option.ratio}
+                  {option.value === "auto" ? uiText("由模型决定") : option.ratio}
                 </span>
               </button>
             ))}
@@ -442,11 +458,11 @@ function GenerationNodeSettingsPicker({
         </div>
         <Separator className="my-2" />
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-medium text-muted-foreground">生成数量</span>
+          <span className="text-xs font-medium text-muted-foreground">{uiText("生成数量")}</span>
           <div className="flex h-8 w-28 items-stretch overflow-hidden rounded-md border border-border bg-background">
             <button
               type="button"
-              aria-label="减少生成数量"
+              aria-label={uiText("减少生成数量")}
               disabled={count <= 1}
               onClick={() => updateCount(count - 1)}
               className="flex w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-35"
@@ -458,7 +474,7 @@ function GenerationNodeSettingsPicker({
             </span>
             <button
               type="button"
-              aria-label="增加生成数量"
+              aria-label={uiText("增加生成数量")}
               disabled={count >= maxCount}
               onClick={() => updateCount(count + 1)}
               className="flex w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-35"
@@ -501,16 +517,18 @@ function GenerationPromptResizeHandle({
   setManualHeight,
   setNodeHeight
 }: GenerationPromptResizeHandleProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <button
       type="button"
       role="separator"
-      aria-label="调整生成提示词输入框高度"
+      aria-label={uiText("调整生成提示词输入框高度")}
       aria-orientation="horizontal"
       aria-valuemin={GENERATION_NODE_HEIGHT}
       aria-valuemax={GENERATION_NODE_MAX_HEIGHT}
       aria-valuenow={Math.round(nodeHeight)}
-      title="拖拽调整高度 · 双击恢复自动适应"
+      title={uiText("拖拽调整高度 · 双击恢复自动适应")}
       data-resizing={resizeRef.current ? "true" : undefined}
       className="nodrag nopan canvas-generation-prompt-resize-handle"
       onPointerDown={(event) => {
@@ -626,6 +644,8 @@ interface NodeHandlesProps {
 }
 
 function NodeHandles({ nodeId, onConnectionHandlePointerDown }: NodeHandlesProps): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <>
       {SIDES.map((position) => {
@@ -636,7 +656,7 @@ function NodeHandles({ nodeId, onConnectionHandlePointerDown }: NodeHandlesProps
             <Handle type="source" position={position} id={`source-${side}`} isConnectableEnd className="image-node-connection-handle image-node-connection-handle--source nodrag nopan" />
             <button
               type="button"
-              aria-label={`从${SIDE_LABELS[side]}侧创建连接`}
+              aria-label={uiText("从{{ui:0}}侧创建连接", [SIDE_LABELS[side]])}
               className="nodrag nopan image-node-connection-trigger"
               onPointerDownCapture={(event) => {
                 event.preventDefault();

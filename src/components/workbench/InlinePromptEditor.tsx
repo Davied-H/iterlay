@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { FilePenLine, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -109,21 +110,23 @@ function shouldUseStructuredEditor(source: string, templatePrompts: string[]): b
 
 export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorProps>(function InlinePromptEditor(
   {
-    prompt,
-    templatePrompts,
-    height,
-    dragging,
-    reduceMotion,
-    placeholder,
-    onChange,
-    onFocus,
-    onSubmitKey,
-    onPasteCanvasItems,
-    onPasteImages,
-    onExpandedChange
-  },
+  prompt,
+  templatePrompts,
+  height,
+  dragging,
+  reduceMotion,
+  placeholder,
+  onChange,
+  onFocus,
+  onSubmitKey,
+  onPasteCanvasItems,
+  onPasteImages,
+  onExpandedChange
+},
   ref
 ) {
+  const uiText = useUiText();
+
   const [structuredPrompt, setStructuredPrompt] = useState<string | null>(() =>
     shouldUseStructuredEditor(prompt, templatePrompts) ? prompt : null
   );
@@ -207,7 +210,7 @@ export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorP
         <div
           className={cn(editorClassName, "space-y-1 pr-[4.5rem]")}
           role="group"
-          aria-label="结构化提示词编辑"
+          aria-label={uiText("结构化提示词编辑")}
           tabIndex={-1}
           onFocus={onFocus}
           onKeyDown={onSubmitKey}
@@ -227,7 +230,7 @@ export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorP
                   onChange={(event) => updateStructuredLine(lineIndex, { label: event.target.value })}
                   onFocus={onFocus}
                   onKeyDown={onSubmitKey}
-                  aria-label={`编辑第 ${lineIndex + 1} 行字段名`}
+                  aria-label={uiText("编辑第 {{ui:0}} 行字段名", [lineIndex + 1])}
                   data-structured-field-label={lineIndex}
                   className="h-7 w-full min-w-0 rounded px-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-muted/60 focus:bg-background focus:text-foreground focus:ring-2 focus:ring-ring/25"
                 />
@@ -270,12 +273,12 @@ export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorP
                     type="button"
                     onClick={switchToPlainText}
                     className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label="切换为普通文本编辑"
+                    aria-label={uiText("切换为普通文本编辑")}
                   >
                     <FilePenLine className="h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">切换为普通文本编辑</TooltipContent>
+                <TooltipContent side="top">{uiText("切换为普通文本编辑")}</TooltipContent>
               </Tooltip>
             ) : null}
             <Tooltip>
@@ -284,12 +287,12 @@ export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorP
                   type="button"
                   onClick={clearPrompt}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="清空提示词"
+                  aria-label={uiText("清空提示词")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">清空提示词</TooltipContent>
+              <TooltipContent side="top">{uiText("清空提示词")}</TooltipContent>
             </Tooltip>
           </div>
         </TooltipProvider>
@@ -315,6 +318,8 @@ function StructuredFieldInput({
   onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
   onExpandedChange?: (open: boolean) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [open, setOpen] = useState(false);
   const expandedInputRef = useRef<HTMLTextAreaElement>(null);
   const placeholderOnly = /^【[^】]+】$/.test(value.trim());
@@ -340,8 +345,8 @@ function StructuredFieldInput({
             }
           }}
           onKeyDown={onKeyDown}
-          placeholder={`填写${label}`}
-          aria-label={`编辑${label}的内容`}
+          placeholder={uiText("填写{{ui:0}}", [label])}
+          aria-label={uiText("编辑{{ui:0}}的内容", [label])}
           data-structured-field-content={lineIndex}
           className={cn(
             "h-full min-w-0 flex-1 bg-transparent px-2 text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground",
@@ -352,7 +357,7 @@ function StructuredFieldInput({
           <button
             type="button"
             className="mr-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`放大编辑${label}`}
+            aria-label={uiText("放大编辑{{ui:0}}", [label])}
           >
             <Maximize2 className="h-3 w-3" />
           </button>
@@ -375,7 +380,7 @@ function StructuredFieldInput({
         }}
       >
         <div className="flex items-center justify-between gap-3">
-          <DialogTitle className="truncate text-sm font-medium">编辑{label}</DialogTitle>
+          <DialogTitle className="truncate text-sm font-medium">{uiText("编辑")}{label}</DialogTitle>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{Array.from(value).length}</span>
         </div>
         <div className="relative">
@@ -385,12 +390,11 @@ function StructuredFieldInput({
             value={value}
             onChange={(event) => onChange(event.target.value.replace(/\s*\r?\n\s*/g, " "))}
             onKeyDown={onKeyDown}
-            placeholder={`填写${label}`}
+            placeholder={uiText("填写{{ui:0}}", [label])}
             className="min-h-36 resize-none pb-12 text-sm leading-6 focus-visible:ring-0"
           />
           <Button size="sm" className="absolute bottom-2 right-2" onClick={() => changeOpen(false)}>
-            完成
-          </Button>
+            {uiText("完成")}</Button>
         </div>
       </DialogContent>
     </Dialog>

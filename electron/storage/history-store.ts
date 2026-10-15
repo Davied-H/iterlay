@@ -1,124 +1,175 @@
-import { readFile } from "node:fs/promises";
+import { access, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { OFFICIAL_PROVIDER_ID, type GenerationJob } from "../../shared/types.js";
 import { MutationQueue, writeJsonAtomic } from "./atomic-json.js";
 
+interface JournalEntry { version: 1; upsert?: GenerationJob[]; remove?: string[] }
+export interface HistoryPage { items: GenerationJob[]; total: number; nextCursor?: string }
+
+/** Incremental durable writes with an occasional backwards-readable checkpoint. */
 export class HistoryStore {
   private readonly filePath: string;
+  private readonly journalPath: string;
   private readonly mutations = new MutationQueue();
-  private cache: GenerationJob[] | null = null;
-
-  constructor(private readonly dataDir: string) {
+  private cache: Map<string, GenerationJob> | null = null;
+  private sorted: GenerationJob[] | null = null;
+  private readonly idempotency = new Map<string, string>();
+  private journalEntries = 0;
+  private loading: Promise<Map<string, GenerationJob>> | null = null;
+  constructor(dataDir: string) {
     this.filePath = path.join(dataDir, "history.json");
+    this.journalPath = path.join(dataDir, "history-journal.jsonl");
   }
 
-  async listJobs(): Promise<GenerationJob[]> {
+  async listJobs(boardId?: string): Promise<GenerationJob[]> {
+    await this.mutations.idle();
+    return structuredClone(await this.ordered(boardId));
+  }
+  async listSceneJobs(): Promise<GenerationJob[]> {
+    await this.mutations.idle();
+    return structuredClone((await this.ordered()).filter((job) => job.input?.sceneId));
+  }
+  async getJob(id: string): Promise<GenerationJob | null> {
+    await this.mutations.idle();
+    const job = (await this.readJobs()).get(id);
+    return job ? structuredClone(job) : null;
+  }
+  async findByIdempotencyKey(key: string): Promise<GenerationJob | null> {
     await this.mutations.idle();
     const jobs = await this.readJobs();
-    return jobs.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    const id = this.idempotency.get(key);
+    const job = id ? jobs.get(id) : undefined;
+    return job ? structuredClone(job) : null;
   }
-
-  async addJob(job: GenerationJob): Promise<void> {
-    await this.importMany([job]);
+  async listPage(boardId?: string, cursor?: string, limit = 100): Promise<HistoryPage> {
+    await this.mutations.idle();
+    if (!Number.isFinite(limit)) throw new Error("历史分页数量无效。");
+    const jobs = await this.ordered(boardId);
+    const offset = cursor ? jobs.findIndex((job) => job.id === cursor) + 1 : 0;
+    if (cursor && offset === 0) throw new Error("历史记录游标已过期，请重新加载。");
+    const items = jobs.slice(offset, offset + Math.max(1, Math.min(500, Math.trunc(limit))));
+    return { items: structuredClone(items), total: jobs.length, nextCursor: offset + items.length < jobs.length ? items.at(-1)?.id : undefined };
   }
+  async addJob(job: GenerationJob): Promise<void> { await this.importMany([job]); }
+  async updateJob(job: GenerationJob): Promise<void> { await this.addJob(job); }
 
-  async updateJob(job: GenerationJob): Promise<void> {
-    await this.addJob(job);
-  }
-
-  /** 主进程退出后任务不可能继续，把上次会话遗留的非终态记录收敛为可重试的失败态。 */
   async failInterruptedJobs(completedAt = new Date().toISOString()): Promise<number> {
     return this.mutations.run(async () => {
-      const jobs = await this.readJobs();
-      let interrupted = 0;
-      for (let index = 0; index < jobs.length; index += 1) {
-        const job = jobs[index];
-        if (job.status !== "running" && job.status !== "queued") continue;
-        // 官方任务已在服务端持久化，下一次启动会轮询恢复；其他 Provider 无法查询。
-        if (job.providerId === OFFICIAL_PROVIDER_ID && job.remoteJobId) continue;
-        jobs[index] = {
-          ...job,
-          status: "failed",
-          completedAt,
-          error: "应用在任务完成前重启，生成已中断，请重试。"
-        };
-        interrupted += 1;
-      }
-      if (interrupted > 0) await this.writeJobs(jobs);
-      return interrupted;
+      const changed = [...(await this.readJobs()).values()].filter((job) =>
+        (job.status === "running" || job.status === "queued") && !(job.providerId === OFFICIAL_PROVIDER_ID && job.remoteJobId)
+      ).map((job) => ({ ...job, status: "failed" as const, completedAt, error: "应用在任务完成前重启，生成已中断，请重试。" }));
+      await this.commit({ version: 1, upsert: changed });
+      return changed.length;
     });
   }
-
   async importMany(incoming: GenerationJob[]): Promise<void> {
-    if (incoming.length === 0) return;
-    await this.mutations.run(async () => {
-      const jobs = await this.readJobs();
-      const indexes = new Map(jobs.map((job, index) => [job.id, index]));
-      for (const job of incoming) {
-        const index = indexes.get(job.id);
-        if (index === undefined) {
-          indexes.set(job.id, jobs.length);
-          jobs.push(job);
-        } else {
-          jobs[index] = job;
-        }
-      }
-      await this.writeJobs(jobs);
-    });
+    if (!incoming.length) return;
+    await this.mutations.run(() => this.commit({ version: 1, upsert: incoming }));
   }
-
-  /** 首次画板迁移：把没有 boardId 的存量记录统一挂到默认画板。 */
   async assignJobsWithoutBoard(boardId: string): Promise<void> {
     await this.mutations.run(async () => {
-      const jobs = await this.readJobs();
-      let changed = false;
-      for (const job of jobs) {
-        if (!job.boardId) {
-          job.boardId = boardId;
-          changed = true;
-        }
-      }
-      if (changed) await this.writeJobs(jobs);
+      const changed = [...(await this.readJobs()).values()].filter((job) => !job.boardId).map((job) => ({ ...job, boardId }));
+      await this.commit({ version: 1, upsert: changed });
     });
   }
-
-  /** 删除画板时连同其历史记录一起清理。 */
-  async removeJobsByBoard(boardId: string): Promise<void> {
-    await this.mutations.run(async () => {
-      const jobs = await this.readJobs();
-      const remaining = jobs.filter((job) => job.boardId !== boardId);
-      if (remaining.length !== jobs.length) await this.writeJobs(remaining);
-    });
-  }
-
-  /** 只清空指定画板的生成记录，不删除画布节点或图片文件。 */
+  async removeJobsByBoard(boardId: string): Promise<void> { await this.clearJobsByBoard(boardId); }
   async clearJobsByBoard(boardId: string): Promise<number> {
     return this.mutations.run(async () => {
-      const jobs = await this.readJobs();
-      const remaining = jobs.filter((job) => job.boardId !== boardId);
-      const removed = jobs.length - remaining.length;
-      if (removed > 0) await this.writeJobs(remaining);
-      return removed;
+      const remove = [...(await this.readJobs()).values()].filter((job) => job.boardId === boardId).map((job) => job.id);
+      await this.commit({ version: 1, remove });
+      return remove.length;
     });
   }
-
-  private async readJobs(): Promise<GenerationJob[]> {
-    if (this.cache) return structuredClone(this.cache);
-    try {
-      const raw = await readFile(this.filePath, "utf8");
-      const jobs = JSON.parse(raw) as GenerationJob[];
-      this.cache = Array.isArray(jobs) ? jobs : [];
-      return structuredClone(this.cache);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        return [];
-      }
-      throw error;
-    }
+  async flush(): Promise<void> {
+    await this.mutations.run(async () => {
+      const jobs = await this.readJobs();
+      if (this.journalEntries) await this.checkpoint(jobs);
+    });
+  }
+  private async checkpoint(jobs: Map<string, GenerationJob>): Promise<void> {
+    await writeJsonAtomic(this.filePath, [...jobs.values()]);
+    await writeFile(this.journalPath, "", { mode: 0o600 });
+    this.journalEntries = 0;
   }
 
-  private async writeJobs(jobs: GenerationJob[]): Promise<void> {
-    await writeJsonAtomic(this.filePath, jobs);
-    this.cache = structuredClone(jobs);
+  private async ordered(boardId?: string): Promise<GenerationJob[]> {
+    const jobs = await this.readJobs();
+    if (!this.sorted) this.sorted = [...jobs.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
+    return boardId ? this.sorted.filter((job) => job.boardId === boardId) : this.sorted;
+  }
+  private async readJobs(): Promise<Map<string, GenerationJob>> {
+    if (this.cache) return this.cache;
+    if (this.loading) return this.loading;
+    const loading = this.loadJobs();
+    this.loading = loading;
+    try { return await loading; }
+    finally { if (this.loading === loading) this.loading = null; }
+  }
+  private async loadJobs(): Promise<Map<string, GenerationJob>> {
+    const jobs = new Map<string, GenerationJob>();
+    try {
+      const parsed: unknown = JSON.parse(await readFile(this.filePath, "utf8"));
+      if (!Array.isArray(parsed)) throw new Error("历史记录快照格式无效。");
+      for (const job of parsed as GenerationJob[]) {
+        if (!job || typeof job.id !== "string") throw new Error("历史记录缺少任务 ID。");
+        jobs.set(job.id, job);
+      }
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    try {
+      const raw = await readFile(this.journalPath, "utf8");
+      const complete = raw.slice(0, raw.lastIndexOf("\n") + 1);
+      for (const line of complete.split("\n").filter(Boolean)) {
+        const entry = JSON.parse(line) as JournalEntry;
+        if (entry.version !== 1 || entry.upsert && !Array.isArray(entry.upsert) || entry.remove && !Array.isArray(entry.remove)) throw new Error("历史记录增量格式无效。");
+        for (const job of entry.upsert ?? []) {
+          if (!job || typeof job.id !== "string") throw new Error("历史记录缺少任务 ID。");
+          jobs.set(job.id, job);
+        }
+        for (const id of entry.remove ?? []) jobs.delete(id);
+        this.journalEntries++;
+      }
+      // A crash can leave only the final record incomplete. Preserve every complete commit.
+      if (complete !== raw) {
+        const handle = await open(this.journalPath, "r+");
+        try { await handle.truncate(Buffer.byteLength(complete)); await handle.sync(); }
+        finally { await handle.close(); }
+      }
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    this.idempotency.clear();
+    for (const job of jobs.values()) if (job.input?.idempotencyKey) this.idempotency.set(job.input.idempotencyKey, job.id);
+    this.cache = jobs;
+    return jobs;
+  }
+  private async commit(entry: JournalEntry): Promise<void> {
+    const jobs = await this.readJobs();
+    if (!entry.upsert?.length && !entry.remove?.length) return;
+    // Initial checkpoint creates the workspace and leaves the old path readable.
+    if (this.journalEntries === 0) {
+      try { await access(this.filePath); }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        await writeJsonAtomic(this.filePath, [...jobs.values()]);
+      }
+    }
+    const handle = await open(this.journalPath, "a", 0o600);
+    try { await handle.writeFile(JSON.stringify(entry) + "\n", "utf8"); await handle.sync(); }
+    catch (error) { this.cache = null; this.sorted = null; this.journalEntries = 0; throw error; }
+    finally { await handle.close(); }
+    for (const job of entry.upsert ?? []) {
+      const oldKey = jobs.get(job.id)?.input?.idempotencyKey;
+      if (oldKey && this.idempotency.get(oldKey) === job.id) this.idempotency.delete(oldKey);
+      jobs.set(job.id, structuredClone(job));
+      if (job.input?.idempotencyKey) this.idempotency.set(job.input.idempotencyKey, job.id);
+    }
+    for (const id of entry.remove ?? []) {
+      const key = jobs.get(id)?.input?.idempotencyKey;
+      if (key && this.idempotency.get(key) === id) this.idempotency.delete(key);
+      jobs.delete(id);
+    }
+    this.sorted = null;
+    this.journalEntries++;
+    if (this.journalEntries >= 200) {
+      await this.checkpoint(jobs);
+    }
   }
 }

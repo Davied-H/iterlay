@@ -1,17 +1,9 @@
+import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useReactFlow } from "@xyflow/react";
-import {
-  VersionSeparationCanvas,
-  type VersionSeparationPreviewAnchor,
-  type VersionSeparationTarget
-} from "../VersionSeparationCanvas";
-import {
-  IMAGE_NODE_WIDTH,
-  imageNodeHeight,
-  type GeneratedImage,
-  type VersionSeparationPlacement
-} from "../image-node-model";
+import { VersionSeparationCanvas, type VersionSeparationPreviewAnchor, type VersionSeparationTarget } from "../VersionSeparationCanvas";
+import { IMAGE_NODE_WIDTH, imageNodeHeight, type GeneratedImage, type VersionSeparationPlacement } from "../image-node-model";
 
 const VERSION_SEPARATION_DELAY_MS = 460;
 
@@ -85,6 +77,8 @@ export function ImageNodeVersions({
   onSwitchVersion,
   onSeparateVersions
 }: ImageNodeVersionsProps): React.ReactElement | null {
+  const uiText = useUiText();
+
   const [versionPreviewOpen, setVersionPreviewOpen] = useState(false);
   const [versionSeparationTarget, setVersionSeparationTarget] = useState<VersionSeparationTarget | null>(null);
   const mountedRef = useRef(true);
@@ -120,7 +114,7 @@ export function ImageNodeVersions({
       <div className="flex items-center gap-0.5 rounded-md border border-border bg-background/95 px-1 py-0.5 shadow-sm transition-colors group-hover/version:bg-background">
         <button
           type="button"
-          aria-label="上一个版本"
+          aria-label={uiText("上一个版本")}
           disabled={activeVersion <= 0}
           onClick={() => onSwitchVersion?.(image.id, activeVersion - 1)}
           className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
@@ -132,7 +126,7 @@ export function ImageNodeVersions({
         </span>
         <button
           type="button"
-          aria-label="下一个版本"
+          aria-label={uiText("下一个版本")}
           disabled={activeVersion >= versionCount - 1}
           onClick={() => onSwitchVersion?.(image.id, activeVersion + 1)}
           className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"

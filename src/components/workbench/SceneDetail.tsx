@@ -1,4 +1,15 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
@@ -47,14 +58,7 @@ import type {
 import { constrainReferenceImageDimensions } from "@shared/reference-image-limits";
 import { Button } from "@/components/ui/button";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -67,17 +71,9 @@ import { TemplateUseAssistant } from "@/components/assistant/TemplateUseAssistan
 import { ImageZoomLightbox } from "@/components/workbench/asset/ImageZoomLightbox";
 import { LibraryFilterTabs } from "@/components/workbench/LibraryFilterTabs";
 import { extractClipboardImageFiles } from "@/lib/clipboard-images";
-import {
-  finishActiveSceneGeneration,
-  startActiveSceneGeneration,
-  useActiveSceneGeneration
-} from "@/lib/active-scene-generation";
+import { finishActiveSceneGeneration, startActiveSceneGeneration, useActiveSceneGeneration } from "@/lib/active-scene-generation";
 import { GENERATION_ESTIMATE_MS, getGenerationTiming, type GenerationTiming } from "@/lib/generation-timing";
-import {
-  SCENE_CATEGORY_LABELS,
-  sceneMatchesGeneration,
-  type SceneDefinition
-} from "@/lib/scene-library";
+import { SCENE_CATEGORY_LABELS, sceneMatchesGeneration, type SceneDefinition } from "@/lib/scene-library";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage, hasImageWorkbenchApi } from "@/lib/image-workbench-api";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
 import type { SceneGenerationDefaults } from "@/lib/scene-media";
@@ -362,6 +358,8 @@ export function SceneDetail({
   onMediaChange,
   onOpenSettings
 }: SceneDetailProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = Boolean(useReducedMotion());
   const segmentedControlId = useId();
   const [activeScene, setActiveScene] = useState(scene);
@@ -583,12 +581,12 @@ export function SceneDetail({
   async function generateSceneResults(retryFailedOnly = false, promptOverride?: string): Promise<void> {
     if (!canGenerateInDetail || sceneGenerationActive || generationRunRef.current) return;
     if (activeScene.mode === "edit" && !sourceImage) {
-      toast.error("编辑模板需要先上传源图。");
+      toast.error(translateSourceText("编辑模板需要先上传源图。"));
       return;
     }
     const basePrompt = promptOverride?.trim() || generatedPrompt.trim();
     if (!basePrompt) {
-      toast.error("本次生成内容不能为空。");
+      toast.error(translateSourceText("本次生成内容不能为空。"));
       return;
     }
     const activeVariations = promptOverride ? [] : generatedVariations;
@@ -608,7 +606,7 @@ export function SceneDetail({
       ? allPromptTasks.filter((task) => failedTaskIds.has(task.id))
       : allPromptTasks;
     if (promptTasks.some((task) => !task.prompt.trim())) {
-      toast.error("提示词不能为空。");
+      toast.error(translateSourceText("提示词不能为空。"));
       return;
     }
 
@@ -679,17 +677,17 @@ export function SceneDetail({
       if (completedCount > 0) {
         iterlayToast.result({
           count: completedCount,
-          title: `已生成 ${completedCount} 张示例图`,
+          title: translateSourceText("已生成 {{ui:0}} 张示例图", [completedCount]),
           detail: failedCount > 0
-            ? `${failedCount} 个任务失败，其余结果已加入当前模板，未自动发布`
-            : "已生成并加入当前模板，未自动发布",
+            ? translateSourceText("{{ui:0}} 个任务失败，其余结果已加入当前模板，未自动发布", [failedCount])
+            : translateSourceText("已生成并加入当前模板，未自动发布"),
           previews
         });
       }
       if (failedCount > 0) {
         toast.error(failedCount === 1
           ? failureMessages[0] ?? "示例图生成失败。"
-          : `${failedCount} 个生成任务失败：${failureMessages[0] ?? "请调整提示词后重试。"}`);
+          : translateSourceText("{{ui:0}} 个生成任务失败：{{ui:1}}", [failedCount, failureMessages[0] ?? "请调整提示词后重试。"]));
       }
       warnings.forEach((warning) => toast.warning(warning));
     } finally {
@@ -709,7 +707,7 @@ export function SceneDetail({
       await getImageWorkbenchApi().deleteSceneResult(activeScene.id, deleteResultTarget.id);
       await onMediaChange();
       setDeleteResultTarget(null);
-      toast.success("已从当前模板移除示例图");
+      toast.success(translateSourceText("已从当前模板移除示例图"));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "删除示例图失败。"));
     } finally {
@@ -742,7 +740,7 @@ export function SceneDetail({
     try {
       await getImageWorkbenchApi().addSceneExample(activeScene.id, imagePath, prompt || activeScene.prompt);
       await onMediaChange();
-      toast.success("已复制到当前模板的示例图");
+      toast.success(translateSourceText("已复制到当前模板的示例图"));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "复制示例图失败。"));
     } finally {
@@ -753,16 +751,16 @@ export function SceneDetail({
   async function selectSourceImage(file?: File): Promise<void> {
     if (!file) return;
     if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-      toast.error("仅支持 PNG、JPEG 或 WebP 图片。");
+      toast.error(translateSourceText("仅支持 PNG、JPEG 或 WebP 图片。"));
       return;
     }
     if (file.size > MAX_SOURCE_IMAGE_BYTES) {
-      toast.error("源图不能超过 20 MB。");
+      toast.error(translateSourceText("源图不能超过 20 MB。"));
       return;
     }
     try {
       const prepared = await readConstrainedImageAsDataUrl(file);
-      if (prepared.resized) toast.info("图片尺寸过大，已自动缩小后用于生成。");
+      if (prepared.resized) toast.info(translateSourceText("图片尺寸过大，已自动缩小后用于生成。"));
       setSourceImage({
         previewUrl: prepared.previewUrl,
         payload: {
@@ -774,7 +772,7 @@ export function SceneDetail({
         }
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "无法读取源图。");
+      toast.error(error instanceof Error ? error.message : translateSourceText("无法读取源图。"));
     }
   }
 
@@ -795,25 +793,25 @@ export function SceneDetail({
   async function addReferenceImages(files: File[]): Promise<void> {
     const availableSlots = Math.max(0, referenceLimit - referenceImages.length);
     if (availableSlots === 0) {
-      toast.info(`最多添加 ${referenceLimit} 张参考图。`);
+      toast.info(translateSourceText("最多添加 {{ui:0}} 张参考图。", [referenceLimit]));
       return;
     }
 
     const acceptedFiles: File[] = [];
     for (const file of files) {
       if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-        toast.error(`“${file.name || "该文件"}”不是支持的图片格式。`);
+        toast.error(translateSourceText("“{{ui:0}}”不是支持的图片格式。", [file.name || "该文件"]));
         continue;
       }
       if (file.size > MAX_SOURCE_IMAGE_BYTES) {
-        toast.error(`“${file.name || "该图片"}”超过 20 MB。`);
+        toast.error(translateSourceText("“{{ui:0}}”超过 20 MB。", [file.name || "该图片"]));
         continue;
       }
       acceptedFiles.push(file);
     }
 
     const selectedFiles = acceptedFiles.slice(0, availableSlots);
-    if (acceptedFiles.length > availableSlots) toast.info(`本次只添加前 ${availableSlots} 张参考图。`);
+    if (acceptedFiles.length > availableSlots) toast.info(translateSourceText("本次只添加前 {{ui:0}} 张参考图。", [availableSlots]));
     if (selectedFiles.length === 0) return;
 
     try {
@@ -841,9 +839,9 @@ export function SceneDetail({
         return [...current, ...uniqueNext].slice(0, referenceLimit);
       });
       const resizedCount = nextImages.filter((image) => image.resized).length;
-      if (resizedCount > 0) toast.info(`已自动缩小 ${resizedCount} 张超大参考图。`);
+      if (resizedCount > 0) toast.info(translateSourceText("已自动缩小 {{ui:0}} 张超大参考图。", [resizedCount]));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "无法读取参考图。");
+      toast.error(error instanceof Error ? error.message : translateSourceText("无法读取参考图。"));
     }
   }
 
@@ -1111,7 +1109,7 @@ export function SceneDetail({
             }
           : message
       )));
-      if (!generated) toast.error("AI 没有返回可应用的提示词，请补充描述后重试。" );
+      if (!generated) toast.error(translateSourceText("AI 没有返回可应用的提示词，请补充描述后重试。") );
     } catch (error) {
       if (assistantRequestRef.current !== requestId) return;
       const message = getWorkbenchErrorMessage(error, "AI 助手暂时不可用。" );
@@ -1314,8 +1312,8 @@ export function SceneDetail({
             size="icon"
             data-template-library-back=""
             className="h-8 w-8 text-muted-foreground [-webkit-app-region:no-drag]"
-            aria-label="返回模版库"
-            title="返回模版库"
+            aria-label={uiText("返回模版库")}
+            title={uiText("返回模版库")}
             onClick={onBack}
           >
             <ArrowLeft className="h-4 w-4" />
@@ -1355,7 +1353,7 @@ export function SceneDetail({
                   variant={inspectorOpen ? "secondary" : "ghost"}
                   size="icon"
                   className="h-8 w-8"
-                  aria-label="模板信息"
+                  aria-label={uiText("模板信息")}
                   aria-expanded={inspectorOpen}
                   aria-controls="template-info-inspector"
                   onClick={() => inspectorOpen ? closeInspector() : openInspector()}
@@ -1363,7 +1361,7 @@ export function SceneDetail({
                   <PanelRight className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>模板信息</TooltipContent>
+              <TooltipContent>{uiText("模板信息")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1371,45 +1369,45 @@ export function SceneDetail({
                   variant="ghost"
                   size="icon"
                   className={cn("h-8 w-8", isFavorite && "text-amber-500 hover:text-amber-600")}
-                  aria-label={isFavorite ? `取消收藏 ${activeScene.name}` : `收藏 ${activeScene.name}`}
+                  aria-label={isFavorite ? uiText("取消收藏 {{ui:0}}", [activeScene.name]) : uiText("收藏 {{ui:0}}", [activeScene.name])}
                   onClick={() => onToggleFavorite(activeScene.id)}
                 >
                   <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isFavorite ? "取消收藏" : "收藏后显示在画板快捷模板中"}</TooltipContent>
+              <TooltipContent>{isFavorite ? uiText("取消收藏") : uiText("收藏后显示在画板快捷模板中")}</TooltipContent>
             </Tooltip>
             <Button
               variant="ghost"
               size="sm"
               className="gap-1.5 px-2 text-muted-foreground min-[900px]:px-3"
-              aria-label="导出模板"
-              title="导出模板"
+              aria-label={uiText("导出模板")}
+              title={uiText("导出模板")}
               onClick={() => onExport(activeScene)}
             >
               <Download className="h-3.5 w-3.5" />
-              <span className="hidden min-[900px]:inline">导出模板</span>
+              <span className="hidden min-[900px]:inline">{uiText("导出模板")}</span>
             </Button>
             {activeScene.source === "custom" ? (
               <Button
                 variant="ghost"
                 size="sm"
                 className="gap-1.5 px-2 text-muted-foreground min-[1100px]:px-3"
-                aria-label="发布到模板广场"
-                title="发布到模板广场"
+                aria-label={uiText("发布到模板广场")}
+                title={uiText("发布到模板广场")}
                 onClick={openSubmission}
               >
                 <Upload className="h-3.5 w-3.5" />
-                <span className="hidden min-[1100px]:inline">发布</span>
+                <span className="hidden min-[1100px]:inline">{uiText("发布")}</span>
               </Button>
             ) : null}
-            <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground min-[900px]:px-3" aria-label="在画板使用" title="在画板使用" onClick={() => onApply(activeScene)}>
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground min-[900px]:px-3" aria-label={uiText("在画板使用")} title={uiText("在画板使用")} onClick={() => onApply(activeScene)}>
               <Sparkles className="h-3.5 w-3.5" />
-              <span className="hidden min-[900px]:inline">在画板使用</span>
+              <span className="hidden min-[900px]:inline">{uiText("在画板使用")}</span>
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 px-2 min-[900px]:px-3" aria-label="编辑模板" title="编辑模板" onClick={onEdit}>
+            <Button variant="outline" size="sm" className="gap-1.5 px-2 min-[900px]:px-3" aria-label={uiText("编辑模板")} title={uiText("编辑模板")} onClick={onEdit}>
               <Pencil className="h-3.5 w-3.5" />
-              <span className="hidden min-[900px]:inline">编辑模板</span>
+              <span className="hidden min-[900px]:inline">{uiText("编辑模板")}</span>
             </Button>
           </div>
         </header>
@@ -1451,7 +1449,7 @@ export function SceneDetail({
             />
 
             {workspaceView === "preview" && (!inspectorOpen || wideWorkspace) ? (
-              <section data-template-creation-dock="" className="min-w-0 border-t border-border bg-background" aria-label="模板创作坞">
+              <section data-template-creation-dock="" className="min-w-0 border-t border-border bg-background" aria-label={uiText("模板创作坞")}>
                 <AnimatePresence initial={false}>
                   {creationTrayOpen ? (
                     <motion.div
@@ -1464,23 +1462,22 @@ export function SceneDetail({
                       className="min-h-0 overflow-hidden border-b border-border"
                     >
                       <div className="flex h-10 items-center gap-2 border-b border-border px-3">
-                        <span className="text-xs font-semibold">生成方案</span>
-                        <Button variant="ghost" size="icon" className="ml-auto h-7 w-7" aria-label="收起创作托盘" title="收起创作托盘" onClick={() => setCreationTrayOpen(false)}><X className="h-3.5 w-3.5" /></Button>
+                        <span className="text-xs font-semibold">{uiText("生成方案")}</span>
+                        <Button variant="ghost" size="icon" className="ml-auto h-7 w-7" aria-label={uiText("收起创作托盘")} title={uiText("收起创作托盘")} onClick={() => setCreationTrayOpen(false)}><X className="h-3.5 w-3.5" /></Button>
                       </div>
                       <div className="h-[calc(100%-40px)] overflow-y-auto px-4 py-3">
                           {activeScene.mode === "edit" ? (
                             <section className="mb-3 border-b border-border pb-3" onPaste={pasteSourceImage}>
-                              <p className="text-xs font-semibold">编辑源图</p>
+                              <p className="text-xs font-semibold">{uiText("编辑源图")}</p>
                               {sourceImage ? (
                                 <div className="mt-2 flex items-center gap-2">
-                                  <img src={sourceImage.previewUrl} alt="编辑源图" className="h-10 w-10 rounded-md border border-border object-cover" />
+                                  <img src={sourceImage.previewUrl} alt={uiText("编辑源图")} className="h-10 w-10 rounded-md border border-border object-cover" />
                                   <p className="min-w-0 flex-1 truncate text-xs">{sourceImage.payload.name}</p>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="移除源图" onClick={() => setSourceImage(null)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={uiText("移除源图")} onClick={() => setSourceImage(null)}><Trash2 className="h-3.5 w-3.5" /></Button>
                                 </div>
                               ) : (
                                 <label className="mt-2 flex h-12 cursor-pointer items-center justify-center gap-2 border border-dashed border-border text-xs text-muted-foreground focus-within:ring-2 focus-within:ring-ring">
-                                  <Upload className="h-3.5 w-3.5" />上传或直接粘贴编辑源图
-                                  <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { void selectSourceImage(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+                                  <Upload className="h-3.5 w-3.5" />{uiText("上传或直接粘贴编辑源图")}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { void selectSourceImage(event.target.files?.[0]); event.currentTarget.value = ""; }} />
                                 </label>
                               )}
                             </section>
@@ -1488,23 +1485,23 @@ export function SceneDetail({
                           {generatedPrompt ? (
                             <>
                               <div className="flex items-center gap-2">
-                                <p className="text-xs font-semibold">生成方案</p>
+                                <p className="text-xs font-semibold">{uiText("生成方案")}</p>
                                 <p className={cn("truncate text-[11px]", promptOutdated || hasUnresolvedPlaceholders ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
-                                  {promptOutdated ? "需求已变化，请重新整理" : hasUnresolvedPlaceholders ? "仍有未补全占位符" : "可编辑，仅影响本次生成"}
+                                  {promptOutdated ? uiText("需求已变化，请重新整理") : hasUnresolvedPlaceholders ? uiText("仍有未补全占位符") : uiText("可编辑，仅影响本次生成")}
                                 </p>
                               </div>
-                              <Textarea value={generatedPrompt} aria-label="本次生成母提示词" onChange={(event) => { setGeneratedPrompt(event.target.value); setGenerationTasks([]); }} className="mt-2 min-h-24 resize-y text-xs leading-5" />
+                              <Textarea value={generatedPrompt} aria-label={uiText("本次生成母提示词")} onChange={(event) => { setGeneratedPrompt(event.target.value); setGenerationTasks([]); }} className="mt-2 min-h-24 resize-y text-xs leading-5" />
                               {generatedVariations.map((variation, index) => {
                                 const task = generationTasks.find((item) => item.id === variation.id);
                                 return (
                                   <label key={variation.id} className="mt-3 block border-t border-border pt-3">
                                     <span className="mb-1.5 flex items-center gap-2 text-[11px] font-medium"><span>{index + 1}. {variation.title}</span>{task ? <GenerationTaskStatus task={task} /> : null}</span>
-                                    <Textarea value={variation.prompt} aria-label={`子提示词 ${index + 1}：${variation.title}`} onChange={(event) => { setGeneratedVariations((current) => current.map((item) => item.id === variation.id ? { ...item, prompt: event.target.value } : item)); setGenerationTasks([]); }} className="min-h-20 resize-y text-xs leading-5" />
+                                    <Textarea value={variation.prompt} aria-label={uiText("子提示词 {{ui:0}}：{{ui:1}}", [index + 1, variation.title])} onChange={(event) => { setGeneratedVariations((current) => current.map((item) => item.id === variation.id ? { ...item, prompt: event.target.value } : item)); setGenerationTasks([]); }} className="min-h-20 resize-y text-xs leading-5" />
                                   </label>
                                 );
                               })}
                             </>
-                          ) : <p className="py-8 text-center text-xs text-muted-foreground">先在创作坞描述需求，再让助手整理生成方案。</p>}
+                          ) : <p className="py-8 text-center text-xs text-muted-foreground">{uiText("先在创作坞描述需求，再让助手整理生成方案。")}</p>}
                       </div>
                     </motion.div>
                   ) : null}
@@ -1512,21 +1509,18 @@ export function SceneDetail({
 
                 <div className="bg-muted/30 px-3 py-3">
                   <div className="mx-auto max-w-[1080px]">
-                    <div className="mb-2 flex h-5 items-center gap-1.5 px-1 text-[11px] font-medium" aria-label={`当前创作阶段：${creationStage === 0 ? "描述需求" : creationStage === 1 ? "确认方案" : "生成示例"}`}>
+                    <div className="mb-2 flex h-5 items-center gap-1.5 px-1 text-[11px] font-medium" aria-label={uiText("当前创作阶段：{{ui:0}}", [creationStage === 0 ? "描述需求" : creationStage === 1 ? "确认方案" : "生成示例"])}>
                       <span className={cn("flex items-center gap-1.5", creationStage === 0 ? "text-foreground" : "text-muted-foreground")}>
-                        <span className={cn("flex h-4 w-4 items-center justify-center rounded-full text-[10px]", creationStage === 0 ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>{creationStage > 0 ? <Check className="h-2.5 w-2.5" /> : "1"}</span>
-                        描述需求
-                      </span>
+                        <span className={cn("flex h-4 w-4 items-center justify-center rounded-full text-[10px]", creationStage === 0 ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>{creationStage > 0 ? <Check className="h-2.5 w-2.5" /> : uiText("1")}</span>
+                        {uiText("描述需求")}</span>
                       <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
                       <span className={cn("flex items-center gap-1.5", creationStage === 1 ? "text-foreground" : "text-muted-foreground")}>
                         <span className={cn("flex h-4 w-4 items-center justify-center rounded-full text-[10px]", creationStage === 1 ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>{creationStage > 1 ? <Check className="h-2.5 w-2.5" /> : "2"}</span>
-                        确认方案
-                      </span>
+                        {uiText("确认方案")}</span>
                       <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
                       <span className={cn("flex items-center gap-1.5", creationStage === 2 ? "text-foreground" : "text-muted-foreground")}>
                         <span className={cn("flex h-4 w-4 items-center justify-center rounded-full text-[10px]", creationStage === 2 ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>3</span>
-                        生成示例
-                      </span>
+                        {uiText("生成示例")}</span>
                     </div>
 
                     <div data-template-prompt-dock="" className="rounded-lg border border-border bg-background shadow-sm transition-[border-color,box-shadow] focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-ring/20">
@@ -1537,11 +1531,11 @@ export function SceneDetail({
                           role="separator"
                           tabIndex={0}
                           aria-orientation="horizontal"
-                          aria-label="拖拽调整模板提示词高度"
+                          aria-label={uiText("拖拽调整模板提示词高度")}
                           aria-valuemin={CREATION_PROMPT_MIN_HEIGHT}
                           aria-valuemax={creationPromptMaxHeight}
                           aria-valuenow={Math.round(creationPromptHeight)}
-                          title="拖拽调整高度 · 双击自动适应内容"
+                          title={uiText("拖拽调整高度 · 双击自动适应内容")}
                           onPointerDown={startCreationPromptDrag}
                           onPointerMove={moveCreationPromptDrag}
                           onPointerUp={endCreationPromptDrag}
@@ -1561,10 +1555,10 @@ export function SceneDetail({
                       <Textarea
                         ref={creationPromptRef}
                         value={generationBrief}
-                        aria-label="描述本次要生成的画面"
+                        aria-label={uiText("描述本次要生成的画面")}
                         placeholder={sceneGenerationActive
-                          ? "正在生成，可继续输入下一轮提示词…"
-                          : "描述你想生成的画面，例如：白色机甲模型的电商展示广告，突出关节细节和价格…"}
+                          ? uiText("正在生成，可继续输入下一轮提示词…")
+                          : uiText("描述你想生成的画面，例如：白色机甲模型的电商展示广告，突出关节细节和价格…")}
                         style={{ height: creationPromptHeight, maxHeight: creationPromptMaxHeight }}
                         className={cn(
                           "min-h-14 resize-none overflow-y-auto border-0 bg-transparent px-3.5 py-2 text-sm leading-5 shadow-none focus-visible:ring-0",
@@ -1584,17 +1578,17 @@ export function SceneDetail({
 
                       <div className="flex min-h-11 items-center gap-1.5 px-2 pb-2">
                         {activeScene.mode === "edit" ? sourceImage ? (
-                          <Tooltip><TooltipTrigger asChild><button type="button" className="h-8 w-8 shrink-0 overflow-hidden rounded-md border border-border" aria-label="更换编辑源图" onClick={() => setCreationTrayOpen(true)}><img src={sourceImage.previewUrl} alt="编辑源图" className="h-full w-full object-cover" /></button></TooltipTrigger><TooltipContent>编辑源图</TooltipContent></Tooltip>
+                          <Tooltip><TooltipTrigger asChild><button type="button" className="h-8 w-8 shrink-0 overflow-hidden rounded-md border border-border" aria-label={uiText("更换编辑源图")} onClick={() => setCreationTrayOpen(true)}><img src={sourceImage.previewUrl} alt={uiText("编辑源图")} className="h-full w-full object-cover" /></button></TooltipTrigger><TooltipContent>{uiText("编辑源图")}</TooltipContent></Tooltip>
                         ) : (
-                          <Tooltip><TooltipTrigger asChild><label className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground focus-within:ring-2 focus-within:ring-ring"><Upload className="h-3.5 w-3.5" /><span className="sr-only">上传编辑源图</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { void selectSourceImage(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label></TooltipTrigger><TooltipContent>上传编辑源图</TooltipContent></Tooltip>
+                          <Tooltip><TooltipTrigger asChild><label className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground focus-within:ring-2 focus-within:ring-ring"><Upload className="h-3.5 w-3.5" /><span className="sr-only">{uiText("上传编辑源图")}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { void selectSourceImage(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label></TooltipTrigger><TooltipContent>{uiText("上传编辑源图")}</TooltipContent></Tooltip>
                         ) : null}
-                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground" aria-label="添加参考图" onClick={() => assistantFileInputRef.current?.click()}><ImagePlus className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>添加参考图，最多 {referenceLimit} 张</TooltipContent></Tooltip>
+                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground" aria-label={uiText("添加参考图")} onClick={() => assistantFileInputRef.current?.click()}><ImagePlus className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>{uiText("添加参考图，最多 ")}{referenceLimit} {uiText("张")}</TooltipContent></Tooltip>
                         {referenceImages.slice(0, 3).map((image) => (
                           <div key={image.payload.id} className="group relative h-8 w-8 shrink-0 overflow-hidden rounded-md border border-border">
                             <img src={image.previewUrl} alt={image.payload.name} className="h-full w-full object-cover" />
                             <button
                               type="button"
-                              aria-label={`移除参考图 ${image.payload.name}`}
+                              aria-label={uiText("移除参考图 {{ui:0}}", [image.payload.name])}
                               onClick={() => setReferenceImages((current) => current.filter((item) => item.payload.id !== image.payload.id))}
                               className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-sm bg-black/65 text-white opacity-0 transition-opacity hover:bg-black/80 focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
                             >
@@ -1604,35 +1598,35 @@ export function SceneDetail({
                         ))}
                         {referenceImages.length > 3 ? <span className="text-[11px] tabular-nums text-muted-foreground">+{referenceImages.length - 3}</span> : null}
 
-                        <Button ref={assistantTriggerRef} variant={assistantOpen ? "secondary" : "ghost"} size="sm" className="shrink-0 gap-1.5 text-muted-foreground" aria-label="AI 助手" aria-expanded={assistantOpen} aria-controls="template-assistant-sidebar" onClick={assistantOpen ? closeTemplateAssistant : openTemplateAssistant}>
-                          <Sparkles className="h-3.5 w-3.5" /><span className="max-[640px]:hidden">AI 助手</span>
+                        <Button ref={assistantTriggerRef} variant={assistantOpen ? "secondary" : "ghost"} size="sm" className="shrink-0 gap-1.5 text-muted-foreground" aria-label={uiText("AI 助手")} aria-expanded={assistantOpen} aria-controls="template-assistant-sidebar" onClick={assistantOpen ? closeTemplateAssistant : openTemplateAssistant}>
+                          <Sparkles className="h-3.5 w-3.5" /><span className="max-[640px]:hidden">{uiText("AI 助手")}</span>
                         </Button>
                         {generatedPrompt ? (
                           <Button variant="ghost" size="sm" className="shrink-0 gap-1.5 text-muted-foreground" aria-controls="template-assistant-sidebar" onClick={openTemplateAssistant}>
-                            <List className="h-3.5 w-3.5" /><span className="max-[720px]:hidden">调整方案</span>
+                            <List className="h-3.5 w-3.5" /><span className="max-[720px]:hidden">{uiText("调整方案")}</span>
                           </Button>
                         ) : null}
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button variant="ghost" size="sm" className="min-w-0 shrink-0 gap-1.5 text-muted-foreground">
                               <SlidersHorizontal className="h-3.5 w-3.5" />
-                              <span className="max-[700px]:hidden">{generationSize === "auto" ? "自动尺寸" : generationSize}</span>
+                              <span className="max-[700px]:hidden">{generationSize === "auto" ? uiText("自动尺寸") : generationSize}</span>
                               <span className="text-border max-[700px]:hidden">·</span>
-                              <span>{generationCount} 张</span>
+                              <span>{generationCount} {uiText("张")}</span>
                               <ChevronDown className="h-3.5 w-3.5" />
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent side="top" align="start" className="w-80 rounded-lg p-4 shadow-md">
                             <div className="flex items-center justify-between gap-3">
-                              <div><p className="text-sm font-semibold">生成设置</p><p className="mt-1 max-w-56 truncate text-xs text-muted-foreground" title={generationDefaults.model}>{generationDefaults.providerName} · {generationDefaults.model || "未选择模型"}</p></div>
-                              {!canGenerateInDetail ? <Button variant="ghost" size="sm" onClick={onOpenSettings}>配置</Button> : null}
+                              <div><p className="text-sm font-semibold">{uiText("生成设置")}</p><p className="mt-1 max-w-56 truncate text-xs text-muted-foreground" title={generationDefaults.model}>{generationDefaults.providerName} · {generationDefaults.model || "未选择模型"}</p></div>
+                              {!canGenerateInDetail ? <Button variant="ghost" size="sm" onClick={onOpenSettings}>{uiText("配置")}</Button> : null}
                             </div>
                             <div className="mt-4 grid gap-3">
-                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">尺寸</span><Select value={generationSize} onValueChange={setGenerationSize} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs tabular-nums">{generationSize === "auto" ? "自动" : generationSize}</SelectTrigger><SelectContent>{SIZE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></label>
-                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">质量</span><Select value={generationQuality} onValueChange={(value) => setGenerationQuality(value as ImageQuality)} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs">{QUALITY_LABELS[generationQuality]}</SelectTrigger><SelectContent>{QUALITY_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></label>
+                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">{uiText("尺寸")}</span><Select value={generationSize} onValueChange={setGenerationSize} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs tabular-nums">{generationSize === "auto" ? uiText("自动") : generationSize}</SelectTrigger><SelectContent>{SIZE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></label>
+                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">{uiText("质量")}</span><Select value={generationQuality} onValueChange={(value) => setGenerationQuality(value as ImageQuality)} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs">{QUALITY_LABELS[generationQuality]}</SelectTrigger><SelectContent>{QUALITY_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></label>
                               <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs">
-                                <span className="text-muted-foreground">数量</span>
-                                <div className="flex h-8 rounded-md bg-muted p-0.5" role="group" aria-label="生成张数">
+                                <span className="text-muted-foreground">{uiText("数量")}</span>
+                                <div className="flex h-8 rounded-md bg-muted p-0.5" role="group" aria-label={uiText("生成张数")}>
                                   {([1, 2, 3] as GenerationCount[]).map((value) => {
                                     const active = generationCount === value;
                                     return (
@@ -1673,7 +1667,7 @@ export function SceneDetail({
                     </div>
                   </div>
                 </div>
-                <p className="sr-only" aria-live="polite">{hasUnresolvedPlaceholders ? "生成方案仍有未填写的占位符，补全后才能生成。" : promptOutdated ? "需求、参考图或数量已变化，需要重新整理生成方案。" : ""}</p>
+                <p className="sr-only" aria-live="polite">{hasUnresolvedPlaceholders ? uiText("生成方案仍有未填写的占位符，补全后才能生成。") : promptOutdated ? uiText("需求、参考图或数量已变化，需要重新整理生成方案。") : ""}</p>
               </section>
             ) : null}
           </main>
@@ -1684,7 +1678,7 @@ export function SceneDetail({
                 key="template-assistant-sidebar"
                 id="template-assistant-sidebar"
                 data-template-assistant-sidebar="workspace"
-                aria-label="模板使用助手"
+                aria-label={uiText("模板使用助手")}
                 initial={{ opacity: 0, x: reduceMotion ? 0 : 18 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: reduceMotion ? 0 : 12 }}
@@ -1724,7 +1718,7 @@ export function SceneDetail({
                 key="template-inspector"
                 id="template-info-inspector"
                 data-template-info-inspector=""
-                aria-label="模板信息"
+                aria-label={uiText("模板信息")}
                 initial={{ opacity: 0, x: 18 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{
@@ -1737,16 +1731,16 @@ export function SceneDetail({
               >
                 <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
                   <Info className="h-4 w-4 text-muted-foreground" />
-                  <h2 ref={inspectorTitleRef} tabIndex={-1} className="min-w-0 flex-1 truncate text-sm font-semibold outline-none">模板信息</h2>
-                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={wideWorkspace ? "关闭模板信息" : "返回创作"} onClick={closeInspector}><X className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>{wideWorkspace ? "关闭模板信息" : "返回创作"}</TooltipContent></Tooltip>
+                  <h2 ref={inspectorTitleRef} tabIndex={-1} className="min-w-0 flex-1 truncate text-sm font-semibold outline-none">{uiText("模板信息")}</h2>
+                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={wideWorkspace ? uiText("关闭模板信息") : uiText("返回创作")} onClick={closeInspector}><X className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>{wideWorkspace ? uiText("关闭模板信息") : uiText("返回创作")}</TooltipContent></Tooltip>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                   <h1 className="text-base font-semibold">{activeScene.name}</h1>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeScene.description || SCENE_CATEGORY_LABELS[activeScene.category]}</p>
-                  <dl className="mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 border-y border-border py-3 text-xs"><dt className="text-muted-foreground">分类</dt><dd>{SCENE_CATEGORY_LABELS[activeScene.category]}</dd><dt className="text-muted-foreground">模式</dt><dd>{activeScene.mode === "edit" ? "图片编辑" : "文生图"}</dd><dt className="text-muted-foreground">示例</dt><dd>{(media?.results.length ?? 0)} 张生成示例 · {(activeScene.previewImages?.length ?? 0)} 张内置示例</dd></dl>
+                  <dl className="mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 border-y border-border py-3 text-xs"><dt className="text-muted-foreground">{uiText("分类")}</dt><dd>{SCENE_CATEGORY_LABELS[activeScene.category]}</dd><dt className="text-muted-foreground">{uiText("模式")}</dt><dd>{activeScene.mode === "edit" ? uiText("图片编辑") : uiText("文生图")}</dd><dt className="text-muted-foreground">{uiText("示例")}</dt><dd>{(media?.results.length ?? 0)} {uiText("张生成示例 · ")}{(activeScene.previewImages?.length ?? 0)} {uiText("张内置示例")}</dd></dl>
                   <section className="mt-5">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-8 rounded-md bg-muted p-0.5" role="tablist" aria-label="提示词视图">
+                      <div className="flex h-8 rounded-md bg-muted p-0.5" role="tablist" aria-label={uiText("提示词视图")}>
                         {(["example", "template"] as const).map((value) => {
                           const active = promptView === value;
                           return (
@@ -1762,22 +1756,22 @@ export function SceneDetail({
                               )}
                             >
                               {active ? <SegmentedControlIndicator layoutId={`scene-prompt-${segmentedControlId}`} className="rounded-sm bg-background shadow-sm" /> : null}
-                              <span className="relative z-10">{value === "example" ? "当前示例" : "模板 Prompt"}</span>
+                              <span className="relative z-10">{value === "example" ? uiText("当前示例") : uiText("模板 Prompt")}</span>
                             </button>
                           );
                         })}
                       </div>
-                      <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" aria-label={promptCopied ? "已复制 Prompt" : "复制 Prompt"} title={promptCopied ? "已复制" : "复制 Prompt"} onClick={() => { onCopyText(displayedReferencePrompt); setPromptCopied(true); }}>{promptCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}</Button>
+                      <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" aria-label={promptCopied ? uiText("已复制 Prompt") : uiText("复制 Prompt")} title={promptCopied ? uiText("已复制") : uiText("复制 Prompt")} onClick={() => { onCopyText(displayedReferencePrompt); setPromptCopied(true); }}>{promptCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}</Button>
                     </div>
                     <div role="tabpanel" className="mt-3 bg-muted/45 px-3 py-3">
                       {promptView === "example" && previewPrompt ? <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">{previewPrompt.label}</p> : null}
                       <p className={cn("whitespace-pre-wrap break-words text-xs leading-5", !templateExpanded && "max-h-36 overflow-hidden")}>{displayedReferencePrompt}</p>
-                      {displayedReferencePrompt.length > 150 ? <button type="button" className="mt-2 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setTemplateExpanded((value) => !value)}>{templateExpanded ? "收起" : "展开完整 Prompt"}</button> : null}
+                      {displayedReferencePrompt.length > 150 ? <button type="button" className="mt-2 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setTemplateExpanded((value) => !value)}>{templateExpanded ? uiText("收起") : uiText("展开完整 Prompt")}</button> : null}
                     </div>
                   </section>
                   <section className="mt-5 border-t border-border pt-4">
-                    <div className="flex items-center gap-2"><h3 className="text-xs font-semibold">生成方案</h3><Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={() => { if (!wideWorkspace) closeInspector(); openTemplateAssistant(); }}>{generatedPrompt ? "调整方案" : "开始整理"}</Button></div>
-                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{generatedPrompt ? (promptOutdated ? "需求已修改，方案需要重新整理。" : `已准备 ${generatedVariations.length || generationCount} 张图片的生成方案。`) : "尚未整理本次生成方案。"}</p>
+                    <div className="flex items-center gap-2"><h3 className="text-xs font-semibold">{uiText("生成方案")}</h3><Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={() => { if (!wideWorkspace) closeInspector(); openTemplateAssistant(); }}>{generatedPrompt ? uiText("调整方案") : uiText("开始整理")}</Button></div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{generatedPrompt ? (promptOutdated ? "需求已修改，方案需要重新整理。" : `已准备 ${generatedVariations.length || generationCount} 张图片的生成方案。`) : uiText("尚未整理本次生成方案。")}</p>
                   </section>
                 </div>
               </motion.aside>
@@ -1788,15 +1782,14 @@ export function SceneDetail({
         <Dialog open={Boolean(deleteResultTarget)} onOpenChange={(open) => !open && setDeleteResultTarget(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>从模板移除这张示例图？</DialogTitle>
-              <DialogDescription>图片将从当前模板的生成示例中移除，模板会自动使用剩余示例。</DialogDescription>
+              <DialogTitle>{uiText("从模板移除这张示例图？")}</DialogTitle>
+              <DialogDescription>{uiText("图片将从当前模板的生成示例中移除，模板会自动使用剩余示例。")}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setDeleteResultTarget(null)}>取消</Button>
+              <Button variant="ghost" onClick={() => setDeleteResultTarget(null)}>{uiText("取消")}</Button>
               <Button variant="destructive" disabled={mediaMutating} onClick={() => void deleteSceneResult()}>
                 {mediaMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                从模板移除
-              </Button>
+                {uiText("从模板移除")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1809,8 +1802,8 @@ export function SceneDetail({
                   <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
                   </div>
-                  <DialogTitle>正在刷新审核状态</DialogTitle>
-                  <DialogDescription>正在从 Manager 获取「{activeScene.name}」的最新发布信息。</DialogDescription>
+                  <DialogTitle>{uiText("正在刷新审核状态")}</DialogTitle>
+                  <DialogDescription>{uiText("正在从 Manager 获取「")}{activeScene.name}{uiText("」的最新发布信息。")}</DialogDescription>
                 </DialogHeader>
               </>
             ) : submission && submissionMeta && SubmissionStatusIcon ? (
@@ -1829,15 +1822,15 @@ export function SceneDetail({
 
                 <div className="space-y-4">
                   <dl className="grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-                    <dt className="text-muted-foreground">模板</dt>
+                    <dt className="text-muted-foreground">{uiText("模板")}</dt>
                     <dd className="min-w-0 break-words font-medium">{submission.name}</dd>
-                    <dt className="text-muted-foreground">创作者</dt>
+                    <dt className="text-muted-foreground">{uiText("创作者")}</dt>
                     <dd className="min-w-0 break-words">{submission.authorName || "Iterlay 创作者"}</dd>
-                    <dt className="text-muted-foreground">提交时间</dt>
+                    <dt className="text-muted-foreground">{uiText("提交时间")}</dt>
                     <dd className="tabular-nums">{formatDateTime(submission.submittedAt)}</dd>
                     {submission.reviewedAt ? (
                       <>
-                        <dt className="text-muted-foreground">审核时间</dt>
+                        <dt className="text-muted-foreground">{uiText("审核时间")}</dt>
                         <dd className="tabular-nums">{formatDateTime(submission.reviewedAt)}</dd>
                       </>
                     ) : null}
@@ -1851,7 +1844,7 @@ export function SceneDetail({
                         : "border-border bg-muted/50 text-foreground"
                     )}>
                       <p className="text-xs font-medium">
-                        {submission.status === "rejected" ? "拒绝原因" : "Manager 说明"}
+                        {submission.status === "rejected" ? uiText("拒绝原因") : uiText("Manager 说明")}
                       </p>
                       <p className="mt-1 whitespace-pre-wrap break-words">
                         {submission.reviewNote?.trim() || "Manager 未提供拒绝原因，请联系支持人员。"}
@@ -1867,12 +1860,11 @@ export function SceneDetail({
                 <DialogFooter>
                   <Button variant="outline" onClick={() => void refreshSubmission()}>
                     <RefreshCw className="h-4 w-4" />
-                    刷新状态
-                  </Button>
+                    {uiText("刷新状态")}</Button>
                   {canRetrySubmission ? (
-                    <Button variant="outline" onClick={prepareSubmissionRetry}>重新提交</Button>
+                    <Button variant="outline" onClick={prepareSubmissionRetry}>{uiText("重新提交")}</Button>
                   ) : null}
-                  <Button onClick={() => changeSubmissionOpen(false)}>完成</Button>
+                  <Button onClick={() => changeSubmissionOpen(false)}>{uiText("完成")}</Button>
                 </DialogFooter>
               </>
             ) : submissionLoadError ? (
@@ -1881,47 +1873,44 @@ export function SceneDetail({
                   <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                     <CircleAlert className="h-5 w-5" />
                   </div>
-                  <DialogTitle>暂时无法获取审核状态</DialogTitle>
+                  <DialogTitle>{uiText("暂时无法获取审核状态")}</DialogTitle>
                   <DialogDescription>{submissionLoadError}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <Button variant="ghost" onClick={() => changeSubmissionOpen(false)}>取消</Button>
+                  <Button variant="ghost" onClick={() => changeSubmissionOpen(false)}>{uiText("取消")}</Button>
                   <Button onClick={() => void refreshSubmission()}>
                     <RefreshCw className="h-4 w-4" />
-                    重新获取
-                  </Button>
+                    {uiText("重新获取")}</Button>
                 </DialogFooter>
               </>
             ) : (
               <>
                 <DialogHeader>
-                  <DialogTitle>发布到模板广场</DialogTitle>
+                  <DialogTitle>{uiText("发布到模板广场")}</DialogTitle>
                   <DialogDescription>
-                    审核通过后，其他用户可以在 Iterlay 官网发现并下载这个模板。
-                  </DialogDescription>
+                    {uiText("审核通过后，其他用户可以在 Iterlay 官网发现并下载这个模板。")}</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <label className="grid gap-2 text-sm" htmlFor="template-submission-author">
-                    <span className="font-medium">创作者名称</span>
+                    <span className="font-medium">{uiText("创作者名称")}</span>
                     <Input
                       id="template-submission-author"
                       value={submissionAuthor}
                       onChange={(event) => setSubmissionAuthor(event.target.value)}
-                      placeholder="留空将显示为 Iterlay 创作者"
+                      placeholder={uiText("留空将显示为 Iterlay 创作者")}
                       maxLength={40}
                       disabled={submissionPhase === "submitting"}
                     />
                   </label>
 
                   <div className="rounded-md bg-muted/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                    模板名称、说明、提示词和下方选中的示例图将公开展示或提供下载。首张选中图片会作为模板封面。
-                  </div>
+                    {uiText("模板名称、说明、提示词和下方选中的示例图将公开展示或提供下载。首张选中图片会作为模板封面。")}</div>
 
                   <fieldset className="space-y-2.5" disabled={submissionPhase === "submitting"}>
                     <div className="flex items-center justify-between gap-3">
-                      <legend className="text-sm font-medium">公开示例图</legend>
-                      <span className="text-xs text-muted-foreground">已选择 {submissionExampleIds.length} 张</span>
+                      <legend className="text-sm font-medium">{uiText("公开示例图")}</legend>
+                      <span className="text-xs text-muted-foreground">{uiText("已选择 ")}{submissionExampleIds.length} {uiText("张")}</span>
                     </div>
                     {media?.results.length ? (
                       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -1935,7 +1924,7 @@ export function SceneDetail({
                                 checked ? "border-primary" : "border-border opacity-70 hover:opacity-100"
                               )}
                             >
-                              <img src={result.imageUrl} alt={`公开示例图 ${index + 1}`} className="h-full w-full object-cover" />
+                              <img src={result.imageUrl} alt={uiText("公开示例图 {{ui:0}}", [index + 1])} className="h-full w-full object-cover" />
                               <input
                                 type="checkbox"
                                 className="sr-only"
@@ -1951,7 +1940,7 @@ export function SceneDetail({
                                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
                               </span>
                               {checked && media.results.find((item) => submissionExampleIds.includes(item.id))?.id === result.id ? (
-                                <span className="absolute bottom-0 inset-x-0 bg-foreground/80 px-1.5 py-1 text-center text-[10px] font-medium text-background">封面</span>
+                                <span className="absolute bottom-0 inset-x-0 bg-foreground/80 px-1.5 py-1 text-center text-[10px] font-medium text-background">{uiText("封面")}</span>
                               ) : null}
                             </label>
                           );
@@ -1959,8 +1948,7 @@ export function SceneDetail({
                       </div>
                     ) : (
                       <p className="rounded-md border border-dashed border-border px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                        请先在模板中添加至少一张示例图，再提交发布。
-                      </p>
+                        {uiText("请先在模板中添加至少一张示例图，再提交发布。")}</p>
                     )}
                   </fieldset>
 
@@ -1972,7 +1960,7 @@ export function SceneDetail({
                       onChange={(event) => setSubmissionConsent(event.target.checked)}
                       disabled={submissionPhase === "submitting"}
                     />
-                    <span>我确认拥有公开这些内容的权利，并同意将模板提交审核。</span>
+                    <span>{uiText("我确认拥有公开这些内容的权利，并同意将模板提交审核。")}</span>
                   </label>
 
                   {submissionError ? (
@@ -1986,8 +1974,7 @@ export function SceneDetail({
                     disabled={submissionPhase === "submitting"}
                     onClick={() => changeSubmissionOpen(false)}
                   >
-                    取消
-                  </Button>
+                    {uiText("取消")}</Button>
                   <Button
                     disabled={!submissionConsent || submissionExampleIds.length === 0 || submissionPhase === "submitting"}
                     onClick={() => void submitTemplate()}
@@ -1997,7 +1984,7 @@ export function SceneDetail({
                     ) : (
                       <Upload className="h-4 w-4" />
                     )}
-                    {submissionPhase === "submitting" ? "正在提交" : "发布"}
+                    {submissionPhase === "submitting" ? uiText("正在提交") : uiText("发布")}
                   </Button>
                 </DialogFooter>
               </>
@@ -2075,6 +2062,8 @@ function SceneMediaStage({
   onPromptChange: (selection: ScenePreviewPrompt | null) => void;
   generationTiming: GenerationTiming | null;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = Boolean(useReducedMotion());
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [draggedResultId, setDraggedResultId] = useState<string | null>(null);
@@ -2183,7 +2172,7 @@ function SceneMediaStage({
         </div>
       ) : (
         <div id="scene-examples-panel" role="tabpanel" aria-labelledby="scene-examples-tab" className="grid min-h-0 flex-1 grid-cols-[80px_minmax(0,1fr)] overflow-hidden">
-          <div data-template-media-rail="" className="min-h-0 overflow-y-auto border-r border-border bg-black/10 p-3 dark:bg-black/40" role="listbox" aria-label="模板示例">
+          <div data-template-media-rail="" className="min-h-0 overflow-y-auto border-r border-border bg-black/10 p-3 dark:bg-black/40" role="listbox" aria-label={uiText("模板示例")}>
             {mediaGroups.map((group, groupIndex) => (
               <div key={group.key} role="group" aria-label={group.label} className={cn(groupIndex > 0 && "mt-3 border-t border-border pt-3")}>
                 <div className="grid gap-2">
@@ -2195,7 +2184,7 @@ function SceneMediaStage({
                         type="button"
                         role="option"
                         aria-selected={selectedItem?.key === item.key}
-                        aria-label={`查看${item.label}`}
+                        aria-label={uiText("查看{{ui:0}}", [item.label])}
                         draggable={sortable && !busy}
                         onDragStart={() => sortable && setDraggedResultId(item.result.id)}
                         onDragEnd={() => setDraggedResultId(null)}
@@ -2231,7 +2220,7 @@ function SceneMediaStage({
               <>
                 <button
                   type="button"
-                  aria-label={`放大预览${selectedItem.label}`}
+                  aria-label={uiText("放大预览{{ui:0}}", [selectedItem.label])}
                   className="flex h-full w-full min-h-0 min-w-0 cursor-zoom-in items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   onClick={(event) => {
                     const image = event.currentTarget.querySelector("img");
@@ -2269,22 +2258,22 @@ function SceneMediaStage({
                 </span>
                 <div className="absolute bottom-5 right-5 flex items-center gap-1 rounded-md bg-background/95 p-1 ring-1 ring-border sm:bottom-7 sm:right-7">
                   <ResultAction
-                    label={downloadingKey === selectedItem.key ? "正在下载" : "下载图片"}
+                    label={downloadingKey === selectedItem.key ? uiText("正在下载") : uiText("下载图片")}
                     icon={downloadingKey === selectedItem.key ? Loader2 : Download}
                     loading={downloadingKey === selectedItem.key}
                     disabled={busy || downloadingKey !== null}
                     onClick={() => void downloadPreview(selectedItem)}
                   />
                   {selectedItem.kind === "result" ? (
-                    <ResultAction label="从模板移除" icon={Trash2} disabled={busy} destructive onClick={() => onDeleteResult(selectedItem.result)} />
+                    <ResultAction label={uiText("从模板移除")} icon={Trash2} disabled={busy} destructive onClick={() => onDeleteResult(selectedItem.result)} />
                   ) : null}
                 </div>
               </>
             ) : (
               <div className="px-6 text-center">
                 <ImageIcon className="mx-auto h-6 w-6 text-muted-foreground" />
-                <p className="mt-3 text-sm font-medium">还没有示例图</p>
-                <p className="mt-1 text-xs text-muted-foreground">在下方描述需求并生成模板示例。</p>
+                <p className="mt-3 text-sm font-medium">{uiText("还没有示例图")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{uiText("在下方描述需求并生成模板示例。")}</p>
               </div>
             )}
             {generationTiming ? (
@@ -2300,17 +2289,16 @@ function SceneMediaStage({
                     className="h-6 w-6 animate-spin text-muted-foreground [animation-duration:1.4s] motion-reduce:animate-none"
                   />
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">正在生成示例</p>
+                    <p className="text-sm font-medium text-foreground">{uiText("正在生成示例")}</p>
                     <p className="text-xs text-muted-foreground">
-                      已用 <time className="tabular-nums">{generationTiming.elapsedLabel}</time>
+                      {uiText("已用 ")}<time className="tabular-nums">{generationTiming.elapsedLabel}</time>
                     </p>
                     {generationTiming.overdue ? (
                       <p className="max-w-56 text-pretty text-xs leading-5 text-muted-foreground">
-                        比预计久一点，任务仍在处理中
-                      </p>
+                        {uiText("比预计久一点，任务仍在处理中")}</p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        预计剩余 <time className="tabular-nums">{generationTiming.remainingLabel}</time>
+                        {uiText("预计剩余 ")}<time className="tabular-nums">{generationTiming.remainingLabel}</time>
                       </p>
                     )}
                   </div>
@@ -2357,6 +2345,8 @@ function SceneHistoryGallery({
   onUseAsReference: (imagePath: string) => void;
   onStart: () => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const segmentedControlId = useId();
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [view, setView] = useState<HistoryView>("grid");
@@ -2393,26 +2383,26 @@ function SceneHistoryGallery({
     <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div>
-          <h2 className="text-sm font-semibold">历史结果</h2>
+          <h2 className="text-sm font-semibold">{uiText("历史结果")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {items.length > 0 ? `${items.length} 张图片，点击结果进入来源画板并定位` : "从这个模板生成的图片会集中在这里"}
+            {items.length > 0 ? uiText("{{ui:0}} 张图片，点击结果进入来源画板并定位", [items.length]) : uiText("从这个模板生成的图片会集中在这里")}
           </p>
         </div>
         {items.length > 0 ? (
           <div className="ml-auto flex items-center gap-2">
             <Select value={sort} onValueChange={(value) => setSort(value as HistorySort)}>
-              <SelectTrigger className="h-8 w-[104px] text-xs">{sort === "newest" ? "最新优先" : "最早优先"}</SelectTrigger>
+              <SelectTrigger className="h-8 w-[104px] text-xs">{sort === "newest" ? uiText("最新优先") : uiText("最早优先")}</SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">最新优先</SelectItem>
-                <SelectItem value="oldest">最早优先</SelectItem>
+                <SelectItem value="newest">{uiText("最新优先")}</SelectItem>
+                <SelectItem value="oldest">{uiText("最早优先")}</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex h-8 items-center rounded-md bg-muted p-0.5" role="group" aria-label="结果视图">
+            <div className="flex h-8 items-center rounded-md bg-muted p-0.5" role="group" aria-label={uiText("结果视图")}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="网格视图"
+                    aria-label={uiText("网格视图")}
                     aria-pressed={view === "grid"}
                     onClick={() => setView("grid")}
                     className={cn(
@@ -2424,13 +2414,13 @@ function SceneHistoryGallery({
                     <Grid3X3 className="relative z-10 h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>网格视图</TooltipContent>
+                <TooltipContent>{uiText("网格视图")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="列表视图"
+                    aria-label={uiText("列表视图")}
                     aria-pressed={view === "list"}
                     onClick={() => setView("list")}
                     className={cn(
@@ -2442,7 +2432,7 @@ function SceneHistoryGallery({
                     <List className="relative z-10 h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>列表视图</TooltipContent>
+                <TooltipContent>{uiText("列表视图")}</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -2453,12 +2443,11 @@ function SceneHistoryGallery({
         <div className="flex min-h-52 items-center justify-center rounded-lg bg-muted/35 px-6 text-center">
           <div>
             <ImageIcon className="mx-auto h-5 w-5 text-muted-foreground" />
-            <p className="mt-3 text-sm font-medium">还没有历史结果</p>
-            <p className="mt-1 text-xs text-muted-foreground">套用模板并完成第一次生成后，结果会自动归档。</p>
+            <p className="mt-3 text-sm font-medium">{uiText("还没有历史结果")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{uiText("套用模板并完成第一次生成后，结果会自动归档。")}</p>
             <Button size="sm" className="mt-4 gap-1.5" onClick={onStart}>
               <Sparkles className="h-3.5 w-3.5" />
-              应用并开始生成
-            </Button>
+              {uiText("应用并开始生成")}</Button>
           </div>
         </div>
       ) : view === "grid" ? (
@@ -2509,13 +2498,15 @@ function HistoryGridItem({
   onAddAsExample: (imagePath: string, prompt: string) => void;
   onUseAsReference: (imagePath: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <article className="group overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-ring/60">
       <button
         type="button"
         onClick={() => onLocate(item.job, item.path)}
         className="relative block aspect-square w-full overflow-hidden bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        aria-label={`进入${item.boardName}并定位这张图片`}
+        aria-label={uiText("进入{{ui:0}}并定位这张图片", [item.boardName])}
       >
         {thumbnail ? (
           <img src={thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -2524,8 +2515,7 @@ function HistoryGridItem({
         )}
         <span className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-1.5 bg-black/65 px-3 py-2 text-xs font-medium text-white transition-transform duration-200 group-hover:translate-y-0 group-focus-within:translate-y-0">
           <LayoutGrid className="h-3.5 w-3.5" />
-          进入画板并定位
-        </span>
+          {uiText("进入画板并定位")}</span>
       </button>
       <div className="p-3">
         <p className="line-clamp-2 min-h-10 text-xs leading-5 text-foreground/85">{item.prompt}</p>
@@ -2535,10 +2525,10 @@ function HistoryGridItem({
         </div>
         <p className="mt-1 truncate text-[11px] text-muted-foreground" title={item.boardName}>{item.boardName}</p>
         <div className="mt-3 flex items-center gap-1 border-t border-border pt-2">
-          <ResultAction label="进入画板" icon={LayoutGrid} onClick={() => onLocate(item.job, item.path)} />
-          <ResultAction label="复制为模板示例" icon={CopyPlus} onClick={() => onAddAsExample(item.path, item.prompt)} />
-          <ResultAction label="用作参考图" icon={ImagePlus} onClick={() => onUseAsReference(item.path)} />
-          <ResultAction label="复用参数" icon={RotateCcw} onClick={() => onReuse(item.job)} />
+          <ResultAction label={uiText("进入画板")} icon={LayoutGrid} onClick={() => onLocate(item.job, item.path)} />
+          <ResultAction label={uiText("复制为模板示例")} icon={CopyPlus} onClick={() => onAddAsExample(item.path, item.prompt)} />
+          <ResultAction label={uiText("用作参考图")} icon={ImagePlus} onClick={() => onUseAsReference(item.path)} />
+          <ResultAction label={uiText("复用参数")} icon={RotateCcw} onClick={() => onReuse(item.job)} />
         </div>
       </div>
     </article>
@@ -2560,13 +2550,15 @@ function HistoryListItem({
   onAddAsExample: (imagePath: string, prompt: string) => void;
   onUseAsReference: (imagePath: string) => void;
 }): React.ReactElement {
+  const uiText = useUiText();
+
   return (
     <div className="flex items-center gap-3 py-3">
       <button
         type="button"
         onClick={() => onLocate(item.job, item.path)}
         className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={`进入${item.boardName}并定位这张图片`}
+        aria-label={uiText("进入{{ui:0}}并定位这张图片", [item.boardName])}
       >
         {thumbnail ? (
           <img src={thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -2586,10 +2578,10 @@ function HistoryListItem({
         </div>
       </button>
       <div className="flex shrink-0 items-center gap-1">
-        <ResultAction label="进入画板" icon={LayoutGrid} onClick={() => onLocate(item.job, item.path)} />
-        <ResultAction label="复制为模板示例" icon={CopyPlus} onClick={() => onAddAsExample(item.path, item.prompt)} />
-        <ResultAction label="用作参考图" icon={ImagePlus} onClick={() => onUseAsReference(item.path)} />
-        <ResultAction label="复用参数" icon={RotateCcw} onClick={() => onReuse(item.job)} />
+        <ResultAction label={uiText("进入画板")} icon={LayoutGrid} onClick={() => onLocate(item.job, item.path)} />
+        <ResultAction label={uiText("复制为模板示例")} icon={CopyPlus} onClick={() => onAddAsExample(item.path, item.prompt)} />
+        <ResultAction label={uiText("用作参考图")} icon={ImagePlus} onClick={() => onUseAsReference(item.path)} />
+        <ResultAction label={uiText("复用参数")} icon={RotateCcw} onClick={() => onReuse(item.job)} />
       </div>
     </div>
   );

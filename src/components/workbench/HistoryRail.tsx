@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -14,14 +15,7 @@ import {
 } from "lucide-react";
 import type { GenerationJob, JobStatus, ProviderConfig, VideoGenerationJob } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -75,6 +69,10 @@ interface HistoryRailProps {
   loadThumbnail: (path: string) => Promise<string | undefined>;
   onFocusJob: (job: GenerationJob) => void;
   onReuseJob: (job: GenerationJob) => void;
+  totalHistoryCount?: number;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => Promise<void>;
   onClear: () => Promise<void>;
   onClose: () => void;
 }
@@ -138,6 +136,8 @@ function HistoryItem({
   onFocusJob,
   onReuseJob
 }: HistoryItemProps): React.ReactElement {
+  const uiText = useUiText();
+
   const closeTimerRef = useRef<number | null>(null);
   const meta = statusMeta[job.status] ?? statusMeta.queued;
   const StatusIcon = meta.icon;
@@ -218,7 +218,7 @@ function HistoryItem({
               {job.outputImagePaths.length > 1 ? (
                 <>
                   <span aria-hidden>·</span>
-                  <span className="shrink-0">{job.outputImagePaths.length} 张</span>
+                  <span className="shrink-0">{job.outputImagePaths.length} {uiText("张")}</span>
                 </>
               ) : null}
             </span>
@@ -261,21 +261,20 @@ function HistoryItem({
           ) : null}
 
           <dl className="grid grid-cols-[44px_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs leading-5">
-            <dt className="text-muted-foreground">来源</dt>
+            <dt className="text-muted-foreground">{uiText("来源")}</dt>
             <dd className="truncate text-foreground" title={providerName}>{providerName}</dd>
-            <dt className="text-muted-foreground">模型</dt>
+            <dt className="text-muted-foreground">{uiText("模型")}</dt>
             <dd className="truncate text-foreground" title={model}>{model}</dd>
-            <dt className="text-muted-foreground">任务</dt>
+            <dt className="text-muted-foreground">{uiText("任务")}</dt>
             <dd className="text-foreground">{mode} · {job.input.size}</dd>
-            <dt className="text-muted-foreground">结果</dt>
+            <dt className="text-muted-foreground">{uiText("结果")}</dt>
             <dd className="text-foreground">
-              {job.outputImagePaths.length} 张
-              {duration ? <span className="text-muted-foreground"> · {duration}</span> : null}
+              {job.outputImagePaths.length} {uiText("张")}{duration ? <span className="text-muted-foreground"> · {duration}</span> : null}
             </dd>
             {job.referenceImagePaths.length > 0 ? (
               <>
-                <dt className="text-muted-foreground">参考</dt>
-                <dd className="text-foreground">{job.referenceImagePaths.length} 张图片</dd>
+                <dt className="text-muted-foreground">{uiText("参考")}</dt>
+                <dd className="text-foreground">{job.referenceImagePaths.length} {uiText("张图片")}</dd>
               </>
             ) : null}
           </dl>
@@ -292,8 +291,7 @@ function HistoryItem({
             }}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            复用参数
-          </Button>
+            {uiText("复用参数")}</Button>
           {canFocus ? (
             <Button
               size="sm"
@@ -304,8 +302,7 @@ function HistoryItem({
               }}
             >
               <LocateFixed className="h-3.5 w-3.5" />
-              定位到画布
-            </Button>
+              {uiText("定位到画布")}</Button>
           ) : null}
         </div>
       </PopoverContent>
@@ -322,15 +319,21 @@ export function HistoryRail({
   onFocusJob,
   onReuseJob,
   onClear,
-  onClose
+  onClose,
+  totalHistoryCount,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore
 }: HistoryRailProps): React.ReactElement {
+  const uiText = useUiText();
+
   const reduceMotion = useReducedMotion();
   const [loadedThumbnails, setLoadedThumbnails] = useState<Record<string, string | null>>({});
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const [pinnedJobId, setPinnedJobId] = useState<string | null>(null);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const totalCount = history.length + videoHistory.length;
+  const totalCount = (totalHistoryCount ?? history.length) + videoHistory.length;
 
   useEffect(() => {
     let active = true;
@@ -394,8 +397,8 @@ export function HistoryRail({
         <TooltipProvider delayDuration={150}>
           <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3.5">
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-semibold">历史</span>
-              <span className="text-[11px] tabular-nums text-muted-foreground">{totalCount} 条</span>
+              <span className="text-sm font-semibold">{uiText("历史")}</span>
+              <span className="text-[11px] tabular-nums text-muted-foreground">{totalCount} {uiText("条")}</span>
             </div>
             <div className="flex items-center gap-0.5">
               {totalCount > 0 ? (
@@ -406,15 +409,15 @@ export function HistoryRail({
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={() => setClearDialogOpen(true)}
-                      aria-label="清空生成历史"
+                      aria-label={uiText("清空生成历史")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>清空当前画板的生成历史</TooltipContent>
+                  <TooltipContent>{uiText("清空当前画板的生成历史")}</TooltipContent>
                 </Tooltip>
               ) : null}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label="收起历史">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label={uiText("收起历史")}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -424,8 +427,8 @@ export function HistoryRail({
             {totalCount === 0 ? (
               <div className="flex h-full min-h-40 flex-col items-center justify-center px-6 text-center">
                 <Clock3 className="mb-2 h-5 w-5 text-muted-foreground/70" aria-hidden />
-                <p className="text-sm font-medium text-foreground">暂无生成历史</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">完成生成后，记录会自动出现在这里。</p>
+                <p className="text-sm font-medium text-foreground">{uiText("暂无生成历史")}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("完成生成后，记录会自动出现在这里。")}</p>
               </div>
             ) : (
               <div className="flex flex-col">
@@ -449,6 +452,13 @@ export function HistoryRail({
                     />
                   );
                 })}
+                {hasMore && onLoadMore ? (
+                  <div className="flex justify-center py-3">
+                    <Button variant="ghost" size="sm" disabled={loadingMore} onClick={() => void onLoadMore()}>
+                      {loadingMore ? uiText("正在加载…") : uiText("加载更多")}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -458,13 +468,13 @@ export function HistoryRail({
       <Dialog open={clearDialogOpen} onOpenChange={(open) => !clearing && setClearDialogOpen(open)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>清空当前画板历史？</DialogTitle>
-            <DialogDescription>这会删除当前画板的全部生成记录，但不会删除已经放到画布上的图片。</DialogDescription>
+            <DialogTitle>{uiText("清空当前画板历史？")}</DialogTitle>
+            <DialogDescription>{uiText("这会删除当前画板的全部生成记录，但不会删除已经放到画布上的图片。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setClearDialogOpen(false)} disabled={clearing}>取消</Button>
+            <Button variant="outline" onClick={() => setClearDialogOpen(false)} disabled={clearing}>{uiText("取消")}</Button>
             <Button variant="destructive" onClick={() => void confirmClear()} disabled={clearing}>
-              {clearing ? "清空中…" : "确认清空"}
+              {clearing ? uiText("清空中…") : uiText("确认清空")}
             </Button>
           </DialogFooter>
         </DialogContent>

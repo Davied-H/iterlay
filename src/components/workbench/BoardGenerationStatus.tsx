@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Clock3, LoaderCircle } from "lucide-react";
 import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
@@ -19,6 +20,8 @@ export function BoardGenerationStatus({
   align = "center",
   className
 }: BoardGenerationStatusProps): React.ReactElement | null {
+  const uiText = useUiText();
+
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const closeTimerRef = useRef<number | null>(null);
@@ -129,12 +132,12 @@ export function BoardGenerationStatus({
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-foreground">{statusLabel}</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {countLabel}{queuedCount > 0 && !allQueued ? ` · ${queuedCount} 个排队` : ""} · {allQueued ? "已等待" : "已进行"} {formatElapsed(now - startedAt)}
+              {countLabel}{queuedCount > 0 && !allQueued ? uiText(" · {{ui:0}} 个排队", [queuedCount]) : ""} · {allQueued ? uiText("已等待") : uiText("已进行")} {formatElapsed(now - startedAt)}
             </p>
           </div>
         </div>
         <div className="mt-2.5 border-t border-border/80 pt-2.5">
-          <p className="text-[10px] font-medium text-muted-foreground">{taskCount > 1 ? "最近任务" : "提示词"}</p>
+          <p className="text-[10px] font-medium text-muted-foreground">{taskCount > 1 ? uiText("最近任务") : uiText("提示词")}</p>
           <p className="mt-1 line-clamp-3 break-words text-xs leading-5 text-foreground">
             {latestTask.prompt || "未填写提示词"}
           </p>

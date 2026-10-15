@@ -1,11 +1,12 @@
-import type { ImageWorkbenchApi } from "../../electron/preload/preload";
+import { translateSourceText } from "@/i18n/ui-text";
+import type { ImageWorkbenchApi } from "@shared/workbench-client";
 
 interface ImageWorkbenchHost {
   imageWorkbench?: ImageWorkbenchApi;
 }
 
 export const missingImageWorkbenchMessage =
-  "Electron preload bridge 未加载。请用 pnpm electron:dev 启动桌面应用，不要单独打开 Vite 页面。";
+  "工作台服务尚未连接。网页调试请运行 pnpm dev；桌面调试请运行 pnpm electron:dev。";
 
 export function hasImageWorkbenchApi(
   host: ImageWorkbenchHost = globalThis as ImageWorkbenchHost
@@ -30,13 +31,13 @@ export function getWorkbenchErrorMessage(error: unknown, fallback = "桌面应�
     .trim();
 
   if (/exhausted balance|user is locked[\s\S]*balance/i.test(message)) {
-    return "fal.ai 账户余额不足，请前往 https://fal.ai/dashboard/billing 充值后重试。";
+    return translateSourceText("fal.ai 账户余额不足，请前往 https://fal.ai/dashboard/billing 充值后重试。");
   }
   if (/invalid (?:credentials|api key)|unauthori[sz]ed/i.test(message)) {
-    return "API Key 无效或无权访问，请检查 Provider 配置。";
+    return translateSourceText("API Key 无效或无权访问，请检查 Provider 配置。");
   }
   if (/invalid device public key/i.test(message)) {
-    return "设备验证信息无效，请重启 Iterlay 后重试。";
+    return translateSourceText("设备验证信息无效，请重启 Iterlay 后重试。");
   }
-  return message || fallback;
+  return translateSourceText(message || fallback);
 }

@@ -1,17 +1,8 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import {
-  DefaultResourceLoader,
-  loadSkills,
-  type InlineExtension,
-  type Skill
-} from "@earendil-works/pi-coding-agent";
-import type {
-  AppSettings,
-  PiAgentResourceEntry,
-  PiAgentResourceInventory
-} from "../shared/types.js";
+import { DefaultResourceLoader, loadSkills, type InlineExtension, type Skill } from "./agents/coding-runtime.js";
+import type { AppSettings, PiAgentResourceEntry, PiAgentResourceInventory } from "../shared/types.js";
 import { listMcpTools } from "./mcp-stdio-core.js";
 
 const BUILTIN_TOOLS: PiAgentResourceInventory["builtinTools"] = [

@@ -1,28 +1,9 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  Clock3,
-  FileText,
-  Loader2,
-  MessageSquareText,
-  RefreshCw,
-  Search,
-  Sparkles,
-  Trash2
-} from "lucide-react";
-import type {
-  AssistantMemoryDetail,
-  AssistantMemoryEvidence,
-  AssistantMemoryStats
-} from "@shared/types";
+import { CheckCircle2, Clock3, FileText, Loader2, MessageSquareText, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
+import type { AssistantMemoryDetail, AssistantMemoryEvidence, AssistantMemoryStats } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -88,6 +69,8 @@ export function MemoryManagerDialog({
   onOpenChange,
   onStatsChange
 }: MemoryManagerDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [memories, setMemories] = useState<AssistantMemoryDetail[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -207,8 +190,8 @@ export function MemoryManagerDialog({
       >
         <div className="flex shrink-0 items-center justify-between gap-5 border-b border-border/70 px-6 py-4 pr-14">
           <DialogHeader className="min-w-0">
-            <DialogTitle>记忆管理</DialogTitle>
-            <DialogDescription>查看助手记住了什么，以及每条记忆的生成依据。</DialogDescription>
+            <DialogTitle>{uiText("记忆管理")}</DialogTitle>
+            <DialogDescription>{uiText("查看助手记住了什么，以及每条记忆的生成依据。")}</DialogDescription>
           </DialogHeader>
           <Button
             type="button"
@@ -222,7 +205,7 @@ export function MemoryManagerDialog({
               : memories.length === 0
                 ? <Sparkles className="h-3.5 w-3.5" />
                 : <RefreshCw className="h-3.5 w-3.5" />}
-            {memories.length === 0 ? "一键生成" : "一键整理"}
+            {memories.length === 0 ? uiText("一键生成") : uiText("一键整理")}
           </Button>
         </div>
 
@@ -245,13 +228,13 @@ export function MemoryManagerDialog({
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="搜索记忆或来源"
-                  aria-label="搜索记忆或来源"
+                  placeholder={uiText("搜索记忆或来源")}
+                  aria-label={uiText("搜索记忆或来源")}
                   className="h-8 bg-background pl-8 text-xs"
                 />
               </div>
               <p className="mt-2 px-0.5 text-[11px] text-muted-foreground">
-                {query.trim() ? `${filteredMemories.length} 条匹配` : `共 ${memories.length} 条记忆`}
+                {query.trim() ? uiText("{{ui:0}} 条匹配", [filteredMemories.length]) : uiText("共 {{ui:0}} 条记忆", [memories.length])}
               </p>
             </div>
 
@@ -259,14 +242,13 @@ export function MemoryManagerDialog({
               {loading ? (
                 <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  正在读取记忆…
-                </div>
+                  {uiText("正在读取记忆…")}</div>
               ) : filteredMemories.length === 0 ? (
                 <div className="px-6 py-16 text-center">
                   <FileText className="mx-auto h-5 w-5 text-muted-foreground/60" />
-                  <p className="mt-3 text-xs font-medium">{memories.length === 0 ? "还没有记忆" : "没有匹配的记忆"}</p>
+                  <p className="mt-3 text-xs font-medium">{memories.length === 0 ? uiText("还没有记忆") : uiText("没有匹配的记忆")}</p>
                   <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                    {memories.length === 0 ? "点击一键生成，从已有提示词、生成记录和助手对话中整理。" : "试试搜索提示词、评论或来源类型。"}
+                    {memories.length === 0 ? uiText("点击一键生成，从已有提示词、生成记录和助手对话中整理。") : uiText("试试搜索提示词、评论或来源类型。")}
                   </p>
                 </div>
               ) : (
@@ -291,8 +273,7 @@ export function MemoryManagerDialog({
                         </div>
                         <p className="mt-2 line-clamp-2 break-words text-xs font-medium leading-5">{memory.content}</p>
                         <p className="mt-1.5 truncate text-[10px] text-muted-foreground">
-                          {KIND_LABEL[memory.kind]} · {SCOPE_LABEL[memory.scope]} · {memory.evidenceCount} 条依据
-                        </p>
+                          {KIND_LABEL[memory.kind]} · {SCOPE_LABEL[memory.scope]} · {memory.evidenceCount} {uiText("条依据")}</p>
                       </button>
                     );
                   })}
@@ -328,24 +309,23 @@ export function MemoryManagerDialog({
                       {deletingId === selected.id
                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         : <Trash2 className="h-3.5 w-3.5" />}
-                      删除记忆
-                    </Button>
+                      {uiText("删除记忆")}</Button>
                   </div>
 
                   <section className="border-b border-border/60 py-5">
-                    <h3 className="text-xs font-semibold">如何生成</h3>
+                    <h3 className="text-xs font-semibold">{uiText("如何生成")}</h3>
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">{selected.generationReason}</p>
                     <dl className="mt-4 grid grid-cols-3 gap-4 text-[11px]">
                       <div>
-                        <dt className="text-muted-foreground">可信度</dt>
+                        <dt className="text-muted-foreground">{uiText("可信度")}</dt>
                         <dd className="mt-1 font-medium text-foreground">{Math.round(selected.confidence * 100)}%</dd>
                       </div>
                       <div>
-                        <dt className="text-muted-foreground">强化 / 降权</dt>
+                        <dt className="text-muted-foreground">{uiText("强化 / 降权")}</dt>
                         <dd className="mt-1 font-medium text-foreground">{selected.positiveSignals} / {selected.negativeSignals}</dd>
                       </div>
                       <div>
-                        <dt className="text-muted-foreground">保留至</dt>
+                        <dt className="text-muted-foreground">{uiText("保留至")}</dt>
                         <dd className="mt-1 font-medium text-foreground">{new Date(selected.expiresAt).toLocaleDateString((document.documentElement.lang || "zh-CN"))}</dd>
                       </div>
                     </dl>
@@ -353,8 +333,8 @@ export function MemoryManagerDialog({
 
                   <section className="pt-5">
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xs font-semibold">来源记录</h3>
-                      <span className="text-[11px] text-muted-foreground">{selected.evidence.length} 条</span>
+                      <h3 className="text-xs font-semibold">{uiText("来源记录")}</h3>
+                      <span className="text-[11px] text-muted-foreground">{selected.evidence.length} {uiText("条")}</span>
                     </div>
                     <ol className="mt-4 space-y-0">
                       {selected.evidence.map((evidence, index) => (
@@ -388,8 +368,8 @@ export function MemoryManagerDialog({
               <div className="flex h-full items-center justify-center px-8 text-center">
                 <div>
                   <FileText className="mx-auto h-6 w-6 text-muted-foreground/50" />
-                  <p className="mt-3 text-sm font-medium">选择一条记忆查看详情</p>
-                  <p className="mt-1 text-xs text-muted-foreground">可以查看提炼原因、可信度和完整来源记录。</p>
+                  <p className="mt-3 text-sm font-medium">{uiText("选择一条记忆查看详情")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{uiText("可以查看提炼原因、可信度和完整来源记录。")}</p>
                 </div>
               </div>
             )}

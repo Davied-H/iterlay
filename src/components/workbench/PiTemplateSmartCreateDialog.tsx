@@ -1,3 +1,5 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { Bot, Image as ImageIcon, WandSparkles, X } from "lucide-react";
 import { toast } from "sonner";
@@ -9,14 +11,7 @@ import type {
   SceneAssistantReference
 } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { extractClipboardImageFiles } from "@/lib/clipboard-images";
 import {
@@ -28,11 +23,7 @@ import {
   SCENE_CREATOR_MAX_REFERENCE_COUNT,
   type SceneDraft
 } from "@/lib/scene-creator";
-import {
-  serializeSceneFields,
-  type NewSceneInput,
-  type SceneDefinition
-} from "@/lib/scene-library";
+import { serializeSceneFields, type NewSceneInput, type SceneDefinition } from "@/lib/scene-library";
 import type { SceneGenerationDefaults } from "@/lib/scene-media";
 import type { GenerateTemplateVerification } from "@/lib/template-verification";
 import { canContinuePiTemplateAgentTask, startPiTemplateAgent, updatePiTemplateAgent } from "@/lib/pi-template-agent";
@@ -136,6 +127,8 @@ export function PiTemplateSmartCreateDialog({
   onMediaChange,
   onOpenSettings
 }: PiTemplateSmartCreateDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [brief, setBrief] = useState("");
   const [references, setReferences] = useState<SmartCreateReference[]>([]);
   const referenceInputRef = useRef<HTMLInputElement>(null);
@@ -161,11 +154,11 @@ export function PiTemplateSmartCreateDialog({
     const existing = new Set(references.map((reference) => reference.fingerprint));
     const candidates = files.filter((file) => {
       if (!SUPPORTED_REFERENCE_TYPES.has(file.type)) {
-        toast.error(`“${file.name}”格式不受支持，请使用 PNG、JPEG、WebP 或 GIF。`);
+        toast.error(translateSourceText("“{{ui:0}}”格式不受支持，请使用 PNG、JPEG、WebP 或 GIF。", [file.name]));
         return false;
       }
       if (file.size > MAX_REFERENCE_BYTES) {
-        toast.error(`“${file.name}”超过 20 MB，请压缩后重试。`);
+        toast.error(translateSourceText("“{{ui:0}}”超过 20 MB，请压缩后重试。", [file.name]));
         return false;
       }
       const fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
@@ -212,14 +205,14 @@ export function PiTemplateSmartCreateDialog({
     }));
     if (!requestBrief && requestReferences.length === 0) return;
     if (!canCollaborate || !canOptimize || !generationDefaults.canGenerate || !hasImageWorkbenchApi()) {
-      toast.error("模板智能创建器需要同时配置文本和图片 Provider。");
+      toast.error(translateSourceText("模板智能创建器需要同时配置文本和图片 Provider。"));
       onOpenChange(false);
       onOpenSettings();
       return;
     }
 
     if (!onGenerateVerification) {
-      toast.error("模板验证稿生成入口未就绪，请重新打开应用后重试。");
+      toast.error(translateSourceText("模板验证稿生成入口未就绪，请重新打开应用后重试。"));
       return;
     }
     const task = startPiTemplateAgent("正在理解需求并提取参考图中的风格规则。你可以继续浏览模板库或切换到画板。");
@@ -351,7 +344,7 @@ export function PiTemplateSmartCreateDialog({
           ? "模板智能创建器已确认模板通过复核，验证稿已保存在模板中。"
           : "验证稿已生成，并已根据复核结论保存模板；不会自动重复生成。"
       });
-      toast.success(`模板智能创建器已保存模板「${scene.name}」`);
+      toast.success(translateSourceText("模板智能创建器已保存模板「{{ui:0}}」", [scene.name]));
     } catch (error) {
       if (!canContinuePiTemplateAgentTask(task.id)) return;
       const message = getWorkbenchErrorMessage(error, "模板智能创建失败。");
@@ -382,18 +375,17 @@ export function PiTemplateSmartCreateDialog({
           <DialogHeader className="border-b border-border px-6 py-5 pr-12">
             <DialogTitle className="flex items-center gap-2 text-base">
               <Bot className="h-4 w-4" />
-              模板智能创建
-            </DialogTitle>
-            <DialogDescription>描述目标或提供参考图，系统会在后台提取模板、生成验证稿并复核。</DialogDescription>
+              {uiText("模板智能创建")}</DialogTitle>
+            <DialogDescription>{uiText("描述目标或提供参考图，系统会在后台提取模板、生成验证稿并复核。")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 px-6 py-5">
             <label className="grid gap-2">
-              <span className="text-sm font-semibold">目标需求</span>
+              <span className="text-sm font-semibold">{uiText("目标需求")}</span>
               <Textarea
                 value={brief}
                 onChange={(event) => setBrief(event.target.value)}
-                placeholder="例如：为一组精品咖啡新品海报建立可复用模板，保留杂志式留白和深红色标题系统。"
+                placeholder={uiText("例如：为一组精品咖啡新品海报建立可复用模板，保留杂志式留白和深红色标题系统。")}
                 className="min-h-32 resize-y bg-background text-sm leading-6"
               />
             </label>
@@ -402,14 +394,13 @@ export function PiTemplateSmartCreateDialog({
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 id="smart-create-references-title" className="text-sm font-semibold">参考图</h3>
+                    <h3 id="smart-create-references-title" className="text-sm font-semibold">{uiText("参考图")}</h3>
                     <span className="text-xs tabular-nums text-muted-foreground">
                       {referenceCount} / {SCENE_CREATOR_MAX_REFERENCE_COUNT}
                     </span>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    仅支持 PNG、JPEG、WebP、GIF；可上传或直接粘贴截图，仅提供图片也可开始。
-                  </p>
+                    {uiText("仅支持 PNG、JPEG、WebP、GIF；可上传或直接粘贴截图，仅提供图片也可开始。")}</p>
                 </div>
                 <Button
                   type="button"
@@ -420,12 +411,11 @@ export function PiTemplateSmartCreateDialog({
                   onClick={() => referenceInputRef.current?.click()}
                 >
                   <ImageIcon className="h-3.5 w-3.5" />
-                  上传图片
-                </Button>
+                  {uiText("上传图片")}</Button>
               </div>
 
               {references.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2" role="list" aria-label="已上传参考图">
+                <div className="mt-3 flex flex-wrap gap-2" role="list" aria-label={uiText("已上传参考图")}>
                   {references.map((reference) => (
                     <div key={reference.id} className="group/reference relative h-20 w-20 shrink-0" role="listitem">
                       <img
@@ -436,7 +426,7 @@ export function PiTemplateSmartCreateDialog({
                       <button
                         type="button"
                         className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                        aria-label={`移除参考图 ${reference.name}`}
+                        aria-label={uiText("移除参考图 {{ui:0}}", [reference.name])}
                         onClick={() => setReferences((current) => current.filter((item) => item.id !== reference.id))}
                       >
                         <X className="h-3 w-3" />
@@ -451,16 +441,14 @@ export function PiTemplateSmartCreateDialog({
                   onClick={() => referenceInputRef.current?.click()}
                 >
                   <ImageIcon className="h-4 w-4" />
-                  上传参考图
-                </button>
+                  {uiText("上传参考图")}</button>
               )}
             </section>
           </div>
 
           <DialogFooter className="border-t border-border px-6 py-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button
               type="button"
               className="gap-1.5"
@@ -468,8 +456,7 @@ export function PiTemplateSmartCreateDialog({
               onClick={() => void runAgent()}
             >
               <WandSparkles className="h-3.5 w-3.5" />
-              创建并后台运行
-            </Button>
+              {uiText("创建并后台运行")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

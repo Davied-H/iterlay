@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import {
   useCallback,
   useEffect,
@@ -31,23 +32,10 @@ import {
   ZoomIn
 } from "lucide-react";
 import type { ImageCropRect, SliceSubjectDetection } from "@shared/types";
-import {
-  calculateSliceGridDividers,
-  calculateSliceGridFromDividers,
-  MAX_SLICE_GRID_SIZE
-} from "@shared/image-slicing";
-import {
-  calculateCenteredSubjectCrops,
-  detectSliceSubjects,
-  type SubjectCropAdjustment
-} from "@shared/subject-detection";
+import { calculateSliceGridDividers, calculateSliceGridFromDividers, MAX_SLICE_GRID_SIZE } from "@shared/image-slicing";
+import { calculateCenteredSubjectCrops, detectSliceSubjects, type SubjectCropAdjustment } from "@shared/subject-detection";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
@@ -132,6 +120,8 @@ export function ImageSliceDialog({
   aiAvailable = false,
   aiProviderName = "当前 Provider"
 }: ImageSliceDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const segmentedLayoutId = useId();
   const [rows, setRows] = useState(4);
   const [columns, setColumns] = useState(4);
@@ -433,7 +423,19 @@ export function ImageSliceDialog({
       window.clearTimeout(timer);
       if (analysisRevisionRef.current === revision) analysisRevisionRef.current += 1;
     };
-  }, [constrainToGrid, cropMode, grid.crops, grid.error, gridKey, image?.height, image?.width, imageId, imageLoadRevision, open, subjectAnalysisCrops]);
+  }, [
+    constrainToGrid,
+    cropMode,
+    grid.crops,
+    grid.error,
+    gridKey,
+    image?.height,
+    image?.width,
+    imageId,
+    imageLoadRevision,
+    open,
+    subjectAnalysisCrops
+  ]);
 
   const effectiveDetections = useMemo(() => {
     if (subjectMode === "original") return [];
@@ -454,7 +456,17 @@ export function ImageSliceDialog({
       imageWidth: image?.width,
       imageHeight: image?.height
     });
-  }, [adjustments, constrainToGrid, effectiveDetections, grid.crops, image?.height, image?.width, normalizeScale, paddingPercent, subjectMode]);
+  }, [
+    adjustments,
+    constrainToGrid,
+    effectiveDetections,
+    grid.crops,
+    image?.height,
+    image?.width,
+    normalizeScale,
+    paddingPercent,
+    subjectMode
+  ]);
 
   const selectedCount = selected.size;
   const sliceSizeSummary = useMemo(() => {
@@ -781,7 +793,7 @@ export function ImageSliceDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !submitting && onOpenChange(nextOpen)}>
       <DialogContent className="max-h-[calc(100vh-48px)] max-w-[min(1180px,calc(100vw-48px))] gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">切图</DialogTitle>
+        <DialogTitle className="sr-only">{uiText("切图")}</DialogTitle>
         <div className="grid h-[min(760px,calc(100vh-48px))] min-h-0 grid-cols-[minmax(0,1fr)_340px]">
           <section className="relative flex min-h-0 min-w-0 flex-col bg-muted/35">
             <div
@@ -800,7 +812,7 @@ export function ImageSliceDialog({
                   <img
                     ref={imageRef}
                     src={image.dataUrl}
-                    alt="待切图片"
+                    alt={uiText("待切图片")}
                     crossOrigin="anonymous"
                     className="block h-full w-full select-none"
                     draggable={false}
@@ -828,7 +840,7 @@ export function ImageSliceDialog({
                       <div
                         role="group"
                         tabIndex={0}
-                        aria-label="自由裁切区域"
+                        aria-label={uiText("自由裁切区域")}
                         onKeyDown={nudgeFreeCrop}
                         onPointerDown={(event) => beginFreeCropDrag(event, "move")}
                         onPointerMove={moveFreeCropPointer}
@@ -850,7 +862,7 @@ export function ImageSliceDialog({
                           <button
                             key={handle}
                             type="button"
-                            aria-label={`调整裁切区域${handle}角`}
+                            aria-label={uiText("调整裁切区域{{ui:0}}角", [handle])}
                             onPointerDown={(event) => beginFreeCropDrag(event, "resize", handle)}
                             onPointerMove={moveFreeCropPointer}
                             onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
@@ -882,7 +894,7 @@ export function ImageSliceDialog({
                         key={`${crop.x}-${crop.y}-${index}`}
                         type="button"
                         aria-pressed={active}
-                        aria-label={`${active ? "取消" : "选择"}第 ${index + 1} 格`}
+                        aria-label={uiText("{{ui:0}}第 {{ui:1}} 格", [active ? "取消" : "选择", index + 1])}
                         onClick={() => toggleCell(index)}
                         className={cn(
                           "group/cell absolute transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-white",
@@ -936,7 +948,7 @@ export function ImageSliceDialog({
                       <motion.button
                         key={`subject-crop-${detection.index}`}
                         type="button"
-                        aria-label={`校正第 ${detection.index + 1} 格主体`}
+                        aria-label={uiText("校正第 {{ui:0}} 格主体", [detection.index + 1])}
                         onClick={(event) => {
                           event.stopPropagation();
                           setActiveSubjectIndex(detection.index);
@@ -988,7 +1000,7 @@ export function ImageSliceDialog({
                         key={key}
                         type="button"
                         role="slider"
-                        aria-label={`第 ${index + 1} 条竖向切分线`}
+                        aria-label={uiText("第 {{ui:0}} 条竖向切分线", [index + 1])}
                         aria-valuemin={bounds.min}
                         aria-valuemax={bounds.max}
                         aria-valuenow={divider}
@@ -1033,7 +1045,7 @@ export function ImageSliceDialog({
                         key={key}
                         type="button"
                         role="slider"
-                        aria-label={`第 ${index + 1} 条横向切分线`}
+                        aria-label={uiText("第 {{ui:0}} 条横向切分线", [index + 1])}
                         aria-valuemin={bounds.min}
                         aria-valuemax={bounds.max}
                         aria-valuenow={divider}
@@ -1080,8 +1092,8 @@ export function ImageSliceDialog({
               <div className="absolute bottom-4 right-4 z-30 flex h-9 items-center overflow-hidden rounded-md border border-border bg-background/90 shadow-sm backdrop-blur">
                 <button
                   type="button"
-                  aria-label="缩小预览"
-                  title="缩小预览"
+                  aria-label={uiText("缩小预览")}
+                  title={uiText("缩小预览")}
                   disabled={previewZoom <= MIN_PREVIEW_ZOOM}
                   onClick={() => updatePreviewZoom((current) => current / 1.25)}
                   className="flex h-full w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
@@ -1093,8 +1105,8 @@ export function ImageSliceDialog({
                 </span>
                 <button
                   type="button"
-                  aria-label="放大预览"
-                  title="放大预览"
+                  aria-label={uiText("放大预览")}
+                  title={uiText("放大预览")}
                   disabled={previewZoom >= MAX_PREVIEW_ZOOM}
                   onClick={() => updatePreviewZoom((current) => current * 1.25)}
                   className="flex h-full w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
@@ -1104,8 +1116,8 @@ export function ImageSliceDialog({
                 <div className="h-4 w-px bg-border" />
                 <button
                   type="button"
-                  aria-label="恢复适应窗口"
-                  title="恢复适应窗口"
+                  aria-label={uiText("恢复适应窗口")}
+                  title={uiText("恢复适应窗口")}
                   disabled={previewZoom <= MIN_PREVIEW_ZOOM}
                   onClick={() => updatePreviewZoom(() => MIN_PREVIEW_ZOOM)}
                   className="flex h-full w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
@@ -1120,7 +1132,7 @@ export function ImageSliceDialog({
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
               <div>
                 <div className="flex items-center justify-between gap-3 pr-7">
-                  <Label className="text-xs text-muted-foreground">切图方式</Label>
+                  <Label className="text-xs text-muted-foreground">{uiText("切图方式")}</Label>
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {image?.width ?? 0} × {image?.height ?? 0}
                   </span>
@@ -1142,7 +1154,7 @@ export function ImageSliceDialog({
                       />
                     ) : null}
                     <SquareDashed className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">自由裁切</span>
+                    <span className="relative z-10">{uiText("自由裁切")}</span>
                   </button>
                   <button
                     type="button"
@@ -1160,7 +1172,7 @@ export function ImageSliceDialog({
                       />
                     ) : null}
                     <Grid2X2 className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">宫格切图</span>
+                    <span className="relative z-10">{uiText("宫格切图")}</span>
                   </button>
                 </div>
               </div>
@@ -1177,7 +1189,7 @@ export function ImageSliceDialog({
                   transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
               <div>
-                <Label className="text-xs text-muted-foreground">常用宫格</Label>
+                <Label className="text-xs text-muted-foreground">{uiText("常用宫格")}</Label>
                 <div className="mt-2 grid grid-cols-5 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                   {PRESETS.map((preset) => {
                     const active = rows === preset.rows && columns === preset.columns;
@@ -1207,7 +1219,7 @@ export function ImageSliceDialog({
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="slice-rows" className="text-xs text-muted-foreground">行数</Label>
+                  <Label htmlFor="slice-rows" className="text-xs text-muted-foreground">{uiText("行数")}</Label>
                   <Input
                     id="slice-rows"
                     type="number"
@@ -1219,7 +1231,7 @@ export function ImageSliceDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="slice-columns" className="text-xs text-muted-foreground">列数</Label>
+                  <Label htmlFor="slice-columns" className="text-xs text-muted-foreground">{uiText("列数")}</Label>
                   <Input
                     id="slice-columns"
                     type="number"
@@ -1235,7 +1247,7 @@ export function ImageSliceDialog({
               <div className="my-5 h-px bg-border" />
 
               <div>
-                <Label className="text-xs text-muted-foreground">主体处理</Label>
+                <Label className="text-xs text-muted-foreground">{uiText("主体处理")}</Label>
                 <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                   <button
                     type="button"
@@ -1253,7 +1265,7 @@ export function ImageSliceDialog({
                       />
                     ) : null}
                     <Grid2X2 className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">原宫格</span>
+                    <span className="relative z-10">{uiText("原宫格")}</span>
                   </button>
                   <button
                     type="button"
@@ -1271,7 +1283,7 @@ export function ImageSliceDialog({
                       />
                     ) : null}
                     <ScanSearch className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">本地</span>
+                    <span className="relative z-10">{uiText("本地")}</span>
                   </button>
                   <button
                     type="button"
@@ -1311,21 +1323,21 @@ export function ImageSliceDialog({
                     )}>
                       {subjectMode === "local"
                         ? localStatus === "analyzing"
-                          ? `正在本地识别 ${analysisProgress.completed} / ${analysisProgress.total || grid.crops.length}`
+                          ? uiText("正在本地识别 {{ui:0}} / {{ui:1}}", [analysisProgress.completed, analysisProgress.total || grid.crops.length])
                           : localStatus === "ready"
-                            ? `已识别 ${localDetections.length} / ${grid.crops.length}`
+                            ? uiText("已识别 {{ui:0}} / {{ui:1}}", [localDetections.length, grid.crops.length])
                             : localStatus === "error"
                               ? analysisError || "本地识别失败"
-                              : "等待图片"
+                              : uiText("等待图片")
                         : aiStatus === "analyzing"
-                          ? "正在 AI 识别"
+                          ? uiText("正在 AI 识别")
                           : aiStatus === "ready"
                             ? `AI ${aiDetections.length} / ${grid.crops.length}`
                             : aiStatus === "error"
                               ? analysisError || "AI 识别失败"
                               : aiAvailable
                                 ? aiProviderName
-                                : "Provider 未就绪"}
+                                : uiText("Provider 未就绪")}
                     </span>
                     {subjectMode === "local" ? (
                       <Button
@@ -1337,8 +1349,7 @@ export function ImageSliceDialog({
                         onClick={() => setImageLoadRevision((current) => current + 1)}
                       >
                         {localStatus === "analyzing" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                        重识别
-                      </Button>
+                        {uiText("重识别")}</Button>
                     ) : (
                       <Button
                         type="button"
@@ -1349,7 +1360,7 @@ export function ImageSliceDialog({
                         onClick={() => void analyzeWithAi()}
                       >
                         {aiStatus === "analyzing" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                        {aiStatus === "ready" ? "重新识别" : "AI 识别"}
+                        {aiStatus === "ready" ? uiText("重新识别") : uiText("AI 识别")}
                       </Button>
                     )}
                   </div>
@@ -1357,7 +1368,7 @@ export function ImageSliceDialog({
                   {(subjectMode === "local" ? localStatus : aiStatus) === "analyzing" ? (
                     <div
                       role="progressbar"
-                      aria-label={subjectMode === "local" ? "本地主体识别进度" : "AI 主体识别进度"}
+                      aria-label={subjectMode === "local" ? uiText("本地主体识别进度") : uiText("AI 主体识别进度")}
                       aria-valuemin={0}
                       aria-valuemax={analysisProgress.total || grid.crops.length}
                       aria-valuenow={subjectMode === "local" ? analysisProgress.completed : undefined}
@@ -1389,15 +1400,14 @@ export function ImageSliceDialog({
                   {lowConfidenceCount > 0 ? (
                     <div className="flex items-center gap-1.5 text-xs text-destructive">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      {lowConfidenceCount} 格需要校正
-                    </div>
+                      {lowConfidenceCount} {uiText("格需要校正")}</div>
                   ) : null}
 
                   <div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="slice-subject-padding">主体留白</Label>
+                      <Label htmlFor="slice-subject-padding">{uiText("主体留白")}</Label>
                       <span className="text-xs font-medium tabular-nums">
-                        {paddingPercent}%{boundaryLimitedCount > 0 ? ` · ${boundaryLimitedCount} 格触边` : ""}
+                        {paddingPercent}%{boundaryLimitedCount > 0 ? uiText(" · {{ui:0}} 格触边", [boundaryLimitedCount]) : ""}
                       </span>
                     </div>
                     <input
@@ -1413,7 +1423,7 @@ export function ImageSliceDialog({
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="slice-normalize-scale" className="text-foreground">统一主体大小</Label>
+                    <Label htmlFor="slice-normalize-scale" className="text-foreground">{uiText("统一主体大小")}</Label>
                     <Switch
                       id="slice-normalize-scale"
                       checked={normalizeScale}
@@ -1422,7 +1432,7 @@ export function ImageSliceDialog({
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="slice-constrain-grid" className="text-foreground">限制在宫格内</Label>
+                    <Label htmlFor="slice-constrain-grid" className="text-foreground">{uiText("限制在宫格内")}</Label>
                     <Switch
                       id="slice-constrain-grid"
                       checked={constrainToGrid}
@@ -1435,7 +1445,7 @@ export function ImageSliceDialog({
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-1.5 text-xs font-medium">
                           <Move className="h-3.5 w-3.5" />
-                          单格校正 · {activeSubjectIndex + 1}
+                          {uiText("单格校正 · ")}{activeSubjectIndex + 1}
                         </div>
                         <Button
                           type="button"
@@ -1450,13 +1460,12 @@ export function ImageSliceDialog({
                           })}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
-                          重置
-                        </Button>
+                          {uiText("重置")}</Button>
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
                         <input
-                          aria-label={`第 ${activeSubjectIndex + 1} 格缩放`}
+                          aria-label={uiText("第 {{ui:0}} 格缩放", [activeSubjectIndex + 1])}
                           type="range"
                           min={75}
                           max={175}
@@ -1480,7 +1489,7 @@ export function ImageSliceDialog({
               <div className="my-5 h-px bg-border" />
 
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">切分线</Label>
+                <Label className="text-xs text-muted-foreground">{uiText("切分线")}</Label>
                 <Button
                   type="button"
                   variant="ghost"
@@ -1490,12 +1499,11 @@ export function ImageSliceDialog({
                   className="h-7 gap-1.5 px-2"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  恢复等分
-                </Button>
+                  {uiText("恢复等分")}</Button>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="slice-margin" className="text-xs text-muted-foreground">外边距</Label>
+                  <Label htmlFor="slice-margin" className="text-xs text-muted-foreground">{uiText("外边距")}</Label>
                   <Input
                     id="slice-margin"
                     type="number"
@@ -1506,7 +1514,7 @@ export function ImageSliceDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="slice-gap" className="text-xs text-muted-foreground">图片间距</Label>
+                  <Label htmlFor="slice-gap" className="text-xs text-muted-foreground">{uiText("图片间距")}</Label>
                   <Input
                     id="slice-gap"
                     type="number"
@@ -1522,27 +1530,24 @@ export function ImageSliceDialog({
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">选区</Label>
+                  <Label className="text-xs text-muted-foreground">{uiText("选区")}</Label>
                   <span className="text-xs font-medium tabular-nums">{selectedCount} / {rows * columns}</span>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-1">
                   <Button type="button" variant="outline" size="sm" onClick={selectAll} disabled={selectedCount === rows * columns}>
                     <CheckCheck className="h-3.5 w-3.5" />
-                    全选
-                  </Button>
+                    {uiText("全选")}</Button>
                   <Button type="button" variant="outline" size="sm" onClick={invertSelection}>
                     <Shuffle className="h-3.5 w-3.5" />
-                    反选
-                  </Button>
+                    {uiText("反选")}</Button>
                   <Button type="button" variant="outline" size="sm" onClick={clearSelection} disabled={selectedCount === 0}>
                     <SquareDashed className="h-3.5 w-3.5" />
-                    清空
-                  </Button>
+                    {uiText("清空")}</Button>
                 </div>
               </div>
 
               <div className="mt-5">
-                <Label className="text-xs text-muted-foreground">结果排列</Label>
+                <Label className="text-xs text-muted-foreground">{uiText("结果排列")}</Label>
                 <div className="mt-2 grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                   <button
                     type="button"
@@ -1560,7 +1565,7 @@ export function ImageSliceDialog({
                       />
                     ) : null}
                     <LayoutGrid className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">紧凑排列</span>
+                    <span className="relative z-10">{uiText("紧凑排列")}</span>
                   </button>
                   <button
                     type="button"
@@ -1578,17 +1583,17 @@ export function ImageSliceDialog({
                       />
                     ) : null}
                     <SquareDashed className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">保留宫格</span>
+                    <span className="relative z-10">{uiText("保留宫格")}</span>
                   </button>
                 </div>
               </div>
 
               <div className="mt-5 flex items-center justify-between border-t border-border pt-4 text-xs">
-                <span className="text-muted-foreground">切片尺寸</span>
+                <span className="text-muted-foreground">{uiText("切片尺寸")}</span>
                 <span className="font-medium tabular-nums">{sliceSizeSummary}</span>
               </div>
               <div className="mt-3 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">输出格式</span>
+                <span className="text-muted-foreground">{uiText("输出格式")}</span>
                 <span className="font-medium">PNG</span>
               </div>
               {grid.error ? <p className="mt-4 text-xs leading-5 text-destructive">{grid.error}</p> : null}
@@ -1602,7 +1607,7 @@ export function ImageSliceDialog({
                   transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <Label className="text-xs text-muted-foreground">裁切区域</Label>
+                    <Label className="text-xs text-muted-foreground">{uiText("裁切区域")}</Label>
                     <Button
                       type="button"
                       variant="ghost"
@@ -1611,14 +1616,13 @@ export function ImageSliceDialog({
                       onClick={() => setFreeCrop(createInitialFreeCrop(image?.width ?? 1, image?.height ?? 1))}
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
-                      恢复默认
-                    </Button>
+                      {uiText("恢复默认")}</Button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     {(["x", "y", "width", "height"] as const).map((field) => (
                       <div key={field} className="space-y-2">
                         <Label htmlFor={`free-crop-${field}`}>
-                          {field === "x" ? "X" : field === "y" ? "Y" : field === "width" ? "宽度" : "高度"}
+                          {field === "x" ? "X" : field === "y" ? "Y" : field === "width" ? uiText("宽度") : uiText("高度")}
                         </Label>
                         <Input
                           id={`free-crop-${field}`}
@@ -1633,11 +1637,11 @@ export function ImageSliceDialog({
                   </div>
 
                   <div className="mt-5 flex items-center justify-between border-t border-border pt-4 text-xs">
-                    <span className="text-muted-foreground">输出尺寸</span>
+                    <span className="text-muted-foreground">{uiText("输出尺寸")}</span>
                     <span className="font-medium tabular-nums">{freeCrop.width} × {freeCrop.height}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">输出格式</span>
+                    <span className="text-muted-foreground">{uiText("输出格式")}</span>
                     <span className="font-medium">PNG</span>
                   </div>
                 </motion.div>
@@ -1647,16 +1651,14 @@ export function ImageSliceDialog({
 
             <DialogFooter className="relative z-30 shrink-0 border-t border-border bg-popover/95 p-4 shadow-[0_-4px_8px_rgba(0,0,0,0.05)] backdrop-blur-sm">
               <Button variant="outline" disabled={submitting} onClick={() => onOpenChange(false)}>
-                取消
-              </Button>
+                {uiText("取消")}</Button>
               <Button
                 disabled={cropMode === "grid" ? Boolean(grid.error) || selectedCount === 0 || submitting : submitting}
                 onClick={() => void confirm()}
                 className="gap-2"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
-                切出 {cropMode === "free" ? 1 : selectedCount} 张
-              </Button>
+                {uiText("切出 ")}{cropMode === "free" ? 1 : selectedCount} {uiText("张")}</Button>
             </DialogFooter>
           </aside>
         </div>

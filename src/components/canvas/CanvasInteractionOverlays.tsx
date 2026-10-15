@@ -1,4 +1,15 @@
-import { forwardRef, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
+import { useUiText } from "@/i18n";
+import {
+  forwardRef,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type ComponentType,
+  type KeyboardEvent,
+  type ReactNode
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
@@ -77,6 +88,8 @@ export function CanvasNodeCreateMenu({
   title = "创建节点",
   className
 }: CanvasNodeCreateMenuProps): React.ReactElement {
+  const uiText = useUiText();
+
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const menuItems = useMemo(() => items ? [...items] : registeredCanvasCreateItems(types), [items, types]);
@@ -141,7 +154,7 @@ export function CanvasNodeCreateMenu({
           </button>
         );
       }) : (
-        <p className="px-2 py-3 text-xs text-muted-foreground">暂无可创建的节点</p>
+        <p className="px-2 py-3 text-xs text-muted-foreground">{uiText("暂无可创建的节点")}</p>
       )}
     </div>
   );
@@ -174,6 +187,8 @@ export function CanvasZoomToolbar({
   step = 0.05,
   className
 }: CanvasZoomToolbarProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [collapsed, setCollapsed] = useState(false);
   const reduceMotion = Boolean(useReducedMotion());
   const boundedZoom = clamp(zoom, minZoom, maxZoom);
@@ -183,7 +198,7 @@ export function CanvasZoomToolbar({
       <motion.div
         layout
         role="toolbar"
-        aria-label="画布缩放和导航"
+        aria-label={uiText("画布缩放和导航")}
         data-tour="zoom"
         data-canvas-zoom-toolbar=""
         data-collapsed={collapsed || undefined}
@@ -205,10 +220,10 @@ export function CanvasZoomToolbar({
               exit={reduceMotion ? { opacity: 0 } : { width: 0, opacity: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
             >
-              <OverlayIconButton label="缩小" onClick={() => onZoomChange(clamp(boundedZoom - step, minZoom, maxZoom))}><ZoomOut /></OverlayIconButton>
+              <OverlayIconButton label={uiText("缩小")} onClick={() => onZoomChange(clamp(boundedZoom - step, minZoom, maxZoom))}><ZoomOut /></OverlayIconButton>
               <input
                 type="range"
-                aria-label="画布缩放"
+                aria-label={uiText("画布缩放")}
                 aria-valuetext={`${percentage}%`}
                 min={minZoom}
                 max={maxZoom}
@@ -217,26 +232,26 @@ export function CanvasZoomToolbar({
                 className="mx-1 h-1 w-[72px] shrink-0 cursor-pointer accent-foreground"
                 onChange={(event) => onZoomChange(clamp(event.currentTarget.valueAsNumber, minZoom, maxZoom), true)}
               />
-              <OverlayIconButton label="放大" onClick={() => onZoomChange(clamp(boundedZoom + step, minZoom, maxZoom))}><ZoomIn /></OverlayIconButton>
+              <OverlayIconButton label={uiText("放大")} onClick={() => onZoomChange(clamp(boundedZoom + step, minZoom, maxZoom))}><ZoomIn /></OverlayIconButton>
               <button
                 type="button"
-                aria-label={`当前缩放 ${percentage}%`}
+                aria-label={uiText("当前缩放 {{ui:0}}%", [percentage])}
                 className="h-7 w-10 shrink-0 rounded text-center text-[10px] font-medium tabular-nums text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onZoomChange(clamp(1, minZoom, maxZoom))}
-                title="重置为 100%"
+                title={uiText("重置为 100%")}
               >
                 {percentage}%
               </button>
               <span aria-hidden className="mx-px h-4 w-px shrink-0 bg-border" />
-              <OverlayIconButton label="适配全部" onClick={onFitAll}><Maximize2 /></OverlayIconButton>
-              <OverlayIconButton label="适配所选" disabled={!hasSelection} onClick={onFitSelection}><Focus /></OverlayIconButton>
-              <OverlayIconButton label={miniMapOpen ? "关闭小地图" : "打开小地图"} pressed={miniMapOpen} onClick={onToggleMiniMap}><Map /></OverlayIconButton>
+              <OverlayIconButton label={uiText("适配全部")} onClick={onFitAll}><Maximize2 /></OverlayIconButton>
+              <OverlayIconButton label={uiText("适配所选")} disabled={!hasSelection} onClick={onFitSelection}><Focus /></OverlayIconButton>
+              <OverlayIconButton label={miniMapOpen ? uiText("关闭小地图") : uiText("打开小地图")} pressed={miniMapOpen} onClick={onToggleMiniMap}><Map /></OverlayIconButton>
               <span aria-hidden className="mx-px h-4 w-px shrink-0 bg-border" />
             </motion.div>
           ) : null}
         </AnimatePresence>
         <OverlayIconButton
-          label={collapsed ? "展开缩放工具栏" : "收起缩放工具栏"}
+          label={collapsed ? uiText("展开缩放工具栏") : uiText("收起缩放工具栏")}
           onClick={() => setCollapsed((current) => !current)}
         >
           {collapsed ? <ChevronsRight /> : <ChevronsLeft />}
@@ -256,6 +271,8 @@ export interface CanvasContextMenuProps {
 }
 
 export function CanvasContextMenu({ anchor, target, onDelete, onClose, onCopy, className }: CanvasContextMenuProps): React.ReactElement {
+  const uiText = useUiText();
+
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const boundedAnchor = clampViewportAnchor(anchor, 168, onCopy ? 80 : 48);
@@ -271,7 +288,7 @@ export function CanvasContextMenu({ anchor, target, onDelete, onClose, onCopy, c
     <div
       ref={rootRef}
       role="menu"
-      aria-label={`${target === "node" ? "节点" : "连线"}操作`}
+      aria-label={uiText("{{ui:0}}操作", [target === "node" ? "节点" : "连线"])}
       data-canvas-context-menu={target}
       className={cn(
         "canvas-overlay-menu nodrag nopan nowheel fixed min-w-40 select-none rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md",
@@ -295,12 +312,10 @@ export function CanvasContextMenu({ anchor, target, onDelete, onClose, onCopy, c
     >
       {onCopy ? (
         <ContextMenuButton ref={(button) => { buttonsRef.current[0] = button; }} icon={<CopyPlus />} onClick={() => run(onCopy)}>
-          复制
-        </ContextMenuButton>
+          {uiText("复制")}</ContextMenuButton>
       ) : null}
       <ContextMenuButton ref={(button) => { buttonsRef.current[onCopy ? 1 : 0] = button; }} icon={<Trash2 />} danger onClick={() => run(onDelete)}>
-        删除
-      </ContextMenuButton>
+        {uiText("删除")}</ContextMenuButton>
     </div>
   );
 }

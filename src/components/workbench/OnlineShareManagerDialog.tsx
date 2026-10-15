@@ -1,26 +1,12 @@
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
 import { useEffect, useState } from "react";
-import {
-  Copy,
-  Image as ImageIcon,
-  Images,
-  Loader2,
-  LocateFixed,
-  Radio,
-  Sticker,
-  Unplug
-} from "lucide-react";
+import { Copy, Image as ImageIcon, Images, Loader2, LocateFixed, Radio, Sticker, Unplug } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import type { OnlineShareCanvasOrigin, OnlineShareSession } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 
 interface OnlineShareManagerDialogProps {
@@ -34,6 +20,8 @@ export function OnlineShareManagerDialog({
   onOpenChange,
   onLocate
 }: OnlineShareManagerDialogProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [session, setSession] = useState<OnlineShareSession | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,7 +68,7 @@ export function OnlineShareManagerDialog({
       await getImageWorkbenchApi().stopOnlineShare();
       setSession(null);
       setQrDataUrl("");
-      toast.success("在线分享已关闭");
+      toast.success(translateSourceText("在线分享已关闭"));
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "无法关闭在线分享。"));
     } finally {
@@ -92,22 +80,20 @@ export function OnlineShareManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>在线分享管理</DialogTitle>
+          <DialogTitle>{uiText("在线分享管理")}</DialogTitle>
           <DialogDescription>
-            管理由 Manager 网络能力维持的在线连接。退出 Iterlay 时会自动关闭。
-          </DialogDescription>
+            {uiText("管理由 Manager 网络能力维持的在线连接。退出 Iterlay 时会自动关闭。")}</DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-            正在读取分享状态
-          </div>
+            {uiText("正在读取分享状态")}</div>
         ) : session ? (
           <div className="grid grid-cols-[176px_minmax(0,1fr)] gap-7 border-y border-border py-6">
             <div className="flex items-start justify-center">
               <div className="rounded-md bg-white p-2.5 shadow-sm">
-                {qrDataUrl ? <img src={qrDataUrl} alt="当前在线分享二维码" className="h-[156px] w-[156px]" /> : null}
+                {qrDataUrl ? <img src={qrDataUrl} alt={uiText("当前在线分享二维码")} className="h-[156px] w-[156px]" /> : null}
               </div>
             </div>
             <div className="min-w-0 py-1.5">
@@ -116,8 +102,7 @@ export function OnlineShareManagerDialog({
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(var(--helper-line))] opacity-30 motion-reduce:animate-none" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--helper-line))]" />
                 </span>
-                在线连接中
-              </div>
+                {uiText("在线连接中")}</div>
               <div className="mt-3 flex items-center gap-2">
                 {session.kind === "image"
                   ? <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -136,30 +121,28 @@ export function OnlineShareManagerDialog({
                       ? <Images className="h-4 w-4" />
                       : <LocateFixed className="h-4 w-4" />}
                     {session.origin.nodeIds.length > 1
-                      ? `回到画板并选中 ${session.origin.nodeIds.length} 张图片`
-                      : "回到分享图片"}
+                      ? uiText("回到画板并选中 {{ui:0}} 张图片", [session.origin.nodeIds.length])
+                      : uiText("回到分享图片")}
                   </Button>
                 ) : null}
                 <Button
                   variant="outline"
                   onClick={() => {
                     void navigator.clipboard.writeText(session.url);
-                    toast.success("分享链接已复制");
+                    toast.success(translateSourceText("分享链接已复制"));
                   }}
                 >
                   <Copy className="h-4 w-4" />
-                  复制链接
-                </Button>
+                  {uiText("复制链接")}</Button>
               </div>
             </div>
           </div>
         ) : (
           <div className="flex min-h-52 flex-col items-center justify-center border-y border-border text-center">
             <Radio className="h-7 w-7 text-muted-foreground/70" />
-            <p className="mt-3 text-sm font-medium text-foreground">当前没有在线分享</p>
+            <p className="mt-3 text-sm font-medium text-foreground">{uiText("当前没有在线分享")}</p>
             <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
-              生成单图或表情包二维码后，连接会显示在这里。
-            </p>
+              {uiText("生成单图或表情包二维码后，连接会显示在这里。")}</p>
           </div>
         )}
 
@@ -169,10 +152,10 @@ export function OnlineShareManagerDialog({
               {stopping
                 ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                 : <Unplug className="h-4 w-4" />}
-              {stopping ? "正在关闭" : "关闭在线分享"}
+              {stopping ? uiText("正在关闭") : uiText("关闭在线分享")}
             </Button>
           ) : (
-            <Button onClick={() => onOpenChange(false)}>完成</Button>
+            <Button onClick={() => onOpenChange(false)}>{uiText("完成")}</Button>
           )}
         </DialogFooter>
       </DialogContent>

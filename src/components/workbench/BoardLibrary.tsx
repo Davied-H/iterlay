@@ -1,10 +1,7 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type DragEvent as ReactDragEvent
-} from "react";
+import { translateSourceText } from "@/i18n/ui-text";
+import { useUiText } from "@/i18n";
+import { useBoardLibraryWindow } from "@/features/boards/use-board-library-window";
+import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import {
   ArrowDownUp,
   Check,
@@ -29,30 +26,14 @@ import { LiaEdit } from "react-icons/lia";
 import { toast } from "sonner";
 import type { BoardEnterOrigin, BoardSummary } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { partitionBoardImportFiles } from "@/components/workbench/board-import";
 import { LibraryFilterTabs } from "@/components/workbench/LibraryFilterTabs";
 import "./board-library.css";
 import { cn } from "@/lib/utils";
-import {
-  groupActiveBoardGenerations,
-  type ActiveBoardGeneration
-} from "@/lib/active-board-generation";
+import { groupActiveBoardGenerations, type ActiveBoardGeneration } from "@/lib/active-board-generation";
 
 interface BoardLibraryProps {
   boards: BoardSummary[];
@@ -94,6 +75,8 @@ export function BoardLibrary({
   onInteractionLockChange,
   onClose
 }: BoardLibraryProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [renameInitialValue, setRenameInitialValue] = useState("");
@@ -133,6 +116,11 @@ export function BoardLibrary({
     }),
     [filter, normalizedQuery, sortedBoards]
   );
+  const boardWindow = useBoardLibraryWindow(
+    filteredBoards.length, view, `${normalizedQuery}|${filter}|${sort}`,
+    filteredBoards.findIndex((board) => board.id === renamingId)
+  );
+  const visibleBoards = filteredBoards.slice(boardWindow.start, boardWindow.end);
   const boardCounts = useMemo(() => ({
     all: boards.length,
     empty: boards.filter((board) => board.imageCount === 0).length
@@ -177,7 +165,7 @@ export function BoardLibrary({
   function commitRename(): void {
     const nextName = renameValue.trim();
     if (!nextName) {
-      toast.error("画板名称不能为空，已保留原名称");
+      toast.error(translateSourceText("画板名称不能为空，已保留原名称"));
       cancelRename();
       return;
     }
@@ -248,10 +236,10 @@ export function BoardLibrary({
 
     const { accepted, rejected } = partitionBoardImportFiles(Array.from(event.dataTransfer.files));
     if (accepted.length === 0) {
-      if (rejected.length > 0) toast.error("只支持 .itb 画板文件");
+      if (rejected.length > 0) toast.error(translateSourceText("只支持 .itb 画板文件"));
       return;
     }
-    if (rejected.length > 0) toast.warning(`已忽略 ${rejected.length} 个非 .itb 文件`);
+    if (rejected.length > 0) toast.warning(translateSourceText("已忽略 {{ui:0}} 个非 .itb 文件", [rejected.length]));
 
     setImportingCount(accepted.length);
     try {
@@ -304,7 +292,7 @@ export function BoardLibrary({
             variant="ghost"
             size="icon"
             className="h-8 w-8 shrink-0 opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
-            aria-label={`画板 ${board.name} 操作`}
+            aria-label={uiText("画板 {{ui:0}} 操作", [board.name])}
             disabled={interactionLocked}
           >
             <MoreHorizontal className="h-4 w-4" />
@@ -313,24 +301,20 @@ export function BoardLibrary({
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => startRename(board)}>
             <Pencil className="h-4 w-4" />
-            重命名
-          </DropdownMenuItem>
+            {uiText("重命名")}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onDuplicateBoard(board.id)}>
             <Copy className="h-4 w-4" />
-            创建副本
-          </DropdownMenuItem>
+            {uiText("创建副本")}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onExportBoard(board.id)}>
             <Download className="h-4 w-4" />
-            导出 .itb
-          </DropdownMenuItem>
+            {uiText("导出 .itb")}</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onSelect={() => setDeleteTarget(board)}
           >
             <Trash2 className="h-4 w-4" />
-            移入回收站
-          </DropdownMenuItem>
+            {uiText("移入回收站")}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -356,9 +340,9 @@ export function BoardLibrary({
             else boardRowRefs.current.delete(board.id);
           }}
           type="button"
-          aria-label={`打开画板 ${board.name}`}
+          aria-label={uiText("打开画板 {{ui:0}}", [board.name])}
           aria-busy={isOpening}
-          title={`打开画板 ${board.name}`}
+          title={uiText("打开画板 {{ui:0}}", [board.name])}
           disabled={interactionLocked || isRenaming}
           onPointerEnter={() => onPrefetchBoard(board.id)}
           onFocus={() => onPrefetchBoard(board.id)}
@@ -372,13 +356,11 @@ export function BoardLibrary({
           {isActive ? (
             <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-foreground/90 px-1.5 py-1 text-[10px] font-medium leading-none text-background shadow-sm">
               <Check className="h-3 w-3" />
-              当前画板
-            </span>
+              {uiText("当前画板")}</span>
           ) : null}
           {!isActive && boardGenerations.length > 0 ? (
             <span data-board-generation-badge className="absolute left-2 top-2 rounded-md bg-background/90 px-1.5 py-1 text-[10px] font-medium leading-none text-[hsl(var(--helper-line))] shadow-sm">
-              生成中
-            </span>
+              {uiText("生成中")}</span>
           ) : null}
         </button>
 
@@ -395,7 +377,7 @@ export function BoardLibrary({
                   if (event.key === "Enter") commitRename();
                   if (event.key === "Escape") cancelRename();
                 }}
-                aria-label={`重命名画板 ${board.name}`}
+                aria-label={uiText("重命名画板 {{ui:0}}", [board.name])}
                 className="h-7 px-2 text-xs"
               />
             ) : (
@@ -404,8 +386,8 @@ export function BoardLibrary({
                   <strong className="truncate text-xs font-medium text-foreground">{board.name}</strong>
                   <button
                     type="button"
-                    aria-label={`重命名画板 ${board.name}`}
-                    title="编辑画板名称"
+                    aria-label={uiText("重命名画板 {{ui:0}}", [board.name])}
+                    title={uiText("编辑画板名称")}
                     disabled={interactionLocked}
                     onClick={() => startRename(board)}
                     className="grid h-6 w-6 shrink-0 place-items-center rounded text-muted-foreground/70 opacity-0 transition-[opacity,color,background-color] hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
@@ -414,7 +396,7 @@ export function BoardLibrary({
                   </button>
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] tabular-nums text-muted-foreground">
-                  {board.imageCount} 张图片 · {formatRelativeTime(board.updatedAt)}
+                  {board.imageCount} {uiText("张图片 · ")}{formatRelativeTime(board.updatedAt)}
                 </span>
               </>
             )}
@@ -440,9 +422,9 @@ export function BoardLibrary({
         inert={isFileDragActive || isImporting ? true : undefined}
         className="window-titlebar-overlay-safe flex h-11 shrink-0 items-center gap-2 border-b border-border/80 px-4 [-webkit-app-region:drag]"
       >
-        <span className="text-sm font-semibold">画板库</span>
+        <span className="text-sm font-semibold">{uiText("画板库")}</span>
         <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
-          {normalizedQuery || filter !== "all" ? `${filteredBoards.length} 个结果` : `${boards.length} 个画板`}
+          {normalizedQuery || filter !== "all" ? uiText("{{ui:0}} 个结果", [filteredBoards.length]) : uiText("{{ui:0}} 个画板", [boards.length])}
         </span>
 
         <div data-tour="library-actions" className="ml-auto flex items-center gap-2 [-webkit-app-region:no-drag]">
@@ -458,18 +440,17 @@ export function BoardLibrary({
             ) : (
               <Upload className="h-4 w-4" />
             )}
-            {isImporting ? "导入中" : "导入"}
+            {isImporting ? uiText("导入中") : uiText("导入")}
           </Button>
             <Button size="sm" className="gap-1.5" disabled={interactionLocked} onClick={onCreateBoard}>
               <Plus className="h-4 w-4" />
-              新建画板
-            </Button>
+              {uiText("新建画板")}</Button>
         </div>
       </header>
 
       <div inert={isFileDragActive || isImporting ? true : undefined} className="min-h-0 flex flex-1 overflow-hidden">
           <section className="flex min-w-0 flex-1 flex-col bg-muted/20" aria-labelledby="all-boards-heading">
-            <h2 id="all-boards-heading" className="sr-only">{normalizedQuery ? "搜索结果" : "所有画板"}</h2>
+            <h2 id="all-boards-heading" className="sr-only">{normalizedQuery ? uiText("搜索结果") : uiText("所有画板")}</h2>
               <div data-board-controls className="flex shrink-0 items-center justify-between gap-4">
                 <LibraryFilterTabs
                   value={filter}
@@ -484,7 +465,7 @@ export function BoardLibrary({
                 <div className="board-library-tools flex items-center gap-3">
                 {hasCustomizedView ? <Button
                   variant="ghost" size="icon" className="h-8 w-8 shrink-0"
-                  aria-label="重置筛选与排序" title="重置筛选与排序" disabled={interactionLocked}
+                  aria-label={uiText("重置筛选与排序")} title={uiText("重置筛选与排序")} disabled={interactionLocked}
                   onClick={() => { setQuery(""); setFilter("all"); setSort("updated"); }}
                 ><RotateCcw className="h-3.5 w-3.5" /></Button> : null}
                 <div className="board-library-search flex h-8 min-w-0 items-center gap-2 rounded-md border border-input px-2.5 text-muted-foreground focus-within:ring-2 focus-within:ring-ring">
@@ -494,15 +475,15 @@ export function BoardLibrary({
                     value={query}
                     disabled={interactionLocked}
                     onChange={(event) => setQuery(event.target.value)}
-                    aria-label="搜索画板"
-                    placeholder="搜索画板"
+                    aria-label={uiText("搜索画板")}
+                    placeholder={uiText("搜索画板")}
                     className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                   />
                   {query ? (
                     <button
                       type="button"
-                      aria-label="清除搜索"
-                      title="清除搜索"
+                      aria-label={uiText("清除搜索")}
+                      title={uiText("清除搜索")}
                       disabled={interactionLocked}
                       onClick={() => setQuery("")}
                       className="grid h-6 w-6 shrink-0 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -520,8 +501,8 @@ export function BoardLibrary({
                         variant="ghost"
                         size="sm"
                         className="h-7 gap-1.5 px-2 text-[11px] font-medium text-muted-foreground"
-                        aria-label={`画板排序：${sortLabel}`}
-                        title={`画板排序：${sortLabel}`}
+                        aria-label={uiText("画板排序：{{ui:0}}", [sortLabel])}
+                        title={uiText("画板排序：{{ui:0}}", [sortLabel])}
                         disabled={interactionLocked}
                       >
                         <ArrowDownUp className="h-3.5 w-3.5" />
@@ -542,12 +523,12 @@ export function BoardLibrary({
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                <div className="flex rounded-md border border-border bg-background p-0.5" role="group" aria-label="画板视图">
+                <div className="flex rounded-md border border-border bg-background p-0.5" role="group" aria-label={uiText("画板视图")}>
                   <button
                     type="button"
-                    aria-label="列表模式"
+                    aria-label={uiText("列表模式")}
                     aria-pressed={view === "list"}
-                    title="列表模式"
+                    title={uiText("列表模式")}
                     disabled={interactionLocked}
                     onClick={() => setView("list")}
                     className={cn(
@@ -559,9 +540,9 @@ export function BoardLibrary({
                   </button>
                   <button
                     type="button"
-                    aria-label="卡片模式"
+                    aria-label={uiText("卡片模式")}
                     aria-pressed={view === "grid"}
-                    title="卡片模式"
+                    title={uiText("卡片模式")}
                     disabled={interactionLocked}
                     onClick={() => setView("grid")}
                     className={cn(
@@ -578,22 +559,22 @@ export function BoardLibrary({
 
             {boards.length > 0 && view === "list" ? (
               <div data-board-list-header className="grid h-8 shrink-0 grid-cols-[minmax(14rem,1fr)_4.5rem] items-center border-b border-border bg-background/40 px-3 text-[11px] font-medium text-muted-foreground min-[900px]:grid-cols-[minmax(14rem,1fr)_4rem_7rem_6rem_4.5rem] min-[900px]:px-4">
-                <span className="px-2">画板</span>
-                <span className="hidden min-[900px]:block">图片</span>
-                <span className="hidden min-[900px]:block">最近更新</span>
-                <span className="hidden min-[900px]:block">空间</span>
-                <span className="hidden justify-self-end pr-2 min-[900px]:block">操作</span>
+                <span className="px-2">{uiText("画板")}</span>
+                <span className="hidden min-[900px]:block">{uiText("图片")}</span>
+                <span className="hidden min-[900px]:block">{uiText("最近更新")}</span>
+                <span className="hidden min-[900px]:block">{uiText("空间")}</span>
+                <span className="hidden justify-self-end pr-2 min-[900px]:block">{uiText("操作")}</span>
               </div>
             ) : null}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 min-[900px]:px-4 min-[900px]:py-4">
+            <div ref={boardWindow.scrollRef} data-board-scroll className="min-h-0 flex-1 overflow-y-auto px-3 py-3 min-[900px]:px-4 min-[900px]:py-4">
               {view === "grid" && filteredBoards.length > 0 ? (
-                <div data-board-card-grid className="grid">
-                  {filteredBoards.map(renderBoardCard)}
+                <div ref={boardWindow.contentRef} data-board-card-grid className="grid" style={{ paddingTop: boardWindow.top, paddingBottom: boardWindow.bottom }}>
+                  {visibleBoards.map(renderBoardCard)}
                 </div>
               ) : null}
 
-              {view === "list" ? filteredBoards.map((board) => {
+              {view === "list" ? <div ref={boardWindow.contentRef} style={{ paddingTop: boardWindow.top, paddingBottom: boardWindow.bottom }}>{visibleBoards.map((board) => {
                 const isActive = board.id === activeBoardId;
                 const isOpening = openingBoardId === board.id;
                 const isRenaming = renamingId === board.id;
@@ -614,7 +595,7 @@ export function BoardLibrary({
                               if (event.key === "Enter") commitRename();
                               if (event.key === "Escape") cancelRename();
                             }}
-                            aria-label={`重命名画板 ${board.name}`}
+                            aria-label={uiText("重命名画板 {{ui:0}}", [board.name])}
                             className="h-8 max-w-72 px-2 text-xs"
                           />
                         ) : (
@@ -623,8 +604,8 @@ export function BoardLibrary({
                               <strong className="truncate text-xs font-medium text-foreground">{board.name}</strong>
                               <button
                                 type="button"
-                                aria-label={`重命名画板 ${board.name}`}
-                                title="编辑画板名称"
+                                aria-label={uiText("重命名画板 {{ui:0}}", [board.name])}
+                                title={uiText("编辑画板名称")}
                                 disabled={interactionLocked}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -635,15 +616,14 @@ export function BoardLibrary({
                                 <LiaEdit aria-hidden className="h-3.5 w-3.5" />
                               </button>
                               {isActive ? (
-                                <span className="shrink-0 rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-blue-700 dark:text-blue-300">当前</span>
+                                <span className="shrink-0 rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-blue-700 dark:text-blue-300">{uiText("当前")}</span>
                               ) : null}
                               {!isActive && boardGenerations.length > 0 ? (
-                                <span className="shrink-0 rounded-md bg-[hsl(var(--helper-line)/0.1)] px-1.5 py-0.5 text-[10px] font-medium leading-none text-[hsl(var(--helper-line))]">生成中</span>
+                                <span className="shrink-0 rounded-md bg-[hsl(var(--helper-line)/0.1)] px-1.5 py-0.5 text-[10px] font-medium leading-none text-[hsl(var(--helper-line))]">{uiText("生成中")}</span>
                               ) : null}
                             </span>
                             <span className="mt-1 block truncate text-[10px] tabular-nums text-muted-foreground min-[900px]:hidden">
-                              {board.imageCount} 张图片 · {formatRelativeTime(board.updatedAt)}更新
-                            </span>
+                              {board.imageCount} {uiText("张图片 · ")}{formatRelativeTime(board.updatedAt)}{uiText("更新")}</span>
                           </>
                         )}
                       </span>
@@ -678,9 +658,9 @@ export function BoardLibrary({
                             else boardRowRefs.current.delete(board.id);
                           }}
                           type="button"
-                          aria-label={`打开画板 ${board.name}`}
+                          aria-label={uiText("打开画板 {{ui:0}}", [board.name])}
                           aria-busy={isOpening}
-                          title={`打开画板 ${board.name}`}
+                          title={uiText("打开画板 {{ui:0}}", [board.name])}
                           disabled={interactionLocked}
                           onPointerEnter={() => onPrefetchBoard(board.id)}
                           onFocus={() => onPrefetchBoard(board.id)}
@@ -697,30 +677,28 @@ export function BoardLibrary({
                     </div>
                   </article>
                 );
-              }) : null}
+              })}</div> : null}
 
               {boards.length === 0 ? (
                 <div className="board-library-empty flex min-h-52 flex-col items-center justify-center px-5 py-8 text-center">
                   <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <Images className="h-5 w-5" />
                   </span>
-                  <p className="text-base font-semibold">你的下一次创作，从这里开始</p>
-                  <p className="mt-2 text-sm text-muted-foreground">创建一个画板，把灵感、参考和作品放在一起。</p>
+                  <p className="text-base font-semibold">{uiText("你的下一次创作，从这里开始")}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{uiText("创建一个画板，把灵感、参考和作品放在一起。")}</p>
                   <div className="mt-6 flex gap-2">
                   <Button size="sm" className="gap-1.5" disabled={interactionLocked} onClick={onCreateBoard}>
-                    <Plus className="h-4 w-4" /> 新建画板
-                  </Button>
+                    <Plus className="h-4 w-4" /> {uiText("新建画板")}</Button>
                   <Button size="sm" variant="outline" className="gap-1.5" disabled={interactionLocked} onClick={() => void handleImportFromDialog()}>
-                    <Upload className="h-4 w-4" /> 导入画板
-                  </Button>
+                    <Upload className="h-4 w-4" /> {uiText("导入画板")}</Button>
                   </div>
                 </div>
               ) : filteredBoards.length === 0 ? (
                 <div className="board-library-empty flex min-h-40 flex-col items-center justify-center gap-4 px-5 py-6 text-center">
                   <Search className="h-8 w-8 text-muted-foreground" />
                   <div>
-                    <p className="text-base font-semibold">没有找到符合条件的画板</p>
-                    <p className="mt-1 text-xs text-muted-foreground">清除筛选或换一个名称继续搜索。</p>
+                    <p className="text-base font-semibold">{uiText("没有找到符合条件的画板")}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{uiText("清除筛选或换一个名称继续搜索。")}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -731,8 +709,7 @@ export function BoardLibrary({
                       setFilter("all");
                     }}
                   >
-                    清除筛选
-                  </Button>
+                    {uiText("清除筛选")}</Button>
                 </div>
               ) : null}
             </div>
@@ -755,9 +732,9 @@ export function BoardLibrary({
                 <Upload className="h-5 w-5" />
               )}
             </span>
-            <p className="text-sm font-semibold">{isImporting ? "正在导入画板" : "松手导入画板"}</p>
+            <p className="text-sm font-semibold">{isImporting ? uiText("正在导入画板") : uiText("松手导入画板")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {isImporting ? `正在解析并还原 ${importingCount} 个文件` : "仅支持 .itb 文件"}
+              {isImporting ? uiText("正在解析并还原 {{ui:0}} 个文件", [importingCount]) : uiText("仅支持 .itb 文件")}
             </p>
           </div>
         </div>
@@ -771,22 +748,20 @@ export function BoardLibrary({
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>删除画板</DialogTitle>
+            <DialogTitle>{uiText("删除画板")}</DialogTitle>
             <DialogDescription>
-              「{deleteTarget?.name}」将移入回收站，并按回收站设置自动清理。清理前可随时恢复。
-            </DialogDescription>
+              「{deleteTarget?.name}{uiText("」将移入回收站，并按回收站设置自动清理。清理前可随时恢复。")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>
-              取消
-            </Button>
+              {uiText("取消")}</Button>
             <Button
               variant="destructive"
               disabled={isDeleting}
               onClick={() => void confirmDeleteBoard()}
             >
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : null}
-              {isDeleting ? "正在移动" : "移入回收站"}
+              {isDeleting ? uiText("正在移动") : uiText("移入回收站")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -816,6 +791,8 @@ function BoardThumbnail({
   isOpening: boolean;
   variant?: "row" | "card";
 }): React.ReactElement {
+  const uiText = useUiText();
+
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const thumbnailUrl = board.thumbnailDataUrl;
   const showThumbnail = Boolean(thumbnailUrl && failedUrl !== thumbnailUrl);
@@ -845,15 +822,15 @@ function BoardThumbnail({
             ? <ImageOff className={cn("text-muted-foreground", variant === "card" ? "h-6 w-6" : "h-4 w-4")} />
             : <Images className={cn("text-muted-foreground", variant === "card" ? "h-6 w-6" : "h-4 w-4")} />}
           {variant === "card" ? <>
-            <span className="text-xs text-muted-foreground">{board.imageCount > 0 ? "封面暂不可用" : "空画板"}</span>
-            <small className="text-[11px] text-muted-foreground">{board.imageCount > 0 ? "画板内容不受影响" : "从一个想法开始"}</small>
+            <span className="text-xs text-muted-foreground">{board.imageCount > 0 ? uiText("封面暂不可用") : uiText("空画板")}</span>
+            <small className="text-[11px] text-muted-foreground">{board.imageCount > 0 ? uiText("画板内容不受影响") : uiText("从一个想法开始")}</small>
           </> : null}
         </span>
       )}
       {isOpening ? (
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80">
-          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-label="正在打开画板" />
-          {variant === "card" ? <span className="text-xs">正在打开</span> : null}
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-label={uiText("正在打开画板")} />
+          {variant === "card" ? <span className="text-xs">{uiText("正在打开")}</span> : null}
         </span>
       ) : null}
     </span>

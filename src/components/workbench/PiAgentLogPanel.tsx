@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { FolderOpen, Loader2, Trash2 } from "lucide-react";
 import type { PiAgentLogEntry, PiAgentLogEvent } from "@shared/pi-agent-log";
@@ -20,6 +21,8 @@ const EVENT_LABELS: Record<PiAgentLogEvent, string> = {
 };
 
 export function PiAgentLogPanel(): React.ReactElement {
+  const uiText = useUiText();
+
   const [entries, setEntries] = useState<PiAgentLogEntry[]>([]);
   const [logPath, setLogPath] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -86,20 +89,18 @@ export function PiAgentLogPanel(): React.ReactElement {
     <section className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-4 px-0.5">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="text-xs font-medium text-muted-foreground">Pi Agent 运行日志</h3>
+          <h3 className="text-xs font-medium text-muted-foreground">{uiText("Pi Agent 运行日志")}</h3>
           <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-            实时
-          </span>
-          <span className="text-[11px] tabular-nums text-muted-foreground">{entries.length} 条</span>
+            {uiText("实时")}</span>
+          <span className="text-[11px] tabular-nums text-muted-foreground">{entries.length} {uiText("条")}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            自动滚动
-            <Switch
+            {uiText("自动滚动")}<Switch
               checked={autoScroll}
               onCheckedChange={setAutoScroll}
-              aria-label="自动滚动 Pi Agent 日志"
+              aria-label={uiText("自动滚动 Pi Agent 日志")}
               className="scale-90"
             />
           </label>
@@ -108,8 +109,8 @@ export function PiAgentLogPanel(): React.ReactElement {
             size="icon"
             variant="outline"
             onClick={() => void openLogDirectory()}
-            aria-label="打开 Pi Agent 日志目录"
-            title="打开日志目录"
+            aria-label={uiText("打开 Pi Agent 日志目录")}
+            title={uiText("打开日志目录")}
           >
             <FolderOpen className="h-3.5 w-3.5" />
           </Button>
@@ -119,8 +120,8 @@ export function PiAgentLogPanel(): React.ReactElement {
             variant="outline"
             disabled={clearing || entries.length === 0}
             onClick={() => void clearLogs()}
-            aria-label="清空 Pi Agent 日志"
-            title="清空日志"
+            aria-label={uiText("清空 Pi Agent 日志")}
+            title={uiText("清空日志")}
           >
             {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
           </Button>
@@ -131,17 +132,15 @@ export function PiAgentLogPanel(): React.ReactElement {
         ref={viewportRef}
         className="h-[340px] overflow-y-auto border-y border-border/80 bg-muted/20 font-mono text-[11px] leading-5"
         aria-live="polite"
-        aria-label="Pi Agent 实时运行日志"
+        aria-label={uiText("Pi Agent 实时运行日志")}
       >
         {loading ? (
           <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            正在读取日志
-          </div>
+            {uiText("正在读取日志")}</div>
         ) : entries.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center font-sans text-xs text-muted-foreground">
-            还没有运行日志。发起一次 MasterGo 可编辑稿还原后，这里会实时显示 Pi Agent 的判断和工具调用。
-          </div>
+            {uiText("还没有运行日志。发起一次 MasterGo 可编辑稿还原后，这里会实时显示 Pi Agent 的判断和工具调用。")}</div>
         ) : (
           <div className="divide-y divide-border/50">
             {entries.map((entry) => (
@@ -155,7 +154,7 @@ export function PiAgentLogPanel(): React.ReactElement {
         <p className="truncate text-[11px] text-muted-foreground" title={logPath}>
           {logPath || "日志保存在本机应用日志目录"}
         </p>
-        <p className="shrink-0 text-[11px] text-muted-foreground">敏感凭据、图片数据和完整 HTML 不会写入日志</p>
+        <p className="shrink-0 text-[11px] text-muted-foreground">{uiText("敏感凭据、图片数据和完整 HTML 不会写入日志")}</p>
       </div>
       {error ? <p className="text-xs leading-5 text-destructive" role="alert">{error}</p> : null}
     </section>
@@ -163,6 +162,8 @@ export function PiAgentLogPanel(): React.ReactElement {
 }
 
 function LogRow({ entry }: { entry: PiAgentLogEntry }): React.ReactElement {
+  const uiText = useUiText();
+
   const details = entry.details && Object.keys(entry.details).length > 0
     ? JSON.stringify(entry.details, null, 2)
     : "";
@@ -193,7 +194,7 @@ function LogRow({ entry }: { entry: PiAgentLogEntry }): React.ReactElement {
         </div>
         {details ? (
           <details className="mt-1 text-muted-foreground">
-            <summary className="cursor-pointer select-none font-sans text-[11px] hover:text-foreground">查看详情</summary>
+            <summary className="cursor-pointer select-none font-sans text-[11px] hover:text-foreground">{uiText("查看详情")}</summary>
             <pre className="mt-1 max-w-full overflow-x-auto whitespace-pre-wrap break-words border-l border-border pl-2 text-[10px] leading-4">
               {details}
             </pre>

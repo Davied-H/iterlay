@@ -1,11 +1,7 @@
-import type { InlineExtension } from "@earendil-works/pi-coding-agent";
+import type { InlineExtension } from "./agents/coding-runtime.js";
 import { Type } from "typebox";
 import { assistantResultSchema } from "./assistant-result-schema.js";
-import type {
-  CollaborateSceneResult,
-  SceneAssistantDirection,
-  SceneAssistantInteraction
-} from "../shared/types.js";
+import type { CollaborateSceneResult, SceneAssistantDirection, SceneAssistantInteraction } from "../shared/types.js";
 
 export interface AssistantUiExtensionCallbacks {
   presentInteraction: (

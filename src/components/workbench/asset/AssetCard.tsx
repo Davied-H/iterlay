@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import { memo, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ImageOff, Play, Scissors, Star, Trash2, Upload, Video } from "lucide-react";
@@ -58,6 +59,8 @@ function AssetCardComponent({
   onToggleFavorite,
   onDelete
 }: AssetCardProps): React.ReactElement {
+  const uiText = useUiText();
+
   const [revealed, setRevealed] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const instantRevealRef = useRef(false);
@@ -190,7 +193,7 @@ function AssetCardComponent({
           {loadFailed ? (
             <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/90 text-muted-foreground">
               {isVideo ? <Video className="h-5 w-5" aria-hidden="true" /> : <ImageOff className="h-5 w-5" aria-hidden="true" />}
-              <span className="text-[11px] font-medium">预览不可用</span>
+              <span className="text-[11px] font-medium">{uiText("预览不可用")}</span>
             </span>
           ) : null}
           {isVideo && revealed ? (
@@ -202,7 +205,7 @@ function AssetCardComponent({
           ) : null}
           {isVideo ? (
             <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white">
-              {item.durationMs ? `${Math.max(1, Math.round(item.durationMs / 1_000))}s` : "视频"}
+              {item.durationMs ? `${Math.max(1, Math.round(item.durationMs / 1_000))}s` : uiText("视频")}
             </span>
           ) : null}
           {/* hover：底部深色渐变遮罩 */}
@@ -214,14 +217,12 @@ function AssetCardComponent({
           {item.source === "upload" && (
             <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               <Upload className="h-3 w-3" />
-              上传
-            </span>
+              {uiText("上传")}</span>
           )}
           {item.source === "slice" && (
             <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               <Scissors className="h-3 w-3" />
-              切图
-            </span>
+              {uiText("切图")}</span>
           )}
         </button>
         {/* 操作不能嵌进主按钮；收藏状态保留常显，删除仅在悬停或键盘聚焦时露出。 */}
@@ -232,7 +233,7 @@ function AssetCardComponent({
               event.stopPropagation();
               onToggleFavorite(item);
             }}
-            aria-label={item.favorite ? "取消收藏" : "收藏"}
+            aria-label={item.favorite ? uiText("取消收藏") : uiText("收藏")}
             aria-pressed={item.favorite}
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded-full bg-background transition-[opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
@@ -250,12 +251,12 @@ function AssetCardComponent({
           </button>
           <button
             type="button"
-            title="删除"
+            title={uiText("删除")}
             onClick={(event) => {
               event.stopPropagation();
               onDelete(item);
             }}
-            aria-label="删除"
+            aria-label={uiText("删除")}
             className="translate-y-1 flex h-7 w-7 items-center justify-center rounded-full bg-background text-destructive opacity-0 transition-[opacity,transform,background-color] duration-150 hover:bg-destructive/10 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:translate-y-0 group-hover:opacity-100 motion-reduce:transition-none"
           >
             <Trash2 className="h-3.5 w-3.5" />

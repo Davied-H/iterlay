@@ -1,3 +1,28 @@
+import {
+  sanitizeBoardId,
+  appendVideoNodeVersions,
+  isManagedBoardNode,
+  mergeManagedNodes,
+  mergeManagedConnections,
+  prepareBoardMutationPlan,
+  cloneBoard,
+  uniqueNodeIds,
+  requireImageNode,
+  renderedImageHeight,
+  reflowGenerationOutputNodes,
+  normalizeStoredBoard,
+  toSummary,
+  boardStorageFingerprint,
+  boardAssetCatalogFingerprint,
+  boardStoragePaths,
+  toTrashedSummary,
+  nextDefaultName,
+  DEFAULT_IMAGE_NODE_WIDTH,
+  type TrashedBoardRecord
+} from "../domain/board-model.js";
+export { toSummary, boardStorageFingerprint, boardAssetCatalogFingerprint } from "../domain/board-model.js";
+import { assertBoardSavePayload } from "../../shared/input-validation.js";
+import { mapTaskPool } from "../task-pool.js";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -26,22 +51,15 @@ import {
 } from "../../shared/types.js";
 import {
   isBoardComicDramaEntryNode,
-  isBoardVideoSequenceEntryNode,
-  isComicDramaNode,
   normalizeBoardGroup,
-  normalizeComicDramaNode,
   type BoardMutationPlan,
   type BoardMutationResult,
   type ComicDramaMutationReceipt,
-  type ComicDramaBoardNode,
   type ComicDramaBoardSnapshot
 } from "../../shared/comic-drama.js";
 import { sortBoardsByRecentUse } from "../../shared/board-order.js";
 import { arrangeImageNodes, type ImageNodeLayoutMode } from "../../shared/image-node-layout.js";
-import {
-  GENERATION_OUTPUT_HORIZONTAL_GAP,
-  layoutGenerationOutputColumn
-} from "../../shared/generation-output-layout.js";
+import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "../../shared/generation-output-layout.js";
 import { MutationQueue, writeJsonAtomic } from "./atomic-json.js";
 
 interface BoardsState {
@@ -50,17 +68,12 @@ interface BoardsState {
 }
 
 const STATE_FILE = "state.json";
-const DEFAULT_IMAGE_NODE_WIDTH = 264;
+
 const DUPLICATE_IMAGE_OFFSET = 24;
 const IMAGE_DIMENSIONS_CACHE_LIMIT = 512;
 const IMAGE_DIMENSIONS_CACHE_TTL_MS = 5 * 60_000;
 const IMAGE_DIMENSIONS_PENDING_TTL_MS = 30_000;
 const STORAGE_BYTES_CACHE_TTL_MS = 30_000;
-
-interface TrashedBoardRecord {
-  board: BoardData;
-  deletedAt: string;
-}
 
 interface ComicDramaMutationRecord {
   receipt: ComicDramaMutationReceipt;
@@ -93,8 +106,11 @@ export class BoardStore {
   private readonly boardsDir: string;
   private readonly trashDir: string;
   private readonly comicDramaReceiptsDir: string;
-  private readonly mutations = new MutationQueue();
+  private readonly mutations = new MutationQueue(() => this.recoverPendingBoardWrites());
+  private boardRecovery?: Promise<void>;
   private readonly cache = new Map<string, BoardData>();
+  private readonly boardVersions = new Map<string, number>();
+  private readonly summaryIndex = new Map<string, { summary: BoardSummary; paths: string[]; fingerprint: string }>();
   private readonly imageDimensions = new Map<string, ImageDimensionsCacheEntry>();
   private readonly storageBytes = new Map<string, BoardStorageCacheEntry>();
   private loadedAll = false;
@@ -114,7 +130,10 @@ export class BoardStore {
   }
 
   private async readBoards(): Promise<BoardData[]> {
-    if (this.loadedAll) return sortBoardsByRecentUse([...this.cache.values()].map(cloneBoard));
+    if (this.loadedAll) {
+      const boards = await mapTaskPool([...this.summaryIndex.keys()], 8, (id) => this.readBoardFile(this.boardFile(id)));
+      return sortBoardsByRecentUse(boards.filter((board): board is BoardData => board !== null));
+    }
     let files: string[];
     try {
       files = await readdir(this.boardsDir);
@@ -126,21 +145,27 @@ export class BoardStore {
       throw error;
     }
 
-    const boardFiles = files.filter((file) => file.endsWith(".json") && file !== STATE_FILE);
-    const boards = (await Promise.all(
-      boardFiles.map((file) => this.readBoardFile(path.join(this.boardsDir, file)))
+    const boardFiles = files.filter((file) => file.endsWith(".json") && file !== STATE_FILE && file !== ".transaction.json");
+    const boards = (await mapTaskPool(boardFiles, 8,
+      (file) => this.readBoardFile(path.join(this.boardsDir, file))
     )).filter((board): board is BoardData => board !== null);
     this.loadedAll = true;
     return sortBoardsByRecentUse(boards);
   }
 
   async listSummaries(): Promise<BoardSummary[]> {
-    const boards = await this.listBoards();
+    await this.mutations.idle();
+    if (!this.loadedAll) await this.readBoards();
     const sizeByPath = new Map<string, Promise<number>>();
-    return Promise.all(boards.map(async (board) => toSummary(
-      board,
-      await this.storageBytesFor(board, sizeByPath)
-    )));
+    const summaries = await mapTaskPool([...this.summaryIndex.values()], 8, async (entry) => {
+      let stored = this.storageBytes.get(entry.summary.id);
+      if (!stored || stored.fingerprint !== entry.fingerprint || stored.expiresAt <= Date.now()) {
+        stored = { fingerprint: entry.fingerprint, storageBytes: await storageBytesForPaths(entry.paths, sizeByPath), expiresAt: Date.now() + STORAGE_BYTES_CACHE_TTL_MS };
+        this.storageBytes.set(entry.summary.id, stored);
+      }
+      return { ...entry.summary, storageBytes: stored.storageBytes };
+    });
+    return sortBoardsByRecentUse(summaries);
   }
 
   async summarize(board: BoardData): Promise<BoardSummary> {
@@ -170,18 +195,22 @@ export class BoardStore {
   /** 读取画板前以物理文件为准修正所有图片尺寸，兼容旧数据和异常恢复记录。 */
   async getBoardWithVerifiedImageDimensions(id: string): Promise<BoardData | null> {
     if (!this.resolveImageDimensions) return this.getBoard(id);
+    const observedVersion = this.boardVersions.get(id) ?? 0;
+    const current = await this.getBoard(id);
+    if (!current) return null;
+    // File reads and metadata lookup do not hold the global write queue.
+    const reconciled = await this.reconcileImageDimensions(current.nodes);
+    if (!reconciled.changed) return (this.boardVersions.get(id) ?? 0) === observedVersion ? current : this.getBoard(id);
     return this.mutations.run(async () => {
-      const current = await this.readBoardFile(this.boardFile(id));
-      if (!current) return null;
-      const reconciled = await this.reconcileImageDimensions(current.nodes);
-      if (!reconciled.changed) return current;
-      return this.saveBoardUnlocked({ id, nodes: reconciled.nodes });
+      const latest = await this.readBoardFile(this.boardFile(id));
+      if (!latest || latest.revision !== current.revision) return latest;
+      return this.saveBoardUnlocked({ id, nodes: reconciled.nodes, expectedRevision: current.revision });
     });
   }
 
   async createBoard(name?: string): Promise<BoardData> {
     return this.mutations.run(async () => {
-      const existing = await this.readBoards();
+      const existing = name?.trim() ? [] : this.loadedAll ? [...this.summaryIndex.values()].map((entry) => entry.summary) : await this.readBoards();
       const now = new Date().toISOString();
       const board: BoardData = {
         schemaVersion: 3,
@@ -258,8 +287,7 @@ export class BoardStore {
         updatedAt: now,
         nodes: [...parent.nodes, entryNode]
       };
-      await this.writeBoard(childBoard);
-      await this.writeBoard(parentBoard);
+      await this.writeBoardBatch([childBoard, parentBoard]);
       return {
         parentBoard: cloneBoard(parentBoard),
         childBoard: cloneBoard(childBoard),
@@ -535,11 +563,18 @@ export class BoardStore {
   }
 
   private async saveBoardUnlocked(payload: BoardSavePayload): Promise<BoardData> {
+    assertBoardSavePayload(payload);
     const current = await this.readBoardFile(this.boardFile(payload.id));
+    if (payload.expectedRevision !== undefined && payload.expectedRevision !== (current?.revision ?? -1)) {
+      throw Object.assign(new Error("BOARD_REVISION_CONFLICT: 画板内容已更新，请重新合并后保存。"), {
+        code: "BOARD_REVISION_CONFLICT", currentRevision: current?.revision ?? -1
+      });
+    }
     const now = new Date().toISOString();
     const normalizedNodes = payload.nodes
       ? payload.nodes.map(normalizeBoardNode).filter((node): node is BoardNode => node !== null)
       : current?.nodes ?? [];
+    if (payload.nodes && normalizedNodes.length !== payload.nodes.length) throw new Error("画板包含无效节点，已取消保存。");
     const reconciled = await this.reconcileImageDimensions(normalizedNodes);
     const board: BoardData = {
       schemaVersion: 3,
@@ -580,7 +615,7 @@ export class BoardStore {
         name: name.trim() || current.name,
         updatedAt: new Date().toISOString()
       };
-      await this.writeBoard(board);
+      const writes = [board];
       if (board.parentBoardId) {
         const parent = await this.readBoardFile(this.boardFile(board.parentBoardId));
         if (parent) {
@@ -589,7 +624,7 @@ export class BoardStore {
               ? { ...node, name: board.name }
               : node
           ));
-          await this.writeBoard({
+          writes.push({
             ...parent,
             revision: (parent.revision ?? 0) + 1,
             updatedAt: board.updatedAt,
@@ -597,6 +632,8 @@ export class BoardStore {
           });
         }
       }
+      if (writes.length > 1) await this.writeBoardBatch(writes);
+      else await this.writeBoard(board);
       return board;
     });
   }
@@ -659,7 +696,9 @@ export class BoardStore {
         const record: TrashedBoardRecord = { board: candidate, deletedAt };
         await writeJsonAtomic(this.trashFile(candidate.id), record);
         await rm(this.boardFile(candidate.id), { force: true });
+        this.boardVersions.set(candidate.id, (this.boardVersions.get(candidate.id) ?? 0) + 1);
         this.cache.delete(candidate.id);
+        this.summaryIndex.delete(candidate.id);
         this.storageBytes.delete(candidate.id);
       }
       return true;
@@ -723,7 +762,9 @@ export class BoardStore {
       const children = (await this.readBoards()).filter((candidate) => candidate.parentBoardId === id);
       for (const boardId of [id, ...children.map((child) => child.id)]) {
         await rm(this.boardFile(boardId), { force: true });
+        this.boardVersions.set(boardId, (this.boardVersions.get(boardId) ?? 0) + 1);
         this.cache.delete(boardId);
+        this.summaryIndex.delete(boardId);
         this.storageBytes.delete(boardId);
       }
     });
@@ -1158,7 +1199,7 @@ export class BoardStore {
 
   private boardFile(id: string): string {
     // id 是本应用生成的 uuid；仍做一次白名单过滤，防止路径穿越。
-    return path.join(this.boardsDir, `${id.replace(/[^a-zA-Z0-9-]/g, "")}.json`);
+    return path.join(this.boardsDir, `${sanitizeBoardId(id)}.json`);
   }
 
   private trashFile(id: string): string {
@@ -1204,27 +1245,92 @@ export class BoardStore {
   private async readBoardFile(filePath: string): Promise<BoardData | null> {
     const id = path.basename(filePath, ".json");
     const cached = this.cache.get(id);
-    if (cached) return cloneBoard(cached);
+    if (cached) {
+      this.cache.delete(id);
+      this.cache.set(id, cached);
+      return cloneBoard(cached);
+    }
+    const version = this.boardVersions.get(id) ?? 0;
     try {
       const raw = await readFile(filePath, "utf8");
       const board = normalizeStoredBoard(JSON.parse(raw));
-      if (!board) return null;
-      this.cache.set(board.id, board);
-      return cloneBoard(board);
-    } catch {
-      return null;
+      if (!board) throw new Error("画板数据结构无效。");
+      if ((this.boardVersions.get(id) ?? 0) === version) {
+        this.rememberBoard(board);
+        // rememberBoard owns a clone; the newly parsed value is safe to return.
+        return board;
+      }
+      return cloneBoard(this.cache.get(id) ?? board);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw new Error(`无法读取画板文件：${filePath}。原文件已保留，请检查格式和目录权限。`, { cause: error });
     }
   }
 
   private async writeBoard(board: BoardData): Promise<void> {
+    this.boardVersions.set(board.id, (this.boardVersions.get(board.id) ?? 0) + 1);
     await writeJsonAtomic(this.boardFile(board.id), board);
+    this.rememberBoard(board);
+  }
+
+  /** Roll forward an accepted multi-file commit before any subsequent operation. */
+  private recoverPendingBoardWrites(): Promise<void> {
+    if (!this.boardRecovery) {
+      const pending = (async () => {
+        const journalPath = path.join(this.boardsDir, ".transaction.json");
+        let raw: string;
+        try { raw = await readFile(journalPath, "utf8"); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; }
+        const journal = JSON.parse(raw) as { schemaVersion?: number; boards?: unknown[] };
+        if (journal.schemaVersion !== 1 || !Array.isArray(journal.boards) || journal.boards.length !== 2) {
+          throw new Error("画板事务日志无效，原文件已保留。");
+        }
+        const boards = journal.boards.map(normalizeStoredBoard);
+        if (boards.some((board) => !board) || new Set(boards.map((board) => board?.id)).size !== boards.length) {
+          throw new Error("画板事务日志包含无效画板，原文件已保留。");
+        }
+        // Validate every path before replaying any writes.
+        for (const board of boards) this.boardFile(board!.id);
+        for (const board of boards) await this.writeBoard(board!);
+        await rm(journalPath);
+      })();
+      this.boardRecovery = pending;
+      void pending.catch(() => { if (this.boardRecovery === pending) this.boardRecovery = undefined; });
+    }
+    return this.boardRecovery;
+  }
+
+  private async writeBoardBatch(boards: BoardData[]): Promise<void> {
+    const journalPath = path.join(this.boardsDir, ".transaction.json");
+    await writeJsonAtomic(journalPath, { schemaVersion: 1, boards });
+    try {
+      for (const board of boards) await this.writeBoard(board);
+      await rm(journalPath);
+    } catch (error) {
+      // Keep the intent durable and retry its complete replay on the next access.
+      this.boardRecovery = undefined;
+      throw error;
+    }
+  }
+
+  private rememberBoard(board: BoardData): void {
+    this.cache.delete(board.id);
     this.cache.set(board.id, cloneBoard(board));
+    const paths = boardStoragePaths(board);
+    this.summaryIndex.set(board.id, { summary: toSummary(board), paths, fingerprint: JSON.stringify(paths) });
+    while (this.cache.size > 32) {
+      const oldest = this.cache.keys().next().value;
+      if (!oldest) break;
+      this.cache.delete(oldest);
+    }
   }
 
   private async reconcileImageDimensions(
     nodes: BoardNode[]
   ): Promise<{ nodes: BoardNode[]; changed: boolean }> {
     if (!this.resolveImageDimensions) return { nodes, changed: false };
+    const paths = [...new Set(nodes.filter(isBoardImageNode).flatMap((node) => [node.imagePath, ...(node.versions ?? []).map((version) => version.imagePath)]))];
+    const dimensionsByPath = new Map(await mapTaskPool(paths, 4, async (imagePath) => [imagePath, await this.imageDimensionsFor(imagePath)] as const));
     let changed = false;
     const reconciled: BoardNode[] = [];
     for (const node of nodes) {
@@ -1232,11 +1338,11 @@ export class BoardStore {
         reconciled.push(node);
         continue;
       }
-      const dimensions = await this.imageDimensionsFor(node.imagePath);
+      const dimensions = dimensionsByPath.get(node.imagePath);
       let versionsChanged = false;
       const versions = node.versions
         ? await Promise.all(node.versions.map(async (version) => {
-            const versionDimensions = await this.imageDimensionsFor(version.imagePath);
+            const versionDimensions = dimensionsByPath.get(version.imagePath);
             if (!versionDimensions || (
               version.width === versionDimensions.width && version.height === versionDimensions.height
             )) return version;
@@ -1326,10 +1432,6 @@ export class BoardStore {
   }
 }
 
-function sanitizeBoardId(id: string): string {
-  return id.replace(/[^a-zA-Z0-9-]/g, "");
-}
-
 async function readOptionalJson<T>(filePath: string): Promise<T | null> {
   try {
     return JSON.parse(await readFile(filePath, "utf8")) as T;
@@ -1339,349 +1441,15 @@ async function readOptionalJson<T>(filePath: string): Promise<T | null> {
   }
 }
 
-function appendVideoNodeVersions(node: BoardVideoNode, versions: BoardVideoVersion[]): BoardVideoNode {
-  const base: BoardVideoVersion[] = node.versions ?? [{
-    videoPath: node.videoPath,
-    posterPath: node.posterPath,
-    jobId: node.jobId,
-    mimeType: node.mimeType,
-    width: node.width,
-    height: node.height,
-    durationMs: node.durationMs
-  }];
-  const seenJobIds = new Set(base.map((version) => version.jobId));
-  const seenPaths = new Set(base.map((version) => version.videoPath));
-  const additions = versions.filter((version) => {
-    if (seenJobIds.has(version.jobId) || seenPaths.has(version.videoPath)) return false;
-    seenJobIds.add(version.jobId);
-    seenPaths.add(version.videoPath);
-    return true;
-  });
-  if (additions.length === 0) return node;
-  const all = [...base, ...additions];
-  const active = all[all.length - 1];
-  return {
-    ...node,
-    videoPath: active.videoPath,
-    posterPath: active.posterPath,
-    jobId: active.jobId,
-    mimeType: active.mimeType,
-    width: active.width,
-    height: active.height,
-    durationMs: active.durationMs,
-    versions: all,
-    activeVersion: all.length - 1
-  };
-}
-
-function isManagedBoardNode(node: BoardNode): node is ComicDramaBoardSnapshot["nodes"][number] {
-  return isComicDramaNode(node) || isBoardVideoSequenceEntryNode(node);
-}
-
-function isPreservedWorkflowNode(node: BoardNode): boolean {
-  return isManagedBoardNode(node) || isBoardComicDramaEntryNode(node);
-}
-
-function mergeManagedNodes(current: BoardNode[], incoming: BoardNode[], replaceManagedNodes = false): BoardNode[] {
-  if (replaceManagedNodes || incoming.some(isPreservedWorkflowNode)) return incoming;
-  return [...incoming, ...current.filter(isPreservedWorkflowNode)];
-}
-
-function mergeManagedConnections(currentNodes: BoardNode[], current: BoardConnection[], incoming: BoardConnection[], replaceManagedNodes = false): BoardConnection[] {
-  if (replaceManagedNodes || incoming.some((connection) => connection.versionBinding)) return incoming;
-  const managedIds = new Set(currentNodes.filter(isPreservedWorkflowNode).map((node) => node.id));
-  const retained = current.filter((connection) => managedIds.has(connection.source) || managedIds.has(connection.target));
-  const incomingIds = new Set(incoming.map((connection) => connection.id));
-  return [...incoming, ...retained.filter((connection) => !incomingIds.has(connection.id))];
-}
-
-function boardConnectionKey(connection: BoardConnection): string {
-  return `${connection.kind ?? "visual"}:${connection.source}:${connection.target}:${connection.sourceHandle ?? ""}:${connection.targetHandle ?? ""}`;
-}
-
-function assertAcyclicReferenceConnections(connections: BoardConnection[]): void {
-  const outgoing = new Map<string, string[]>();
-  for (const connection of connections) {
-    if (connection.kind !== "reference") continue;
-    outgoing.set(connection.source, [...(outgoing.get(connection.source) ?? []), connection.target]);
-  }
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const visit = (nodeId: string): void => {
-    if (visiting.has(nodeId)) throw new Error("引用连接不能形成环。");
-    if (visited.has(nodeId)) return;
-    visiting.add(nodeId);
-    for (const target of outgoing.get(nodeId) ?? []) visit(target);
-    visiting.delete(nodeId);
-    visited.add(nodeId);
-  };
-  for (const nodeId of outgoing.keys()) visit(nodeId);
-}
-
-function prepareBoardMutationPlan(plan: BoardMutationPlan, board: BoardData): {
-  nodes: BoardNode[];
-  updatedNodes: ComicDramaBoardNode[];
-  connections: BoardConnection[];
-  groups: NonNullable<BoardData["groups"]>;
-} {
-  if (!plan || typeof plan.planId !== "string" || !plan.planId.trim() || plan.boardId !== board.id || !plan.additions) {
-    throw new Error("漫剧助手计划无效。");
-  }
-  const rawNodes = Array.isArray(plan.additions.nodes) ? plan.additions.nodes : [];
-  const nodes = rawNodes.map(normalizeBoardNode);
-  if (nodes.some((node) => !node)) throw new Error("计划包含无效节点。");
-  const normalizedNodes = nodes as BoardNode[];
-  const updatedNodes = (Array.isArray(plan.updates?.nodes) ? plan.updates.nodes : []).map(normalizeComicDramaNode);
-  if (updatedNodes.some((node) => !node)) throw new Error("计划包含无效的节点更新。");
-  const normalizedUpdatedNodes = updatedNodes as ComicDramaBoardNode[];
-  const connections = (Array.isArray(plan.additions.connections) ? plan.additions.connections : []).map(normalizeBoardConnection);
-  if (connections.some((connection) => !connection)) throw new Error("计划包含无效连接。");
-  const normalizedConnections = connections as BoardConnection[];
-  const groups = (Array.isArray(plan.additions.groups) ? plan.additions.groups : []).map(normalizeBoardGroup);
-  if (groups.some((group) => !group)) throw new Error("计划包含无效片段分组。");
-  const normalizedGroups = groups as NonNullable<BoardData["groups"]>;
-  const nodeIds = new Set(board.nodes.map((node) => node.id));
-  const currentNodes = new Map(board.nodes.map((node) => [node.id, node]));
-  const connectionIds = new Set((board.connections ?? []).map((connection) => connection.id));
-  const connectionKeys = new Set((board.connections ?? []).map(boardConnectionKey));
-  const groupIds = new Set((board.groups ?? []).map((group) => group.id));
-  for (const node of normalizedNodes) {
-    if (nodeIds.has(node.id)) throw new Error(`节点 ID 已存在：${node.id}`);
-    nodeIds.add(node.id);
-  }
-  const updatedNodeIds = new Set<string>();
-  for (const node of normalizedUpdatedNodes) {
-    const currentNode = currentNodes.get(node.id);
-    if (!currentNode || !isComicDramaNode(currentNode) || currentNode.type !== node.type) {
-      throw new Error(`要更新的漫剧节点不存在或类型不匹配：${node.id}`);
-    }
-    if (updatedNodeIds.has(node.id)) throw new Error(`重复更新节点：${node.id}`);
-    updatedNodeIds.add(node.id);
-  }
-  for (const connection of normalizedConnections) {
-    if (connectionIds.has(connection.id)) throw new Error(`连接 ID 已存在：${connection.id}`);
-    if (!nodeIds.has(connection.source) || !nodeIds.has(connection.target)) throw new Error(`连接端点不存在：${connection.id}`);
-    const connectionKey = boardConnectionKey(connection);
-    if (connectionKeys.has(connectionKey)) throw new Error(`重复连接：${connection.id}`);
-    if (connection.source === connection.target) throw new Error(`禁止节点自连：${connection.id}`);
-    connectionIds.add(connection.id);
-    connectionKeys.add(connectionKey);
-  }
-  const allNodes = new Map([...board.nodes, ...normalizedNodes].map((node) => [node.id, node]));
-  for (const connection of normalizedConnections) {
-    const binding = connection.versionBinding;
-    if (connection.kind !== "reference" || binding?.mode !== "pinned") continue;
-    const source = allNodes.get(connection.source);
-    if (source && isComicDramaNode(source)
-      && !source.versions.some((version) => version.versionId === binding.versionId)) {
-      throw new Error(`固定版本缺失：${connection.source}/${binding.versionId}`);
-    }
-  }
-  assertAcyclicReferenceConnections([...(board.connections ?? []), ...normalizedConnections]);
-  for (const group of normalizedGroups) {
-    if (groupIds.has(group.id)) throw new Error(`片段分组 ID 已存在：${group.id}`);
-    if (group.nodeIds.some((nodeId) => !nodeIds.has(nodeId))) throw new Error(`片段分组包含不存在的节点：${group.id}`);
-    groupIds.add(group.id);
-  }
-  if (!plan.preview || plan.preview.additions.nodes !== normalizedNodes.length
-    || plan.preview.additions.connections !== normalizedConnections.length
-    || plan.preview.additions.groups !== normalizedGroups.length
-    || (plan.preview.updates?.nodes ?? 0) !== normalizedUpdatedNodes.length) throw new Error("预览数量与计划内容不一致。");
-  return {
-    nodes: normalizedNodes,
-    updatedNodes: normalizedUpdatedNodes,
-    connections: normalizedConnections,
-    groups: normalizedGroups
-  };
-}
-
-function cloneBoard(board: BoardData): BoardData {
-  return structuredClone(board);
-}
-
-function uniqueNodeIds(nodeIds: string[]): string[] {
-  return [...new Set(nodeIds.filter((nodeId) => typeof nodeId === "string" && Boolean(nodeId.trim())))];
-}
-
-function requireImageNode(nodes: BoardNode[], nodeId: string): BoardNodeSnapshot {
-  const target = nodes.find((node) => node.id === nodeId);
-  if (!target) throw new Error(`画板中不存在图片节点：${nodeId}`);
-  if (!isBoardImageNode(target)) throw new Error(`指定节点不是图片节点：${nodeId}`);
-  return target;
-}
-
-function renderedImageHeight(node: BoardNodeSnapshot): number {
-  const displayWidth = node.displayWidth ?? DEFAULT_IMAGE_NODE_WIDTH;
-  return node.width && node.height ? displayWidth * node.height / node.width : displayWidth;
-}
-
-function reflowGenerationOutputNodes(
-  nodes: readonly BoardNode[],
-  connections: readonly BoardConnection[],
-  generationNodeId: string
-): BoardNode[] {
-  const generation = nodes.find((node) => node.id === generationNodeId);
-  if (!generation || (!isBoardGenerationNode(generation) && !isBoardVideoGenerationNode(generation))) {
-    return nodes as BoardNode[];
-  }
-  const outputIds = new Set(
-    connections
-      .filter((connection) => connection.source === generationNodeId)
-      .map((connection) => connection.target)
-  );
-  const outputs = nodes.filter((node): node is BoardNodeSnapshot | BoardVideoNode => (
-    outputIds.has(node.id) && (isBoardImageNode(node) || isBoardVideoNode(node))
-  ));
-  const positions = layoutGenerationOutputColumn(
-    {
-      x: generation.x,
-      y: generation.y,
-      width: generation.displayWidth ?? 340,
-      height: generation.displayHeight ?? (isBoardVideoGenerationNode(generation) ? 636 : 320)
-    },
-    outputs.map((node) => ({ id: node.id, height: renderedOutputHeight(node) }))
-  );
-  return nodes.map((node) => {
-    const position = positions.get(node.id);
-    return position ? { ...node, ...position } : node;
-  });
-}
-
-function renderedOutputHeight(node: BoardNodeSnapshot | BoardVideoNode): number {
-  if (isBoardImageNode(node)) return renderedImageHeight(node);
-  const displayWidth = node.displayWidth ?? 360;
-  if (node.width && node.height && node.width > 0 && node.height > 0) {
-    return displayWidth * node.height / node.width;
-  }
-  const match = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/u.exec(node.aspectRatio?.trim() ?? "");
-  if (!match) return displayWidth * 9 / 16;
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  return width > 0 && height > 0 ? displayWidth * height / width : displayWidth * 9 / 16;
-}
-
-function normalizeStoredBoard(value: unknown): BoardData | null {
-  if (!value || typeof value !== "object") return null;
-  const parsed = value as Partial<BoardData>;
-  if (!parsed.id || !parsed.name) return null;
-  const now = new Date().toISOString();
-  return {
-    schemaVersion: 3,
-    revision: Number.isInteger(parsed.revision) && (parsed.revision ?? 0) >= 0 ? parsed.revision : 0,
-    id: parsed.id,
-    name: parsed.name,
-    kind: parsed.kind === "comic-drama" ? "comic-drama" : "standard",
-    parentBoardId: typeof parsed.parentBoardId === "string" && parsed.parentBoardId.trim() ? parsed.parentBoardId : undefined,
-    createdAt: parsed.createdAt || now,
-    updatedAt: parsed.updatedAt || now,
-    nodes: Array.isArray(parsed.nodes)
-      ? parsed.nodes.map(normalizeBoardNode).filter((node): node is BoardNode => node !== null)
-      : [],
-    connections: Array.isArray(parsed.connections)
-      ? parsed.connections
-          .map(normalizeBoardConnection)
-          .filter((connection): connection is BoardConnection => connection !== null)
-      : [],
-    groups: Array.isArray(parsed.groups)
-      ? parsed.groups.map(normalizeBoardGroup).filter((group): group is NonNullable<BoardData["groups"]>[number] => group !== null)
-      : [],
-    viewport: parsed.viewport,
-    thumbnailDataUrl: parsed.thumbnailDataUrl,
-    videoSequences: Array.isArray(parsed.videoSequences) ? structuredClone(parsed.videoSequences) : []
-  };
-}
-
-export function toSummary(board: BoardData, storageBytes?: number): BoardSummary {
-  return {
-    id: board.id,
-    name: board.name,
-    kind: board.kind ?? "standard",
-    parentBoardId: board.parentBoardId,
-    createdAt: board.createdAt,
-    updatedAt: board.updatedAt,
-    imageCount: board.nodes.filter(isBoardImageNode).length,
-    storageBytes,
-    thumbnailDataUrl: board.thumbnailDataUrl
-  };
-}
-
-export function boardStorageFingerprint(board: BoardData): string {
-  return JSON.stringify(boardStoragePaths(board));
-}
-
-export function boardAssetCatalogFingerprint(board: BoardData): string {
-  const assets = board.nodes.flatMap<Record<string, unknown>>((node) => {
-    if (isBoardImageNode(node)) {
-      return [{
-        type: "image",
-        id: node.id,
-        imagePath: node.imagePath,
-        jobId: node.jobId,
-        source: node.source,
-        width: node.width,
-        height: node.height,
-        activeVersion: node.activeVersion,
-        versions: node.versions,
-        derivation: node.derivation
-      }];
-    }
-    if (isBoardVideoNode(node)) {
-      return [{
-        type: "video",
-        id: node.id,
-        videoPath: node.videoPath,
-        posterPath: node.posterPath,
-        jobId: node.jobId,
-        source: node.source,
-        width: node.width,
-        height: node.height,
-        durationMs: node.durationMs,
-        mimeType: node.mimeType,
-        title: node.title,
-        activeVersion: node.activeVersion,
-        versions: node.versions
-      }];
-    }
-    if (isBoardVideoGenerationNode(node)) {
-      return [{
-        type: "video-generation-inputs",
-        id: node.id,
-        sourceVideoPath: node.sourceVideoPath,
-        referenceVideoPaths: node.referenceVideoPaths,
-        referenceAudioPaths: node.referenceAudioPaths
-      }];
-    }
-    return [];
-  });
-  return JSON.stringify({ name: board.name, assets });
-}
-
-function boardStoragePaths(board: BoardData): string[] {
-  const mediaPaths = new Set<string>();
-  const addMediaPath = (mediaPath: string | undefined): void => {
-    if (mediaPath) mediaPaths.add(path.resolve(mediaPath));
-  };
-  for (const node of board.nodes) {
-    if (isBoardImageNode(node)) {
-      addMediaPath(node.imagePath);
-      for (const version of node.versions ?? []) addMediaPath(version.imagePath);
-    } else if (isBoardVideoNode(node)) {
-      addMediaPath(node.videoPath);
-      addMediaPath(node.posterPath);
-      for (const version of node.versions ?? []) {
-        addMediaPath(version.videoPath);
-        addMediaPath(version.posterPath);
-      }
-    }
-  }
-  return [...mediaPaths].sort();
-}
-
 async function boardStorageBytes(
   board: BoardData,
   sizeByPath: Map<string, Promise<number>> = new Map()
 ): Promise<number> {
-  const sizes = await Promise.all(boardStoragePaths(board).map((imagePath) => {
+  return storageBytesForPaths(boardStoragePaths(board), sizeByPath);
+}
+
+async function storageBytesForPaths(paths: string[], sizeByPath: Map<string, Promise<number>>): Promise<number> {
+  const sizes = await mapTaskPool(paths, 16, async (imagePath) => {
     let size = sizeByPath.get(imagePath);
     if (!size) {
       size = stat(imagePath)
@@ -1690,30 +1458,6 @@ async function boardStorageBytes(
       sizeByPath.set(imagePath, size);
     }
     return size;
-  }));
+  });
   return sizes.reduce((total, size) => total + size, 0);
-}
-
-function toTrashedSummary(
-  record: TrashedBoardRecord,
-  retentionDays: BoardTrashRetentionDays
-): TrashedBoardSummary {
-  return {
-    ...toSummary(record.board),
-    deletedAt: record.deletedAt,
-    expiresAt: retentionDays === 0
-      ? undefined
-      : new Date(Date.parse(record.deletedAt) + retentionDays * 24 * 60 * 60 * 1_000).toISOString()
-  };
-}
-
-function nextDefaultName(existing: BoardData[]): string {
-  const used = new Set(existing.map((board) => board.name));
-  let index = existing.length + 1;
-  let name = `画板 ${index}`;
-  while (used.has(name)) {
-    index += 1;
-    name = `画板 ${index}`;
-  }
-  return name;
 }

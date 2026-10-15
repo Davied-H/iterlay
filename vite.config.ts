@@ -1,7 +1,9 @@
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { bundleBudgetViolation, measureStaticEntry } from "./scripts/bundle-budget";
+import { devBrowserBridge } from "./scripts/dev-browser-vite";
 
 const MAX_JAVASCRIPT_CHUNK_BYTES = 700_000;
 // The assistant and canvas interaction refinements in v0.1.55 add a small,
@@ -44,11 +46,32 @@ function canvasEntryBudget(): Plugin {
   };
 }
 
-export default defineConfig({
+const developmentNonce = randomBytes(18).toString("base64");
+const developmentCsp: Plugin = {
+  name: "iterlay-development-csp",
+  apply: "serve",
+  transformIndexHtml: {
+    order: "pre",
+    handler: (html) => html.replace("script-src 'self' 'wasm-unsafe-eval'", `script-src 'self' 'wasm-unsafe-eval' 'nonce-${developmentNonce}'`)
+  }
+};
+
+export default defineConfig(({ command }) => ({
   // Electron 生产环境通过 file:// 加载 dist/index.html,必须用相对路径,
   // 否则 /assets/* 会解析到文件系统根目录导致白屏。
   base: "./",
-  plugins: [react(), javascriptChunkBudget(), canvasEntryBudget()],
+  html: command === "serve" ? { cspNonce: developmentNonce } : undefined,
+  plugins: [developmentCsp, devBrowserBridge(), react(), javascriptChunkBudget(), canvasEntryBudget()],
+  server: {
+    watch: { ignored: ["**/dist-electron/**", "**/release/**", "**/output/**", "**/tmp/**"] },
+    fs: {
+      // Development credentials/workspaces must never be served as source files.
+      deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/tmp/**",
+        ...(process.env.ITERLAY_BROWSER_DEV_USER_DATA
+          ? [`${path.resolve(process.env.ITERLAY_BROWSER_DEV_USER_DATA).replaceAll("\\", "/")}/**`]
+          : [])]
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -77,4 +100,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));

@@ -1,9 +1,28 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Check, ChevronRight, CircleAlert, Clock3, FileText, ListTodo, Loader2, Pause, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Bot,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  Clock3,
+  FileText,
+  ListTodo,
+  Loader2,
+  Pause,
+  RotateCcw,
+  Trash2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { pausePiTemplateAgentTask, removePiTemplateAgentTask, type PiTemplateAgentPhase, type PiTemplateAgentTask, usePiTemplateAgentTasks } from "@/lib/pi-template-agent";
+import {
+  pausePiTemplateAgentTask,
+  removePiTemplateAgentTask,
+  type PiTemplateAgentPhase,
+  type PiTemplateAgentTask,
+  usePiTemplateAgentTasks
+} from "@/lib/pi-template-agent";
 
 const PHASE_LABELS: Record<PiTemplateAgentPhase, string> = {
   extract: "提取规则",
@@ -48,6 +67,8 @@ interface PiTemplateTaskCenterProps {
 }
 
 export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiTemplateTaskCenterProps): React.ReactElement {
+  const uiText = useUiText();
+
   const tasks = usePiTemplateAgentTasks();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -80,8 +101,7 @@ export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiT
     <>
       <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
         <ListTodo className="h-4 w-4" />
-        任务中心
-        {tasks.some((task) => !isPausedOrTerminal(task.phase)) ? <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-foreground" aria-label="有任务正在运行" /> : null}
+        {uiText("任务中心")}{tasks.some((task) => !isPausedOrTerminal(task.phase)) ? <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-foreground" aria-label={uiText("有任务正在运行")} /> : null}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -90,22 +110,21 @@ export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiT
             <div className="flex items-center gap-3 pr-8">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--ai-muted))] text-[hsl(var(--ai-accent))]"><Bot className="h-[18px] w-[18px]" /></span>
               <div>
-                <DialogTitle className="text-[15px]">模板智能创建</DialogTitle>
-                <DialogDescription className="mt-1 text-xs">任务在后台持续执行；这里保留结果、失败原因与完整阶段记录。</DialogDescription>
+                <DialogTitle className="text-[15px]">{uiText("模板智能创建")}</DialogTitle>
+                <DialogDescription className="mt-1 text-xs">{uiText("任务在后台持续执行；这里保留结果、失败原因与完整阶段记录。")}</DialogDescription>
               </div>
             </div>
           </DialogHeader>
           <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] max-sm:grid-cols-1">
-            <nav className="min-h-0 overflow-y-auto border-r border-border bg-muted/25 max-sm:max-h-52 max-sm:border-b max-sm:border-r-0" aria-label="创建任务列表">
+            <nav className="min-h-0 overflow-y-auto border-r border-border bg-muted/25 max-sm:max-h-52 max-sm:border-b max-sm:border-r-0" aria-label={uiText("创建任务列表")}>
               <div className="flex items-center justify-between px-4 pb-2 pt-4">
-                <h3 className="text-xs font-semibold">创建记录</h3>
-                {tasks.length ? <span className="text-[11px] tabular-nums text-muted-foreground">{tasks.length} 项</span> : null}
+                <h3 className="text-xs font-semibold">{uiText("创建记录")}</h3>
+                {tasks.length ? <span className="text-[11px] tabular-nums text-muted-foreground">{tasks.length} {uiText("项")}</span> : null}
               </div>
               {tasks.length === 0 ? (
                 <div className="flex h-full min-h-44 flex-col items-center justify-center px-6 text-center text-xs leading-5 text-muted-foreground">
                   <FileText className="mb-3 h-5 w-5" />
-                  还没有创建任务。点击“创建模板”，选择“智能创建”即可开始。
-                </div>
+                  {uiText("还没有创建任务。点击“创建模板”，选择“智能创建”即可开始。")}</div>
               ) : tasks.map((task) => (
                 <div
                   key={task.id}
@@ -129,7 +148,7 @@ export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiT
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </button>
                   {!isPausedOrTerminal(task.phase) ? (
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" aria-label={`暂停创建任务 ${task.templateName || task.title}`} title="暂停创建任务" onClick={() => pauseTask(task)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" aria-label={uiText("暂停创建任务 {{ui:0}}", [task.templateName || task.title])} title={uiText("暂停创建任务")} onClick={() => pauseTask(task)}>
                       <Pause className="h-3.5 w-3.5" />
                     </Button>
                   ) : null}
@@ -139,8 +158,8 @@ export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiT
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                      aria-label={`删除创建记录 ${task.templateName || task.title}`}
-                      title="删除创建记录"
+                      aria-label={uiText("删除创建记录 {{ui:0}}", [task.templateName || task.title])}
+                      title={uiText("删除创建记录")}
                       onClick={() => removeTask(task)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -150,7 +169,7 @@ export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiT
               ))}
             </nav>
 
-            <section className="min-h-0 overflow-y-auto p-5" aria-label="任务详情">
+            <section className="min-h-0 overflow-y-auto p-5" aria-label={uiText("任务详情")}>
               {selected ? <TaskDetail task={selected} /> : null}
             </section>
           </div>
@@ -161,13 +180,15 @@ export function PiTemplateTaskCenter({ open: controlledOpen, onOpenChange }: PiT
 }
 
 function TaskDetail({ task }: { task: PiTemplateAgentTask }): React.ReactElement {
+  const uiText = useUiText();
+
   const terminal = isPausedOrTerminal(task.phase);
   const status = PHASE_STYLES[task.phase];
   return (
     <div className="mx-auto max-w-[620px] px-1 pb-5 pt-1">
       <div className="flex items-start justify-between gap-5">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground">任务详情</p>
+          <p className="text-[11px] font-medium text-muted-foreground">{uiText("任务详情")}</p>
           <h3 className="mt-1 truncate text-base font-semibold">{task.templateName || "模板智能创建"}</h3>
           <p className="mt-2 max-w-[62ch] text-xs leading-5 text-muted-foreground">{task.detail}</p>
         </div>
@@ -176,14 +197,14 @@ function TaskDetail({ task }: { task: PiTemplateAgentTask }): React.ReactElement
         </span>
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-border py-3 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" />已执行 {formatDuration(task.startedAt, task.updatedAt)}</span>
-        <span className="inline-flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5" />第 {task.attempt} 轮</span>
-        <span className="tabular-nums">最后更新 {formatTime(task.updatedAt)}</span>
+        <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" />{uiText("已执行 ")}{formatDuration(task.startedAt, task.updatedAt)}</span>
+        <span className="inline-flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5" />{uiText("第 ")}{task.attempt} {uiText("轮")}</span>
+        <span className="tabular-nums">{uiText("最后更新 ")}{formatTime(task.updatedAt)}</span>
       </div>
       <div className="mt-6">
         <div className="flex items-center justify-between gap-3">
-          <h4 className="text-xs font-semibold">执行记录</h4>
-          <span className="text-[11px] tabular-nums text-muted-foreground">{task.logs.length} 个阶段</span>
+          <h4 className="text-xs font-semibold">{uiText("执行记录")}</h4>
+          <span className="text-[11px] tabular-nums text-muted-foreground">{task.logs.length} {uiText("个阶段")}</span>
         </div>
         <ol className="mt-4 space-y-0">
           {task.logs.map((log, index) => (
