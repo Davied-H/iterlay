@@ -1,6 +1,12 @@
 name: Build desktop release packages
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platforms to package
+        type: choice
+        options: [all, mac, win]
+        default: all
 permissions:
   contents: read
 jobs:
@@ -9,12 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: macos-14, platform: mac, arch: arm64 }
-          - { os: macos-14, platform: mac, arch: x64 }
-          - { os: windows-latest, platform: win, arch: x64 }
-          - { os: windows-latest, platform: win, arch: arm64 }
-    runs-on: ${{ matrix.os }}
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["mac","win"]' || format('["{0}"]', inputs.platform)) }}
+        arch: [arm64, x64]
+    runs-on: ${{ matrix.platform == 'mac' && 'macos-14' || 'windows-latest' }}
     timeout-minutes: 40
     defaults:
       run:

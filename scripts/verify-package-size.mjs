@@ -10,7 +10,8 @@ const argument = (name) => {
 };
 const appPath = path.resolve(argument("--app-path") ?? path.join(root, "release/mac-arm64/Iterlay.app"));
 const reportPath = path.resolve(argument("--report") ?? path.join(root, "output/package-size/report.json"));
-const resources = path.join(appPath, appPath.endsWith(".app") ? "Contents/Resources" : "resources");
+const isMacApp = appPath.endsWith(".app");
+const resources = path.join(appPath, isMacApp ? "Contents/Resources" : "resources");
 const asarPath = path.join(resources, "app.asar");
 // Resolve through electron-builder's declared dependency rather than relying on hoisting.
 const builderRequire = createRequire(import.meta.resolve("electron-builder/package.json"));
@@ -42,7 +43,8 @@ async function totalBytes(directory) {
 }
 const appBytes = await totalBytes(appPath);
 const asarBytes = (await stat(asarPath)).size;
-const appBudgetBytes = 380 * 1024 * 1024;
+// Windows Electron includes a larger runtime than its macOS distribution.
+const appBudgetBytes = (isMacApp ? 380 : 480) * 1024 * 1024;
 const asarBudgetBytes = 120 * 1024 * 1024;
 if (appBytes > appBudgetBytes) violations.push(`App ${appBytes} bytes exceeds ${appBudgetBytes} byte budget`);
 if (asarBytes > asarBudgetBytes) violations.push(`ASAR ${asarBytes} bytes exceeds ${asarBudgetBytes} byte budget`);
