@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.57",
+  "version": "0.1.59",
   "private": true,
   "type": "module",
   "engines": {
@@ -186,6 +186,7 @@
     },
     "win": {
       "target": "nsis",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "icon": "build/icon.ico",
       "electronLanguages": [
         "en-US",

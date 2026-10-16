@@ -13,7 +13,7 @@ export interface GitHubRelease {
   html_url: string;
   assets: GitHubReleaseAsset[];
 }
-export type InstallerVariant = "darwin-arm64" | "darwin-x64" | "win32-x64";
+export type InstallerVariant = "darwin-arm64" | "darwin-x64" | "win32-x64" | "win32-arm64";
 export const repository: string;
 export const releasesUrl: string;
 export function installerVariant(name: string): InstallerVariant | null;

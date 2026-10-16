@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.57",
+  "version": "0.1.59",
   "description": "Use Iterlay App providers to generate images and videos, manage boards and assets, and install Coding Agent Skills.",
   "type": "module",
   "license": "MIT",

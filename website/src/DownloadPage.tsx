@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { repository, releasesUrl, releaseInstallers, loadReleases, type GitHubRelease, type InstallerVariant } from './releases.mjs'
-const variants = [ ['darwin-arm64', 'macOS Apple 芯片'], ['darwin-x64', 'macOS Intel 芯片'], ['win32-x64', 'Windows 64 位'] ] as const
+const variants = [ ['darwin-arm64', 'macOS Apple 芯片'], ['darwin-x64', 'macOS Intel 芯片'], ['win32-x64', 'Windows x64'], ['win32-arm64', 'Windows ARM64'] ] as const
 export default function DownloadPage() {
   const [variant, setVariant] = useState<InstallerVariant>(() => /Windows/i.test(navigator.userAgent) ? 'win32-x64' : 'darwin-arm64')
   const [releases, setReleases] = useState<GitHubRelease[]>([])

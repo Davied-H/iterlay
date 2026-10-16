@@ -5,7 +5,10 @@ export function installerVariant(name) {
     if (/arm64|aarch64/i.test(name)) return 'darwin-arm64'
     if (/x64|x86_64|intel/i.test(name)) return 'darwin-x64'
   }
-  if (/\.exe$/i.test(name) && !/arm64|ia32/i.test(name)) return 'win32-x64'
+  if (/\.exe$/i.test(name)) {
+    if (/-arm64\.exe$/i.test(name)) return 'win32-arm64'
+    if (!/arm64|ia32/i.test(name)) return 'win32-x64'
+  }
   return null
 }
 export function releaseInstallers(releases, variant) {

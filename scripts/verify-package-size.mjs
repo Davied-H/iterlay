@@ -10,7 +10,7 @@ const argument = (name) => {
 };
 const appPath = path.resolve(argument("--app-path") ?? path.join(root, "release/mac-arm64/Iterlay.app"));
 const reportPath = path.resolve(argument("--report") ?? path.join(root, "output/package-size/report.json"));
-const resources = path.join(appPath, "Contents/Resources");
+const resources = path.join(appPath, appPath.endsWith(".app") ? "Contents/Resources" : "resources");
 const asarPath = path.join(resources, "app.asar");
 // Resolve through electron-builder's declared dependency rather than relying on hoisting.
 const builderRequire = createRequire(import.meta.resolve("electron-builder/package.json"));

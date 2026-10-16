@@ -5,7 +5,9 @@ test('recognizes installer filenames and rejects unsupported packages', () => {
   assert.equal(installerVariant('Iterlay-0.1.56-arm64.dmg'), 'darwin-arm64')
   assert.equal(installerVariant('Iterlay-0.1.56-x64.dmg'), 'darwin-x64')
   assert.equal(installerVariant('Iterlay Setup 0.1.56.exe'), 'win32-x64')
-  assert.equal(installerVariant('Iterlay-arm64.exe'), null)
+  assert.equal(installerVariant('Iterlay-0.1.59-arm64.exe'), 'win32-arm64')
+  assert.equal(installerVariant('Iterlay-0.1.59-x64.exe'), 'win32-x64')
+  assert.equal(installerVariant('Iterlay-0.1.59-ia32.exe'), null)
   assert.equal(installerVariant('source.zip'), null)
 })
 test('omits drafts and missing platform assets', () => {

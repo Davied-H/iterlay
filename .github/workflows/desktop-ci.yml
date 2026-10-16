@@ -32,7 +32,7 @@ jobs:
   browser-smoke:
     runs-on: macos-14
     env:
-      ITERLAY_BROWSER_DEV_USER_DATA: ${{ runner.temp }}/iterlay-ci-user-data
+      ITERLAY_BROWSER_DEV_USER_DATA: ${{ github.workspace }}/tmp/iterlay-ci-user-data
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

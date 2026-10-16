@@ -13,7 +13,9 @@ export class GitHubUpdateApiClient implements UpdateApiClient {
       if (!/^\d+\.\d+\.\d+$/.test(version)) continue;
       const asset = release.assets.find(a => query.platform === 'darwin'
         ? a.name.endsWith(`-${query.arch}.dmg`)
-        : /\.exe$/i.test(a.name) && !/arm64|ia32/i.test(a.name) && query.arch === 'x64');
+        : /\.exe$/i.test(a.name) && (query.arch === 'arm64'
+          ? /-arm64\.exe$/i.test(a.name)
+          : !/arm64|ia32/i.test(a.name)));
       if (!asset) continue;
       return { version,platform:query.platform,arch:query.arch,channel:release.prerelease?'beta':'stable',downloadUrl:asset.browser_download_url,fileSize:asset.size,sha256:asset.digest?.startsWith('sha256:')?asset.digest.slice(7):undefined,releaseNotes:release.body,publishedAt:release.published_at,forced:false };
     }

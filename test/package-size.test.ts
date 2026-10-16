@@ -17,12 +17,12 @@ afterEach(async () => {
   await Promise.all(temporary.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
-async function fixture(files: Record<string, string>) {
+async function fixture(files: Record<string, string>, platform = "mac") {
   const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-package-audit-"));
   temporary.push(directory);
   const source = path.join(directory, "source");
-  const appPath = path.join(directory, "Iterlay.app");
-  const resources = path.join(appPath, "Contents", "Resources");
+  const appPath = path.join(directory, platform === "mac" ? "Iterlay.app" : "win-unpacked");
+  const resources = path.join(appPath, platform === "mac" ? "Contents/Resources" : "resources");
   await mkdir(resources, { recursive: true });
   for (const [name, contents] of Object.entries(files)) {
     const destination = path.join(source, name);
@@ -36,6 +36,12 @@ async function fixture(files: Record<string, string>) {
 }
 
 describe("packaged application audit", () => {
+  it("audits the resources directory of a Windows package", async () => {
+    const packaged = await fixture({ "package.json": "{}", "dist/index.js": "console.log('Windows');" }, "win");
+    await packaged.inspect();
+    const report = JSON.parse(await readFile(packaged.report, "utf8")) as { violations: string[] };
+    expect(report.violations).toEqual([]);
+  });
   it("accepts runtime TypeScript and binary assets inside an actual ASAR", async () => {
     const packaged = await fixture({
       "package.json": "{}",
