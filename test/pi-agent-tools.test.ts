@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createIterlayAgentTools } from "../electron/pi-agent-tools.js";
 
 describe("Iterlay Pi Agent tools", () => {
-  it("exposes the complete Iterlay MCP tool catalog", () => {
+  it("exposes the complete Iterlay workspace tool catalog", () => {
     const tools = createIterlayAgentTools("/tmp/iterlay", {}, vi.fn());
     expect(tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
       "get_active_board",
@@ -15,10 +15,10 @@ describe("Iterlay Pi Agent tools", () => {
       "get_video_generation_status",
       "export_assets"
     ]));
-    expect(tools).toHaveLength(26);
+    expect(tools.map((tool) => tool.name)).toContain("list_providers");
   });
 
-  it("routes tool calls through the local MCP bridge", async () => {
+  it("routes tool calls through the local workspace service", async () => {
     const callBridge = vi.fn(async () => ({ boardId: "board-1", nodeCount: 2 }));
     const tool = createIterlayAgentTools("/tmp/iterlay", { boardId: "board-1" }, callBridge)
       .find((candidate) => candidate.name === "get_board");

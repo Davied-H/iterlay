@@ -1,10 +1,10 @@
 import type { AgentTool } from "./agents/tool-runtime.js";
 import type { TSchema } from "typebox";
-import { callMcpBridge } from "./mcp-bridge-client.js";
-import { buildToolContent, listMcpTools } from "./mcp-stdio-core.js";
+import { callLocalApi } from "./local-api-client.js";
+import { buildToolContent, listWorkspaceTools } from "./workspace-tools.js";
 
 type JsonObject = Record<string, unknown>;
-type McpBridgeCall = (
+type LocalApiCall = (
   userDataPath: string,
   method: string,
   args: Record<string, unknown>
@@ -43,9 +43,9 @@ export interface IterlayAgentToolOptions {
 export function createIterlayAgentTools(
   userDataPath: string,
   options: IterlayAgentToolOptions = {},
-  callBridge: McpBridgeCall = callMcpBridge
+  callBridge: LocalApiCall = callLocalApi
 ): AgentTool[] {
-  return listMcpTools().map((definition) => {
+  return listWorkspaceTools().map((definition) => {
     const name = stringValue(definition.name);
     const description = stringValue(definition.description);
     const inputSchema = isRecord(definition.inputSchema)
@@ -82,7 +82,7 @@ function toolLabel(name: string): string {
 }
 
 function stringValue(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) throw new Error("Iterlay MCP 工具定义无效。");
+  if (typeof value !== "string" || !value.trim()) throw new Error("Iterlay 工作台 工具定义无效。");
   return value.trim();
 }
 

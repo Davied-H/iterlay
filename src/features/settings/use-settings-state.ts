@@ -35,6 +35,8 @@ const [promptDockAutoCollapse, setPromptDockAutoCollapse] = useState(false);
 const [advancedVideoModesEnabled, setAdvancedVideoModesEnabled] = useState(false);
 const [canvasThumbnailPreview, setCanvasThumbnailPreview] = useState(true);
 const [canvasMinimapVisible, setCanvasMinimapVisible] = useState(true);
+const [boardCommentsEnabled, setBoardCommentsEnabled] = useState(false);
+const [boardGalleryEnabled, setBoardGalleryEnabled] = useState(false);
 const [canvasImageToolbarOnHover, setCanvasImageToolbarOnHover] = useState(false);
 const [canvasRelationshipHoverHighlight, setCanvasRelationshipHoverHighlight] = useState(false);
 const [wechatStickerExportEnabled, setWechatStickerExportEnabled] = useState(false);
@@ -93,6 +95,10 @@ return {
     canvasThumbnailPreview,
     setCanvasThumbnailPreview,
     canvasMinimapVisible,
+    boardCommentsEnabled,
+    setBoardCommentsEnabled,
+    boardGalleryEnabled,
+    setBoardGalleryEnabled,
     setCanvasMinimapVisible,
     canvasImageToolbarOnHover,
     setCanvasImageToolbarOnHover,

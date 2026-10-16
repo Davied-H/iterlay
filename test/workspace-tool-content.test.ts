@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({ app: { whenReady: vi.fn(), getPath: vi.fn() }, shell: { openExternal: vi.fn() } }));
 
-import { buildToolContent } from "../electron/mcp-stdio.js";
+import { buildToolContent } from "../electron/workspace-tools.js";
 
-describe("MCP image tool responses", () => {
+describe("workspace image tool responses", () => {
   it("returns generated images as MCP image content and omits transient data URLs from text", () => {
     const content = buildToolContent({
       job: { id: "job-1", status: "succeeded" },
-      mcpImageDataUrls: ["data:image/png;base64,aGVsbG8="]
+      previewImageDataUrls: ["data:image/png;base64,aGVsbG8="]
     });
 
     expect(content).toEqual([
@@ -19,7 +19,7 @@ describe("MCP image tool responses", () => {
 
   it("does not return oversized or malformed image payloads", () => {
     const content = buildToolContent({
-      mcpImageDataUrls: ["data:text/plain;base64,aGVsbG8=", "data:image/png;base64,not base64"]
+      previewImageDataUrls: ["data:text/plain;base64,aGVsbG8=", "data:image/png;base64,not base64"]
     });
 
     expect(content).toEqual([{ type: "text", text: "{}" }]);

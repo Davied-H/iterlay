@@ -289,6 +289,30 @@ describe("SettingsStore provider normalization", () => {
     }
   });
 
+  it.each(["boardCommentsEnabled", "boardGalleryEnabled"] as const)(
+    "defaults %s to off in existing settings and persists independent opt-ins",
+    async (preference) => {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+      try {
+        await writeFile(path.join(directory, "settings.json"), JSON.stringify({
+          providers: [], activeProviderId: "", theme: "system"
+        }), "utf8");
+        const store = new SettingsStore(directory);
+        expect(store.getSettings()).toMatchObject({ boardCommentsEnabled: false, boardGalleryEnabled: false });
+        store.updateSettings({ [preference]: true });
+        store.updateSettings({ canvasMinimapVisible: false });
+        const reloaded = new SettingsStore(directory);
+        const other = preference === "boardCommentsEnabled" ? "boardGalleryEnabled" : "boardCommentsEnabled";
+        expect(reloaded.getSettings()[preference]).toBe(true);
+        expect(reloaded.getSettings()[other]).toBe(false);
+        reloaded.updateSettings({ [preference]: false });
+        expect(new SettingsStore(directory).getSettings()[preference]).toBe(false);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+  );
+
   it("defaults the canvas minimap to visible and persists an explicit opt-out", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
     try {

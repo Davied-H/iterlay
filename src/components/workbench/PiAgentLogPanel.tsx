@@ -45,7 +45,7 @@ export function PiAgentLogPanel(): React.ReactElement {
         setLogPath(snapshot.logPath);
       })
       .catch((reason) => {
-        if (!disposed) setError(getWorkbenchErrorMessage(reason, "无法读取 Pi Agent 日志。"));
+        if (!disposed) setError(getWorkbenchErrorMessage(reason, "无法读取运行记录。"));
       })
       .finally(() => {
         if (!disposed) setLoading(false);
@@ -63,14 +63,14 @@ export function PiAgentLogPanel(): React.ReactElement {
   }, [entries, autoScroll]);
 
   async function clearLogs(): Promise<void> {
-    if (!window.confirm("确定清空 Pi Agent 运行日志吗？磁盘中的日志文件也会被清空。")) return;
+    if (!window.confirm("确定清空运行记录吗？磁盘中的日志文件也会被清空。")) return;
     setClearing(true);
     setError(null);
     try {
       await getImageWorkbenchApi().clearPiAgentLogs();
       setEntries([]);
     } catch (reason) {
-      setError(getWorkbenchErrorMessage(reason, "无法清空 Pi Agent 日志。"));
+      setError(getWorkbenchErrorMessage(reason, "无法清空运行记录。"));
     } finally {
       setClearing(false);
     }
@@ -89,7 +89,7 @@ export function PiAgentLogPanel(): React.ReactElement {
     <section className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-4 px-0.5">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="text-xs font-medium text-muted-foreground">{uiText("Pi Agent 运行日志")}</h3>
+          <h3 className="text-xs font-medium text-muted-foreground">{uiText("运行记录")}</h3>
           <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
             {uiText("实时")}</span>
@@ -100,7 +100,7 @@ export function PiAgentLogPanel(): React.ReactElement {
             {uiText("自动滚动")}<Switch
               checked={autoScroll}
               onCheckedChange={setAutoScroll}
-              aria-label={uiText("自动滚动 Pi Agent 日志")}
+              aria-label={uiText("自动滚动运行记录")}
               className="scale-90"
             />
           </label>
@@ -109,7 +109,7 @@ export function PiAgentLogPanel(): React.ReactElement {
             size="icon"
             variant="outline"
             onClick={() => void openLogDirectory()}
-            aria-label={uiText("打开 Pi Agent 日志目录")}
+            aria-label={uiText("打开运行记录目录")}
             title={uiText("打开日志目录")}
           >
             <FolderOpen className="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ export function PiAgentLogPanel(): React.ReactElement {
             variant="outline"
             disabled={clearing || entries.length === 0}
             onClick={() => void clearLogs()}
-            aria-label={uiText("清空 Pi Agent 日志")}
+            aria-label={uiText("清空运行记录")}
             title={uiText("清空日志")}
           >
             {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -132,7 +132,7 @@ export function PiAgentLogPanel(): React.ReactElement {
         ref={viewportRef}
         className="h-[340px] overflow-y-auto border-y border-border/80 bg-muted/20 font-mono text-[11px] leading-5"
         aria-live="polite"
-        aria-label={uiText("Pi Agent 实时运行日志")}
+        aria-label={uiText("实时运行记录")}
       >
         {loading ? (
           <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
@@ -140,7 +140,7 @@ export function PiAgentLogPanel(): React.ReactElement {
             {uiText("正在读取日志")}</div>
         ) : entries.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center font-sans text-xs text-muted-foreground">
-            {uiText("还没有运行日志。发起一次 MasterGo 可编辑稿还原后，这里会实时显示 Pi Agent 的判断和工具调用。")}</div>
+            {uiText("还没有运行记录。使用 MasterGo 可编辑稿还原功能后，这里会显示处理过程和工具调用。")}</div>
         ) : (
           <div className="divide-y divide-border/50">
             {entries.map((entry) => (

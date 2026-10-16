@@ -5,6 +5,8 @@ import { getAssistantShortcutDescriptor } from "@/lib/assistant-shortcut";
 
 interface CanvasShortcutHelpDialogProps {
   open: boolean;
+  commentsEnabled?: boolean;
+  galleryEnabled?: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -61,7 +63,9 @@ const groups = [
 
 export function CanvasShortcutHelpDialog({
   open,
-  onOpenChange
+  onOpenChange,
+  commentsEnabled = false,
+  galleryEnabled = false
 }: CanvasShortcutHelpDialogProps): React.ReactElement {
   const uiText = useUiText();
 
@@ -87,7 +91,9 @@ export function CanvasShortcutHelpDialog({
                   {group.title}
                 </h3>
                 <dl className="space-y-2.5">
-                  {group.shortcuts.map(([label, shortcut]) => (
+                  {group.shortcuts.filter(([, shortcut]) =>
+                    (shortcut !== "C" || commentsEnabled) && (shortcut !== "G" || galleryEnabled)
+                  ).map(([label, shortcut]) => (
                     <div key={label} className="flex min-w-0 items-center justify-between gap-3">
                       <dt className="min-w-0 text-[11px] leading-4 text-muted-foreground">{label}</dt>
                       <dd className="shrink-0">

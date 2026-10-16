@@ -367,4 +367,56 @@ describe("SettingsStore 文本 Provider 迁移", () => {
       model: "gpt-5.4-mini"
     });
   });
+  it.each(["fal", "openrouter"] as const)("detaches %s videos and retains their encrypted credentials after deleting the image source", (type) => {
+    const dir = makeDataDir();
+    const store = new SettingsStore(dir);
+    const base = store.getSettings();
+    const source = normalizeProvider({ id: "shared-source", type, baseUrl: "https://shared.example/api", model: "image-model" });
+    store.saveSettings({ ...base, providers: [...base.providers, source], videoProviders: [
+      { id: "shared-video", name: "Shared video", type, baseUrl: "https://unused.example", connectionProviderId: source.id, model: "video-model" }
+    ], activeVideoProviderId: "shared-video" });
+    store.setApiKey(source.id, "shared-secret");
+    store.setApiKey("shared-video", "old-independent-secret");
+    const before = store.getSettings();
+    // The UI clears the link in its atomic settings payload.
+    store.saveSettings({ ...before, providers: before.providers.filter((provider) => provider.id !== source.id),
+      videoProviders: before.videoProviders.map((provider) => ({ ...provider, connectionProviderId: undefined })) });
+    const reloaded = new SettingsStore(dir);
+    expect(reloaded.getSettings().videoProviders[0]).toMatchObject({ id: "shared-video", baseUrl: source.baseUrl, model: "video-model" });
+    expect(reloaded.getSettings().videoProviders[0].connectionProviderId).toBeUndefined();
+    expect(reloaded.resolveVideoProviderConnection("shared-video")).toEqual({ baseUrl: source.baseUrl, apiKey: "shared-secret", connectionProviderId: "shared-video" });
+    expect(reloaded.getApiKey(source.id)).toBe("");
+    expect(reloaded.getKeyStatus()["shared-video"]).toBe(true);
+    expect(reloaded.getSettings().activeVideoProviderId).toBe("shared-video");
+  });
+  it("also clears an existing video link when a caller deletes its source without clearing the reference", () => {
+    const store = new SettingsStore(makeDataDir());
+    const base = store.getSettings();
+    const source = normalizeProvider({ id: "source", type: "fal", baseUrl: "https://source.example", model: "image-model" });
+    store.saveSettings({ ...base, providers: [...base.providers, source], videoProviders: [
+      { id: "video", name: "Video", type: "fal", baseUrl: "", connectionProviderId: source.id, model: "movie" }
+    ] });
+    const before = store.getSettings();
+    store.saveSettings({ ...before, providers: before.providers.filter((provider) => provider.id !== source.id) });
+    expect(store.getSettings().videoProviders[0].connectionProviderId).toBeUndefined();
+    expect(store.getSettings().videoProviders[0].baseUrl).toBe(source.baseUrl);
+    expect(store.getKeyStatus()["video"]).toBe(false);
+  });
+  it("does not recreate a deleted Codex text binding after restart", () => {
+    const dir = makeDataDir();
+    const store = new SettingsStore(dir);
+    const base = store.getSettings();
+    const account = normalizeProvider({ id: "account", type: "codex-oauth" });
+    store.saveSettings({ ...base, providers: [...base.providers, account] });
+    const linked = store.getSettings();
+    expect(linked.textProviders.some((provider) => provider.authProviderId === account.id)).toBe(true);
+    store.saveSettings({ ...linked,
+      providers: linked.providers.map((provider) => provider.id === account.id ? { ...provider, autoBindText: false } : provider),
+      textProviders: linked.textProviders.filter((provider) => provider.authProviderId !== account.id)
+    });
+    const reloaded = new SettingsStore(dir).getSettings();
+    expect(reloaded.providers.find((provider) => provider.id === account.id)?.autoBindText).toBe(false);
+    expect(reloaded.textProviders.some((provider) => provider.authProviderId === account.id)).toBe(false);
+  });
+
 });

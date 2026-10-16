@@ -15,7 +15,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "../shared/mcp-integration.ts",
-    "../electron/mcp-integration.ts"
+    "../shared/agent-integration.ts",
+    "../electron/agent-integration.ts"
   ]
 }

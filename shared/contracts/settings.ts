@@ -73,6 +73,10 @@ export interface AppSettings {
   canvasThumbnailPreview: boolean;
   /** 是否显示画布小地图，默认开启。 */
   canvasMinimapVisible?: boolean;
+  /** 是否显示画板评论入口与标记并启用快捷键，默认关闭。 */
+  boardCommentsEnabled?: boolean;
+  /** 是否显示画廊入口并启用快捷键，默认关闭。 */
+  boardGalleryEnabled?: boolean;
   /** 是否在悬停画板图片时显示操作工具栏，默认关闭。 */
   canvasImageToolbarOnHover?: boolean;
   /** 是否在悬停画布节点时突出其关联关系并弱化其他节点，默认关闭。 */

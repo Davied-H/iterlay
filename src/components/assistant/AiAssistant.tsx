@@ -5,6 +5,8 @@ import {
   ArrowLeftRight,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   CircleCheck,
   Copy,
@@ -1972,7 +1974,11 @@ export function AiAssistant({
             aria-label={appearance === "fusion" ? t("assistant.collapse") : t("assistant.close")}
             onClick={onClose}
           >
-            {appearance === "fusion" ? <ChevronDown className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            {appearance === "fusion" ? (
+              variant === "docked"
+                ? (dockSide === "left" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)
+                : <ChevronDown className="h-4 w-4" />
+            ) : <X className="h-4 w-4" />}
           </Button>
         ) : null}
       </header> : null}

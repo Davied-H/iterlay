@@ -48,6 +48,7 @@ const SHORTCUT_HELP_ARIA = IS_MAC_PLATFORM ? "Meta+/" : "Control+/";
 interface TopBarProps {
   historyOpen: boolean;
   commentOpen: boolean;
+  commentsEnabled?: boolean;
   boardName: string | null;
   activeBoardId?: string;
   boards: BoardSummary[];
@@ -80,6 +81,7 @@ interface TopBarProps {
 export function TopBar({
   historyOpen,
   commentOpen,
+  commentsEnabled = false,
   boardName,
   activeBoardId,
   boards,
@@ -421,7 +423,7 @@ export function TopBar({
             </Tooltip>
           ) : null}
 
-          <Tooltip>
+          {commentsEnabled ? <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant={commentOpen ? "secondary" : "ghost"}
@@ -435,7 +437,7 @@ export function TopBar({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{uiText("评论 (C)")}</TooltipContent>
-          </Tooltip>
+          </Tooltip> : null}
 
           <Tooltip>
             <TooltipTrigger asChild>

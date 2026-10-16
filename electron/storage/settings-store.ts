@@ -51,6 +51,8 @@ interface SettingsSchema {
   advancedVideoModesEnabled?: boolean;
   canvasThumbnailPreview?: boolean;
   canvasMinimapVisible?: boolean;
+  boardCommentsEnabled?: boolean;
+  boardGalleryEnabled?: boolean;
   canvasImageToolbarOnHover?: boolean;
   canvasRelationshipHoverHighlight?: boolean;
   wechatStickerExportEnabled?: boolean;
@@ -207,6 +209,8 @@ export class SettingsStore {
       advancedVideoModesEnabled: current.advancedVideoModesEnabled ?? false,
       canvasThumbnailPreview: current.canvasThumbnailPreview ?? true,
       canvasMinimapVisible: current.canvasMinimapVisible ?? true,
+      boardCommentsEnabled: current.boardCommentsEnabled ?? false,
+      boardGalleryEnabled: current.boardGalleryEnabled ?? false,
       canvasImageToolbarOnHover: current.canvasImageToolbarOnHover ?? false,
       canvasRelationshipHoverHighlight: current.canvasRelationshipHoverHighlight ?? false,
       wechatStickerExportEnabled: current.wechatStickerExportEnabled ?? false,
@@ -286,18 +290,34 @@ export class SettingsStore {
     const activeTextProviderId = textProviders.some((p) => p.id === settings.activeTextProviderId)
       ? settings.activeTextProviderId
       : textProviders[0].id;
+    const detachedVideoKeys: Record<string, string> = {};
     const videoProviders = ensureVideoProviders(
       (settings.videoProviders?.length ? settings.videoProviders : [DEFAULT_VIDEO_PROVIDER_CONFIG])
-        .map((provider) => normalizeVideoProvider(provider))
+        .map((provider) => {
+          const previous = current.videoProviders?.find((candidate) => candidate.id === provider.id);
+          const ownerId = previous?.connectionProviderId;
+          const source = ownerId ? current.providers.find((candidate) => candidate.id === ownerId) : undefined;
+          const sourceRemoved = source && !providers.some((candidate) => candidate.id === source.id);
+          // Detach only an existing relationship whose source was removed. A new
+          // dangling reference must still surface as a configuration error.
+          if (sourceRemoved && previous?.type === provider.type && source.type === provider.type
+            && (!provider.connectionProviderId || provider.connectionProviderId === ownerId)) {
+            const encryptedKey = current.encryptedApiKeys?.[source.id];
+            if (encryptedKey) detachedVideoKeys[provider.id] = encryptedKey;
+            return normalizeVideoProvider({ ...provider, baseUrl: source.baseUrl, connectionProviderId: undefined });
+          }
+          return normalizeVideoProvider(provider);
+        })
     );
     const activeVideoProviderId = videoProviders.some((p) => p.id === settings.activeVideoProviderId)
       ? settings.activeVideoProviderId
       : videoProviders[0].id;
     // 丢弃已删除 provider（图片、文本与视频）的 key。
     const validIds = new Set([...providers.map((p) => p.id), ...textProviders.map((p) => p.id), ...videoProviders.map((p) => p.id)]);
-    const encryptedApiKeys = Object.fromEntries(
-      Object.entries(current.encryptedApiKeys ?? {}).filter(([id]) => validIds.has(id))
-    );
+    const encryptedApiKeys = {
+      ...Object.fromEntries(Object.entries(current.encryptedApiKeys ?? {}).filter(([id]) => validIds.has(id))),
+      ...detachedVideoKeys
+    };
     this.writeSettings({
       ...current,
       providers,
@@ -314,6 +334,8 @@ export class SettingsStore {
         settings.advancedVideoModesEnabled ?? current.advancedVideoModesEnabled ?? false,
       canvasThumbnailPreview: settings.canvasThumbnailPreview,
       canvasMinimapVisible: settings.canvasMinimapVisible ?? current.canvasMinimapVisible ?? true,
+      boardCommentsEnabled: settings.boardCommentsEnabled ?? current.boardCommentsEnabled ?? false,
+      boardGalleryEnabled: settings.boardGalleryEnabled ?? current.boardGalleryEnabled ?? false,
       canvasImageToolbarOnHover:
         settings.canvasImageToolbarOnHover ?? current.canvasImageToolbarOnHover ?? false,
       canvasRelationshipHoverHighlight:
@@ -638,6 +660,8 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     advancedVideoModesEnabled: parsed.advancedVideoModesEnabled ?? false,
     canvasThumbnailPreview: parsed.canvasThumbnailPreview,
     canvasMinimapVisible: parsed.canvasMinimapVisible,
+    boardCommentsEnabled: parsed.boardCommentsEnabled ?? false,
+    boardGalleryEnabled: parsed.boardGalleryEnabled ?? false,
     canvasImageToolbarOnHover: parsed.canvasImageToolbarOnHover,
     canvasRelationshipHoverHighlight: parsed.canvasRelationshipHoverHighlight,
     wechatStickerExportEnabled: parsed.wechatStickerExportEnabled ?? false,
@@ -921,7 +945,7 @@ function ensureCodexTextBindings(
 ): TextProviderConfig[] {
   const next = [...textProviders];
   for (const imageProvider of imageProviders) {
-    if (imageProvider.type !== "codex-oauth") continue;
+    if (imageProvider.type !== "codex-oauth" || imageProvider.autoBindText === false) continue;
     if (next.some((provider) =>
       provider.type === "codex-oauth" && (provider.authProviderId || provider.id) === imageProvider.id
     )) continue;

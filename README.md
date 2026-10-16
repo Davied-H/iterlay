@@ -20,7 +20,7 @@ To let Codex or Claude Code work with your canvas, install the desktop app, then
 npx iterlay add
 ```
 
-The CLI detects installed agents, installs the Iterlay Skill, and configures its MCP server. See the [agent integration guide (Chinese)](cli/README.md).
+The App installs the Iterlay CLI automatically. Coding agents use its bundled Skill to generate images and videos with saved providers and manage the workspace. See the [agent integration guide (Chinese)](cli/README.md).
 
 ## Chat, Image, and Video providers
 

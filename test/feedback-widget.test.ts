@@ -42,10 +42,11 @@ describe("FeedbackWidget", () => {
     expect(entry?.dataset.feedbackDocked).toBe("false");
 
     expect(document.body.textContent).toContain("哪一步不顺手？");
-    expect(document.body.textContent).toContain("优质反馈被采纳可获 Credit");
+    expect(document.body.textContent).toContain("在 GitHub Issues 告诉我们");
+    expect(document.body.textContent).not.toContain("Credit");
     expect(localStorage.getItem("iterlay:feedback-incentive-nudge:v1")).not.toBeNull();
 
-    await clickButtonByLabel("关闭反馈激励提示");
+    await clickButtonByLabel("关闭反馈提示");
     expect(document.body.textContent).not.toContain("哪一步不顺手？");
 
     await act(async () => {
@@ -189,7 +190,7 @@ describe("FeedbackWidget", () => {
     expect([...document.body.querySelectorAll<HTMLElement>("[data-feedback]")]
       .some((element) => element.className.includes("max-w-xl"))).toBe(true);
     expect(document.body.textContent).not.toContain("取消");
-    expect(document.body.querySelector("[data-feedback-input]")?.textContent).toContain("提交反馈");
+    expect(document.body.querySelector("[data-feedback-input]")?.textContent).toContain("前往 GitHub 提交");
 
     await clickButton("新功能");
 
@@ -202,69 +203,67 @@ describe("FeedbackWidget", () => {
     expect(textarea?.placeholder).toBe("描述你希望增加的功能，以及它能解决什么问题");
   });
 
-  it("submits only the simple form values plus automatically collected page context", async () => {
-    const createdAt = new Date().toISOString();
-    const submitFeedback = vi.fn().mockResolvedValue({ id: "feedback-1", status: "pending", createdAt });
-    const listFeedbackHistory = vi.fn().mockResolvedValue({
-      items: [{ id: "feedback-1", kind: "feature", content: "希望支持批量导出", status: "evaluating", pageContext: { view: "board", route: "/", viewport: "1440x900", locale: "zh-CN" }, createdAt, updatedAt: createdAt }],
-      total: 1,
-      limit: 50,
-      offset: 0
-    });
-    const getFeedbackDetail = vi.fn().mockResolvedValue({
-      id: "feedback-1",
-      kind: "feature",
-      content: "希望支持批量导出",
-      status: "evaluating",
-      pageContext: { view: "board", route: "/", viewport: "1440x900", locale: "zh-CN" },
-      createdAt,
-      updatedAt: createdAt,
-      decisionSummary: "Pi Agent 正在评估",
-      runs: []
-    });
-    Object.defineProperty(window, "imageWorkbench", { configurable: true, value: { submitFeedback, listFeedbackHistory, getFeedbackDetail } });
-    await renderWidget({ boardId: "board-1", boardName: "新品画板", view: "board" });
-
+  it("prefills a GitHub issue without Manager submission or private board details and keeps the draft", async () => {
+    const submitFeedback = vi.fn();
+    Object.defineProperty(window, "imageWorkbench", { configurable: true, value: { submitFeedback } });
+    await renderWidget({ boardId: "private-board-1", boardName: "私密新品画板", view: "board" });
     await openDialog();
     await clickButton("新功能");
-    await changeTextarea("希望支持批量导出");
-    await clickButton("提交反馈");
-    await settle(240);
+    await changeTextarea("希望支持批量导出 & 图片\n保留原始尺寸");
 
-    expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({
-      kind: "feature",
-      content: "希望支持批量导出",
-      pageContext: expect.objectContaining({ view: "board", boardId: "board-1", boardName: "新品画板" })
-    }));
-    expect(document.body.textContent).toContain("反馈已收到");
-    expect(document.body.textContent).toContain("查看提交记录");
-    expect(localStorage.getItem("iterlay:feedback-draft:v1")).toBeNull();
-    expect(localStorage.getItem("iterlay:feedback-history:v1")).toContain("feedback-1");
-
-    await clickButton("查看提交记录");
-    await settle(240);
-    expect(listFeedbackHistory).toHaveBeenCalledWith(50);
-    expect(document.body.textContent).toContain("共 1 条记录");
-
-    await clickButtonContaining("希望支持批量导出");
-    await settle(240);
-    expect(getFeedbackDetail).toHaveBeenCalledWith("feedback-1");
-    expect(document.body.textContent).toContain("Pi Agent 正在评估");
+    const link = findIssueLink();
+    expect(link.getAttribute("aria-disabled")).toBe("false");
+    const url = new URL(link.href);
+    expect(`${url.origin}${url.pathname}`).toBe("https://github.com/Davied-H/iterlay/issues/new");
+    expect(url.searchParams.get("title")).toBe("[功能建议] 希望支持批量导出 & 图片");
+    expect(url.searchParams.get("body")).toContain("保留原始尺寸");
+    expect(url.searchParams.get("body")).not.toContain("私密新品画板");
+    expect(url.searchParams.get("body")).not.toContain("private-board-1");
+    expect(document.body.textContent).toContain("需登录 GitHub 并确认提交");
+    expect(submitFeedback).not.toHaveBeenCalled();
+    expect(localStorage.getItem("iterlay:feedback-draft:v1")).toContain("希望支持批量导出");
+    expect(document.body.textContent).not.toContain("提交成功");
+    expect(document.body.querySelector('a[aria-label="查看 GitHub Issues"]')?.getAttribute("href"))
+      .toBe("https://github.com/Davied-H/iterlay/issues");
   });
 
-  it("keeps the draft and error visible when submission fails", async () => {
-    const submitFeedback = vi.fn().mockRejectedValue(new Error("网络不可用"));
-    Object.defineProperty(window, "imageWorkbench", { configurable: true, value: { submitFeedback } });
-    await renderWidget({ view: "library" });
-
+  it("keeps the GitHub link disabled for blank or too-short feedback", async () => {
+    await renderWidget({ view: "board" });
     await openDialog();
-    await changeTextarea("素材筛选需要更快");
-    await clickButton("提交反馈");
-    await settle();
+    await changeTextarea("  好  ");
+    expect(findIssueLink().getAttribute("href")).toBeNull();
+    expect(findIssueLink().getAttribute("aria-disabled")).toBe("true");
+  });
 
-    expect(document.body.textContent).toContain("网络不可用");
-    expect(document.body.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("素材筛选需要更快");
-    expect(localStorage.getItem("iterlay:feedback-draft:v1")).toContain("素材筛选需要更快");
+  it("requires copying long feedback intact before opening GitHub", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    await renderWidget({ view: "board" });
+    await openDialog();
+    const longContent = "长反馈内容".repeat(400);
+    await changeTextarea(longContent);
+    expect(findIssueLink().getAttribute("href")).toBeNull();
+    await clickButton("复制完整反馈");
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining(longContent));
+    expect(findIssueLink().getAttribute("aria-disabled")).toBe("false");
+    expect(findIssueLink().href.length).toBeLessThan(7_500);
+    expect(localStorage.getItem("iterlay:feedback-draft:v1")).toContain(longContent);
+    await changeTextarea(longContent + "修改");
+    expect(findIssueLink().getAttribute("href")).toBeNull();
+  });
+
+  it("keeps long drafts editable and shows clipboard failures", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }
+    });
+    await renderWidget({ view: "library" });
+    await openDialog();
+    const content = "反馈内容".repeat(500);
+    await changeTextarea(content);
+    await clickButton("复制完整反馈");
+    expect(document.body.textContent).toContain("无法复制");
+    expect(document.body.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(content);
+    expect(findIssueLink().getAttribute("href")).toBeNull();
   });
 });
 
@@ -284,13 +283,6 @@ async function clickButton(label: string): Promise<void> {
   const button = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
     .find((candidate) => candidate.textContent?.trim() === label);
   if (!button) throw new Error(`missing button: ${label}`);
-  await act(async () => button.click());
-}
-
-async function clickButtonContaining(text: string): Promise<void> {
-  const button = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-    .find((candidate) => candidate.textContent?.includes(text));
-  if (!button) throw new Error(`missing button containing: ${text}`);
   await act(async () => button.click());
 }
 
@@ -317,10 +309,6 @@ async function changeTextarea(value: string): Promise<void> {
   });
 }
 
-async function settle(delay = 0): Promise<void> {
-  await act(async () => new Promise((resolve) => setTimeout(resolve, delay)));
-}
-
 async function dispatchPointer(
   target: HTMLElement,
   type: string,
@@ -329,4 +317,11 @@ async function dispatchPointer(
   const event = new MouseEvent(type, { bubbles: true, ...init });
   Object.defineProperty(event, "pointerId", { value: init.pointerId });
   await act(async () => target.dispatchEvent(event));
+}
+
+function findIssueLink(): HTMLAnchorElement {
+  const link = [...document.body.querySelectorAll<HTMLAnchorElement>("a")]
+    .find((candidate) => candidate.textContent?.trim() === "前往 GitHub 提交");
+  if (!link) throw new Error("missing GitHub issue link");
+  return link;
 }

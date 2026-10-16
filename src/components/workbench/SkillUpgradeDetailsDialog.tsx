@@ -1,16 +1,16 @@
 import { useUiText } from "@/i18n";
 import { CheckCircle2, FilePenLine, FilePlus2, FileX2, RefreshCw } from "lucide-react";
-import type { McpSkillUpgradeDetail } from "@shared/mcp-integration";
+import type { AgentSkillUpgradeDetail } from "@shared/agent-integration";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SkillUpgradeDetailsDialogProps {
   open: boolean;
-  details: McpSkillUpgradeDetail[];
+  details: AgentSkillUpgradeDetail[];
   onOpenChange: (open: boolean) => void;
 }
 
-const clientLabels: Record<McpSkillUpgradeDetail["client"], string> = {
+const clientLabels: Record<AgentSkillUpgradeDetail["client"], string> = {
   codex: "Codex",
   "claude-code": "Claude Code"
 };

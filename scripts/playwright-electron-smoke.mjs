@@ -34,13 +34,13 @@ await writeFile(path.join(userData, "workspace", "onboarding.json"), JSON.string
 )));
 let electronApp;
 async function bridge(method, args = {}) {
-  const info = JSON.parse(await readFile(path.join(userData, "mcp-bridge.json"), "utf8"));
+  const info = JSON.parse(await readFile(path.join(userData, "local-api.json"), "utf8"));
   const response = await fetch(`http://127.0.0.1:${info.port}/call`, {
     method: "POST", headers: { authorization: `Bearer ${info.token}`, "content-type": "application/json" },
     body: JSON.stringify({ method, args }), signal: AbortSignal.timeout(30_000)
   });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "MCP failed");
+  if (!response.ok) throw new Error(body.error || "Workspace operation failed");
   return body.result;
 }
 async function pageReady(page) {
@@ -84,7 +84,7 @@ try {
   await electronApp.evaluate(({ app }) => { app.emit("activate"); });
   page = await reopened;
   await pageReady(page);
-  assert((await bridge("list_boards")).some((item) => item.id === board.id), "MCP must survive reopening its initial window");
+  assert((await bridge("list_boards")).some((item) => item.id === board.id), "Workspace service must survive reopening its initial window");
   await bridge("open_board", { boardId: board.id });
   await page.locator(`[data-id="${nodeId}"]`).waitFor({ state: "visible" });
   const task = await bridge("generate_image", { boardId: board.id, prompt: "Offline smoke fixture", n: 1 });

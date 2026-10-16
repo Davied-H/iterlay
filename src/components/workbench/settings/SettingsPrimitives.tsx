@@ -1,45 +1,53 @@
 import { type ReactNode } from "react";
+import { useUiText } from "@/i18n";
 import { cn } from "@/lib/utils";
+import "./settings-shell.css";
 
-export function SettingsGroup({ title, children, className }: { title: string; children: ReactNode; className?: string }): React.ReactElement {
-  return (
-    <section className={cn("flex flex-col gap-2.5", className)}>
-      <h3 className="px-0.5 text-xs font-medium text-muted-foreground">{title}</h3>
-      <div className="divide-y divide-border/80 overflow-hidden border-y border-border/80 bg-card">{children}</div>
-    </section>
-  );
+export function SettingsPageHeader({ title, description, actions, children, className }: {
+  title: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}): React.ReactElement {
+  return <header className={cn("settings-page-header", className)}>
+    <div className="settings-page-heading">
+      <h2>{title}</h2>
+      {description ? <p>{description}</p> : null}
+      {children}
+    </div>
+    {actions ? <div className="settings-page-actions">{actions}</div> : null}
+  </header>;
 }
 
-export function SettingsRow({
-  title,
-  description,
-  control,
-  children,
-  stackControlOnNarrow
-}: {
+export function SettingsGroup({ title, children, className }: { title: string; children: ReactNode; className?: string }): React.ReactElement {
+  const uiText = useUiText();
+  return <section className={cn("settings-group", className)}>
+    <h3>{uiText(title)}</h3>
+    <div className="settings-group-rows">{children}</div>
+  </section>;
+}
+
+export function SettingsRow({ title, description, control, children, className, stackControlOnNarrow, disabled, interactive }: {
   title: ReactNode;
   description?: ReactNode;
   control?: ReactNode;
   children?: ReactNode;
+  className?: string;
   stackControlOnNarrow?: boolean;
+  disabled?: boolean;
+  interactive?: boolean;
 }): React.ReactElement {
-  return (
-    <div className="flex flex-col gap-3.5 px-4 py-4 transition-colors duration-150">
-      <div className={cn(
-        "flex items-center justify-between gap-8",
-        stackControlOnNarrow && "max-[520px]:flex-col max-[520px]:items-stretch max-[520px]:gap-3"
-      )}>
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[13px] font-medium leading-5 text-foreground">{title}</span>
-          {description ? <span className="max-w-[64ch] text-xs leading-5 text-muted-foreground">{description}</span> : null}
-        </span>
-        {control ? (
-          <span className={cn("flex shrink-0 items-center", stackControlOnNarrow && "max-[520px]:self-end")}>
-            {control}
-          </span>
-        ) : null}
-      </div>
-      {children}
+  const uiText = useUiText();
+  const Component = interactive ? "label" : "div";
+  return <Component className={cn("settings-row", children && !control && "settings-row--fields", interactive && "settings-row--interactive", stackControlOnNarrow && "settings-row--stack", className)} data-disabled={disabled || undefined}>
+    <div className="settings-row-main">
+      <span className="settings-row-copy">
+        <span className="settings-row-title">{typeof title === "string" ? uiText(title) : title}</span>
+        {description ? <span className="settings-row-description">{typeof description === "string" ? uiText(description) : description}</span> : null}
+      </span>
+      {control ? <span className="settings-row-control">{control}</span> : null}
     </div>
-  );
+    {children ? <div className="settings-row-fields">{children}</div> : null}
+  </Component>;
 }

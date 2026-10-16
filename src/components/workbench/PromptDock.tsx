@@ -1267,7 +1267,8 @@ export function PromptDock({
 
     function clampToViewport(): void {
       const panel = assistantPanelRef.current;
-      if (!panel) return;
+      // 历史记录打开时 Dock 隐藏，不使用零尺寸边界重置助手位置。
+      if (!panel || panel.getClientRects().length === 0) return;
       if (assistantDockSide) {
         if (
           window.innerWidth < ASSISTANT_DOCK_MIN_VIEWPORT_WIDTH

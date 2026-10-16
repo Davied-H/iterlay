@@ -52,7 +52,6 @@ import {
   CanvasVideoMergeToolbar,
   CanvasViewportOverlays
 } from "./CanvasOverlays";
-import { useCanvasMiniMapController } from "./use-canvas-minimap-controller";
 import { edgeFromConnection } from "./ConnectionController";
 import { nodeImage, nodeRenderedHeight, nodeRenderedWidth } from "./NodeRegistry";
 import { CanvasContextMenu, CanvasNodeCreateMenu, CanvasZoomToolbar } from "./CanvasInteractionOverlays";
@@ -560,14 +559,6 @@ export function CanvasBoard({
     (): DOMRect | null => canvasContainerRef.current?.getBoundingClientRect() ?? null,
     []
   );
-  const miniMapController = useCanvasMiniMapController({
-    canvasContainerRef,
-    visible: showMinimap && nodes.length > 0,
-    getViewport,
-    setViewport,
-    zoomTo,
-    scheduleCanvasReport
-  });
   const initialPositionsRef = useRef(initialPositions);
   const initialConnectionsRef = useRef<BoardConnection[] | null>(null);
   const initialConnectionsRevisionRef = useRef<number | undefined>(undefined);
@@ -1685,7 +1676,6 @@ export function CanvasBoard({
           visible={showMinimap && nodes.length > 0}
           images={miniMapImages}
           reduceMotion={reduceMotion}
-          controller={miniMapController.viewProps}
         />
       </CanvasSurface>
 

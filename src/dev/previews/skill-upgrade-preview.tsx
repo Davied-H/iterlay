@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { McpSkillUpgradeDetail } from "@shared/mcp-integration";
+import type { AgentSkillUpgradeDetail } from "@shared/agent-integration";
 import { SkillUpgradeDetailsDialog } from "@/components/workbench/SkillUpgradeDetailsDialog";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import "@/styles.css";
 
-const details: McpSkillUpgradeDetail[] = [
+const details: AgentSkillUpgradeDetail[] = [
   {
     client: "codex",
     skillPath: "/Users/demo/.codex/skills/iterlay-workspace",

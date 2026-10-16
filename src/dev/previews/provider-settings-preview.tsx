@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import type { ImageWorkbenchApi } from "../../../electron/preload/preload";
 import type {
@@ -8,6 +8,8 @@ import type {
   TextProviderConfig,
   VideoProviderConfig
 } from "@shared/types";
+import type { CodingAgentIntegrationStatus } from "@shared/agent-integration";
+import type { ProviderSettingsDialogProps } from "@/components/workbench/settings/provider-settings-components";
 import type { LicenseStatusSnapshot } from "@shared/licensing";
 import { LicenseContext } from "@/components/licensing/license-context";
 import { ProviderSettingsDialog } from "@/components/workbench/ProviderSettingsDialog";
@@ -17,19 +19,14 @@ import { LegacyI18nBridge } from "@/i18n/LegacyI18nBridge";
 import sceneMasterAvatar from "@/assets/scene-master-avatar.png";
 import "@/styles.css";
 
+const EMPTY_IMAGE_PROVIDERS: ProviderConfig[] = [];
+const EMPTY_TEXT_PROVIDERS: TextProviderConfig[] = [];
+const EMPTY_VIDEO_PROVIDERS: VideoProviderConfig[] = [];
+
 const imageProviders: ProviderConfig[] = [
   {
-    id: "iterlay-official",
-    name: "Iterlay 官方",
-    type: "official",
-    baseUrl: "",
-    generationEndpoint: "",
-    model: "官方图片模型",
-    supportsReferenceImages: true
-  },
-  {
     id: "fal-personal",
-    name: "tao / fal",
+    name: "fal.ai 工作室",
     type: "fal",
     baseUrl: "https://queue.fal.run",
     generationEndpoint: "",
@@ -41,10 +38,10 @@ const imageProviders: ProviderConfig[] = [
   },
   {
     id: "me-image",
-    name: "me",
+    name: "自定义 API",
     type: "openai-compatible",
     apiMode: "responses",
-    baseUrl: "https://sub2api.daived.com:31243",
+    baseUrl: "https://api.example.com",
     generationEndpoint: "/v1/responses",
     referenceEndpoint: "",
     model: "gpt-image-2",
@@ -65,12 +62,11 @@ const imageProviders: ProviderConfig[] = [
 ];
 
 const textProviders: TextProviderConfig[] = [
-  { id: "iterlay-official-text", name: "Iterlay 官方", type: "official", baseUrl: "", model: "" },
   {
     id: "me-text",
-    name: "me",
+    name: "日常文本",
     type: "openai-compatible",
-    baseUrl: "https://sub2api.daived.com:31243/",
+    baseUrl: "https://api.example.com/",
     model: "gpt-5.5"
   },
   {
@@ -84,7 +80,6 @@ const textProviders: TextProviderConfig[] = [
 ];
 
 const videoProviders: VideoProviderConfig[] = [
-  { id: "iterlay-official-video", name: "Iterlay 官方", type: "official", baseUrl: "", model: "官方视频模型" },
   {
     id: "volcengine-ark-video",
     name: "火山方舟",
@@ -148,7 +143,32 @@ const previewLicenseStatus: LicenseStatusSnapshot = {
   }
 };
 
+const previewCodingStatus: CodingAgentIntegrationStatus = {
+  development: true,
+  cli: { installed: true, pathConfigured: true, path: "/Users/preview/.local/bin/iterlay" },
+  clients: [
+    { id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/Users/preview/.codex/skills/iterlay-workspace", legacyConfigured: false },
+    { id: "claude-code", detected: true, detection: "installed", skillInstalled: true, skillManaged: true, skillPath: "/Users/preview/.claude/skills/iterlay-workspace", legacyConfigured: false }
+  ]
+};
+
 const previewApi = {
+  getCodingAgentStatus: async () => structuredClone(previewCodingStatus),
+  installCli: async () => structuredClone(previewCodingStatus),
+  installAgentSkill: async (id: "codex" | "claude-code") => {
+    const client = previewCodingStatus.clients.find((item) => item.id === id);
+    if (client) { client.skillInstalled = true; client.skillManaged = true; client.legacyConfigured = false; }
+    return structuredClone(previewCodingStatus);
+  },
+  removeAgentSkill: async (id: "codex" | "claude-code") => {
+    const client = previewCodingStatus.clients.find((item) => item.id === id);
+    if (client) client.skillInstalled = false;
+    return structuredClone(previewCodingStatus);
+  },
+  listMemories: async () => [],
+  testProvider: async () => ({ ok: true, message: "示例连接验证成功（预览结果）。" }),
+  testTextProvider: async () => ({ ok: true, message: "示例连接验证成功（预览结果）。" }),
+  testVideoProvider: async () => ({ ok: true, message: "示例连接验证成功（预览结果）。" }),
   onPiAgentLog: () => () => undefined,
   getPiAgentLogs: async () => ({ entries: [], logPath: "/Users/preview/Library/Logs/Iterlay/pi-agent.log" }),
   getPiAgentResources: async () => ({
@@ -194,8 +214,8 @@ const previewApi = {
     source: "system",
     warning: resourcePath.endsWith(".ts") ? "扩展是本地可执行代码，仅启用可信来源。" : undefined,
     content: resourcePath.endsWith(".ts")
-      ? "export default function reviewExtension(pi) {\\n  // Register review hooks and tools.\\n}"
-      : "---\\nname: visual-direction\\ndescription: 为画板提供视觉方向和提示词结构。\\n---\\n\\n# Visual Direction"
+      ? "export default function reviewExtension(pi) {\n  // Register review hooks and tools.\n}"
+      : "---\nname: visual-direction\ndescription: 为画板提供视觉方向和提示词结构。\n---\n\n# Visual Direction"
   }),
   listAssistantSkills: async () => [{
     id: "iterlay-board-image",
@@ -232,12 +252,6 @@ const previewApi = {
     builtInContent: `---\nname: ${id}\ndescription: Preview assistant Skill\n---\n`
   }),
   clearPiAgentLogs: async () => ({ ok: true }),
-  getMcpIntegrationStatus: async () => ({
-    clients: [
-      { id: "codex", configured: true, configPath: "~/.codex/config.toml", skillInstalled: true, skillPath: "~/.codex/skills/iterlay-workspace" },
-      { id: "claude-code", configured: false, configPath: "~/.claude.json", skillInstalled: false, skillPath: "~/.claude/skills/iterlay-workspace" }
-    ]
-  }),
   getSettings: async () => ({
     downloadDirectory: "",
     appIcon: previewAppIcon,
@@ -245,17 +259,13 @@ const previewApi = {
     codexAuthStatusByProviderId: {
       "codex-personal": {
         state: "connected",
-        email: "daived1998@126.com",
+        email: "preview@example.com",
         planType: "Plus"
       }
     }
   }),
   getMemoryStats: async () => ({ eventCount: 24, activeMemoryCount: 8, candidateMemoryCount: 2 }),
   clearAppCache: async () => ({ ok: true }),
-  exportMcpPluginPackage: async (client: "codex" | "claude-code") => ({
-    ok: true,
-    path: `/Users/preview/Downloads/iterlay-workspace-${client}-plugin-v0.1.48.zip`
-  }),
   openPath: async () => ({ ok: true }),
   getActiveOnlineShare: async () => previewOnlineShare,
   stopOnlineShare: async () => {
@@ -303,10 +313,92 @@ const previewApi = {
 
 (globalThis as typeof globalThis & { imageWorkbench: ImageWorkbenchApi }).imageWorkbench = previewApi;
 
+type PreviewPreferences = Pick<ProviderSettingsDialogProps,
+  "promptDockAutoCollapse" |
+  "advancedVideoModesEnabled" |
+  "canvasThumbnailPreview" |
+  "canvasMinimapVisible" |
+  "boardCommentsEnabled" |
+  "boardGalleryEnabled" |
+  "canvasImageToolbarOnHover" |
+  "canvasRelationshipHoverHighlight" |
+  "wechatStickerExportEnabled" |
+  "onlineImageSharingEnabled" |
+  "copyImageFormat" |
+  "boardSmartSuggestionsEnabled" |
+  "boardAssistantEnabled" |
+  "boardAssistantAgentModeEnabled" |
+  "piAgentBuiltinTools" |
+  "piAgentIterlayTools" |
+  "piAgentSkillPaths" |
+  "piAgentExtensionPaths" |
+  "piAgentCustomSkillPaths" |
+  "piAgentCustomExtensionPaths" |
+  "piAgentMaxTurns" |
+  "piAgentWebSearchMaxResults" |
+  "boardAssistantAwarenessEnabled" |
+  "boardAssistantIntentSuggestionsEnabled" |
+  "boardAssistantIntentSuggestionCount" |
+  "editSmartSuggestionsEnabled" |
+  "memoryEnabled" |
+  "memoryUsageLevel" |
+  "editInfoMode" |
+  "imageDoubleClickAction" |
+  "versionSeparationMode" |
+  "generateButtonStyle" |
+  "downloadDirectory"
+>;
+
 function Preview(): React.ReactElement {
+  const params = new URLSearchParams(window.location.search);
+  const [theme, setTheme] = useState<"light" | "dark">(params.get("theme") === "dark" ? "dark" : "light");
   const [open, setOpen] = useState(true);
   const [shareManagerOpen, setShareManagerOpen] = useState(false);
   const { language, setLanguage } = useI18n();
+  const [preferences, setPreferences] = useState<PreviewPreferences>({
+    promptDockAutoCollapse: true,
+    advancedVideoModesEnabled: false,
+    canvasThumbnailPreview: false,
+    canvasMinimapVisible: true,
+    boardCommentsEnabled: false,
+    boardGalleryEnabled: false,
+    canvasImageToolbarOnHover: false,
+    canvasRelationshipHoverHighlight: false,
+    wechatStickerExportEnabled: false,
+    onlineImageSharingEnabled: false,
+    copyImageFormat: "png",
+    boardSmartSuggestionsEnabled: true,
+    boardAssistantEnabled: true,
+    boardAssistantAgentModeEnabled: false,
+    piAgentBuiltinTools: ["read", "grep", "find", "ls"],
+    piAgentIterlayTools: [],
+    piAgentSkillPaths: [],
+    piAgentExtensionPaths: [],
+    piAgentCustomSkillPaths: [],
+    piAgentCustomExtensionPaths: [],
+    piAgentMaxTurns: 12,
+    piAgentWebSearchMaxResults: 5,
+    boardAssistantAwarenessEnabled: false,
+    boardAssistantIntentSuggestionsEnabled: true,
+    boardAssistantIntentSuggestionCount: 3,
+    editSmartSuggestionsEnabled: false,
+    memoryEnabled: true,
+    memoryUsageLevel: "balanced",
+    editInfoMode: "panel",
+    imageDoubleClickAction: "focus",
+    versionSeparationMode: "copy",
+    generateButtonStyle: "folded",
+    downloadDirectory: ""
+  });
+  function setPreference<K extends keyof PreviewPreferences>(key: K, value: PreviewPreferences[K]): void {
+    setPreferences((current) => ({ ...current, [key]: value }));
+  }
+  const empty = params.get("scenario") === "empty";
+  useEffect(() => { document.documentElement.classList.toggle("dark", theme === "dark"); }, [theme]);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("lang");
+    if (requested === "en-US" || requested === "zh-CN") setLanguage(requested);
+  }, [setLanguage]);
   const entryPoint = new URLSearchParams(window.location.search).get("entryPoint") === "model-management"
     ? "model-management"
     : "default";
@@ -330,21 +422,18 @@ function Preview(): React.ReactElement {
           open={open}
           onOpenChange={setOpen}
           entryPoint={entryPoint}
-          providers={imageProviders}
-          activeProviderId="iterlay-official"
-          textProviders={textProviders}
+          providers={empty ? EMPTY_IMAGE_PROVIDERS : imageProviders}
+          activeProviderId="fal-personal"
+          textProviders={empty ? EMPTY_TEXT_PROVIDERS : textProviders}
           activeTextProviderId="me-text"
-          videoProviders={videoProviders}
+          videoProviders={empty ? EMPTY_VIDEO_PROVIDERS : videoProviders}
           activeVideoProviderId="volcengine-ark-video"
           providerKeyStatus={{
-            "iterlay-official": true,
-            "iterlay-official-text": true,
             "fal-personal": true,
             "me-image": true,
             "me-text": true,
             "codex-personal": true,
             "text-codex-personal": true,
-            "iterlay-official-video": true,
             "volcengine-ark-video": true,
             "fal-video-shared": true,
             "openrouter-video-shared": true
@@ -352,74 +441,80 @@ function Preview(): React.ReactElement {
           bridgeError={null}
           language={language}
           onLanguageChange={setLanguage}
-          theme="light"
-          onThemeChange={() => undefined}
-           promptDockAutoCollapse
-           onPromptDockAutoCollapseChange={() => undefined}
-           advancedVideoModesEnabled={false}
-           onAdvancedVideoModesEnabledChange={() => undefined}
-           canvasThumbnailPreview={false}
-          onCanvasThumbnailPreviewChange={() => undefined}
-          canvasMinimapVisible
-          onCanvasMinimapVisibleChange={() => undefined}
-          canvasImageToolbarOnHover={false}
-          onCanvasImageToolbarOnHoverChange={() => undefined}
-          canvasRelationshipHoverHighlight={false}
-          onCanvasRelationshipHoverHighlightChange={() => undefined}
-          wechatStickerExportEnabled={false}
-          onWechatStickerExportEnabledChange={() => undefined}
-          onlineImageSharingEnabled={false}
-          onOnlineImageSharingEnabledChange={() => undefined}
-          copyImageFormat="png"
-          onCopyImageFormatChange={() => undefined}
-          boardSmartSuggestionsEnabled
-          onBoardSmartSuggestionsEnabledChange={() => undefined}
-          boardAssistantEnabled={false}
-          onBoardAssistantEnabledChange={() => undefined}
-          boardAssistantAgentModeEnabled={false}
+          theme={theme}
+          onThemeChange={(value) => setTheme(value === "dark" ? "dark" : "light")}
+           promptDockAutoCollapse={preferences.promptDockAutoCollapse}
+           onPromptDockAutoCollapseChange={(value) => setPreference("promptDockAutoCollapse", value)}
+           advancedVideoModesEnabled={preferences.advancedVideoModesEnabled}
+           onAdvancedVideoModesEnabledChange={(value) => setPreference("advancedVideoModesEnabled", value)}
+           canvasThumbnailPreview={preferences.canvasThumbnailPreview}
+          onCanvasThumbnailPreviewChange={(value) => setPreference("canvasThumbnailPreview", value)}
+          canvasMinimapVisible={preferences.canvasMinimapVisible}
+          onCanvasMinimapVisibleChange={(value) => setPreference("canvasMinimapVisible", value)}
+          boardCommentsEnabled={preferences.boardCommentsEnabled}
+          onBoardCommentsEnabledChange={(value) => setPreference("boardCommentsEnabled", value)}
+          boardGalleryEnabled={preferences.boardGalleryEnabled}
+          onBoardGalleryEnabledChange={(value) => setPreference("boardGalleryEnabled", value)}
+          canvasImageToolbarOnHover={preferences.canvasImageToolbarOnHover}
+          onCanvasImageToolbarOnHoverChange={(value) => setPreference("canvasImageToolbarOnHover", value)}
+          canvasRelationshipHoverHighlight={preferences.canvasRelationshipHoverHighlight}
+          onCanvasRelationshipHoverHighlightChange={(value) => setPreference("canvasRelationshipHoverHighlight", value)}
+          wechatStickerExportEnabled={preferences.wechatStickerExportEnabled}
+          onWechatStickerExportEnabledChange={(value) => setPreference("wechatStickerExportEnabled", value)}
+          onlineImageSharingEnabled={preferences.onlineImageSharingEnabled}
+          onOnlineImageSharingEnabledChange={(value) => setPreference("onlineImageSharingEnabled", value)}
+          copyImageFormat={preferences.copyImageFormat}
+          onCopyImageFormatChange={(value) => setPreference("copyImageFormat", value)}
+          boardSmartSuggestionsEnabled={preferences.boardSmartSuggestionsEnabled}
+          onBoardSmartSuggestionsEnabledChange={(value) => setPreference("boardSmartSuggestionsEnabled", value)}
+          boardAssistantEnabled={preferences.boardAssistantEnabled}
+          onBoardAssistantEnabledChange={(value) => setPreference("boardAssistantEnabled", value)}
+          boardAssistantAgentModeEnabled={preferences.boardAssistantAgentModeEnabled}
           boardAssistantAgentModeAvailable
           boardAssistantAgentModeModel="gpt-5.5"
-          onBoardAssistantAgentModeEnabledChange={() => undefined}
-          piAgentBuiltinTools={["read", "grep", "find", "ls"]}
-          onPiAgentBuiltinToolsChange={() => undefined}
-          piAgentIterlayTools={[]}
-          onPiAgentIterlayToolsChange={() => undefined}
-          piAgentSkillPaths={[]}
-          onPiAgentSkillPathsChange={() => undefined}
-          piAgentExtensionPaths={[]}
-          onPiAgentExtensionPathsChange={() => undefined}
-          piAgentCustomSkillPaths={[]}
-          onPiAgentCustomSkillPathsChange={() => undefined}
-          piAgentCustomExtensionPaths={[]}
-          onPiAgentCustomExtensionPathsChange={() => undefined}
-          piAgentMaxTurns={12}
-          onPiAgentMaxTurnsChange={() => undefined}
-          piAgentWebSearchMaxResults={5}
-          onPiAgentWebSearchMaxResultsChange={() => undefined}
-          boardAssistantAwarenessEnabled={false}
-          onBoardAssistantAwarenessEnabledChange={() => undefined}
-          boardAssistantIntentSuggestionsEnabled
-          onBoardAssistantIntentSuggestionsEnabledChange={() => undefined}
-          boardAssistantIntentSuggestionCount={3}
-          onBoardAssistantIntentSuggestionCountChange={() => undefined}
-          editSmartSuggestionsEnabled={false}
+          onBoardAssistantAgentModeEnabledChange={(value) => setPreference("boardAssistantAgentModeEnabled", value)}
+          piAgentBuiltinTools={preferences.piAgentBuiltinTools}
+          onPiAgentBuiltinToolsChange={(value) => setPreference("piAgentBuiltinTools", value)}
+          piAgentIterlayTools={preferences.piAgentIterlayTools}
+          onPiAgentIterlayToolsChange={(value) => setPreference("piAgentIterlayTools", value)}
+          piAgentSkillPaths={preferences.piAgentSkillPaths}
+          onPiAgentSkillPathsChange={(value) => setPreference("piAgentSkillPaths", value)}
+          piAgentExtensionPaths={preferences.piAgentExtensionPaths}
+          onPiAgentExtensionPathsChange={(value) => setPreference("piAgentExtensionPaths", value)}
+          piAgentCustomSkillPaths={preferences.piAgentCustomSkillPaths}
+          onPiAgentCustomSkillPathsChange={(value) => setPreference("piAgentCustomSkillPaths", value)}
+          piAgentCustomExtensionPaths={preferences.piAgentCustomExtensionPaths}
+          onPiAgentCustomExtensionPathsChange={(value) => setPreference("piAgentCustomExtensionPaths", value)}
+          piAgentMaxTurns={preferences.piAgentMaxTurns}
+          onPiAgentMaxTurnsChange={(value) => setPreference("piAgentMaxTurns", value)}
+          piAgentWebSearchMaxResults={preferences.piAgentWebSearchMaxResults}
+          onPiAgentWebSearchMaxResultsChange={(value) => setPreference("piAgentWebSearchMaxResults", value)}
+          boardAssistantAwarenessEnabled={preferences.boardAssistantAwarenessEnabled}
+          onBoardAssistantAwarenessEnabledChange={(value) => setPreference("boardAssistantAwarenessEnabled", value)}
+          boardAssistantIntentSuggestionsEnabled={preferences.boardAssistantIntentSuggestionsEnabled}
+          onBoardAssistantIntentSuggestionsEnabledChange={(value) => setPreference("boardAssistantIntentSuggestionsEnabled", value)}
+          boardAssistantIntentSuggestionCount={preferences.boardAssistantIntentSuggestionCount}
+          onBoardAssistantIntentSuggestionCountChange={(value) => setPreference("boardAssistantIntentSuggestionCount", value)}
+          editSmartSuggestionsEnabled={preferences.editSmartSuggestionsEnabled}
           editSmartSuggestionsAvailable
-          onEditSmartSuggestionsEnabledChange={() => undefined}
-          memoryEnabled
-          onMemoryEnabledChange={() => undefined}
-          memoryUsageLevel="balanced"
-          onMemoryUsageLevelChange={() => undefined}
-          editInfoMode="panel"
-          onEditInfoModeChange={() => undefined}
-          imageDoubleClickAction="focus"
-          onImageDoubleClickActionChange={() => undefined}
-          versionSeparationMode="copy"
-          onVersionSeparationModeChange={() => undefined}
-          generateButtonStyle="folded"
-          onGenerateButtonStyleChange={() => undefined}
-          downloadDirectory=""
-          onDownloadDirectoryChange={() => undefined}
-          onSaved={async () => undefined}
+          onEditSmartSuggestionsEnabledChange={(value) => setPreference("editSmartSuggestionsEnabled", value)}
+          memoryEnabled={preferences.memoryEnabled}
+          onMemoryEnabledChange={(value) => setPreference("memoryEnabled", value)}
+          memoryUsageLevel={preferences.memoryUsageLevel}
+          onMemoryUsageLevelChange={(value) => setPreference("memoryUsageLevel", value)}
+          editInfoMode={preferences.editInfoMode}
+          onEditInfoModeChange={(value) => setPreference("editInfoMode", value)}
+          imageDoubleClickAction={preferences.imageDoubleClickAction}
+          onImageDoubleClickActionChange={(value) => setPreference("imageDoubleClickAction", value)}
+          versionSeparationMode={preferences.versionSeparationMode}
+          onVersionSeparationModeChange={(value) => setPreference("versionSeparationMode", value)}
+          generateButtonStyle={preferences.generateButtonStyle}
+          onGenerateButtonStyleChange={(value) => setPreference("generateButtonStyle", value)}
+          downloadDirectory={preferences.downloadDirectory}
+          onDownloadDirectoryChange={(value) => setPreference("downloadDirectory", value)}
+          onSaved={async () => {
+            if (params.get("scenario") === "save-error") throw new Error("预览：模拟保存失败。");
+          }}
         />
       </LicenseContext.Provider>
       <OnlineShareManagerDialog

@@ -1,8 +1,8 @@
 import { vi } from "vitest";
 import { WORKBENCH_COMMANDS } from "../../shared/contracts/workbench-commands";
-import { McpCommands } from "../../electron/application/mcp-commands";
-import type { McpWorkbenchApi } from "../../electron/application/workbench-api";
-export function mcpFixture() {
+import { WorkspaceCommands } from "../../electron/application/workspace-commands";
+import type { WorkspaceApi } from "../../electron/application/workbench-api";
+export function workspaceFixture() {
   const mocks = Object.fromEntries(Object.keys(WORKBENCH_COMMANDS).map((name) => [name, vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined)]));
   mocks.getSettings.mockResolvedValue({ activeProviderId: "custom", providers: [{ id: "custom", type: "openai-compatible", model: "fixture" }] });
   mocks.getBoard.mockResolvedValue({ id: "board", nodes: [{ id: "image", imagePath: "/managed/source.png", x: 0, y: 0 }], revision: 1 });
@@ -16,6 +16,6 @@ export function mcpFixture() {
   mocks.listBoards.mockResolvedValue([{ id: "board" }]);
   mocks.appendBoardNodes.mockResolvedValue({ ok: true });
   const emit = vi.fn(), flush = vi.fn(async () => undefined);
-  const commands = new McpCommands({ api: mocks as unknown as McpWorkbenchApi, emit, flush });
+  const commands = new WorkspaceCommands({ api: mocks as unknown as WorkspaceApi, emit, flush });
   return { mocks, emit, flush, commands };
 }

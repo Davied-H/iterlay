@@ -116,20 +116,9 @@ import { ImageTaskQueue, ImageWorkerClient } from "./image-worker-client.js";
 import { ManagerInspirationClient } from "./inspiration-client.js";
 import type { LicenseService } from "./licensing/service.js";
 import { MasterGoBridge } from "./mastergo-bridge.js";
-import { callMcpBridge } from "./mcp-bridge.js";
-import {
-  configureMcpClient,
-  getMcpIntegrationStatus,
-  installMcpSkill,
-  removeMcpIntegration,
-  setSkillAutoInstallDeclined,
-  syncMcpSkills,
-  uninstallMcpClient,
-  uninstallMcpSkill,
-  upgradeInstalledMcpSkills,
-  type McpClientId
-} from "./mcp-integration.js";
-import { buildMcpPluginPackage, mcpPluginPackageFileName } from "./mcp-plugin-package.js";
+import { callLocalApi } from "./local-api.js";
+import { getAgentIntegrationStatus, installAgentSkill, uninstallAgentSkill, removeLegacyIntegration, setSkillAutoInstallDeclined, syncAgentSkills, type CodingAgentId } from "./agent-integration.js";
+import { getCliInstallationStatus, installCli } from "./cli-installation.js";
 import { FfmpegService } from "./media/ffmpeg-service.js";
 import { PaidMediaQuoteService } from "./paid-media-quote.js";
 import { PiAgentLogStore } from "./pi-agent-log.js";
@@ -691,7 +680,7 @@ export function registerIpc({
               quoteOperation: operation.kind === "video" ? "video:start" : "image:generate"
             };
             const method = operation.kind === "video" ? "generate_video" : "generate_image";
-            const result = await callMcpBridge(app.getPath("userData"), method, {
+            const result = await callLocalApi(app.getPath("userData"), method, {
               boardId,
               prompt: operation.prompt,
               providerId: operation.providerId,
@@ -716,7 +705,7 @@ export function registerIpc({
           getMediaStatus: async (taskIds) => Promise.all(taskIds.map(async (taskId) => {
             const kind = mediaTaskKinds.get(taskId);
             if (!kind) throw new Error(`当前 Agent run 中不存在媒体任务：${taskId}`);
-            const status = await callMcpBridge(
+            const status = await callLocalApi(
               app.getPath("userData"),
               kind === "video" ? "get_video_generation_status" : "get_generation_status",
               kind === "video" ? { videoGenerationId: taskId } : { generationId: taskId }
@@ -1230,36 +1219,18 @@ export function registerIpc({
     if (typeof sourceId !== "string" || !sourceId.trim()) throw new Error("灵感来源无效。");
     await shell.openExternal(await inspirationClient.urlFor(sourceId));
   });
-  const getMcpCommand = (): { command: string; args: string[]; env: Record<string, string> } => ({
-    command: process.execPath,
-    args: [path.join(app.getAppPath(), "dist-electron", "electron", "mcp-stdio-node.js")],
-    env: {
-      ELECTRON_RUN_AS_NODE: "1",
-      ITERLAY_USER_DATA_PATH: app.getPath("userData"),
-      ITERLAY_VERSION: app.getVersion()
-    }
-  });
-  const bundledMcpSkillPath = (): string => app.isPackaged
-    ? path.join(process.resourcesPath, "skills", "iterlay-workspace")
-    : path.join(app.getAppPath(), "resources", "skills", "iterlay-workspace");
-  const mcpSkillUpgrade = (app.isPackaged
-    ? syncMcpSkills(app.getPath("home"), bundledMcpSkillPath(), { userDataPath: app.getPath("userData") })
-    : upgradeInstalledMcpSkills(app.getPath("home"), bundledMcpSkillPath())
-  ).catch((error) => {
-      console.warn("自动同步 Iterlay Skill 失败。", error);
-      return null;
-    });
-  let mcpSkillUpgradeConsumed = false;
-  ipcMain.handle("mcp:integration:status", async () => {
-    await mcpSkillUpgrade;
-    return getMcpIntegrationStatus(app.getPath("home"));
-  });
-  ipcMain.handle("mcp:skill-upgrade:consume", async () => {
-    const result = await mcpSkillUpgrade;
-    if (mcpSkillUpgradeConsumed) return [];
-    mcpSkillUpgradeConsumed = true;
-    return result?.skillUpgrades ?? [];
-  });
+  const integrationHome = app.isPackaged ? app.getPath("home") : path.join(app.getPath("userData"), "agent-home");
+  const bundledSkillPath = app.isPackaged ? path.join(process.resourcesPath, "skills", "iterlay-workspace") : path.join(app.getAppPath(), "resources", "skills", "iterlay-workspace");
+  const cliOptions = { homeDir: integrationHome, selfTest: true, userDataPath: app.isPackaged ? undefined : app.getPath("userData"), executable: process.execPath, scriptPath: app.isPackaged ? path.join(process.resourcesPath, "cli", "dist", "main.js") : path.join(app.getAppPath(), "cli", "dist", "main.js") };
+  let cliError: string | undefined;
+  const installAppCli = async () => { const result = await installCli(cliOptions); cliError = result.error; return result; };
+  const installation = app.isPackaged ? installAppCli() : Promise.resolve(null);
+  const skillSync = app.isPackaged ? syncAgentSkills(integrationHome, bundledSkillPath, { userDataPath: app.getPath("userData") }).catch((error) => { console.warn("同步 CLI Skill 失败", error); return null; }) : Promise.resolve(null);
+  let skillUpgradeConsumed = false;
+  const readAgentStatus = async () => ({ ...await getAgentIntegrationStatus(integrationHome), cli: { ...await getCliInstallationStatus(integrationHome), error: cliError }, development: !app.isPackaged });
+  ipcMain.handle("agent:status", async () => { await installation; await skillSync; return readAgentStatus(); });
+  ipcMain.handle("agent:cli:install", async () => { const cli = await installAppCli(); return { ...await readAgentStatus(), cli }; });
+  ipcMain.handle("agent:skill-upgrade:consume", async () => { const result = await skillSync; if (skillUpgradeConsumed) return []; skillUpgradeConsumed = true; return result?.skillUpgrades ?? []; });
   ipcMain.handle("pi-agent-log:list", () => piAgentLogs.getSnapshot());
   ipcMain.handle("pi-agent-log:clear", async () => {
     await piAgentLogs.clear();
@@ -1355,57 +1326,20 @@ export function registerIpc({
     await writeFile(destinationPath, await encodePsdInWorker({ width: canvasWidth, height: canvasHeight, layers: psdLayers }, mediaAbort.signal));
     return { ok: true, path: destinationPath };
   });
-  ipcMain.handle("mcp:integration:configure", async (_event, client: McpClientId) => {
+  ipcMain.handle("agent:skill:install", async (_event, client: CodingAgentId) => {
     if (client !== "codex" && client !== "claude-code") throw new Error("未知的 Coding Agent。");
-    const status = await configureMcpClient(client, app.getPath("home"), getMcpCommand());
+    const cli = await installAppCli();
+    if (cli.error) throw new Error(cli.error);
+    await installAgentSkill(client, integrationHome, bundledSkillPath);
+    await removeLegacyIntegration(client, integrationHome);
     await setSkillAutoInstallDeclined(app.getPath("userData"), client, false);
-    return status;
+    return readAgentStatus();
   });
-  ipcMain.handle("mcp:integration:installSkill", async (_event, client: McpClientId) => {
+  ipcMain.handle("agent:skill:remove", async (_event, client: CodingAgentId) => {
     if (client !== "codex" && client !== "claude-code") throw new Error("未知的 Coding Agent。");
-    const status = await installMcpSkill(client, app.getPath("home"), bundledMcpSkillPath());
-    await setSkillAutoInstallDeclined(app.getPath("userData"), client, false);
-    return status;
-  });
-  ipcMain.handle("mcp:plugin-package:export", async (_event, client: McpClientId) => {
-    if (client !== "codex" && client !== "claude-code") throw new Error("未知的插件包类型。");
-    const directory = await resolveDownloadDirectory();
-    if (!directory) return { ok: false, client } as const;
-    const version = app.getVersion();
-    const destinationPath = await availableDownloadPath(directory, mcpPluginPackageFileName(client, version));
-    const archive = await buildMcpPluginPackage({
-      client,
-      command: getMcpCommand(),
-      bundledSkillPath: bundledMcpSkillPath(),
-      version
-    });
-    await writeFile(destinationPath, archive);
-    return { ok: true, client, path: destinationPath } as const;
-  });
-  ipcMain.handle("mcp:integration:openCodexPrompt", async (_event, prompt: unknown) => {
-    if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 4_000) {
-      throw new Error("Codex 示例任务无效或过长。");
-    }
-    const url = new URL("codex://threads/new");
-    url.searchParams.set("prompt", prompt.trim());
-    await shell.openExternal(url.toString());
-    return { ok: true } as const;
-  });
-  ipcMain.handle("mcp:integration:remove", async (_event, client: McpClientId) => {
-    if (client !== "codex" && client !== "claude-code") throw new Error("未知的 Coding Agent。");
-    const status = await removeMcpIntegration(client, app.getPath("home"));
+    await uninstallAgentSkill(client, integrationHome);
     await setSkillAutoInstallDeclined(app.getPath("userData"), client, true);
-    return status;
-  });
-  ipcMain.handle("mcp:integration:uninstall", async (_event, client: McpClientId, target: "mcp" | "skill") => {
-    if (client !== "codex" && client !== "claude-code") throw new Error("未知的 Coding Agent。");
-    if (target === "mcp") return uninstallMcpClient(client, app.getPath("home"));
-    if (target === "skill") {
-      const status = await uninstallMcpSkill(client, app.getPath("home"));
-      await setSkillAutoInstallDeclined(app.getPath("userData"), client, true);
-      return status;
-    }
-    throw new Error("未知的卸载目标。");
+    return readAgentStatus();
   });
   ipcMain.handle("app:clearCache", async (event) => {
     await event.sender.session.clearCache();

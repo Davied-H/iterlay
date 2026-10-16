@@ -42,14 +42,14 @@ let onboardingChanged = false;
 let compiledBridgeChanged = false;
 let failure;
 
-async function mcp(method, args = {}) {
-  const info = JSON.parse(await readFile(path.join(userData, "mcp-bridge.json"), "utf8"));
+async function workspace(method, args = {}) {
+  const info = JSON.parse(await readFile(path.join(userData, "local-api.json"), "utf8"));
   const response = await fetch(`http://127.0.0.1:${info.port}/call`, {
     method: "POST", headers: { authorization: `Bearer ${info.token}`, "content-type": "application/json" },
     body: JSON.stringify({ method, args }), signal: AbortSignal.timeout(30_000)
   });
   const body = await response.json();
-  assert(response.ok, body.error || "Local MCP operation failed.");
+  assert(response.ok, body.error || "Local workspace operation failed.");
   return body.result;
 }
 
@@ -152,10 +152,10 @@ try {
     await window.imageWorkbench.appendBoardNodes(boardId, [{ id: nodeId, imagePath, jobId: "browser-restart-import", source: "upload" }]);
     await window.imageWorkbench.setLastOpenedBoard(boardId);
   }, { boardId: testBoardId, nodeId, imagePath });
-  await mcp("open_board", { boardId: testBoardId });
+  await workspace("open_board", { boardId: testBoardId });
   const node = page.locator(nodeSelector);
   await node.waitFor({ state: "visible", timeout: 30_000 });
-  await mcp("fit_board_view", { boardId: testBoardId });
+  await workspace("fit_board_view", { boardId: testBoardId });
   await node.locator('[data-image-node][data-selected="true"]').waitFor({ state: "visible", timeout: 15_000 });
   // fitView animates for 500 ms; measure the zoom only after that movement ends.
   await delay(600);
@@ -243,7 +243,7 @@ try {
       await ready(15_000);
       const fallback = originalBoardId || (await rpc("boards:list")).find((board) => board.id !== testBoardId)?.id;
       if (fallback) {
-        await mcp("open_board", { boardId: fallback });
+        await workspace("open_board", { boardId: fallback });
         await page.locator(nodeSelector).waitFor({ state: "hidden", timeout: 15_000 });
         await rpc("boards:setLastOpened", [fallback]);
       }

@@ -68,7 +68,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 export interface ProviderSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entryPoint?: "default" | "provider-setup" | "model-management";
+  entryPoint?: "default" | "provider-setup" | "model-management" | "coding-agent";
   providers: ProviderConfig[];
   activeProviderId: string;
   textProviders: TextProviderConfig[];
@@ -88,6 +88,10 @@ export interface ProviderSettingsDialogProps {
   canvasThumbnailPreview: boolean;
   onCanvasThumbnailPreviewChange: (value: boolean) => void;
   canvasMinimapVisible: boolean;
+  boardCommentsEnabled: boolean;
+  onBoardCommentsEnabledChange: (value: boolean) => void;
+  boardGalleryEnabled: boolean;
+  onBoardGalleryEnabledChange: (value: boolean) => void;
   onCanvasMinimapVisibleChange: (value: boolean) => void;
   canvasImageToolbarOnHover: boolean;
   onCanvasImageToolbarOnHoverChange: (value: boolean) => void;
@@ -175,7 +179,7 @@ export interface AiRouteOption {
   ready: boolean;
 }
 
-export const SETTINGS_OPTION_SELECTED_CLASS = "bg-card text-foreground shadow-sm ring-1 ring-foreground/20";
+export const SETTINGS_OPTION_SELECTED_CLASS = "settings-option-selected";
 
 export const EMPTY_MODEL_OPTIONS: ProviderModelOption[] = [];
 
@@ -1079,7 +1083,7 @@ export function ProviderModelsEditor({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[11px] leading-5 text-muted-foreground">
-        {uiText("添加此 Provider 可用的图片模型。默认模型会用于新任务，也会显示在模型选择器中。")}</p>
+        {uiText("模型可在画板中切换，默认项用于新任务。")}</p>
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {models.map((model) => {
           const isDefault = model === provider.model;
@@ -1151,7 +1155,7 @@ export function ProviderModelsEditor({
         />
       )}
       <p className="text-[11px] leading-5 text-muted-foreground">
-        {uiText("打开列表会自动获取服务模型；搜索不到时，可直接使用输入的自定义模型 ID。")}</p>
+        {uiText("可搜索服务模型，或手动输入模型 ID。")}</p>
     </div>
   );
 }
@@ -1219,7 +1223,7 @@ export function VideoProviderModelsEditor({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[11px] leading-5 text-muted-foreground">
-        {uiText("默认模型会用于新建视频节点。可在左侧模型列表上方添加模型。")}</p>
+        {uiText("默认模型会用于新建视频节点。可在下方添加其他模型。")}</p>
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {models.map((model) => {
           const isDefault = model === provider.model;
@@ -1810,14 +1814,14 @@ export function NavItem({
       title={uiText(label)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-[820px]:justify-center max-[820px]:px-0",
+        "settings-nav-item",
         active
-          ? "library-sidebar-active font-medium text-foreground"
-          : "text-muted-foreground hover:bg-background/65 hover:text-foreground"
+          ? "settings-nav-item--active"
+          : "text-muted-foreground"
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span className="max-[820px]:sr-only">{uiText(label)}</span>
+      <span className="max-[639px]:sr-only">{uiText(label)}</span>
     </button>
   );
 }
@@ -1877,67 +1881,7 @@ export function TestStatus({
   );
 }
 
- export function SettingsGroup({ title, children, className }: { title: string; children: ReactNode; className?: string }): React.ReactElement {
-  const uiText = useUiText();
-
-  return (
-    <section className={cn("flex flex-col gap-2.5", className)}>
-      <h3 className="px-0.5 text-xs font-medium text-muted-foreground">{uiText(title)}</h3>
-      <div className="divide-y divide-border/80 overflow-hidden border-y border-border/80 bg-card">{children}</div>
-    </section>
-  );
-}
-
-/** 设置行范式：左侧标题+描述，右侧控件；大控件（选项网格等）作为 children 堆叠在下方。 */
-export function SettingRow({
-  title,
-  description,
-  control,
-  children,
-  disabled,
-  interactive,
-  stackControlOnNarrow
-}: {
-  title: ReactNode;
-  description?: ReactNode;
-  /** 右侧对齐的紧凑控件（Switch、分段选择等）。 */
-  control?: ReactNode;
-  /** 标题下方的堆叠内容（选项网格、输入组等）。 */
-  children?: ReactNode;
-  disabled?: boolean;
-  /** 渲染为 label，让整行可点击切换 Switch。 */
-  interactive?: boolean;
-  /** 在窄屏下将操作控件移到文案下方；用于无法压缩的按钮组。 */
-  stackControlOnNarrow?: boolean;
-}): React.ReactElement {
-  const uiText = useUiText();
-
-  const Comp = interactive ? "label" : "div";
-  return (
-    <Comp
-      className={cn(
-        "flex flex-col gap-3.5 px-4 py-4 transition-colors duration-150",
-        interactive && "cursor-pointer hover:bg-muted/35"
-      )}
-    >
-      <div className={cn(
-        "flex items-center justify-between gap-8",
-        stackControlOnNarrow && "max-[520px]:flex-col max-[520px]:items-stretch max-[520px]:gap-3"
-      )}>
-        <span className={cn("flex min-w-0 flex-col gap-0.5", disabled && "opacity-60")}>
-          <span className="text-[13px] font-medium leading-5 text-foreground">{typeof title === "string" ? uiText(title) : title}</span>
-          {description ? <span className="max-w-[64ch] text-xs leading-5 text-muted-foreground">{typeof description === "string" ? uiText(description) : description}</span> : null}
-        </span>
-        {control ? (
-          <span className={cn("flex shrink-0 items-center", stackControlOnNarrow && "max-[520px]:self-end")}>
-            {control}
-          </span>
-        ) : null}
-      </div>
-      {children}
-    </Comp>
-  );
-}
+export { SettingsGroup, SettingsRow as SettingRow } from "./SettingsPrimitives";
 
 /** 互斥选项组：使用紧凑的分段选择，避免设置面板内重复嵌套卡片。 */
 export function ChoiceGrid<T extends string>({
@@ -1960,8 +1904,8 @@ export function ChoiceGrid<T extends string>({
   return (
     <div
       className={cn(
-        "grid gap-1 rounded-lg bg-muted/75 p-1",
-        columns === 3 ? "grid-cols-3" : "grid-cols-2"
+        "settings-choice-grid",
+        columns === 3 ? "settings-choice-grid--three" : "settings-choice-grid--two"
       )}
       role="radiogroup"
       aria-label={uiText(ariaLabel)}
@@ -1976,19 +1920,28 @@ export function ChoiceGrid<T extends string>({
             role="radio"
             aria-checked={active}
             disabled={disabled}
+            tabIndex={active ? 0 : -1}
+            onKeyDown={(event) => {
+              const offset = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+              if (!offset) return;
+              event.preventDefault();
+              const nextIndex = (options.indexOf(option) + offset + options.length) % options.length;
+              onChange(options[nextIndex].value);
+              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus();
+            }}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative min-h-[58px] rounded-md px-3 py-2 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              active ? SETTINGS_OPTION_SELECTED_CLASS : "text-muted-foreground hover:bg-background/55 hover:text-foreground",
+              "settings-choice",
+              active ? "settings-choice--selected" : "text-muted-foreground",
               disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted-foreground"
             )}
           >
-            <span className="block pr-5 text-[13px] font-medium">{uiText(option.title)}</span>
+            <span className="settings-choice-title">{uiText(option.title)}</span>
             {option.description ? (
-              <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">{uiText(option.description)}</span>
+              <span className="settings-choice-description">{uiText(option.description)}</span>
             ) : null}
             {active ? (
-              <span className="absolute right-2.5 top-2.5 flex h-4 w-4 items-center justify-center text-foreground">
+              <span className="settings-choice-check">
                 <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
               </span>
             ) : null}
@@ -2056,6 +2009,7 @@ export function ApiKeyInput({
         value={value}
         disabled={disabled}
         type={visible ? "text" : "password"}
+        aria-label="API Key"
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
@@ -2158,7 +2112,7 @@ export function AiConfigurationOverview({
                 onRepair={onRepairImage}
               />
               <AiRouteRow
-                title={uiText("AI 助手")}
+                title={uiText("文本模型")}
                 description={uiText("提示词、协作和图片分析")}
                 current={activeText}
                 options={textOptions}

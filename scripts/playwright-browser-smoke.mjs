@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import assert from "node:assert/strict";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -51,14 +53,14 @@ let originalSettings;
 let originalBoardId;
 let testBoardId;
 let settingsChanged = false;
-async function mcp(method, args = {}) {
-  const info = JSON.parse(await readFile(path.join(userData, "mcp-bridge.json"), "utf8"));
+async function workspace(method, args = {}) {
+  const info = JSON.parse(await readFile(path.join(userData, "local-api.json"), "utf8"));
   const response = await fetch(`http://127.0.0.1:${info.port}/call`, {
     method: "POST", headers: { authorization: `Bearer ${info.token}`, "content-type": "application/json" },
     body: JSON.stringify({ method, args }), signal: AbortSignal.timeout(30_000)
   });
   const body = await response.json();
-  assert(response.ok, body.error || "Local MCP operation failed.");
+  assert(response.ok, body.error || "Local workspace operation failed.");
   return body.result;
 }
 async function ready() {
@@ -97,6 +99,34 @@ try {
   const savedSettings = await page.evaluate(() => window.imageWorkbench.getSettings());
   assert.equal(savedSettings.activeProviderId, providerConfig.id);
   assert.equal(savedSettings.providerKeyStatus[providerConfig.id], true);
+  // Deleting a shared image connection must detach video settings atomically,
+  // retaining its effective URL and key without returning the secret to the UI.
+  const detachedVideo = await page.evaluate(async (baseUrl) => {
+    const api = window.imageWorkbench;
+    const settings = await api.getSettings();
+    const sourceId = "browser-smoke-shared-image";
+    const videoId = "browser-smoke-shared-video";
+    await api.saveSettings({ ...settings,
+      providers: [...settings.providers, { id: sourceId, name: "Shared offline image", type: "fal",
+        baseUrl, generationEndpoint: "", model: "offline-image", supportsReferenceImages: true }],
+      videoProviders: [...settings.videoProviders, { id: videoId, name: "Shared offline video", type: "fal",
+        baseUrl: "http://127.0.0.1:1", connectionProviderId: sourceId, model: "offline-video" }],
+      apiKeyByProviderId: { [sourceId]: "offline-test-only" }
+    });
+    const linked = await api.getSettings();
+    if (!linked.providerKeyStatus[videoId]) throw new Error("Shared video credentials were not available.");
+    await api.saveSettings({ ...linked,
+      providers: linked.providers.filter((item) => item.id !== sourceId),
+      videoProviders: linked.videoProviders.map((item) => item.id === videoId
+        ? { ...item, connectionProviderId: undefined } : item)
+    });
+    const detached = await api.getSettings();
+    return { provider: detached.videoProviders.find((item) => item.id === videoId), hasKey: detached.providerKeyStatus[videoId] };
+  }, providerConfig.baseUrl);
+  assert.equal(detachedVideo.provider.connectionProviderId, undefined);
+  assert.equal(detachedVideo.provider.baseUrl, providerConfig.baseUrl);
+  assert.equal(detachedVideo.provider.model, "offline-video");
+  assert.equal(detachedVideo.hasKey, true);
   const board = await page.evaluate(() => window.imageWorkbench.createBoard("Browser smoke isolated board"));
   testBoardId = board.id;
   const imported = await page.evaluate((data) => window.imageWorkbench.importUploadedImage(data), `data:image/jpeg;base64,${fixture.toString("base64")}`);
@@ -145,7 +175,9 @@ try {
     window.__browserSmokeEvents = [];
     window.imageWorkbench.onWorkbenchEvent((event) => window.__browserSmokeEvents.push(event));
   });
-  await mcp("open_board", { boardId: board.id });
+  // The bridge becomes ready before React mounts its board event listener.
+  await page.locator(".react-flow").waitFor({ state: "visible", timeout: 30_000 });
+  await workspace("open_board", { boardId: board.id });
   await page.waitForFunction((id) => window.__browserSmokeEvents.some((event) => event.type === "open-board" && event.boardId === id), board.id);
   await page.waitForFunction((id) => {
     const fatal = document.querySelector("[data-root-error]");
@@ -166,6 +198,19 @@ try {
   assert.equal(generatedBoard.nodes.find((node) => node.id === generationNodeId).status, "succeeded");
   const history = await page.evaluate((id) => window.imageWorkbench.listHistory(id), board.id);
   assert(history.some((job) => job.id === generated.job.id && job.status === "succeeded"));
+  // Real CLI subprocess uses the App's saved offline provider, task service, and assets.
+  const cliOutputPath = path.join(output, "cli-smoke-image.png");
+  const cli = await promisify(execFile)(process.execPath, [path.join(projectRoot, "cli/dist/main.js"),
+    "image", "generate", "--prompt", "CLI offline smoke fixture", "--board", board.id,
+    "--user-data-path", userData, "--out", cliOutputPath, "--overwrite", "--json"], { timeout: 30000 });
+  const cliResult = JSON.parse(cli.stdout);
+  assert.equal(cliResult.ok, true);
+  assert.equal(cliResult.data.status, "succeeded");
+  assert.equal(cliResult.data.job.providerId, providerConfig.id);
+  assert.equal(providerCalls, 2);
+  assert.deepEqual(await readFile(cliOutputPath), fixture);
+  const cliBoard = await page.evaluate((id) => window.imageWorkbench.getBoard(id), board.id);
+  assert.equal(cliBoard.nodes.filter((node) => node.imagePath === cliResult.data.images[0].path).length, 1, "CLI results must be appended exactly once");
   const secondPage = await context.newPage();
   await secondPage.goto(rendererUrl);
   await secondPage.locator(".boot-error").waitFor({ state: "visible" });
@@ -176,7 +221,7 @@ try {
   assert.equal(errors.length, 0, errors.join("\n"));
   await page.screenshot({ path: path.join(output, "browser-smoke.png") });
   const report = { ok: true, browser: "chromium", isolatedWorkspace: true, settingsRoundTrip: true,
-    importAndSave: true, reloadPersistence: true, realOfflineGeneration: true, providerCalls,
+    importAndSave: true, reloadPersistence: true, sharedConnectionDeletion: true, realOfflineGeneration: true, cliGeneration: true, cliProviderReused: true, providerCalls,
     imageHttpRange: true, workbenchEvents: true, secondTabRejected: true, rendererErrors: errors,
     serviceManagedExternally: true, screenshot: path.join(output, "browser-smoke.png") };
   await writeFile(path.join(output, "browser-smoke.json"), JSON.stringify(report, null, 2));
@@ -189,7 +234,7 @@ try {
   if (page && !page.isClosed()) {
     try {
       const fallbackBoardId = originalBoardId || (await page.evaluate(() => window.imageWorkbench.listBoards())).find((board) => board.id !== testBoardId)?.id;
-      if (fallbackBoardId) await mcp("open_board", { boardId: fallbackBoardId });
+      if (fallbackBoardId) await workspace("open_board", { boardId: fallbackBoardId });
       if (testBoardId) await page.evaluate(async (id) => {
         await window.imageWorkbench.deleteBoard(id);
         await window.imageWorkbench.permanentlyDeleteBoard(id);

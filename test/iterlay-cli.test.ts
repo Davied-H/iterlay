@@ -1,193 +1,66 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { afterEach, describe, expect, it } from "vitest";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  CliError,
-  runAdd,
-  runRemove
-} from "../cli/src/commands.js";
-import { buildMcpCommand, defaultUserDataPath, resolveIterlayApp } from "../cli/src/paths.js";
-import { getMcpIntegrationStatus, readSkillAutoInstallPolicy, setSkillAutoInstallDeclined } from "../electron/mcp-integration.js";
-
-const temporaryDirectories: string[] = [];
-
-afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
-});
-
-async function createSandbox(): Promise<{ home: string; userData: string }> {
-  const home = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-"));
-  temporaryDirectories.push(home);
-  const userData = path.join(home, "user-data");
-  return { home, userData };
+import { runAdd, runRemove } from "../cli/src/commands.js";
+import { installCli } from "../electron/cli-installation.js";
+import { getAgentIntegrationStatus, removeLegacyIntegration } from "../electron/agent-integration.js";
+const directories: string[] = [];
+afterEach(async () => { await Promise.all(directories.splice(0).map((p) => rm(p, { recursive: true, force: true }))); });
+async function fixture() {
+  const home = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-")); directories.push(home);
+  const skill = path.join(home, "bundle"); await mkdir(skill);
+  await writeFile(path.join(skill, "SKILL.md"), "---\nname: iterlay-workspace\ndescription: Use the CLI\n---\nUse iterlay CLI.");
+  return { home, skill, userDataPath: path.join(home, "data") };
 }
-
-async function createBundle(home: string): Promise<string> {
-  const bundle = path.join(home, "bundle", "iterlay-workspace");
-  await mkdir(path.join(bundle, "references"), { recursive: true });
-  await writeFile(path.join(bundle, "SKILL.md"), "---\nname: iterlay-workspace\n---\ncli\n", "utf8");
-  await writeFile(path.join(bundle, "references", "mcp-tools.md"), "tools", "utf8");
-  return bundle;
-}
-
-async function createFakeApp(home: string): Promise<string> {
-  const root = path.join(home, "Iterlay.app");
-  await mkdir(path.join(root, "Contents", "MacOS"), { recursive: true });
-  await mkdir(path.join(root, "Contents", "Resources", "app.asar", "dist-electron", "electron"), { recursive: true });
-  await writeFile(path.join(root, "Contents", "MacOS", "Iterlay"), "binary", "utf8");
-  await writeFile(path.join(root, "Contents", "Resources", "app.asar", "dist-electron", "electron", "mcp-stdio-node.js"), "server", "utf8");
-  return root;
-}
-
-describe("iterlay CLI", () => {
-  it("installs Skill and MCP config for detected agents and clears declined flags", async () => {
-    const { home, userData } = await createSandbox();
-    const bundle = await createBundle(home);
-    const appRoot = await createFakeApp(home);
-    await mkdir(path.join(home, ".codex"), { recursive: true });
-    await writeFile(path.join(home, ".claude.json"), "{}", "utf8");
-    await setSkillAutoInstallDeclined(userData, "claude-code", true);
-
-    const result = await runAdd({
-      homeDir: home,
-      userDataPath: userData,
-      bundledSkillPath: bundle,
-      agents: null,
-      skillOnly: false,
-      appRoot,
-      version: "0.1.54"
-    });
-
-    expect(result.appFound).toBe(true);
-    expect(result.appRoot).toBe(appRoot);
-    expect(result.results.map((entry) => entry.client)).toEqual(["codex", "claude-code"]);
-    for (const entry of result.results) {
-      expect(entry.skill).toBe("installed");
-      expect(entry.mcp).toBe("configured");
-      expect(entry.error).toBeUndefined();
-    }
-    const status = await getMcpIntegrationStatus(home);
-    expect(status.clients.every((client) => client.configured && client.skillInstalled)).toBe(true);
-    const config = await readFile(path.join(home, ".codex", "config.toml"), "utf8");
-    expect(config).toContain(`command = ${JSON.stringify(path.join(appRoot, "Contents", "MacOS", "Iterlay"))}`);
-    expect(config).toContain("ELECTRON_RUN_AS_NODE = \"1\"");
-    expect(config).toContain(`ITERLAY_USER_DATA_PATH = ${JSON.stringify(userData)}`);
-    expect(await readSkillAutoInstallPolicy(userData)).toEqual({ schemaVersion: 1, declined: {} });
+describe("CLI installation and Skill migration", () => {
+  it("installs the CLI Skill, removes only Iterlay's old Codex tables and retains other config", async () => {
+    const f = await fixture(); await mkdir(path.join(f.home, ".codex"));
+    await writeFile(path.join(f.home, ".codex/config.toml"), '[mcp_servers.other]\ncommand="other"\n\n[mcp_servers.iterlay]\ncommand="old"\n[mcp_servers.iterlay.env]\nOLD="1"\n\n[features]\nworks=true\n');
+    await runAdd({ homeDir: f.home, userDataPath: f.userDataPath, bundledSkillPath: f.skill, agents: ["codex"] });
+    const config = await readFile(path.join(f.home, ".codex/config.toml"), "utf8");
+    expect(config).toContain('command="other"'); expect(config).toContain('[features]'); expect(config).not.toContain('mcp_servers.iterlay');
+    expect(await readFile(path.join(f.home, ".codex/skills/iterlay-workspace/SKILL.md"), "utf8")).toContain("CLI");
+    await runRemove({ homeDir: f.home, userDataPath: f.userDataPath, agents: ["codex"] });
+    expect(JSON.parse(await readFile(path.join(f.userDataPath, "mcp-skill-policy.json"), "utf8")).declined.codex).toBe(true);
   });
-
-  it("falls back to Skill-only when the Iterlay app cannot be found", async () => {
-    const { home, userData } = await createSandbox();
-    const bundle = await createBundle(home);
-    await mkdir(path.join(home, ".codex"), { recursive: true });
-
-    const result = await runAdd({
-      homeDir: home,
-      userDataPath: userData,
-      bundledSkillPath: bundle,
-      agents: null,
-      skillOnly: false,
-      appRoot: path.join(home, "missing.app"),
-      version: "0.1.54"
-    });
-
-    expect(result.appFound).toBe(false);
-    expect(result.results[0].skill).toBe("installed");
-    expect(result.results[0].mcp).toBe("skipped");
-    const status = await getMcpIntegrationStatus(home);
-    expect(status.clients.find((client) => client.id === "codex")?.configured).toBe(false);
-    expect(status.clients.find((client) => client.id === "codex")?.skillInstalled).toBe(true);
+  it("preserves other Claude Code settings and refuses malformed config", async () => {
+    const f = await fixture(); const configPath = path.join(f.home, ".claude.json");
+    await writeFile(configPath, JSON.stringify({ theme: "dark", mcpServers: { other: { command: "keep" }, iterlay: { command: "old" } } }));
+    await removeLegacyIntegration("claude-code", f.home);
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({ theme: "dark", mcpServers: { other: { command: "keep" } } });
+    await writeFile(configPath, "malformed");
+    await expect(removeLegacyIntegration("claude-code", f.home)).rejects.toThrow("有效 JSON");
+    expect(await readFile(configPath, "utf8")).toBe("malformed");
   });
-
-  it("fails with a clear message when no coding agent is detected", async () => {
-    const { home, userData } = await createSandbox();
-    const bundle = await createBundle(home);
-
-    await expect(runAdd({
-      homeDir: home,
-      userDataPath: userData,
-      bundledSkillPath: bundle,
-      agents: null,
-      skillOnly: true,
-      version: "0.1.54"
-    })).rejects.toBeInstanceOf(CliError);
+  it("installs a launcher that handles spaces and shell quotes without duplicating PATH blocks", async () => {
+    const f = await fixture(); const scriptPath = path.join(f.home, "App's Resources/main.js");
+    await mkdir(path.dirname(scriptPath)); await writeFile(scriptPath, "console.log('ok')");
+    const options = { homeDir: f.home, executable: "/Applications/Iterlay App/Iterlay", scriptPath };
+    expect((await installCli(options)).installed).toBe(true);
+    await installCli(options);
+    const profile = await readFile(path.join(f.home, ".zshrc"), "utf8");
+    expect(profile.match(/# >>> Iterlay CLI >>>/gu)).toHaveLength(1);
+    const launcher = await readFile(path.join(f.home, ".local/bin/iterlay"), "utf8");
+    expect(launcher).toContain("ELECTRON_RUN_AS_NODE=1"); expect(launcher).toContain('"$@"'); expect(launcher).toContain("'\\''");
   });
-
-  it("removes integrations and marks the clients as declined", async () => {
-    const { home, userData } = await createSandbox();
-    const bundle = await createBundle(home);
-    const appRoot = await createFakeApp(home);
-    await mkdir(path.join(home, ".codex"), { recursive: true });
-    await runAdd({
-      homeDir: home,
-      userDataPath: userData,
-      bundledSkillPath: bundle,
-      agents: ["codex"],
-      skillOnly: false,
-      appRoot,
-      version: "0.1.54"
-    });
-
-    const result = await runRemove({ homeDir: home, userDataPath: userData, agents: null });
-
-    expect(result.results.map((entry) => entry.client)).toEqual(["codex"]);
-    expect(result.results[0]).toMatchObject({ skill: "removed", mcp: "removed" });
-    const status = await getMcpIntegrationStatus(home);
-    expect(status.clients.find((client) => client.id === "codex")).toMatchObject({
-      configured: false,
-      skillInstalled: false
-    });
-    expect(await readSkillAutoInstallPolicy(userData)).toEqual({ schemaVersion: 1, declined: { codex: true } });
+  it("does not replace a command from another installation", async () => {
+    const f = await fixture(); await mkdir(path.join(f.home, ".local/bin"), { recursive: true });
+    const target = path.join(f.home, ".local/bin/iterlay"); await writeFile(target, "unrelated");
+    const result = await installCli({ homeDir: f.home, executable: "app", scriptPath: path.join(f.skill, "SKILL.md") });
+    expect(result.error).toContain("同名"); expect(await readFile(target, "utf8")).toBe("unrelated");
   });
-
-  it("skips removal for agents without any Iterlay integration", async () => {
-    const { home, userData } = await createSandbox();
-    await mkdir(path.join(home, ".claude"), { recursive: true });
-
-    const result = await runRemove({ homeDir: home, userDataPath: userData, agents: null });
-
-    expect(result.results).toEqual([
-      expect.objectContaining({ client: "claude-code", skill: "skipped", mcp: "skipped" })
-    ]);
-    await expect(readFile(path.join(home, ".claude.json"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  it("protects an unmanaged Skill from installation and removal", async () => {
+    const f = await fixture(); const existing = path.join(f.home, ".codex/skills/iterlay-workspace"); await mkdir(existing, { recursive: true });
+    await writeFile(path.join(existing, "SKILL.md"), "custom skill");
+    await expect(runAdd({ homeDir: f.home, userDataPath: f.userDataPath, bundledSkillPath: f.skill, agents: ["codex"] })).rejects.toThrow("自行维护");
+    await expect(runRemove({ homeDir: f.home, userDataPath: f.userDataPath, agents: ["codex"] })).rejects.toThrow("未由 Iterlay 管理");
+    expect(await readFile(path.join(existing, "SKILL.md"), "utf8")).toBe("custom skill");
   });
-});
-
-describe("iterlay CLI path helpers", () => {
-  it("resolves the app layout from an explicit root", async () => {
-    const { home } = await createSandbox();
-    const appRoot = await createFakeApp(home);
-
-    const app = await resolveIterlayApp(appRoot);
-
-    expect(app?.root).toBe(appRoot);
-    expect(app?.commandPath).toBe(path.join(appRoot, "Contents", "MacOS", "Iterlay"));
-    expect(app?.scriptPath).toContain(path.join("app.asar", "dist-electron", "electron", "mcp-stdio-node.js"));
-  });
-
-  it("returns null when no app exists at the explicit root", async () => {
-    const { home } = await createSandbox();
-    await expect(resolveIterlayApp(path.join(home, "missing"))).resolves.toBeNull();
-  });
-
-  it("builds an MCP command that matches the app's managed entry shape", () => {
-    const command = buildMcpCommand(
-      {
-        root: "/Applications/Iterlay.app",
-        commandPath: "/Applications/Iterlay.app/Contents/MacOS/Iterlay",
-        scriptPath: "/Applications/Iterlay.app/Contents/Resources/app.asar/dist-electron/electron/mcp-stdio-node.js"
-      },
-      defaultUserDataPath(),
-      "0.1.54"
-    );
-    expect(command).toEqual({
-      command: "/Applications/Iterlay.app/Contents/MacOS/Iterlay",
-      args: ["/Applications/Iterlay.app/Contents/Resources/app.asar/dist-electron/electron/mcp-stdio-node.js"],
-      env: {
-        ELECTRON_RUN_AS_NODE: "1",
-        ITERLAY_USER_DATA_PATH: defaultUserDataPath(),
-        ITERLAY_VERSION: "0.1.54"
-      }
-    });
+  it("detects Skill state without marking legacy config as a verified connection", async () => {
+    const f = await fixture(); await runAdd({ homeDir: f.home, userDataPath: f.userDataPath, bundledSkillPath: f.skill, agents: ["codex"] });
+    const client = (await getAgentIntegrationStatus(f.home)).clients.find((c) => c.id === "codex");
+    expect(client).toMatchObject({ skillInstalled: true, skillManaged: true, legacyConfigured: false });
+    expect(client).not.toHaveProperty("configured");
   });
 });

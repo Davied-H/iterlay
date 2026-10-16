@@ -3,13 +3,13 @@ import type { ImageWorkbenchApi } from "../../shared/workbench-client.js";
 import { WORKBENCH_COMMANDS } from "../../shared/contracts/workbench-commands.js";
 import { invokeRegisteredCommand } from "../renderer-security.js";
 
-export type McpWorkbenchApi = Pick<ImageWorkbenchApi, keyof typeof WORKBENCH_COMMANDS>;
+export type WorkspaceApi = Pick<ImageWorkbenchApi, keyof typeof WORKBENCH_COMMANDS>;
 
 /** Capture trusted main-process context once; long tasks outlive their renderer. */
-export function createMainWorkbenchApi(window: BrowserWindow): McpWorkbenchApi {
+export function createMainWorkbenchApi(window: BrowserWindow): WorkspaceApi {
   const sender = window.webContents;
   const event = { sender, senderFrame: sender.mainFrame } as IpcMainInvokeEvent;
   return Object.fromEntries(Object.entries(WORKBENCH_COMMANDS).map(([name, channel]) => [
     name, (...args: unknown[]) => invokeRegisteredCommand(event, channel, args)
-  ])) as McpWorkbenchApi;
+  ])) as WorkspaceApi;
 }

@@ -63,7 +63,7 @@ export function AppIconPickerDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={changeOpen}>
-        <DialogContent className="w-[calc(100vw-32px)] max-w-lg gap-4 p-5">
+        <DialogContent className="settings-aux-dialog w-[calc(100vw-32px)] max-w-lg gap-4 p-5">
           <DialogHeader className="pr-8">
             <DialogTitle>{uiText("伙伴头像")}</DialogTitle>
             <DialogDescription>{uiText("选择系统头像，或上传自己的头像。")}</DialogDescription>
@@ -145,7 +145,7 @@ export function AppIconPickerDialog({
       </Dialog>
 
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && !busy && setDeleteTarget(null)}>
-        <DialogContent className="w-[calc(100vw-32px)] max-w-sm">
+        <DialogContent className="settings-aux-dialog w-[calc(100vw-32px)] max-w-sm">
           <DialogHeader>
             <DialogTitle>{uiText("删除“")}{deleteTarget?.name}”？</DialogTitle>
             <DialogDescription>{uiText("头像会从历史中移除，删除后无法恢复。")}</DialogDescription>

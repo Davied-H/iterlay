@@ -70,6 +70,8 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   advancedVideoModesEnabled,
   canvasThumbnailPreview,
   canvasMinimapVisible,
+  boardCommentsEnabled,
+  boardGalleryEnabled,
   canvasImageToolbarOnHover,
   canvasRelationshipHoverHighlight,
   wechatStickerExportEnabled,
@@ -92,6 +94,8 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   setAdvancedVideoModesEnabled,
   setCanvasThumbnailPreview,
   setCanvasMinimapVisible,
+  setBoardCommentsEnabled,
+  setBoardGalleryEnabled,
   setCanvasImageToolbarOnHover,
   setCanvasRelationshipHoverHighlight,
   setBoardSmartSuggestionsEnabled,
@@ -164,7 +168,7 @@ async function persistProviders(next: {
     apiKeyByProviderId?: Record<string, string>;
   }): Promise<void> {
     const api = getWorkbenchApi();
-    if (!api) return;
+    if (!api) throw new Error(translateSourceText("工作台连接不可用，请重试。"));
     try {
       await api.saveSettings({
         providers: next.providers,
@@ -179,6 +183,8 @@ async function persistProviders(next: {
         advancedVideoModesEnabled,
         canvasThumbnailPreview,
         canvasMinimapVisible,
+        boardCommentsEnabled,
+        boardGalleryEnabled,
         canvasImageToolbarOnHover,
         canvasRelationshipHoverHighlight,
         wechatStickerExportEnabled,
@@ -211,6 +217,7 @@ async function persistProviders(next: {
       toast.success(translateSourceText("配置已保存"));
     } catch (error) {
       reportWorkbenchError(error);
+      throw error;
     }
   }
 
@@ -227,6 +234,16 @@ function changeAdvancedVideoModesEnabled(next: boolean): void {
 function changeCanvasThumbnailPreview(next: boolean): void {
     setCanvasThumbnailPreview(next);
     persistSettingsPatch({ canvasThumbnailPreview: next });
+  }
+
+function changeBoardCommentsEnabled(next: boolean): void {
+    setBoardCommentsEnabled(next);
+    persistSettingsPatch({ boardCommentsEnabled: next });
+  }
+
+function changeBoardGalleryEnabled(next: boolean): void {
+    setBoardGalleryEnabled(next);
+    persistSettingsPatch({ boardGalleryEnabled: next });
   }
 
 function changeCanvasMinimapVisible(next: boolean): void {
@@ -386,6 +403,8 @@ return {
     changeAdvancedVideoModesEnabled,
     changeCanvasThumbnailPreview,
     changeCanvasMinimapVisible,
+    changeBoardCommentsEnabled,
+    changeBoardGalleryEnabled,
     changeCanvasImageToolbarOnHover,
     changeCanvasRelationshipHoverHighlight,
     changeBoardSmartSuggestionsEnabled,

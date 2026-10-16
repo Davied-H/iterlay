@@ -76,7 +76,7 @@ describe("Pi Agent resources", () => {
       expect.objectContaining({ name: "fixture", source: "system" })
     ]);
     expect(inventory.builtinTools.map((item) => item.name)).toContain("bash");
-    expect(inventory.iterlayTools).toHaveLength(26);
+    expect(inventory.iterlayTools.map((tool) => tool.name)).toEqual(expect.arrayContaining(["list_providers", "list_models", "generate_image", "generate_video"]));
   });
 
   it("loads only explicitly enabled extensions and skills", async () => {

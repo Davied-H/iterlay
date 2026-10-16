@@ -16,7 +16,9 @@ const bridgeConfig = path.join(userData, "browser-dev-bridge.json");
 const lockPath = path.join(userData, "browser-dev.lock");
 const buildInfoPath = path.join(userData, "electron.tsbuildinfo");
 const electronOutput = path.join(projectRoot, "dist-electron");
-const rendererUrl = "http://127.0.0.1:5180";
+const rendererPort = Number(process.env.ITERLAY_BROWSER_DEV_PORT || "5180");
+if (!Number.isInteger(rendererPort) || rendererPort < 1024 || rendererPort > 65535) throw new Error("Invalid browser development port.");
+const rendererUrl = `http://127.0.0.1:${rendererPort}`;
 const env = {
   ...process.env,
   ITERLAY_BROWSER_DEV: "1",
@@ -178,7 +180,7 @@ async function assertPortAvailable() {
   await new Promise((resolve, reject) => {
     const probe = createServer();
     probe.once("error", () => reject(new Error("Port 5180 is in use. Stop the existing development server before running pnpm dev.")));
-    probe.listen(5180, "127.0.0.1", () => probe.close(resolve));
+    probe.listen(rendererPort, "127.0.0.1", () => probe.close(resolve));
   });
 }
 
@@ -244,7 +246,7 @@ try {
   await runStep("Building Electron services…", process.execPath, compilerArgs);
   await runStep("Building preload…", process.execPath, ["scripts/build-preload.mjs"]);
   const vite = path.join(path.dirname(require.resolve("vite/package.json")), "bin/vite.js");
-  startChild("Vite", process.execPath, [vite, "--host", "127.0.0.1", "--port", "5180", "--strictPort"]);
+  startChild("Vite", process.execPath, [vite, "--host", "127.0.0.1", "--port", String(rendererPort), "--strictPort"]);
   await waitFor("Vite", async () => {
     try { return (await fetch(rendererUrl, { signal: AbortSignal.timeout(1_000) })).ok; }
     catch { return false; }

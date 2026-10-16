@@ -1,3 +1,4 @@
+import type { CodingAgentIntegrationStatus } from "./agent-integration.js";
 import { WORKBENCH_COMMANDS } from "./contracts/workbench-commands.js";
 import {
   WINDOW_SAVE_REQUEST,
@@ -105,7 +106,7 @@ import type {
 import { PI_AGENT_LOG_EVENT_CHANNEL, type PiAgentLogEntry, type PiAgentLogSnapshot } from "./pi-agent-log.js";
 import { UPDATE_STATE_CHANNEL, type UpdateChannel, type UpdateStateSnapshot } from "./app-update.js";
 import { ITERLAY_DEEP_LINK_CHANNEL, ITERLAY_DEEP_LINK_READY_CHANNEL } from "./deep-link.js";
-import type { McpSkillUpgradeDetail } from "./mcp-integration.js";
+import type { AgentSkillUpgradeDetail } from "./agent-integration.js";
 import type { AssistantSkillDetail, AssistantSkillSummary, PiAgentResourceDetail, PiAgentResourceInventory } from "./types.js";
 import {
   COMIC_DRAMA_APPLY_MUTATION_PLAN_CHANNEL,
@@ -202,17 +203,9 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
   saveSettings: (settings: AppSettings & { apiKeyByProviderId?: Record<string, string> }) =>
     transport.invoke("settings:save", settings) as Promise<{ ok: boolean }>,
   updateSettings: (patch: AppSettingsPatch) => transport.invoke("settings:update", patch) as Promise<{ ok: boolean }>,
-  getMcpIntegrationStatus: () => transport.invoke("mcp:integration:status") as Promise<{
-    clients: Array<{
-      id: "codex" | "claude-code";
-      configured: boolean;
-      configPath: string;
-      skillInstalled: boolean;
-      skillPath: string;
-    }>;
-  }>,
-  consumeMcpSkillUpgrades: () =>
-    transport.invoke("mcp:skill-upgrade:consume") as Promise<McpSkillUpgradeDetail[]>,
+  getCodingAgentStatus: () => transport.invoke("agent:status") as Promise<CodingAgentIntegrationStatus>,
+  installCli: () => transport.invoke("agent:cli:install") as Promise<CodingAgentIntegrationStatus>,
+  consumeAgentSkillUpgrades: () => transport.invoke("agent:skill-upgrade:consume") as Promise<AgentSkillUpgradeDetail[]>,
   getPiAgentLogs: () =>
     transport.invoke("pi-agent-log:list") as Promise<PiAgentLogSnapshot>,
   getPiAgentResources: () =>
@@ -260,54 +253,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
   }) => transport.invoke("mastergo:exportPsd", input) as Promise<{ ok: boolean; path?: string }>,
   renderMasterGoEditedHtml: (taskId: string, html: string) =>
     transport.invoke("mastergo:renderEditedHtml", taskId, html) as Promise<string>,
-  configureMcpClient: (client: "codex" | "claude-code") =>
-    transport.invoke("mcp:integration:configure", client) as Promise<{
-      clients: Array<{
-        id: "codex" | "claude-code";
-        configured: boolean;
-        configPath: string;
-        skillInstalled: boolean;
-        skillPath: string;
-      }>;
-    }>,
-  installMcpSkill: (client: "codex" | "claude-code") =>
-    transport.invoke("mcp:integration:installSkill", client) as Promise<{
-      clients: Array<{
-        id: "codex" | "claude-code";
-        configured: boolean;
-        configPath: string;
-        skillInstalled: boolean;
-        skillPath: string;
-      }>;
-    }>,
-  exportMcpPluginPackage: (client: "codex" | "claude-code") =>
-    transport.invoke("mcp:plugin-package:export", client) as Promise<{
-      ok: boolean;
-      client: "codex" | "claude-code";
-      path?: string;
-    }>,
-  openCodexPrompt: (prompt: string) =>
-    transport.invoke("mcp:integration:openCodexPrompt", prompt) as Promise<{ ok: true }>,
-  removeMcpIntegration: (client: "codex" | "claude-code") =>
-    transport.invoke("mcp:integration:remove", client) as Promise<{
-      clients: Array<{
-        id: "codex" | "claude-code";
-        configured: boolean;
-        configPath: string;
-        skillInstalled: boolean;
-        skillPath: string;
-      }>;
-    }>,
-  uninstallMcpIntegration: (client: "codex" | "claude-code", target: "mcp" | "skill") =>
-    transport.invoke("mcp:integration:uninstall", client, target) as Promise<{
-      clients: Array<{
-        id: "codex" | "claude-code";
-        configured: boolean;
-        configPath: string;
-        skillInstalled: boolean;
-        skillPath: string;
-      }>;
-    }>,
+  installAgentSkill: (client: "codex" | "claude-code") => transport.invoke("agent:skill:install", client) as Promise<CodingAgentIntegrationStatus>,
+  removeAgentSkill: (client: "codex" | "claude-code") => transport.invoke("agent:skill:remove", client) as Promise<CodingAgentIntegrationStatus>,
   clearAppCache: () => transport.invoke("app:clearCache") as Promise<{ ok: boolean }>,
   testSystemNotification: () =>
     transport.invoke("notification:test") as Promise<SystemNotificationDeliveryResult>,

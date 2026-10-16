@@ -1,7 +1,7 @@
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, CheckCircle2, Download, Loader2, Rocket, ShieldAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, Download, ExternalLink, Loader2, Rocket, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import "streamdown/styles.css";
 import type { InstalledUpdateRelease, UpdateChannel, UpdateProgress, UpdateStateSnapshot } from "@shared/app-update";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { UpdateContext, type UpdateContextValue } from "./update-context";
 
 const activePhases = new Set<UpdateStateSnapshot["phase"]>(["available", "downloading", "ready", "installing"]);
+const githubReleasesUrl = "https://github.com/Davied-H/iterlay/releases";
 const ReleaseNotesMarkdown = lazy(async () => {
   const { Streamdown } = await import("streamdown");
   return { default: Streamdown };
@@ -39,6 +40,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
   const [open, setOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [notificationSurfaceReady, setNotificationSurfaceReady] = useState(
     () => typeof document !== "undefined" && Boolean(document.querySelector(".iterlay-toaster"))
   );
@@ -104,6 +106,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
       return;
     }
     manualFlowRef.current = true;
+    setActionError(null);
     setChecking(true);
     try {
       const result = await getImageWorkbenchApi().checkForUpdates();
@@ -114,12 +117,13 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
       } else if (result.phase === "downloading" || result.phase === "ready") {
         setOpen(true);
       } else if (result.phase === "error") {
-        toast.error(result.error ?? "检查更新失败，请稍后重试。");
+        setOpen(true);
       } else {
         toast.success(translateSourceText("当前已是最新版本 v{{ui:0}}", [result.currentVersion]));
       }
     } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "检查更新失败，请稍后重试。"));
+      setActionError(getWorkbenchErrorMessage(error, "检查更新失败，请稍后重试。"));
+      setOpen(true);
     } finally {
       manualFlowRef.current = false;
       setChecking(false);
@@ -140,22 +144,20 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
   }, [checkNow, licenseForced, licenseUpdate?.targetVersion, state?.forced, state?.manifest]);
 
   const openUpdateCenter = useCallback((): void => {
-    if (state?.manifest && activePhases.has(state.phase)) {
+    if (actionError || state?.phase === "error" || (state?.manifest && activePhases.has(state.phase))) {
       setOpen(true);
       return;
     }
     void checkNow();
-  }, [checkNow, state]);
+  }, [actionError, checkNow, state]);
 
   const download = useCallback(async (): Promise<void> => {
+    setActionError(null);
     try {
       const snapshot = await getImageWorkbenchApi().downloadUpdate();
       setState(snapshot);
-      if (snapshot.phase === "error") {
-        toast.error(snapshot.error ?? "自动安装失败，请重试。");
-      }
     } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "下载更新失败，请稍后重试。"));
+      setActionError(getWorkbenchErrorMessage(error, "下载更新失败，请稍后重试。"));
     }
   }, []);
 
@@ -206,7 +208,8 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
 
   const manifest = state?.manifest;
   const forced = Boolean(state?.forced || licenseForced);
-  const phase = state?.phase ?? "idle";
+  const phase = actionError ? "error" : state?.phase ?? "idle";
+  const updateError = actionError ?? state?.error;
   const targetVersion = manifest?.version ?? licenseUpdate?.targetVersion;
   const hasUpdate = forced || (Boolean(manifest) && activePhases.has(phase));
   const contextValue = useMemo<UpdateContextValue>(
@@ -220,7 +223,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
         {children}
       </div>
       <Dialog
-        open={open && Boolean(manifest || licenseForced)}
+        open={open && Boolean(manifest || licenseForced || phase === "error" || checking)}
         onOpenChange={(next) => {
           if (forced && !next) return;
           setOpen(next);
@@ -245,9 +248,11 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
                 {forced ? <ShieldAlert className="h-5 w-5" aria-hidden="true" /> : <Rocket className="h-5 w-5" aria-hidden="true" />}
               </span>
               <div className="min-w-0">
-                <DialogTitle>{forced ? uiText("需要更新后继续使用") : uiText("发现新版本")}</DialogTitle>
+                <DialogTitle>{forced ? uiText("需要更新后继续使用") : phase === "error" ? (manifest ? uiText("更新未完成") : uiText("检查更新失败")) : checking ? uiText("正在检查更新") : uiText("发现新版本")}</DialogTitle>
                 <DialogDescription className="mt-1">
-                  {forced
+                  {phase === "error"
+                    ? uiText("你可以重试，或前往 GitHub Releases 页面，下载适合你设备的安装包并手动安装。")
+                    : forced
                     ? uiText("此版本已停止支持。必须完成更新，才能继续使用 Iterlay。")
                     : uiText("建议尽快更新，以获得最新功能与问题修复。")}
                 </DialogDescription>
@@ -306,16 +311,21 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
               {uiText("安装即将开始。Iterlay 会暂时关闭，并在几秒后自动重新打开。")}</p>
           ) : null}
 
-          {phase === "error" && state?.error ? (
+          {phase === "error" && updateError ? (
             <p
-              className="m-0 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              className="m-0 break-words rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
               role="alert"
             >
-              {state.error}
+              {updateError}
             </p>
           ) : null}
 
           <DialogFooter className="flex-wrap">
+            {phase === "error" && !forced ? (
+              <Button variant="ghost" onClick={() => setOpen(false)}>
+                {uiText("稍后")}
+              </Button>
+            ) : null}
             {phase === "available" && !forced && manifest ? (
               <Button variant="ghost" onClick={() => void skip(manifest.version)}>
                 {uiText("跳过此版本")}</Button>
@@ -325,15 +335,23 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
                 {uiText("稍后")}</Button>
             ) : null}
             {phase === "available" || (phase === "error" && manifest) ? (
-              <Button onClick={() => void download()}>
+              <Button variant={phase === "error" ? "outline" : "default"} onClick={() => void download()}>
                 <Download className="h-4 w-4" aria-hidden="true" />
                 {phase === "error" ? uiText("重试更新") : uiText("下载并自动重启")}
               </Button>
             ) : null}
-            {forced && !manifest ? (
-              <Button disabled={checking || phase === "checking"} onClick={() => void checkNow()}>
+            {!manifest && (forced || phase === "error" || checking) ? (
+              <Button variant={phase === "error" ? "outline" : "default"} disabled={checking || phase === "checking"} onClick={() => void checkNow()}>
                 {checking || phase === "checking" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                 {uiText("重新获取更新")}</Button>
+            ) : null}
+            {phase === "error" ? (
+              <Button asChild>
+                <a href={githubReleasesUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                  {uiText("前往 GitHub Releases 下载")}
+                </a>
+              </Button>
             ) : null}
           </DialogFooter>
         </DialogContent>

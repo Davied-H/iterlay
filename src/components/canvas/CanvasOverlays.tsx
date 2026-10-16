@@ -9,7 +9,6 @@ import {
   GalleryHorizontal,
   GalleryVertical,
   Grid3X3,
-  GripHorizontal,
   ImagePlus,
   Clapperboard,
   Link2,
@@ -28,8 +27,6 @@ import type { HelperLineGuide } from "./helper-lines";
 import { FreeConnectionPreviewPath, type FreeConnectionDrag } from "./ConnectionController";
 import { useCanvasThumbnail } from "./use-canvas-thumbnail";
 import type { GeneratedImage } from "./image-node-model";
-import type { CanvasMiniMapViewProps } from "./use-canvas-minimap-controller";
-import { MINIMAP_HEIGHT, MINIMAP_WIDTH } from "./canvas-minimap-model";
 
 const LazyEmptyCanvasStart = lazy(() => import("./EmptyCanvasStart").then((module) => ({
   default: module.EmptyCanvasStart
@@ -248,41 +245,27 @@ interface CanvasMiniMapProps {
   visible: boolean;
   images: ReadonlyMap<string, MiniMapImagePreview>;
   reduceMotion: boolean;
-  controller: CanvasMiniMapViewProps;
 }
 
 export function CanvasMiniMap(props: CanvasMiniMapProps): React.ReactElement {
-  const uiText = useUiText();
-
-  const controller = props.controller;
   return (
     <AnimatePresence initial={false}>
-      {props.visible && controller.position ? (
+      {props.visible ? (
         <motion.div
           key="canvas-minimap"
           data-canvas-minimap=""
-          className={cn(
-            "nodrag nopan absolute z-[6] transition-[box-shadow] duration-150 ease-out motion-reduce:transition-none",
-            controller.isPositionDragging && "shadow-[0_0_0_4px_hsl(var(--muted-foreground)/0.14)]"
-          )}
-          style={{ left: controller.position.x, top: controller.position.y, width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT, transformOrigin: "top center" }}
+          className="nodrag nopan nowheel absolute bottom-14 left-3 z-[6] select-none"
+          style={{ width: 240, height: 160, transformOrigin: "bottom left" }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
           initial={props.reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98, filter: "blur(4px)" }}
           animate={props.reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
           exit={props.reduceMotion ? { opacity: 0, transition: { duration: 0.08 } } : { opacity: 0, y: 6, scale: 0.985, filter: "blur(3px)", transition: { duration: 0.16, ease: EASE_OUT } }}
           transition={{ duration: props.reduceMotion ? 0.1 : 0.22, ease: EASE_OUT }}
         >
           <MiniMapImagesContext.Provider value={props.images}>
-            <MiniMap position="top-left" pannable={false} zoomable={false} ariaLabel="画布图片预览" className="pointer-events-none !m-0 overflow-hidden !rounded-xl !border !border-border !bg-card shadow-lg" style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT, left: 0, top: 0 }} bgColor="transparent" maskColor="hsl(var(--foreground) / 0.06)" maskStrokeWidth={0} nodeComponent={MiniMapImageNode} nodeBorderRadius={4} />
+            <MiniMap position="top-left" pannable={false} zoomable={false} ariaLabel="画布图片预览" className="pointer-events-none !m-0 overflow-hidden !rounded-xl !border !border-border !bg-card shadow-lg" style={{ width: 240, height: 160, left: 0, top: 0 }} bgColor="transparent" maskColor="hsl(var(--foreground) / 0.06)" maskStrokeWidth={0} nodeComponent={MiniMapImageNode} nodeBorderRadius={4} />
           </MiniMapImagesContext.Provider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" aria-label={uiText("移动画布小地图")} data-minimap-position-handle="" className={cn("nodrag nopan absolute z-[7] flex h-4 w-8 -translate-x-1/2 touch-none select-none items-center justify-center overflow-hidden rounded bg-foreground/[0.035] text-foreground/25 transition-[width,color,background-color] duration-150 ease-out hover:w-10 hover:bg-foreground/[0.075] hover:text-foreground/45 focus-visible:w-10 focus-visible:bg-foreground/10 focus-visible:text-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-foreground/10 motion-reduce:transition-none [-webkit-app-region:no-drag]", controller.isPositionDragging ? "cursor-grabbing" : "cursor-move")} style={{ left: MINIMAP_WIDTH / 2, top: 7 }} onPointerDown={controller.onPositionPointerDown} onPointerMove={controller.onPositionPointerMove} onPointerUp={controller.onPositionPointerUp} onPointerCancel={controller.onPositionPointerCancel} onLostPointerCapture={controller.onPositionLostCapture}>
-                <GripHorizontal className="h-3 w-3" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">{uiText("拖动小地图")}</TooltipContent>
-          </Tooltip>
-          <div role="application" aria-label={uiText("拖动画布缩略图以移动视口")} tabIndex={0} data-minimap-interaction-layer="" className={cn("nodrag nopan absolute z-[6] touch-none select-none rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [-webkit-app-region:no-drag]", controller.isDragging ? "cursor-grabbing" : "cursor-grab")} style={{ left: 0, top: 0, width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }} onPointerDown={controller.onPointerDown} onPointerMove={controller.onPointerMove} onPointerUp={controller.onPointerUp} onPointerCancel={controller.onPointerCancel} onLostPointerCapture={controller.onLostCapture} onWheel={controller.onWheel} onKeyDown={controller.onKeyDown} onClick={(event) => event.currentTarget.focus()} />
         </motion.div>
       ) : null}
     </AnimatePresence>

@@ -21,8 +21,7 @@ import { ensureInitialDemoBoard } from "./demo-board.js";
 import { registerIpc } from "./ipc.js";
 import { LicenseService, registerLicenseIpc } from "./licensing/index.js";
 import { MasterGoBridge } from "./mastergo-bridge.js";
-import { startMcpBridge } from "./mcp-bridge.js";
-import { runElectronMcpServer } from "./mcp-stdio.js";
+import { startLocalApi } from "./local-api.js";
 import { FfmpegService } from "./media/ffmpeg-service.js";
 import { MediaToolsManager } from "./media/media-tools-manager.js";
 import { registerMediaToolsIpc } from "./media/media-tools-ipc.js";
@@ -156,13 +155,12 @@ if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
 }
 
-const isMcpMode = process.argv.includes("--mcp");
-if (!isMcpMode) installRendererSecurity(path.join(__dirname, "../../dist/index.html"), app.isPackaged ? undefined : process.env.VITE_DEV_SERVER_URL);
+installRendererSecurity(path.join(__dirname, "../../dist/index.html"), app.isPackaged ? undefined : process.env.VITE_DEV_SERVER_URL);
 let runtimeLog: RuntimeLog | undefined;
 let flushAgentLogs: (() => Promise<void>) | undefined;
 let flushHistoryStore: (() => Promise<void>) | undefined;
 let guardWindowClose: ((window: BrowserWindow) => void) | undefined;
-if (!isMcpMode) {
+{
   try {
     runtimeLog = new RuntimeLog(app.getPath("logs"));
     runtimeLog.captureConsole();
@@ -180,7 +178,7 @@ if (!isMcpMode) {
     console.error("Unable to initialize runtime logs", error);
   }
 }
-const hasSingleInstanceLock = isMcpMode || process.env.ITERLAY_PLAYWRIGHT === "1" ? true : app.requestSingleInstanceLock();
+const hasSingleInstanceLock = process.env.ITERLAY_PLAYWRIGHT === "1" ? true : app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
@@ -352,9 +350,7 @@ async function createWindow(
   await loadApplication(win, theme);
 }
 
-if (isMcpMode) {
-  void runElectronMcpServer().finally(() => app.quit());
-} else app.whenReady().then(async () => {
+app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
   if (app.isPackaged) app.setAsDefaultProtocolClient(ITERLAY_DEEP_LINK_SCHEME);
   guardWindowClose = installWindowLifecycle(
@@ -1008,7 +1004,7 @@ if (isMcpMode) {
       process.env.ITERLAY_BROWSER_DEV_BRIDGE_CONFIG!, new URL(process.env.VITE_DEV_SERVER_URL!).origin);
     console.info("[browser-dev] 网页真实服务已就绪，桌面编辑器未启动。");
   }
-  const disposeMcpBridge = await startMcpBridge(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"));
+  const disposeLocalApi = await startLocalApi(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"));
 
   if (settings.getSettings().memoryEnabled) {
     const maintenanceTimer = setTimeout(() => {
@@ -1021,7 +1017,7 @@ if (isMcpMode) {
     browserDevBridge?.close();
     mediaTools.cancel();
     disposeMediaToolsIpc();
-    disposeMcpBridge();
+    disposeLocalApi();
     disposeIpcResources();
     videoSequenceScheduler.dispose();
     void masterGoBridge.stop();

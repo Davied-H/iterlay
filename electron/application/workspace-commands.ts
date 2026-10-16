@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import type {
@@ -8,16 +9,16 @@ import type {
   VideoGenerationInput
 } from "../../shared/types.js";
 import { writeJsonAtomic } from "../storage/atomic-json.js";
-import type { McpWorkbenchApi } from "./workbench-api.js";
+import type { WorkspaceApi } from "./workbench-api.js";
 
 export interface WorkbenchEvent { type: string; [key: string]: unknown }
-interface GenerationRecord {
-  generationId: string; status: "running" | "succeeded" | "failed"; boardId?: string;
+export interface GenerationRecord {
+  requestHash?: string; generationId: string; status: "running" | "succeeded" | "failed"; boardId?: string;
   prompt?: string; createdAt: string; completedAt?: string; error?: string;
   job?: GenerationJob; images?: GenerateResponse["images"]; warnings?: string[];
 }
 interface CommandDependencies {
-  api: McpWorkbenchApi;
+  api: WorkspaceApi;
   emit: (event: WorkbenchEvent) => void;
   flush: () => Promise<void>;
   taskDirectory?: string;
@@ -44,8 +45,9 @@ function choice<T extends string>(value: unknown, values: readonly T[], fallback
 }
 
 /** Typed command dispatch; all mutations use the same service as UI IPC. */
-export class McpCommands {
+export class WorkspaceCommands {
   private readonly tasks = new Map<string, GenerationRecord>();
+  private readonly submissions = new Map<string, { hash: string; promise: Promise<GenerationRecord> }>();
   constructor(private readonly dependencies: CommandDependencies) {}
   async call(method: string, a: Record<string, unknown>): Promise<unknown> {
     const { api, emit } = this.dependencies;
@@ -58,6 +60,28 @@ export class McpCommands {
       return result;
     };
     switch (method) {
+      case "status": {
+        const settings = await api.getSettings();
+        return { protocolVersion: 1, activeProviderId: settings.activeProviderId, boardCount: (await api.listBoards()).length };
+      }
+      case "list_providers": {
+        const settings = await api.getSettings();
+        const kinds = a.kind ? [choice(a.kind, ["image", "video", "text"] as const, "image")] : ["image", "video", "text"];
+        const safe = settings as typeof settings & { providerKeyStatus?: Record<string, boolean>; codexAuthStatusByProviderId?: Record<string, { connected?: boolean }> };
+        return kinds.flatMap((kind) => {
+          const providers = kind === "image" ? settings.providers : kind === "video" ? settings.videoProviders ?? [] : settings.textProviders ?? [];
+          const activeId = kind === "image" ? settings.activeProviderId : kind === "video" ? settings.activeVideoProviderId : settings.activeTextProviderId;
+          return providers.filter((p) => p.type !== "official").map((p) => ({ id: p.id, name: p.name, kind, type: p.type, model: p.model, isDefault: p.id === activeId, authConfigured: Boolean(safe.providerKeyStatus?.[p.id] || safe.codexAuthStatusByProviderId?.[p.id]?.connected) }));
+        });
+      }
+      case "list_models": {
+        const settings = await api.getSettings();
+        const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? [])].find((p) => p.id === string(a.providerId));
+        if (!provider) throw new Error("Provider 不存在。");
+        return { providerId: provider.id, defaultModel: provider.model, models: [...new Set([provider.model, ...("models" in provider && Array.isArray(provider.models) ? provider.models : [])])].filter(Boolean), source: "saved" };
+      }
+      case "read_asset": return { dataUrl: await api.readAssetDataUrl(string(a.path)) };
+      case "list_tasks": return api.listHistory();
       case "list_boards": return api.listBoards();
       case "get_active_board": {
         const state = await api.getBoardsState();
@@ -158,11 +182,30 @@ export class McpCommands {
           video: job.outputVideoPath ? { path: job.outputVideoPath, posterPath: job.outputPosterPath, mimeType: job.mimeType, width: job.width, height: job.height, durationMs: job.durationMs } : undefined };
       }
       case "stop_video_polling": return { ...await api.stopVideoPolling(string(a.videoGenerationId)), videoGenerationId: a.videoGenerationId, remoteCancelled: false, message: "仅停止本机轮询，远端任务不会被取消。" };
-      default: throw new Error(`未知的 MCP 工具：${method}`);
+      default: throw new Error(`未知的 工作台 工具：${method}`);
     }
   }
 
   private async startGeneration(a: Record<string, unknown>, edit: boolean): Promise<GenerationRecord> {
+    const requestId = a.requestId === undefined ? crypto.randomUUID() : string(a.requestId);
+    if (!/^[a-zA-Z0-9-]{1,100}$/u.test(requestId)) throw new Error("请求 ID 无效。");
+    const hash = createHash("sha256").update(JSON.stringify({ edit, args: Object.fromEntries(Object.entries(a).filter(([key]) => key !== "requestId").sort(([left], [right]) => left.localeCompare(right))) })).digest("hex");
+    const pending = this.submissions.get(requestId);
+    if (pending) { if (pending.hash !== hash) throw new Error("请求 ID 已用于不同参数。"); return pending.promise; }
+    const promise = (async () => {
+      let existing = this.tasks.get(requestId);
+      if (!existing && this.dependencies.taskDirectory) {
+        try { existing = JSON.parse(await readFile(path.join(this.dependencies.taskDirectory, requestId + ".json"), "utf8")) as GenerationRecord; }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+      }
+      if (existing) { if (existing.requestHash !== hash) throw new Error("请求 ID 已用于不同参数。"); return existing; }
+      return this.performGeneration(a, edit, requestId, hash);
+    })();
+    this.submissions.set(requestId, { hash, promise });
+    try { return await promise; } finally { this.submissions.delete(requestId); }
+  }
+
+  private async performGeneration(a: Record<string, unknown>, edit: boolean, requestId: string, requestHash: string): Promise<GenerationRecord> {
     const { api, emit } = this.dependencies;
     const boardId = string(a.boardId);
     const sourcePath = string(a.sourcePath);
@@ -179,14 +222,16 @@ export class McpCommands {
     await this.dependencies.flush();
     this.prune();
     if (this.tasks.size >= 128) throw new Error("生成任务过多，请等待已提交任务完成。");
+    const count = number(a.n, 1);
+    if (!Number.isInteger(count) || count < 1 || count > 4) throw new Error("图片数量必须是 1 到 4 的整数。");
     const input: GenerateImageInput = {
       workflowMode: edit ? "edit" : "generate", creationMode: "general", promptSpec: { primaryRequest: prompt },
       prompt, model: string(a.model, provider.model), size: string(a.size, "auto"),
-      n: Math.max(1, Math.min(4, Math.trunc(number(a.n, 1)))), quality: choice(a.quality, ["auto", "low", "medium", "high"] as const, "high"),
+      n: count, quality: choice(a.quality, ["auto", "low", "medium", "high"] as const, "high"),
       style: string(a.style, "natural"), background: choice(a.background, ["auto", "opaque", "transparent"] as const, "auto"), outputFormat: "png",
       boardId, providerId: provider.id, referenceImages: []
     };
-    const record: GenerationRecord = { generationId: crypto.randomUUID(), status: "running", boardId, prompt, createdAt: new Date().toISOString() };
+    const record: GenerationRecord = { requestHash, generationId: requestId, status: "running", boardId, prompt, createdAt: new Date().toISOString() };
     await this.remember(record);
     emit({ type: "generation-started", operationId: record.generationId, boardId, prompt, count: input.n, size: input.size, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
     void (async () => {
@@ -219,20 +264,20 @@ export class McpCommands {
       try { task = JSON.parse(await readFile(path.join(this.dependencies.taskDirectory, id + ".json"), "utf8")) as GenerationRecord; }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     }
-    if (task?.status === "running" && !this.tasks.has(id)) task = { ...task, status: "failed", error: "应用已重启，生成记录中断，请检查生成历史后重试。" };
+    if (task?.status === "running" && !this.tasks.has(id)) task = { ...task, status: "failed", error: "应用已重启，任务可能已提交至远端，请检查生成历史，勿直接重复提交。" };
     if (!task) {
       const job = (await this.dependencies.api.listHistory()).find((j) => j.id === id);
       return job ? { generationId: job.id, status: job.status, job, images: job.outputImagePaths.map((file) => ({ path: file })) } : null;
     }
-    const mcpImageDataUrls: string[] = [];
+    const previewImageDataUrls: string[] = [];
     let remaining = 8 * 1024 * 1024;
     for (const image of task.images ?? []) {
       const data = await this.dependencies.api.readAssetDataUrl(image.path);
       if (data.length > remaining) break;
       remaining -= data.length;
-      mcpImageDataUrls.push(data);
+      previewImageDataUrls.push(data);
     }
-    return { ...task, mcpImageDataUrls };
+    return { ...task, previewImageDataUrls };
   }
   private async remember(record: GenerationRecord): Promise<void> {
     this.tasks.set(record.generationId, record);

@@ -1,5 +1,5 @@
 import { createMainWorkbenchApi } from "./application/workbench-api.js";
-import { McpCommands } from "./application/mcp-commands.js";
+import { WorkspaceCommands } from "./application/workspace-commands.js";
 import { flushWindow } from "./window-lifecycle.js";
 import { randomBytes } from "node:crypto";
 import { unlink, writeFile } from "node:fs/promises";
@@ -7,22 +7,22 @@ import { createServer } from "node:http";
 import path from "node:path";
 import type { BrowserWindow } from "electron";
 
-const BRIDGE_FILE = "mcp-bridge.json";
+const BRIDGE_FILE = "local-api.json";
 
-export async function startMcpBridge(window: BrowserWindow | (() => BrowserWindow | null), userDataPath: string): Promise<() => void> {
+export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow | null), userDataPath: string): Promise<() => void> {
   const token = randomBytes(32).toString("base64url");
   const bridgePath = path.join(userDataPath, BRIDGE_FILE);
   const getWindow = typeof window === "function" ? window : () => window;
   const initialWindow = getWindow();
   if (!initialWindow || initialWindow.isDestroyed()) throw new Error("没有可用的 Iterlay 窗口。");
-  const runtime = new McpCommands({
+  const runtime = new WorkspaceCommands({
     api: createMainWorkbenchApi(initialWindow),
     flush: async () => { const active = getWindow(); if (active) await flushWindow(active); },
     emit: (event) => { const active = getWindow(); if (active && !active.isDestroyed()) active.webContents.send("workbench:event", event); },
-    taskDirectory: path.join(userDataPath, "workspace", "mcp-tasks")
+    taskDirectory: path.join(userDataPath, "workspace", "cli-tasks")
   });
   const server = createServer((request, response) => {
-    void handleRequest(runtime, token, request, response);
+    void handleRequest(runtime, token, request, response, () => { const active = getWindow(); if (active && !active.isDestroyed()) { active.show(); active.focus(); } });
   });
   server.requestTimeout = 30_000;
   server.headersTimeout = 10_000;
@@ -31,7 +31,7 @@ export async function startMcpBridge(window: BrowserWindow | (() => BrowserWindo
     server.listen(0, "127.0.0.1", () => resolve());
   });
   const address = server.address();
-  if (!address || typeof address === "string") throw new Error("无法启动本地 MCP 桥接服务。");
+  if (!address || typeof address === "string") throw new Error("无法启动本地 CLI 桥接服务。");
   await writeFile(bridgePath, JSON.stringify({ port: address.port, token }), { encoding: "utf8", mode: 0o600 });
   return () => {
     server.closeAllConnections();
@@ -40,13 +40,14 @@ export async function startMcpBridge(window: BrowserWindow | (() => BrowserWindo
   };
 }
 
-export { callMcpBridge } from "./mcp-bridge-client.js";
+export { callLocalApi } from "./local-api-client.js";
 
 async function handleRequest(
-  runtime: McpCommands,
+  runtime: WorkspaceCommands,
   token: string,
   request: import("node:http").IncomingMessage,
-  response: import("node:http").ServerResponse
+  response: import("node:http").ServerResponse,
+  showWindow: () => void
 ): Promise<void> {
   if (request.method !== "POST" || request.url !== "/call" || request.headers.authorization !== `Bearer ${token}`) {
     response.writeHead(401).end();
@@ -58,11 +59,12 @@ async function handleRequest(
     for await (const chunk of request) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       bytes += buffer.length;
-      if (bytes > 32 * 1024 * 1024) throw new Error("MCP 请求超过 32 MB 限制。");
+      if (bytes > 32 * 1024 * 1024) throw new Error("CLI 请求超过 32 MB 限制。");
       chunks.push(buffer);
     }
     const requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { method?: string; args?: Record<string, unknown> };
-    if (typeof requestBody.method !== "string" || !requestBody.args || typeof requestBody.args !== "object" || Array.isArray(requestBody.args)) throw new Error("MCP 请求参数无效。");
+    if (typeof requestBody.method !== "string" || !requestBody.args || typeof requestBody.args !== "object" || Array.isArray(requestBody.args)) throw new Error("CLI 请求参数无效。");
+    if (requestBody.method === "open_iterlay") showWindow();
     const result = await runtime.call(requestBody.method, requestBody.args);
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ result }));
   } catch (error) {

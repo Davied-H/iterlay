@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { DefaultResourceLoader, loadSkills, type InlineExtension, type Skill } from "./agents/coding-runtime.js";
 import type { AppSettings, PiAgentResourceEntry, PiAgentResourceInventory } from "../shared/types.js";
-import { listMcpTools } from "./mcp-stdio-core.js";
+import { listWorkspaceTools } from "./workspace-tools.js";
 
 const BUILTIN_TOOLS: PiAgentResourceInventory["builtinTools"] = [
   { name: "read", description: "读取工作目录中的文件。", risk: "read" },
@@ -45,7 +45,7 @@ export async function discoverPiAgentResources(
 
   return {
     builtinTools: BUILTIN_TOOLS,
-    iterlayTools: listMcpTools().map((tool) => ({
+    iterlayTools: listWorkspaceTools().map((tool) => ({
       name: typeof tool.name === "string" ? tool.name : "",
       description: typeof tool.description === "string" ? tool.description : ""
     })).filter((tool) => tool.name),

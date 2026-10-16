@@ -186,7 +186,7 @@ export function MemoryManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="bg-black/40 dark:bg-black/70"
-        className="flex h-[min(680px,calc(100vh-40px))] w-[min(940px,calc(100vw-40px))] max-w-none flex-col gap-0 overflow-hidden rounded-xl border-border/80 p-0 shadow-2xl"
+        className="settings-aux-dialog flex h-[min(680px,calc(100vh-40px))] w-[min(940px,calc(100vw-40px))] max-w-none flex-col gap-0 overflow-hidden rounded-xl border-border/80 p-0 shadow-2xl"
       >
         <div className="flex shrink-0 items-center justify-between gap-5 border-b border-border/70 px-6 py-4 pr-14">
           <DialogHeader className="min-w-0">

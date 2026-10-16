@@ -207,40 +207,22 @@ describe("imageWorkbench preload", () => {
     expect(electronMocks.invoke).toHaveBeenNthCalledWith(2, "comicDrama:applyMutationPlan", plan);
   });
 
-  it("exposes MCP integration removal", async () => {
+  it("exposes CLI Skill setup without a public MCP surface", async () => {
     await import("../electron/preload/preload.js");
     const api = electronMocks.exposeInMainWorld.mock.calls[0][1] as {
-      uninstallMcpIntegration: (client: string, target: string) => Promise<unknown>;
+      installAgentSkill: (client: string) => Promise<unknown>;
+      removeAgentSkill: (client: string) => Promise<unknown>;
+      consumeAgentSkillUpgrades: () => Promise<unknown>;
+      configureMcpClient?: unknown;
     };
+    expect(api.configureMcpClient).toBeUndefined();
     electronMocks.invoke.mockResolvedValueOnce({ clients: [] });
-
-    await expect(api.uninstallMcpIntegration("codex", "mcp")).resolves.toEqual({ clients: [] });
-
-    expect(electronMocks.invoke).toHaveBeenCalledWith("mcp:integration:uninstall", "codex", "mcp");
-  });
-
-  it("consumes automatic MCP Skill upgrade details", async () => {
-    await import("../electron/preload/preload.js");
-    const api = electronMocks.exposeInMainWorld.mock.calls[0][1] as {
-      consumeMcpSkillUpgrades: () => Promise<unknown>;
-    };
-    const upgrades = [{ client: "codex", files: { added: [], updated: ["SKILL.md"], removed: [] } }];
-    electronMocks.invoke.mockResolvedValueOnce(upgrades);
-
-    await expect(api.consumeMcpSkillUpgrades()).resolves.toBe(upgrades);
-    expect(electronMocks.invoke).toHaveBeenCalledWith("mcp:skill-upgrade:consume");
-  });
-
-  it("exports a standalone Coding Agent plugin package", async () => {
-    await import("../electron/preload/preload.js");
-    const api = electronMocks.exposeInMainWorld.mock.calls[0][1] as {
-      exportMcpPluginPackage: (client: "codex" | "claude-code") => Promise<unknown>;
-    };
-    const result = { ok: true, client: "codex", path: "/Downloads/iterlay-workspace-codex-plugin-v0.1.48.zip" };
-    electronMocks.invoke.mockResolvedValueOnce(result);
-
-    await expect(api.exportMcpPluginPackage("codex")).resolves.toBe(result);
-    expect(electronMocks.invoke).toHaveBeenCalledWith("mcp:plugin-package:export", "codex");
+    await expect(api.installAgentSkill("codex")).resolves.toEqual({ clients: [] });
+    expect(electronMocks.invoke).toHaveBeenCalledWith("agent:skill:install", "codex");
+    await api.removeAgentSkill("codex");
+    expect(electronMocks.invoke).toHaveBeenCalledWith("agent:skill:remove", "codex");
+    await api.consumeAgentSkillUpgrades();
+    expect(electronMocks.invoke).toHaveBeenCalledWith("agent:skill-upgrade:consume");
   });
 
   it("exposes the app cache clearing channel", async () => {

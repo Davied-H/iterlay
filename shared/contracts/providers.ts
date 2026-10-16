@@ -19,6 +19,8 @@ export interface ProviderConfig {
   models?: string[];
   model: string;
   supportsReferenceImages: boolean;
+  /** Codex 图片账号是否自动创建关联文本服务；删除该文本服务后设为 false。 */
+  autoBindText?: boolean;
   /** 图生图/编辑模型 ID；当前用于 fal.ai，留空时沿用 model。 */
   referenceModel?: string;
   /** fal 模型接收尺寸的方式；不同模型的输入 schema 不同。 */

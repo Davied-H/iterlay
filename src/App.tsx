@@ -1,3 +1,4 @@
+import { CodingAgentHint } from "@/components/workbench/settings/CodingAgentHint";
 import { useBoardHistory } from "@/features/boards/use-board-history";
 import { legacyBillingSnapshot } from "@/compat/billing";
 import { translateSourceText } from "@/i18n/ui-text";
@@ -180,7 +181,7 @@ import {
 } from "@/lib/template-workflow";
 import { buildUiDesignBriefInstruction, createUiDesignBrief, inferUiMaterialRole } from "@/lib/ui-design-workflow";
 import { parseIterlayDeepLink, type IterlayDeepLink } from "@shared/deep-link";
-import type { McpSkillUpgradeDetail } from "@shared/mcp-integration";
+import type { AgentSkillUpgradeDetail } from "@shared/agent-integration";
 
 const CanvasBoard = lazy(() =>
   import("@/components/canvas/CanvasBoard").then((module) => ({ default: module.CanvasBoard }))
@@ -596,6 +597,10 @@ export default function App(): React.ReactElement {
   canvasThumbnailPreview,
   setCanvasThumbnailPreview,
   canvasMinimapVisible,
+  boardCommentsEnabled,
+  setBoardCommentsEnabled,
+  boardGalleryEnabled,
+  setBoardGalleryEnabled,
   setCanvasMinimapVisible,
   canvasImageToolbarOnHover,
   setCanvasImageToolbarOnHover,
@@ -728,9 +733,10 @@ export default function App(): React.ReactElement {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDialogMounted, setSettingsDialogMounted] = useState(false);
-  const [settingsEntryPoint, setSettingsEntryPoint] = useState<"default" | "provider-setup" | "model-management">("default");
+  const [settingsEntryPoint, setSettingsEntryPoint] = useState<"default" | "provider-setup" | "model-management" | "coding-agent">("default");
 
   const [assistantDockLayout, setAssistantDockLayout] = useState<AssistantDockLayout | null>(null);
+  const visibleAssistantDockLayout = historyOpen ? null : assistantDockLayout;
   const [editSmartSuggestionsPreference, setEditSmartSuggestionsPreference] = useState<boolean | undefined>(true);
 
   // 编辑态点击图片查看提示词的方式（flip=翻转 / panel=右侧打字机面板）。
@@ -773,7 +779,7 @@ export default function App(): React.ReactElement {
     nonce: number;
   } | null>(null);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
-  const [skillUpgradeDetails, setSkillUpgradeDetails] = useState<McpSkillUpgradeDetail[]>([]);
+  const [skillUpgradeDetails, setSkillUpgradeDetails] = useState<AgentSkillUpgradeDetail[]>([]);
   const [skillUpgradeDetailsOpen, setSkillUpgradeDetailsOpen] = useState(false);
   const [referralInviteOpen, setReferralInviteOpen] = useState(false);
   const [pendingComment, setPendingComment] = useState<{
@@ -829,7 +835,7 @@ export default function App(): React.ReactElement {
     if (!hasImageWorkbenchApi()) return;
     let cancelled = false;
     let frame = 0;
-    void getImageWorkbenchApi().consumeMcpSkillUpgrades().then((details) => {
+    void getImageWorkbenchApi().consumeAgentSkillUpgrades().then((details) => {
       if (cancelled || details.length === 0) return;
       setSkillUpgradeDetails(details);
       frame = window.requestAnimationFrame(() => {
@@ -872,8 +878,8 @@ export default function App(): React.ReactElement {
   inputRef.current = input;
   const activeBoardRef = useRef<ActiveBoard | null>(activeBoard);
   activeBoardRef.current = activeBoard;
-  const mcpPendingImageIdsRef = useRef(new Map<string, string[]>());
-  const mcpPendingEditTargetIdsRef = useRef(new Map<string, string>());
+  const cliPendingImageIdsRef = useRef(new Map<string, string[]>());
+  const cliPendingEditTargetIdsRef = useRef(new Map<string, string>());
   const deletedBoardIdsRef = useRef(new Set<string>());
   const boardThumbnailRef = useRef<{ key: string; dataUrl: string }>({ key: "", dataUrl: "" });
   const historyThumbnailCacheRef = useRef(new DataUrlLruCache({
@@ -1479,10 +1485,10 @@ export default function App(): React.ReactElement {
     });
   });
 
-  // MCP runs outside React and mutates boards through the preload API. Reconcile the
+  // CLI runs outside React and mutates boards through the preload API. Reconcile the
   // local workbench so its pending state and persisted canvas snapshot stay authoritative.
   useEffect(() => {
-    const onMcpEvent = (event: Event): void => {
+    const onWorkspaceEvent = (event: Event): void => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
       if (!detail || typeof detail.type !== "string") return;
       const boardId = typeof detail.boardId === "string" ? detail.boardId : undefined;
@@ -1506,7 +1512,7 @@ export default function App(): React.ReactElement {
         void (async () => {
           await refreshBoards();
           await openBoard(boardId, undefined, { resetPromptDraft: true });
-          setStatus("MCP 已创建画板。");
+          setStatus("CLI 已创建画板。");
         })();
         return;
       }
@@ -1545,7 +1551,7 @@ export default function App(): React.ReactElement {
         const size = typeof detail.size === "string" ? parseSizeDimensions(detail.size) : null;
         if (mode === "generate" && activeBoardRef.current?.id === boardId) {
           const ids = Array.from({ length: Math.max(1, count) }, () => crypto.randomUUID());
-          mcpPendingImageIdsRef.current.set(operationId, ids);
+          cliPendingImageIdsRef.current.set(operationId, ids);
           setImages((current) => [
             ...ids.map((id) => ({
               id,
@@ -1569,7 +1575,7 @@ export default function App(): React.ReactElement {
             image.path === sourcePath || image.versions?.some((version) => version.path === sourcePath)
           );
           if (target) {
-            mcpPendingEditTargetIdsRef.current.set(operationId, target.id);
+            cliPendingEditTargetIdsRef.current.set(operationId, target.id);
             const startedAt = Date.now();
             setImages((current) => current.map((image) => image.id === target.id
               ? {
@@ -1592,21 +1598,21 @@ export default function App(): React.ReactElement {
           startedAt: Date.now(),
           status: "running"
         }]);
-        setStatus(mode === "edit" ? "MCP 正在编辑图片..." : "MCP 正在生成图片...");
+        setStatus(mode === "edit" ? "CLI 正在编辑图片..." : "CLI 正在生成图片...");
         return;
       }
 
       if (detail.type === "board-updated" && boardId) {
         void (async () => {
           if (operationId) {
-            const pendingIds = mcpPendingImageIdsRef.current.get(operationId);
-            mcpPendingImageIdsRef.current.delete(operationId);
+            const pendingIds = cliPendingImageIdsRef.current.get(operationId);
+            cliPendingImageIdsRef.current.delete(operationId);
             if (pendingIds) {
               const pendingIdSet = new Set(pendingIds);
               setImages((current) => current.filter((image) => !pendingIdSet.has(image.id)));
             }
           }
-          // A delayed autosave contains the pre-MCP in-memory canvas. Letting it run
+          // A delayed autosave contains the pre-CLI in-memory canvas. Letting it run
           // after appendNodes would overwrite the external result with that stale snapshot.
           if (activeBoardRef.current?.id === boardId) boardSaveCoordinator.discardPending();
           const saveInFlight = boardSaveCoordinator.pending;
@@ -1634,11 +1640,11 @@ export default function App(): React.ReactElement {
 
       if (detail.type === "generation-finished" && operationId) {
         const error = typeof detail.error === "string" ? detail.error : undefined;
-        const editTargetId = mcpPendingEditTargetIdsRef.current.get(operationId);
-        mcpPendingEditTargetIdsRef.current.delete(operationId);
+        const editTargetId = cliPendingEditTargetIdsRef.current.get(operationId);
+        cliPendingEditTargetIdsRef.current.delete(operationId);
         if (error) {
-          const pendingIds = mcpPendingImageIdsRef.current.get(operationId);
-          mcpPendingImageIdsRef.current.delete(operationId);
+          const pendingIds = cliPendingImageIdsRef.current.get(operationId);
+          cliPendingImageIdsRef.current.delete(operationId);
           if (pendingIds) {
             const pendingIdSet = new Set(pendingIds);
             setImages((current) => current.filter((image) => !pendingIdSet.has(image.id)));
@@ -1658,14 +1664,14 @@ export default function App(): React.ReactElement {
         }
         setActiveGenerations((current) => Math.max(0, current - 1));
         setActiveBoardGenerations((current) => current.filter((task) => task.id !== operationId));
-        setStatus(error ?? "MCP 图片生成完成。");
+        setStatus(error ?? "CLI 图片生成完成。");
         void refreshHistory();
       }
     };
 
-    window.addEventListener("iterlay:mcp", onMcpEvent);
-    const unsubscribe = getWorkbenchApi()?.onWorkbenchEvent((detail) => onMcpEvent(new CustomEvent("iterlay:mcp", { detail })));
-    return () => { unsubscribe?.(); window.removeEventListener("iterlay:mcp", onMcpEvent); };
+    window.addEventListener("iterlay:workspace", onWorkspaceEvent);
+    const unsubscribe = getWorkbenchApi()?.onWorkbenchEvent((detail) => onWorkspaceEvent(new CustomEvent("iterlay:workspace", { detail })));
+    return () => { unsubscribe?.(); window.removeEventListener("iterlay:workspace", onWorkspaceEvent); };
   }, [boardSaveCoordinator, flushBoardSave, getWorkbenchApi, openBoard, refreshBoards, refreshHistory, setStatus]);
 
   // 生成结果可能来自已切走的画板。统一按图片路径定位，编辑版本也能命中所属原图。
@@ -1739,6 +1745,8 @@ export default function App(): React.ReactElement {
         setAdvancedVideoModesEnabled(settings.advancedVideoModesEnabled ?? false);
         setCanvasThumbnailPreview(settings.canvasThumbnailPreview ?? true);
         setCanvasMinimapVisible(settings.canvasMinimapVisible ?? true);
+        setBoardCommentsEnabled(settings.boardCommentsEnabled ?? false);
+        setBoardGalleryEnabled(settings.boardGalleryEnabled ?? false);
         setCanvasImageToolbarOnHover(settings.canvasImageToolbarOnHover ?? false);
         setCanvasRelationshipHoverHighlight(settings.canvasRelationshipHoverHighlight ?? false);
         setWechatStickerExportEnabled(settings.wechatStickerExportEnabled ?? false);
@@ -1826,6 +1834,8 @@ export default function App(): React.ReactElement {
     setBoardSmartSuggestionsEnabled,
     setCanvasImageToolbarOnHover,
     setCanvasMinimapVisible,
+    setBoardCommentsEnabled,
+    setBoardGalleryEnabled,
     setCanvasRelationshipHoverHighlight,
     setCanvasThumbnailPreview,
     setCopyImageFormat,
@@ -1964,8 +1974,9 @@ export default function App(): React.ReactElement {
     };
   }, [startupLoading]);
 
-  // 画廊依赖 WebGL 与多种浏览组件，空闲时提前解析分包，避免首次转场只揭示出黑色 fallback。
+  // 画廊依赖 WebGL 与多种浏览组件，启用后空闲时提前解析分包。
   useEffect(() => {
+    if (!boardGalleryEnabled) return;
     let cancelled = false;
     const preload = (): void => {
       void loadBoardGallery().then(() => {
@@ -1984,7 +1995,7 @@ export default function App(): React.ReactElement {
       cancelled = true;
       window.clearTimeout(timerId);
     };
-  }, []);
+  }, [boardGalleryEnabled]);
 
   // 记忆"是否停留在库页"，供下次启动恢复。
   useEffect(() => {
@@ -2033,6 +2044,8 @@ export default function App(): React.ReactElement {
   changeAdvancedVideoModesEnabled,
   changeCanvasThumbnailPreview,
   changeCanvasMinimapVisible,
+  changeBoardCommentsEnabled,
+  changeBoardGalleryEnabled,
   changeCanvasImageToolbarOnHover,
   changeCanvasRelationshipHoverHighlight,
   changeBoardSmartSuggestionsEnabled,
@@ -3350,6 +3363,7 @@ export default function App(): React.ReactElement {
   // ---------- 首次引导 ----------
 
   const openGallery = useCallback((_origin: { x: number; y: number }, recordVisit = true): void => {
+    if (!boardGalleryEnabled) return;
     void _origin;
     void loadBoardGallery().then(() => {
       setGallerySceneMounted(true);
@@ -3360,7 +3374,7 @@ export default function App(): React.ReactElement {
     }).catch((error: unknown) => {
       toast.error(getWorkbenchErrorMessage(error, "画廊加载失败，请重试。"));
     });
-  }, []);
+  }, [boardGalleryEnabled]);
 
   // 首次进入画板：画布无遮挡浮层时延迟弹出，给舞台淡入和布局留出时间。
   useEffect(() => {
@@ -3404,7 +3418,7 @@ export default function App(): React.ReactElement {
 
   // 画板已经积累出跨日回顾价值、且用户从未进入过画廊时，主动介绍一次入口与核心功能。
   useEffect(() => {
-    if (!activeBoard || libraryOpen || galleryOpen || settingsOpen || editTargetId || openingBoardId) return;
+    if (!boardGalleryEnabled || !activeBoard || libraryOpen || galleryOpen || settingsOpen || editTargetId || openingBoardId) return;
     if (activeTour || tourAutoShownRef.current.has(GALLERY_TOUR.id)) return;
     if (!hasSeenTour(BOARD_TOUR.id, BOARD_TOUR.version)) return;
     if (hasSeenTour(GALLERY_TOUR.id, GALLERY_TOUR.version)) return;
@@ -3414,7 +3428,7 @@ export default function App(): React.ReactElement {
       setActiveTour(GALLERY_TOUR);
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [activeBoard, activeTour, editTargetId, galleryOpen, history, images, libraryOpen, openingBoardId, settingsOpen]);
+  }, [boardGalleryEnabled, activeBoard, activeTour, editTargetId, galleryOpen, history, images, libraryOpen, openingBoardId, settingsOpen]);
 
   // 引导依附的视图被外部关闭时收起对应引导（不写标记，下次进入再展示）。
   useEffect(() => {
@@ -4462,9 +4476,21 @@ export default function App(): React.ReactElement {
     wechatExportRequest
   ]);
 
+  useEffect(() => {
+    if (boardCommentsEnabled) return;
+    setCommentOpen(false);
+    setCommentMode(false);
+    setPendingComment(null);
+  }, [boardCommentsEnabled]);
+
+  useEffect(() => {
+    if (!boardGalleryEnabled) setGalleryOpen(false);
+  }, [boardGalleryEnabled]);
+
   // 快捷键 C：进入/退出评论模式；Esc 退出评论态或关闭待输入。
   // 输入框聚焦、编辑会话、画板库/设置打开时不触发，避免与文字输入冲突。
   useEffect(() => {
+    if (!boardCommentsEnabled) return;
     function onKeyDown(event: KeyboardEvent): void {
       if (event.key === "Escape") {
         if (pendingComment) setPendingComment(null);
@@ -4488,7 +4514,7 @@ export default function App(): React.ReactElement {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commentMode, pendingComment, editTargetId, libraryOpen, settingsOpen, wechatExportRequest]);
+  }, [boardCommentsEnabled, commentMode, pendingComment, editTargetId, libraryOpen, settingsOpen, wechatExportRequest]);
 
   // Reference an image already on the canvas (generated or uploaded).
   const addImageReference = useCallback(async (image: GeneratedImage): Promise<void> => {
@@ -5720,7 +5746,7 @@ export default function App(): React.ReactElement {
     [visibleHistory]
   );
   useEffect(() => {
-    if (galleryPreloadPaths.length === 0) return;
+    if (!boardGalleryEnabled || galleryPreloadPaths.length === 0) return;
     const preload = (): void => { void preloadGalleryThumbnails(galleryPreloadPaths); };
     if (typeof window.requestIdleCallback === "function") {
       const idleId = window.requestIdleCallback(preload, { timeout: 600 });
@@ -5728,8 +5754,8 @@ export default function App(): React.ReactElement {
     }
     const timerId = window.setTimeout(preload, 300);
     return () => window.clearTimeout(timerId);
-  }, [galleryPreloadPaths]);
-  const galleryAvailable = images.some((image) => Boolean(image.path) && !image.pending);
+  }, [boardGalleryEnabled, galleryPreloadPaths]);
+  const galleryAvailable = boardGalleryEnabled && images.some((image) => Boolean(image.path) && !image.pending);
   const demoStartBoard = boards.find((board) => board.name === INITIAL_DEMO_BOARD_NAME);
   const showFirstRunDemoStart = Boolean(
     demoStartBoard &&
@@ -5761,8 +5787,8 @@ export default function App(): React.ReactElement {
     [images]
   );
   const visibleComments = useMemo(
-    () => comments.filter((comment) => imageByPath.has(comment.imagePath)),
-    [comments, imageByPath]
+    () => boardCommentsEnabled ? comments.filter((comment) => imageByPath.has(comment.imagePath)) : [],
+    [boardCommentsEnabled, comments, imageByPath]
   );
   const getImageThumbnail = useCallback(
     (path: string): string | undefined => imageByPath.get(path)?.dataUrl,
@@ -6167,9 +6193,9 @@ export default function App(): React.ReactElement {
         relationshipHoverHighlight={canvasRelationshipHoverHighlight}
         copyImageFormat={copyImageFormat}
         imageDoubleClickAction={imageDoubleClickAction}
-        commentMode={commentMode}
-        onCommentImage={handleCommentImage}
-        onOpenComments={openCanvasComments}
+        commentMode={boardCommentsEnabled && commentMode}
+        onCommentImage={boardCommentsEnabled ? handleCommentImage : undefined}
+        onOpenComments={boardCommentsEnabled ? openCanvasComments : undefined}
         onMoveComment={moveComment}
         onDeleteComment={deleteComment}
         onRequestDelete={requestDeleteImages}
@@ -6275,8 +6301,8 @@ export default function App(): React.ReactElement {
           className="absolute inset-0"
           initial={false}
           animate={{
-            left: assistantDockLayout?.side === "left" ? assistantDockLayout.width : 0,
-            right: assistantDockLayout?.side === "right" ? assistantDockLayout.width : 0,
+            left: visibleAssistantDockLayout?.side === "left" ? visibleAssistantDockLayout.width : 0,
+            right: visibleAssistantDockLayout?.side === "right" ? visibleAssistantDockLayout.width : 0,
             opacity: galleryOpen ? 0.62 : 1
           }}
           transition={{
@@ -6294,8 +6320,8 @@ export default function App(): React.ReactElement {
           className="absolute top-0 z-20 h-12"
           initial={false}
           animate={{
-            left: assistantDockLayout?.side === "left" ? -assistantDockLayout.width : 0,
-            right: assistantDockLayout?.side === "right" ? -assistantDockLayout.width : 0
+            left: visibleAssistantDockLayout?.side === "left" ? -visibleAssistantDockLayout.width : 0,
+            right: visibleAssistantDockLayout?.side === "right" ? -visibleAssistantDockLayout.width : 0
           }}
           transition={{
             duration: prefersReducedMotion ? 0 : 0.24,
@@ -6306,6 +6332,7 @@ export default function App(): React.ReactElement {
           <TopBar
           historyOpen={historyOpen}
           commentOpen={commentOpen}
+          commentsEnabled={boardCommentsEnabled}
           boardName={activeBoard?.name ?? null}
           activeBoardId={activeBoard?.id}
           boards={topLevelBoards}
@@ -6420,6 +6447,11 @@ export default function App(): React.ReactElement {
           ) : null}
         </AnimatePresence>
 
+        <CodingAgentHint
+          paused={settingsOpen || libraryOpen || historyOpen || galleryOpen || Boolean(activeTour) || promptFocused || images.some((image) => Boolean(image.pending))}
+          providerReady={setupComplete && activeHasKey}
+          onOpen={(destination) => { setSettingsEntryPoint(destination); setSettingsOpen(true); }}
+        />
         <ReferralInviteDialog
           open={referralInviteOpen}
           onOpenChange={setReferralInviteOpen}
@@ -6482,7 +6514,7 @@ export default function App(): React.ReactElement {
           ) : null}
         </AnimatePresence>
         <AnimatePresence>
-          {commentOpen ? (
+          {boardCommentsEnabled && commentOpen ? (
             <Suspense fallback={null}>
               <CommentRail
                 comments={visibleComments}
@@ -6530,6 +6562,8 @@ export default function App(): React.ReactElement {
             />
           </Suspense>
         ) : null}
+        {/* 隐藏时保留 Dock 实例，避免丢失草稿、助手会话和进行中的请求。 */}
+        <div hidden={historyOpen} data-prompt-dock-container="">
         {!advancedEditOpen ? <Suspense fallback={null}><PromptDock
           boardId={activeBoard?.id ?? ""}
           boardNameById={boardNameById}
@@ -6551,7 +6585,7 @@ export default function App(): React.ReactElement {
           comicDramaSnapshot={comicDramaSnapshot}
           comicDramaSelectedNodeIds={selectedCanvasNodeIds}
           onApplyComicDramaPlan={applyComicDramaPlan}
-          rightRailOpen={historyOpen || commentOpen || Boolean(imageDetailsTarget)}
+          rightRailOpen={commentOpen || Boolean(imageDetailsTarget)}
           autoCollapse={promptDockAutoCollapse}
           boardSmartSuggestionsEnabled={boardSmartSuggestionsEnabled}
            assistantEnabled={boardAssistantEnabled}
@@ -6572,7 +6606,7 @@ export default function App(): React.ReactElement {
           supportsPromptEnhancement={textProviderReady}
           promptEnhancementUnavailableReason={textProviderReadiness}
           promptEnhancementUnavailableMessage={textProviderUnavailableMessage}
-          assistantShortcutEnabled={boardAssistantEnabled && !libraryOpen &&
+          assistantShortcutEnabled={boardAssistantEnabled && !historyOpen && !libraryOpen &&
             !galleryOpen &&
             !settingsOpen &&
             !shortcutHelpOpen &&
@@ -6624,10 +6658,11 @@ export default function App(): React.ReactElement {
           promptFocusNonce={promptFocusNonce}
           onPromptFocusChange={setPromptFocused}
         /></Suspense> : null}
+        </div>
         </motion.div>
         </motion.div>
 
-        {gallerySceneMounted ? (
+        {boardGalleryEnabled && gallerySceneMounted ? (
           <motion.div
             data-gallery-transition=""
             aria-hidden={!galleryOpen}
@@ -6859,6 +6894,10 @@ export default function App(): React.ReactElement {
             canvasThumbnailPreview={canvasThumbnailPreview}
             onCanvasThumbnailPreviewChange={changeCanvasThumbnailPreview}
             canvasMinimapVisible={canvasMinimapVisible}
+            boardCommentsEnabled={boardCommentsEnabled}
+            onBoardCommentsEnabledChange={changeBoardCommentsEnabled}
+            boardGalleryEnabled={boardGalleryEnabled}
+            onBoardGalleryEnabledChange={changeBoardGalleryEnabled}
             onCanvasMinimapVisibleChange={changeCanvasMinimapVisible}
             canvasImageToolbarOnHover={canvasImageToolbarOnHover}
             onCanvasImageToolbarOnHoverChange={changeCanvasImageToolbarOnHover}
@@ -7026,7 +7065,7 @@ export default function App(): React.ReactElement {
 
       {shortcutHelpOpen ? (
         <Suspense fallback={null}>
-          <CanvasShortcutHelpDialog open onOpenChange={setShortcutHelpOpen} />
+          <CanvasShortcutHelpDialog open onOpenChange={setShortcutHelpOpen} commentsEnabled={boardCommentsEnabled} galleryEnabled={boardGalleryEnabled} />
         </Suspense>
       ) : null}
 

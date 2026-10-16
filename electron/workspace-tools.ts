@@ -1,64 +1,13 @@
-import { createInterface } from "node:readline";
-import { callMcpBridge } from "./mcp-bridge-client.js";
-
 type JsonObject = Record<string, unknown>;
-type McpContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
-const MAX_MCP_IMAGE_BYTES = 8 * 1024 * 1024;
+type ToolContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-export interface McpServerRuntime {
-  version: string;
-  userDataPath: string;
-  openIterlay(): Promise<void>;
-}
-
-/** JSON-RPC stdio endpoint shared by Electron and the lightweight Node launcher. */
-export async function runMcpServer(runtime: McpServerRuntime): Promise<void> {
-  const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
-  input.on("line", (line) => {
-    void handleLine(runtime, line);
-  });
-  await new Promise<void>((resolve) => input.on("close", resolve));
-}
-
-async function handleLine(runtime: McpServerRuntime, line: string): Promise<void> {
-  let request: JsonObject;
-  try {
-    request = JSON.parse(line) as JsonObject;
-  } catch {
-    return;
-  }
-  const id = request.id;
-  if (typeof id !== "string" && typeof id !== "number") return;
-  try {
-    const result = await dispatch(runtime, String(request.method ?? ""), request.params);
-    reply({ jsonrpc: "2.0", id, result });
-  } catch (error) {
-    reply({
-      jsonrpc: "2.0",
-      id,
-      error: { code: -32000, message: error instanceof Error ? error.message : "Iterlay MCP 请求失败。" }
-    });
-  }
-}
-
-async function dispatch(runtime: McpServerRuntime, method: string, params: unknown): Promise<JsonObject> {
-  if (method === "initialize") {
-    return {
-      protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
-      serverInfo: { name: "iterlay", version: runtime.version }
-    };
-  }
-  if (method === "notifications/initialized") return {};
-  if (method === "tools/list") {
-    return { tools: listMcpTools() };
-  }
-  if (method === "tools/call") return openIterlay(runtime, params);
-  throw new Error(`不支持的 MCP 方法：${method}`);
-}
-
-export function listMcpTools(): JsonObject[] {
+export function listWorkspaceTools(): JsonObject[] {
   return [
+        tool("status", "Read local workspace status and protocol version."),
+        tool("list_providers", "List saved providers without credentials.", { kind: { type: "string", enum: ["image", "video", "text"] } }),
+        tool("list_models", "Read saved models for a provider.", { providerId: stringField("Provider ID") }, ["providerId"]),
+        tool("list_tasks", "Read generation history."),
         tool("list_boards", "List Iterlay boards."),
         tool("get_active_board", "Read the board currently active in the Iterlay workspace, if any."),
         tool("get_board", "Read a board including its nodes and image URLs.", { boardId: stringField("Board ID") }, ["boardId"]),
@@ -76,8 +25,8 @@ export function listMcpTools(): JsonObject[] {
         tool("create_board", "Create a new Iterlay board.", { name: stringField("Board name") }),
         tool("list_assets", "List searchable image assets.", { limit: { type: "number", minimum: 1, maximum: 100 } }),
         tool("get_generation_status", "Read an image generation or edit task. Poll this after generate_image or edit_image returns a generationId.", { generationId: stringField("Generation ID") }, ["generationId"]),
-        tool("generate_image", "Start image generation using Iterlay's configured provider. Reference paths are managed Iterlay asset paths and remain visible on the board. Transparent output depends on the active Provider; the official Provider falls back to an opaque PNG. Returns immediately with a generationId; poll get_generation_status until terminal. Successful images are added to the board.", { boardId: stringField("Target board ID"), prompt: stringField("Image prompt"), referencePaths: { type: "array", items: { type: "string" }, description: "Managed Iterlay reference image paths" }, n: { type: "number", minimum: 1, maximum: 4 }, model: stringField("Optional model"), size: stringField("Optional size"), background: { type: "string", enum: ["auto", "opaque", "transparent"], description: "Requested output background; support depends on the active Provider" } }, ["boardId", "prompt"]),
-        tool("edit_image", "Edit a managed image using Iterlay's configured provider.", { boardId: stringField("Target board ID"), sourcePath: stringField("Managed source image path"), prompt: stringField("Edit instruction") }, ["boardId", "sourcePath", "prompt"]),
+        tool("generate_image", "Start image generation using Iterlay's configured provider. Reference paths are managed Iterlay asset paths and remain visible on the board. Transparent output depends on the active Provider; the official Provider falls back to an opaque PNG. Returns immediately with a generationId; poll get_generation_status until terminal. Successful images are added to the board.", { boardId: stringField("Target board ID"), prompt: stringField("Image prompt"), providerId: stringField("Provider ID"), quality: { type: "string", enum: ["auto", "low", "medium", "high"] }, style: stringField("Style"), referencePaths: { type: "array", items: { type: "string" }, description: "Managed Iterlay reference image paths" }, n: { type: "number", minimum: 1, maximum: 4 }, model: stringField("Optional model"), size: stringField("Optional size"), background: { type: "string", enum: ["auto", "opaque", "transparent"], description: "Requested output background; support depends on the active Provider" } }, ["boardId", "prompt"]),
+        tool("edit_image", "Edit a managed image using Iterlay's configured provider.", { boardId: stringField("Target board ID"), sourcePath: stringField("Managed source image path"), prompt: stringField("Edit instruction"), providerId: stringField("Provider ID"), model: stringField("Model ID") }, ["boardId", "sourcePath", "prompt"]),
         tool("import_image", "Import a data URL image into Iterlay managed assets and optionally append it to a board.", { dataUrl: stringField("Image data URL"), boardId: stringField("Optional target board ID") }, ["dataUrl"]),
         tool("generate_video", "Start an asynchronous video generation task. Returns a videoGenerationId immediately; poll get_video_generation_status until terminal. Final results are managed local files, never remote provider URLs.", {
           boardId: stringField("Target board ID"),
@@ -107,21 +56,12 @@ export function listMcpTools(): JsonObject[] {
   ];
 }
 
-async function openIterlay(runtime: McpServerRuntime, params: unknown): Promise<JsonObject> {
-  const request = isRecord(params) ? params : {};
-  if (typeof request.name !== "string") throw new Error("缺少 Iterlay 工具名称。");
-  const args = isRecord(request.arguments) ? request.arguments : {};
-  if (request.name === "open_iterlay") await runtime.openIterlay();
-  const result = await callWhenBridgeReady(runtime, request.name, args);
-  return { content: buildToolContent(result) };
-}
-
-export function buildToolContent(result: unknown): McpContent[] {
+export function buildToolContent(result: unknown): ToolContent[] {
   if (!isRecord(result)) return [{ type: "text", text: JSON.stringify(result) }];
-  const imageDataUrls = Array.isArray(result.mcpImageDataUrls) ? result.mcpImageDataUrls : [];
+  const imageDataUrls = Array.isArray(result.previewImageDataUrls) ? result.previewImageDataUrls : [];
   const summary = { ...result };
-  delete summary.mcpImageDataUrls;
-  const content: McpContent[] = [{ type: "text", text: JSON.stringify(summary) }];
+  delete summary.previewImageDataUrls;
+  const content: ToolContent[] = [{ type: "text", text: JSON.stringify(summary) }];
   for (const value of imageDataUrls) {
     if (typeof value !== "string") continue;
     const image = parseImageDataUrl(value);
@@ -130,26 +70,12 @@ export function buildToolContent(result: unknown): McpContent[] {
   return content;
 }
 
-function parseImageDataUrl(value: string): Extract<McpContent, { type: "image" }> | null {
+function parseImageDataUrl(value: string): Extract<ToolContent, { type: "image" }> | null {
   const match = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/u.exec(value);
   if (!match) return null;
   const data = match[2];
-  if (Buffer.byteLength(data, "base64") > MAX_MCP_IMAGE_BYTES) return null;
+  if (Buffer.byteLength(data, "base64") > MAX_IMAGE_BYTES) return null;
   return { type: "image", mimeType: match[1], data };
-}
-
-async function callWhenBridgeReady(runtime: McpServerRuntime, method: string, args: Record<string, unknown>): Promise<unknown> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      return await callMcpBridge(runtime.userDataPath, method, args);
-    } catch (error) {
-      lastError = error;
-      if (attempt === 0) await runtime.openIterlay();
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-  }
-  throw new Error(`无法连接 Iterlay App：${lastError instanceof Error ? lastError.message : "请先启动 Iterlay。"}`);
 }
 
 function tool(name: string, description: string, properties: JsonObject = {}, required: string[] = []): JsonObject {
@@ -172,6 +98,3 @@ function isRecord(value: unknown): value is JsonObject {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function reply(message: JsonObject): void {
-  process.stdout.write(`${JSON.stringify(message)}\n`);
-}
