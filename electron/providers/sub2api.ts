@@ -52,13 +52,6 @@ export class Sub2ApiImageProvider {
         return this.generateWithResponses(input, config, apiKey);
       }
 
-      if (input.workflowMode === "generate") {
-        throw new ProviderError(
-          "REFERENCE_GENERATION_UNSUPPORTED",
-          "Images API 生成模式不支持参考图。请切到 Responses 模式，或切到编辑模式使用 /v1/images/edits。"
-        );
-      }
-
       return this.generateWithReferences(input, config, apiKey);
     }
 

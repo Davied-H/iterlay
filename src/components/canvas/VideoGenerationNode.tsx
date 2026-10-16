@@ -19,7 +19,7 @@ import {
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { VideoProviderConfig } from "@shared/types";
 import { getProviderModels } from "@shared/provider-models";
-import { findVideoProviderModelOption, resolveVideoModelCapability } from "@shared/video-provider-models";
+import { findVideoProviderModelOption, resolveVideoModelCapability, resolveVideoParameters, validateVideoParameters } from "@shared/video-provider-models";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -104,9 +104,6 @@ export interface VideoGenerationNodeData extends Omit<VideoGenerationNodeConfig,
 }
 
 const BUSY_STATUSES: ReadonlySet<VideoGenerationNodeStatus> = new Set(["submitting", "queued", "generating", "post_processing", "recovering"]);
-const DURATION_OPTIONS = [5, 10, 15];
-const RATIO_OPTIONS = ["16:9", "9:16", "1:1"];
-const RESOLUTION_OPTIONS = ["480p", "720p", "1080p"];
 const MODE_OPTIONS: VideoGenerationMode[] = ["generate", "remix", "extend"];
 const MODE_PRESENTATION: Record<VideoGenerationMode, {
   title: string;
@@ -214,11 +211,15 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
     aspectRatio: aspectRatioSuggestion?.aspectRatio ?? aspectRatio,
     resolution,
     generateAudio
-  } as VideoGenerationNodeData));
+  } as VideoGenerationNodeData, providerOptions));
   const draftRef = useRef(draft);
   const composingRef = useRef(false);
   const busy = BUSY_STATUSES.has(status);
   const selectedProvider = providerOptions.find((provider) => provider.id === draft.providerId);
+  const modelOption = findVideoProviderModelOption(selectedProvider?.modelOptions, draft.model);
+  const constraints = resolveVideoParameters(modelOption);
+  const parameterOptions = videoParameterOptions(selectedProvider, draft.model);
+  const providerParametersKey = JSON.stringify(providerOptions.map((provider) => [provider.id, provider.modelOptions]));
   const selectedModelCapability = requiresFirstLastFrame
     ? resolveVideoModelCapability(
         findVideoProviderModelOption(selectedProvider?.modelOptions, draft.model),
@@ -239,6 +240,9 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
     undefined,
     onBeforeChange
   );
+  const commitNormalizedParameters = useEffectEvent((config: VideoGenerationNodeConfig) => {
+    onChange?.(id, config);
+  });
   const commitInferredAspectRatio = useEffectEvent((value: string) => {
     onChange?.(id, { aspectRatio: value });
   });
@@ -257,10 +261,12 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
       aspectRatio: inferredAspectRatio ?? aspectRatio,
       resolution,
       generateAudio
-    } as VideoGenerationNodeData);
+    } as VideoGenerationNodeData, providerOptions);
     draftRef.current = next;
     setDraft(next);
-    if (inferredAspectRatio && inferredAspectRatio !== aspectRatio) {
+    if (next.duration !== duration || next.aspectRatio !== (inferredAspectRatio ?? aspectRatio) || next.resolution !== resolution || next.generateAudio !== generateAudio) {
+      commitNormalizedParameters(next);
+    } else if (inferredAspectRatio && inferredAspectRatio !== aspectRatio) {
       commitInferredAspectRatio(inferredAspectRatio);
     }
     // Effect Events are non-reactive; the installed hooks lint predates their support.
@@ -277,17 +283,32 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
     model,
     prompt,
     providerId,
+    providerParametersKey,
     resolution
   ]);
 
   function update(patch: Partial<VideoGenerationNodeConfig>): void {
-    const next = { ...draftRef.current, ...patch };
+    const next = configFromData({ ...draftRef.current, ...patch }, providerOptions);
     draftRef.current = next;
     setDraft(next);
     schedule(next);
   }
 
+  const promptRequired = constraints.requiresPrompt;
+  const promptBlock = promptRequired && !draft.prompt.trim()
+    ? uiText("当前模型需要视频描述，请填写后再生成。")
+    : undefined;
+  const parameterError = validateVideoParameters({
+    prompt: draft.prompt, durationSeconds: draft.duration, aspectRatio: draft.aspectRatio,
+    resolution: draft.resolution, generateAudio: draft.generateAudio,
+    firstFrame: Boolean(startFrame), lastFrame: Boolean(endFrame),
+    images: referenceImages.length + Number(Boolean(startFrame)) + Number(Boolean(endFrame)),
+    videos: referenceVideos.length + Number(Boolean(sourceVideoPath && !referenceVideos.some((video) => video.path === sourceVideoPath))),
+    audios: referenceAudios.length,
+    ...(draft.mode === "remix" || draft.mode === "extend" ? { mode: draft.mode } : {})
+  }, modelOption);
   const canRun = !busy
+    && !parameterError
     && !modeUnavailableReason
     && !capabilityBlock
     && providerOptions.some((provider) => (
@@ -416,6 +437,9 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
             value={draft.prompt}
             maxLength={VIDEO_GENERATION_PROMPT_MAX_LENGTH}
             disabled={busy}
+            aria-required={promptRequired || undefined}
+            aria-invalid={Boolean(promptBlock) || undefined}
+            aria-describedby={promptBlock ? `video-prompt-error-${id}` : undefined}
             placeholder={modePresentation.promptPlaceholder}
             onChange={(event) => update({ prompt: event.target.value })}
             onCompositionStart={() => { composingRef.current = true; }}
@@ -427,6 +451,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
               event.preventDefault(); flush(); onRun?.(id, draftRef.current);
             }}
           />
+          {promptBlock ? <small id={`video-prompt-error-${id}`} className="text-destructive" role="alert">{promptBlock}</small> : null}
           <span className="video-generation-prompt-meta"><span>{uiText("⌘ Enter 生成")}</span><span>{draft.prompt.length}/{VIDEO_GENERATION_PROMPT_MAX_LENGTH}</span></span>
         </div>
 
@@ -444,9 +469,10 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
             resolution={draft.resolution}
             onSelect={(selectedProviderId, selectedModel) => update({ providerId: selectedProviderId, model: selectedModel })}
           />
-          <OptionRow label={uiText("时长")} options={DURATION_OPTIONS.map(String)} value={String(draft.duration)} suffix="s" disabled={busy} onChange={(value) => update({ duration: Number(value) })} />
-          <OptionRow label={uiText("画幅")} options={RATIO_OPTIONS} value={draft.aspectRatio} disabled={busy} onChange={(value) => update({ aspectRatio: value })} />
-          <OptionRow label={uiText("清晰度")} options={RESOLUTION_OPTIONS} value={draft.resolution} disabled={busy} onChange={(value) => update({ resolution: value })} />
+          {(!parameterOptions.durations || !parameterOptions.ratios || !parameterOptions.resolutions) ? <small className="text-muted-foreground">{uiText("模型未提供完整参数约束，请按服务商要求填写。")}</small> : null}
+          <OptionRow label={uiText("时长")} options={parameterOptions.durations?.map(String)} value={String(draft.duration)} suffix="s" disabled={busy} onChange={(value) => update({ duration: Number(value) })} />
+          <OptionRow label={uiText("画幅")} options={parameterOptions.ratios} value={draft.aspectRatio} disabled={busy} onChange={(value) => update({ aspectRatio: value })} />
+          <OptionRow label={uiText("清晰度")} options={parameterOptions.resolutions} value={draft.resolution} disabled={busy} onChange={(value) => update({ resolution: value })} />
           <div className="video-generation-audio">
             <span><strong>{uiText("生成声音")}</strong><small>{uiText("模型支持时同步生成环境音")}</small></span>
             <button
@@ -454,7 +480,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
               role="switch"
               aria-label={uiText("生成声音")}
               aria-checked={draft.generateAudio}
-              disabled={busy}
+              disabled={busy || constraints.supportsGeneratedAudio === false}
               className="video-generation-audio-switch"
               onClick={() => update({ generateAudio: !draft.generateAudio })}
             >
@@ -466,13 +492,13 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
 
       <footer className="nodrag video-generation-footer" onPointerDown={(event) => event.stopPropagation()}>
         <span className={cn(status === "failed" && "text-destructive")} role={status === "failed" ? "alert" : undefined} title={error}>
-          {status === "failed"
+          {(parameterError ? uiText(parameterError) : undefined) ?? (status === "failed"
             ? error || "任务失败，配置已保留"
             : status === "polling_stopped"
               ? error || "仅停止本地等待，远端可能继续并计费"
-              : generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length)}
+              : generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length))}
         </span>
-        <button type="button" aria-describedby={capabilityBlock ? `video-capability-${id}` : undefined} disabled={busy ? !onStopPolling || !lastGenerationId : status === "polling_stopped" ? !onResumePolling || !lastGenerationId : !retryable && !canRun} className="canvas-generation-run" onClick={() => {
+        <button type="button" aria-describedby={capabilityBlock ? `video-capability-${id}` : undefined} disabled={busy ? !onStopPolling || !lastGenerationId : status === "polling_stopped" ? !onResumePolling || !lastGenerationId : !canRun} className="canvas-generation-run" onClick={() => {
           if (busy) {
             onStopPolling?.(id);
             return;
@@ -481,6 +507,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
             onResumePolling?.(id);
             return;
           }
+          if (!canRun) return;
           flush();
           if (retryable) onRetry?.(id, draftRef.current);
           else onRun?.(id, draftRef.current);
@@ -584,11 +611,18 @@ function FrameSlot({
   );
 }
 
-function OptionRow({ label, options, value, suffix = "", disabled, onChange }: { label: string; options: string[]; value: string; suffix?: string; disabled: boolean; onChange: (value: string) => void }): React.ReactElement {
+function OptionRow({ label, options, value, suffix = "", disabled, onChange }: { label: string; options?: string[]; value: string; suffix?: string; disabled: boolean; onChange: (value: string) => void }): React.ReactElement {
   return (
     <div className="video-generation-option-row">
       <span>{label}</span>
-      <div role="group" aria-label={label}>{options.map((option) => (
+      <div role="group" aria-label={label}>{!options ? (
+        <input aria-label={label} type={suffix === "s" ? "number" : "text"} min={suffix === "s" ? 1 : undefined} value={value} disabled={disabled}
+          onChange={(event) => { if (event.target.value && (suffix !== "s" || Number(event.target.value) > 0)) onChange(event.target.value); }} />
+      ) : options.length > 6 ? (
+        <select aria-label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+          {options.map((option) => <option key={option} value={option}>{option}{suffix}</option>)}
+        </select>
+      ) : options.map((option) => (
         <button key={option} type="button" disabled={disabled} aria-pressed={value === option} onClick={() => onChange(option)}>{option}{suffix}</button>
       ))}</div>
     </div>
@@ -775,16 +809,37 @@ function VideoGenerationHandles({
   );
 }
 
-function configFromData(data: VideoGenerationNodeData): VideoGenerationNodeConfig {
+function videoParameterOptions(provider: VideoProviderConfig | undefined, model: string) {
+  const option = findVideoProviderModelOption(provider?.modelOptions, model);
+  const constraints = resolveVideoParameters(option);
+  const range = constraints.durationRange;
+  const min = Math.max(1, Math.ceil(range?.min ?? 1));
+  const durations = constraints.durations ?? (range && range.max - min < 120
+    ? Array.from({ length: Math.max(0, Math.floor(range.max) - min + 1) }, (_, index) => min + index)
+    : undefined);
+  return {
+    durations: durations?.length ? durations : undefined,
+    ratios: constraints.ratios,
+    resolutions: constraints.resolutions
+  };
+}
+
+function configFromData(data: VideoGenerationNodeData, providers: VideoProviderConfig[] = []): VideoGenerationNodeConfig {
+  const options = videoParameterOptions(providers.find((provider) => provider.id === data.providerId), data.model);
+  const option = findVideoProviderModelOption(providers.find((provider) => provider.id === data.providerId)?.modelOptions, data.model);
+  const range = option?.capability?.durationSeconds;
+  const duration = Number.isFinite(data.duration) ? Math.max(1, data.duration) : 5;
   return {
     mode: data.mode ?? "generate",
     prompt: data.prompt ?? "",
     providerId: data.providerId ?? "",
     model: data.model ?? "",
-    duration: Number.isFinite(data.duration) ? Math.max(1, data.duration) : 5,
-    aspectRatio: data.aspectRatio || "16:9",
-    resolution: data.resolution || "720p",
-    generateAudio: data.generateAudio ?? false
+    duration: options.durations
+      ? options.durations.reduce((nearest, value) => Math.abs(value - duration) < Math.abs(nearest - duration) ? value : nearest)
+      : range ? Math.max(range.min, Math.min(range.max, duration)) : duration,
+    aspectRatio: options.ratios && !options.ratios.includes(data.aspectRatio) ? options.ratios[0] : data.aspectRatio || "16:9",
+    resolution: options.resolutions && !options.resolutions.includes(data.resolution) ? options.resolutions[0] : data.resolution || "720p",
+    generateAudio: resolveVideoParameters(option).supportsGeneratedAudio === false ? false : data.generateAudio ?? false
   };
 }
 

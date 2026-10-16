@@ -124,6 +124,12 @@ export class OpenRouterVideoProvider implements VideoProvider {
             const option = normalizeVideoProviderModelOption({
                 id,
                 ownedBy: id.split("/")[0] || undefined,
+                requiresPrompt: typeof value.prompt_required === "boolean" ? value.prompt_required : undefined,
+                supportsGeneratedAudio: typeof value.generate_audio === "boolean" ? value.generate_audio : undefined,
+                supportedFrameImages: value.supported_frame_images,
+                supportedDurations: value.supported_durations,
+                supportedRatios: value.supported_aspect_ratios,
+                supportedResolutions: value.supported_resolutions,
                 ...(isRecord(value.capability) ? { capability: value.capability } : {}),
                 ...(supportedModes ? { supportedModes } : {})
             });

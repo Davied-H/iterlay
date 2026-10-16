@@ -9,7 +9,7 @@ import {
   type RefObject,
   type HTMLAttributes
 } from "react";
-import { ArrowUp, ChevronUp, Sparkles, Square, X } from "lucide-react";
+import { ArrowUp, Sparkles, Square, X } from "lucide-react";
 import companionAvatar from "@/assets/app-icon-mascot.png";
 import type { AiAssistantContextImage, AiAssistantResizeHandlers } from "@/components/assistant/AiAssistant";
 import { ImageZoomLightbox } from "./asset/ImageZoomLightbox";
@@ -226,16 +226,21 @@ export function PromptFusionDock(props: Props): React.ReactElement {
     data-assistant-dock-side={props.dockSide ?? "floating"} data-assistant-dock-collapsed={props.collapsed || undefined}
     data-assistant-dragging={props.dragging ? "" : undefined} inert={props.collapsed} aria-hidden={props.collapsed || undefined}
     data-assistant-width={width} data-edit-dock="" data-right-rail-open={props.rightRailOpen || undefined} data-fusion-mode={mode} data-fusion-expanded={conversationOpen} data-tour="prompt-card" aria-label={uiText("融合创作助手")}>
+    {!props.dockSide && (mode === "chat" || conversationOpen) ? <>
+      <button type="button" className="prompt-fusion-expand-handle" aria-label={uiText(conversationOpen ? "收起创作助手" : "展开创作助手")}
+        title={uiText(conversationOpen ? "收起创作助手" : "展开创作助手")} aria-expanded={conversationOpen} data-expanded={conversationOpen}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => { previousHeight.current = dockRef.current?.getBoundingClientRect().height ?? previousHeight.current; props.onOpenChange(!conversationOpen); }}>
+        <svg className="prompt-fusion-expand-arrow" viewBox="0 0 64 16" fill="none" aria-hidden="true">
+          <path d="M 8 12 L 28 5.5 Q 32 4 36 5.5 L 56 12" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </button>
+    </> : null}
     <div className="prompt-fusion-conversation" hidden={!conversationOpen}>{props.assistant}</div>
     {!conversationOpen && mode === "chat" ? <div className="prompt-fusion-collapsed" data-assistant-drag-handle="" onPointerDown={props.headerPointerHandlers?.onPointerDown}>
       <img src={companionAvatar} alt="" draggable={false} aria-hidden="true" />
       <span className="prompt-fusion-collapsed-label">{uiText("创作助手")}</span>
-      <span className="prompt-fusion-collapsed-action">
-        <span className="text-muted-foreground">{props.busy ? uiText("正在处理") : uiText("展开对话")}</span>
-        <button type="button" aria-label={uiText("展开创作助手")} onPointerDown={(event) => event.stopPropagation()} onClick={() => { previousHeight.current = dockRef.current?.getBoundingClientRect().height ?? previousHeight.current; props.onOpenChange(true); }}>
-          <ChevronUp />
-        </button>
-      </span>
+      {props.busy ? <span className="prompt-fusion-collapsed-status text-muted-foreground">{uiText("正在处理")}</span> : null}
     </div> : null}
     <div className="prompt-fusion-composer" data-confirming={hasConfirmation || undefined}>
       <div ref={composerRef} className="prompt-fusion-composer-swap">

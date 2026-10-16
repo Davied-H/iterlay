@@ -18,9 +18,7 @@ import { registerAssetProtocol } from "./asset-protocol.js";
 import { CodexOAuthService } from "./auth/codex-oauth.js";
 import { dispatchDeepLink, registerDeepLinkIpc } from "./deep-link.js";
 import { ensureInitialDemoBoard } from "./demo-board.js";
-import { registerIpc } from "./ipc.js";
 import { LicenseService, registerLicenseIpc } from "./licensing/index.js";
-import { MasterGoBridge } from "./mastergo-bridge.js";
 import { startLocalApi } from "./local-api.js";
 import { FfmpegService } from "./media/ffmpeg-service.js";
 import { MediaToolsManager } from "./media/media-tools-manager.js";
@@ -83,7 +81,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_NAME = "Iterlay";
 const APP_ID = "dev.dong.iterlay";
 const UPDATE_QUIT_FEEDBACK_DELAY_MS = 1_200;
-const processStartedAt = performance.now();
+// performance.now() starts with the Node runtime, before ESM dependencies load.
+// Starting the clock here would hide the cost of the entire static import graph.
+const processStartedAt = 0;
 // A packaged app ignores all browser-development flags.
 const isBrowserDev = !app.isPackaged && process.env.ITERLAY_BROWSER_DEV === "1";
 let browserDevBridge: { flush: () => Promise<void>; close: () => void } | undefined;
@@ -239,6 +239,8 @@ function startupMark(stage: string): void {
   console.info(`[startup] ${stage} ${Math.round(performance.now() - processStartedAt)}ms`);
 }
 
+startupMark("main-module-loaded");
+
 async function showLoadFailure(
   win: BrowserWindow,
   description: string,
@@ -364,8 +366,18 @@ app.whenReady().then(async () => {
   startupMark("startup-document-loaded");
 
   const dataDir = path.join(app.getPath("userData"), "workspace");
-  if (!isBrowserDev) await migrateLegacyWorkspace(dataDir, app.getPath("appData"));
-  startupMark("workspace-migrated");
+  // The assistant SDK/MCP graph is expensive to evaluate. Show the lightweight
+  // startup document first, then load business modules alongside disk migration.
+  // Keep privileged scheme registration in asset-protocol.ts statically imported.
+  const [{ registerIpc }, { MasterGoBridge }] = await Promise.all([
+    import("./ipc.js"),
+    import("./mastergo-bridge.js"),
+    (async () => {
+      if (!isBrowserDev) await migrateLegacyWorkspace(dataDir, app.getPath("appData"));
+      startupMark("workspace-migrated");
+    })()
+  ]);
+  startupMark("business-modules-loaded");
   const settings = new SettingsStore(dataDir);
   const appLocale = resolveAppLocale(settings.getSettings().language, app.getLocale());
   const onboarding = new OnboardingStore(dataDir);

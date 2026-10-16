@@ -70,6 +70,68 @@ async function openVideoProviderSubmenu(providerName: string): Promise<HTMLButto
 }
 
 describe("video canvas node UI", () => {
+  it.each(["draft", "failed"] as const)("blocks blank HappyHorse descriptions with a first frame in %s state", async (status) => {
+    const onRun = vi.fn();
+    const onRetry = vi.fn();
+    const data: VideoGenerationNodeData = {
+      prompt: "  ", model: "alibaba/happyhorse-1.1", providerId: "openrouter",
+      providerOptions: [{ id: "openrouter", type: "openrouter", name: "OpenRouter",
+        model: "alibaba/happyhorse-1.1", baseUrl: "https://openrouter.ai/api" }],
+      duration: 5, aspectRatio: "16:9", resolution: "720p", generateAudio: false,
+      status, onRun, onRetry,
+      startFrame: { id: "first", jobId: "first-job", path: "/first.png", dataUrl: "data:image/png;base64,AA==" }
+    };
+    renderCanvasNode({ id: "generator", type: "videoGenerationNode", position: { x: 0, y: 0 },
+      data: data as unknown as Record<string, unknown> }, { videoGenerationNode: VideoGenerationNode });
+    const run = document.querySelector<HTMLButtonElement>(".canvas-generation-run")!;
+    const prompt = document.querySelector<HTMLTextAreaElement>("textarea")!;
+    expect(run.disabled).toBe(true);
+    expect(prompt.getAttribute("aria-required")).toBe("true");
+    expect(document.body.textContent).toContain("当前模型需要视频描述");
+    await act(async () => {
+      run.click();
+      prompt.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
+    });
+    expect(onRun).not.toHaveBeenCalled();
+    expect(onRetry).not.toHaveBeenCalled();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(prompt, "镜头缓慢推进");
+      prompt.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(run.disabled).toBe(false);
+    await act(async () => run.click());
+    expect(status === "failed" ? onRetry : onRun).toHaveBeenCalledWith("generator", expect.objectContaining({ prompt: "镜头缓慢推进" }));
+  });
+
+  it("uses catalog parameter choices and repairs incompatible saved Veo settings before retry", async () => {
+    const onChange = vi.fn();
+    const onRetry = vi.fn();
+    const data: VideoGenerationNodeData = {
+      prompt: "海边日落", providerId: "openrouter", model: "google/veo-3.1-fast",
+      duration: 10, aspectRatio: "1:1", resolution: "480p", generateAudio: true,
+      status: "failed", onChange, onRetry,
+      providerOptions: [{
+        id: "openrouter", type: "openrouter", name: "OpenRouter", model: "google/veo-3.1-fast",
+        models: ["google/veo-3.1-fast"], baseUrl: "https://openrouter.ai/api",
+        modelOptions: [{ id: "google/veo-3.1-fast", supportedDurations: [4, 6, 8],
+          supportedRatios: ["16:9", "9:16"], supportedResolutions: ["720p", "1080p", "4K"] }]
+      }]
+    };
+    renderCanvasNode({ id: "generator", type: "videoGenerationNode", position: { x: 0, y: 0 },
+      data: data as unknown as Record<string, unknown> }, { videoGenerationNode: VideoGenerationNode });
+    expect(document.body.textContent).toContain("4s");
+    expect(document.body.textContent).toContain("6s");
+    expect(document.body.textContent).toContain("8s");
+    expect(document.body.textContent).not.toContain("10s");
+    expect(document.body.textContent).not.toContain("480p");
+    expect(onChange).toHaveBeenCalledWith("generator", expect.objectContaining({
+      duration: 8, aspectRatio: "16:9", resolution: "720p"
+    }));
+    const retry = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("重试"));
+    await act(async () => retry!.click());
+    expect(onRetry).toHaveBeenCalledWith("generator", expect.objectContaining({ duration: 8, aspectRatio: "16:9", resolution: "720p" }));
+  });
+
   it("reveals semantic video targets while an image connection is active", () => {
     const data: VideoGenerationNodeData = {
       mode: "generate",
@@ -200,8 +262,7 @@ describe("video canvas node UI", () => {
       data: data as unknown as Record<string, unknown>
     }, { videoGenerationNode: VideoGenerationNode });
 
-    expect(Array.from(document.querySelectorAll<HTMLButtonElement>(".video-generation-option-row button"))
-      .find((button) => button.textContent === "1:1")?.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="画幅"]')?.value).toBe("1:1");
     expect(onChange).toHaveBeenCalledWith("generator", { aspectRatio: "1:1" });
   });
 

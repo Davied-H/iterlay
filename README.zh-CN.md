@@ -1,113 +1,125 @@
+<div align="center">
+
 # Iterlay
 
-**自带模型 Key 的 AI 视觉创作工作台，让你和 Agent 在无限画布上生成、修改图片与视频。**
+### 让灵感在画布上，一版版成为作品。
 
-[English](README.md) · 简体中文
+开源 AI 视觉创作工作台。把参考、图片生成、编辑和视频创作放进同一张无限画布，也让你的 Coding Agent 参与其中。
 
-<!-- 待补充 60～90 秒真实操作录屏：展示发起生成、实际等待、根据结果修改，以及最终图片与视频；加速或剪辑需明确标注。不要用动画或截图轮播代替真实操作。 -->
+**自带模型 · 无限画布 · Agent 可操作 · MIT 开源**
 
-## 下载与开始使用
+[下载 Iterlay](https://github.com/Davied-H/iterlay/releases) · [官网](https://davied-h.github.io/iterlay/) · [接入 Agent](#让你的-agent-也能创作) · [English](README.md)
 
-[下载安装包](https://github.com/Davied-H/iterlay/releases) · [按平台选择版本](https://davied-h.github.io/iterlay/#/download) · [官网](https://davied-h.github.io/iterlay/)
+</div>
 
-1. 下载适合系统的安装包，安装并打开 Iterlay。可用版本以 Releases 为准，下载页按 Apple 芯片 Mac、Intel Mac 和 Windows x64 分类。
-2. 在设置中配置需要的 AI 服务商、API Key 和模型；无需激活或试用。
-3. 创建画板，输入提示词生成图片或视频；需要修改时，选择结果作为参考继续创作。
+![Iterlay 当前工作台：FIELD 音箱的创作简报、橙色主图、绿色配色版本、户外场景和品牌海报集中在同一张画板](docs/assets/readme/field-canvas.webp)
 
-要让 Codex 或 Claude Code 操作画布，在安装桌面端后运行：
+一台音箱，从产品主图到配色探索、户外场景与品牌海报。**参考、尝试和结果，都留在同一个创作空间里。**
+
+本例由 Codex 通过 Iterlay CLI 调用 App 已配置的模型完成，截图来自当前网页工作台。查看[示例素材、提示词与制作说明](docs/readme-example.md)。
+
+## 为什么用 Iterlay？
+
+### 创作有上下文，迭代有来路
+
+把参考图、生成结果和素材放在无限画布上，围绕一个项目持续探索。选中图片就能继续描述修改，用已有结果作为下一轮参考；版本比较与生成历史帮助你找回之前的方向。
+
+### 模型由你选，配置可以复用
+
+接入自己的 API Key 或 Codex 账号授权，按任务选择图片、视频和对话模型。在同一个工作台中使用不同供应商，Agent 也能复用 App 已保存的模型配置与授权。
+
+### 你看画布，Agent 做执行
+
+通过 CLI 和 Skill，让 Codex、Claude Code 等 Coding Agent 生成图片、修改素材、制作视频、整理画板并导出文件。你可以在画布上查看和调整结果，也可以让 Agent 将素材导出到正在开发的项目。
+
+### 工作区保存在本地，工具开源免费
+
+画板与素材保存在本机。桌面端、画布、AI 集成、CLI 和官网的原创代码均采用 MIT 许可证，可自行修改和构建。应用永久免费，无需激活；模型调用费用由对应供应商收取。使用远程模型时，提示词和所需参考素材会发送给所选服务。
+
+## 从参考到成品，连起来做
+
+### 1. 带着参考开始
+
+导入已有图片，或直接输入提示词生成。把风格参考、产品图和候选方案放在一起，为下一步创作保留视觉上下文。
+
+### 2. 在画布上继续修改
+
+选中结果，描述想改变的背景、对象或风格，继续生成下一版。图片编辑助手会结合当前图片，帮助你明确修改目标与需要保留的内容。
+
+![当前图片编辑助手识别 FIELD 音箱，并询问需要修改外壳颜色、背景、文字、挂绳还是光线](docs/assets/readme/field-edit.webp)
+
+### 3. 比较版本，再决定方向
+
+同一张产品图从陶土橙改为鼠尾草绿，原图与修改版保留在同一节点中。拖动对比滑块检查变化，再决定采用哪一版。
+
+![FIELD 音箱真实编辑前后的滑块对比：左侧橙色原图，右侧绿色版本](docs/assets/readme/field-versions.webp)
+
+### 4. 整理并交付素材
+
+将图片切分为可复用素材，按画板和素材库整理，再导出用于设计或开发。需要动态内容时，还可以使用支持的模型进行文生视频或图生视频。
+
+## 可以拿来做什么？
+
+- **产品与电商视觉：** 从产品参考出发，探索场景、背景和光线，比较不同展示方案。
+- **内容与品牌创作：** 生成海报、封面、社媒配图，把参考和候选方案集中在同一画板。
+- **设计与开发素材：** 让 Coding Agent 生成插画、背景和图片素材，导出到项目继续使用。
+- **视频概念探索：** 从文字或已有图片出发生成视频，与静态视觉一起组织。
+
+## 开始使用
+
+1. **下载安装。** 前往[下载页](https://davied-h.github.io/iterlay/#/download)选择系统版本；实际可用安装包以 [GitHub Releases](https://github.com/Davied-H/iterlay/releases) 为准。
+2. **连接模型。** 在设置中添加供应商、API Key 和模型，或使用 Codex 账号授权。
+3. **创建第一张画板。** 导入参考图或输入提示词，生成后选中结果继续修改。
+
+### 支持哪些模型服务？
+
+- **图片生成与编辑：** OpenAI 兼容接口、OpenRouter、阿里云百炼、火山方舟、Poe、fal.ai、Codex OAuth。
+- **视频生成：** 火山方舟、fal.ai、OpenRouter、MiniMax。
+- **对话与创作助手：** OpenAI 兼容接口、Codex OAuth。
+
+三类能力分别配置。图片编辑、参考图、文生视频、图生视频及可用参数取决于具体模型与接口；接入某个供应商不代表它支持全部能力。Iterlay 不提供官方模型积分或代充值服务。
+
+## 让你的 Agent 也能创作
+
+给 Codex 或 Claude Code 一套能执行的视觉工具，让生成的素材进入你的实际工作流。
+
+安装并打开 Iterlay、配置模型后，在 **设置 → Coding Agent** 中安装 Skill，或在终端运行：
 
 ```bash
-npx iterlay add
+npx iterlay add --agent codex
+# 或：npx iterlay add --agent claude-code
 ```
 
-CLI 会自动检测已安装的 Agent，安装 Iterlay Skill 并配置 MCP 服务。详见 [Agent 集成指南](cli/README.md)。
+然后向 Agent 提出具体任务，例如：
 
-## Chat、Image 与 Video 供应商
+> 用 Iterlay 为 FIELD 便携音箱做一组视觉素材：先生成橙色产品主图，再探索绿色配色、户外场景和品牌海报。把结果整理在一个画板里，并导出到项目的 assets 目录。
 
-- **Chat（对话与创作助手）：** OpenAI 兼容接口、Codex OAuth。
-- **Image（图片生成与编辑）：** OpenAI 兼容接口、OpenRouter、阿里云百炼、火山方舟、Poe、fal.ai、Codex OAuth。
-- **Video（视频生成）：** 火山方舟、fal.ai、OpenRouter、MiniMax。
+App 首次打开时会自动安装随包 CLI。Agent 通过 Skill 调用 CLI，复用 App 中已保存的供应商与授权。当前版本使用 **CLI + Skill** 接入；迁移时会移除该 Agent 旧的 Iterlay MCP 配置。
 
-三类能力分别配置；接入某个供应商不代表它同时支持 Chat、Image 和 Video。自定义接口需填写对应的服务地址、API Key 和模型；Codex OAuth 使用账号授权。图片编辑、文生视频、图生视频等能力及参数以所选模型和接口为准。自带 Key 的调用费用由对应供应商收取。
+也可以直接在终端使用：
 
-## 开源范围与服务依赖
+```bash
+iterlay image generate --prompt "暖色调、极简风格的咖啡杯插画" --out ./coffee.png --json
+iterlay image edit --input ./coffee.png --prompt "把杯子改成米白色" --out ./coffee-light.png --json
+```
 
-Iterlay 永久免费，所有功能无需激活或试用。桌面端、画布、AI 集成、CLI 和官网的原创代码采用 MIT 许可证。
+更多用法见 [CLI 与 Agent 集成指南](cli/README.md)。
 
-客户端不提供 Iterlay 官方模型服务、积分或购买入口。请配置自己的模型 Provider（API Key 或 Codex 账号）；模型调用费用由对应服务商收取。更新与安装包通过 GitHub Releases 提供，不依赖原付费版的授权、账户或更新服务。
+## 开发与贡献
 
-## 画布工作流
-
-![Iterlay 无限画布工作台截图](website/public/iterlay-demo-board.png)
-
-- **无限画布：** 把图片、参考与创作结果放在一起，保留上下文。
-- **生成与修改：** 使用 AI 生成图片和视频，以参考素材继续迭代。
-- **参考与切图：** 引入已有图片，拆分为可复用素材。
-- **版本与历史：** 比较图片版本，回顾生成记录。
-- **素材管理：** 在画板与工作空间中组织创作素材。
-
-## 本地开发
-
-环境要求：
-
-- Node.js **22.12+**、**pnpm 10**。
-- macOS 需要 Xcode Command Line Tools（`xcode-select --install`）；原生图片分层组件使用 macOS 14 SDK。
+需要 Node.js **22.12+** 与 **pnpm 10**；macOS 还需 Xcode Command Line Tools。
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-在浏览器打开 **http://127.0.0.1:5180**。`pnpm dev`（或 `pnpm dev:web`）会同时启动 Vite 和隐藏的 Electron 服务进程，网页调用真实的画板、设置、生成任务和原生媒体服务。渲染层修改支持热更新；Electron 服务修改后会自动重新构建并重启后台。按 Ctrl+C 停止全部开发服务。
+在浏览器打开 **http://127.0.0.1:5180**，使用真实工作台进行开发。网页模式会启动隐藏的 Electron 后台服务，开发数据与正式 App 隔离。
 
-后台重启和退出前会等待画板保存。如果保存失败导致工作区继续运行，开发服务会保留连接并暂停自动重启；先在网页处理保存错误，再按 Ctrl+C 重试。启动器不会强制结束仍在编辑的工作区。
+[开发、检查与打包指南](docs/development.zh-CN.md) · [工程说明](docs/engineering.md) · [贡献指南](CONTRIBUTING.md)
 
-网页开发数据独立保存在 `tmp/browser-dev/user-data/`，与已安装 App 的数据分开；可通过 `ITERLAY_BROWSER_DEV_USER_DATA` 指定其他开发目录。带鉴权的桥接服务仅监听本机回环地址，并且只在此开发模式下启用。打包后的 App 继续通过 Electron IPC 工作。
-
-日常调试和验证默认在网页进行。仅在用户明确要求 App 测试时运行 `pnpm electron:dev`，用于验证原生窗口、应用生命周期等桌面行为。`pnpm dev:ui` 保留不启动后台服务的独立 Vite 预览入口。
-
-运行项目检查：
-
-```bash
-pnpm setup:subprojects
-pnpm check:all
-```
-
-`setup:subprojects` 按 CLI 和官网各自的 lockfile 安装依赖；`check:all` 覆盖四个项目的类型检查、lint、测试和构建。局部检查可运行 `pnpm typecheck`、`pnpm lint`、`pnpm test`。构建 Electron 后可运行 `pnpm bench:storage` 获取独立临时数据的存储基准；架构、日志格式、兼容边界与验证结果见[工程说明](docs/engineering.md)。
-
-### 仓库结构
-
-- `src/` — React 画布与桌面界面。
-- `electron/` — Electron 主进程与桌面服务。
-- `cli/` — Coding Agent 集成 CLI，见[使用文档](cli/README.md)。
-- `website/` — 产品官网与下载页，见[开发指南](website/README.md)。
-- `resources/` — 随应用分发的 Skill、图标与原生资源。
-- `docs/` — 产品说明与维护者文档。
-
-## 参与贡献
-
-欢迎通过 [GitHub Issues](https://github.com/Davied-H/iterlay/issues) 报告问题，通过 Pull Request 提交改进。贡献前请阅读[贡献指南](CONTRIBUTING.md)。
-
-## 本地打包
-
-```bash
-pnpm build
-pnpm package
-```
-
-`pnpm package` 生成应用目录，产物位于 `release/`。`pnpm release` 在 macOS Apple 芯片机器上构建未签名、未经公证的 ARM64 DMG，保持 UDZO 压缩。两条命令都会检查安装后的内容：不含仅用于渲染层的依赖目录、生产 JavaScript source map 或内置 FFmpeg；应用与 ASAR 的体积上限分别为 380 MiB、120 MiB，报告写入 `output/package-size/report.json`。这些命令不上传安装包，不需要官方管理密钥，不提交或推送 Git。
-
-首次执行需要视频工具的操作时，应用会先提示，确认后才从 GitHub Releases 下载固定版本组件并校验 SHA-256。组件保存在 Electron 用户数据目录的 `tools/ffmpeg/ffmpeg6-r1/darwin-arm64/` 下，安装后可离线复用，更新应用也会保留。下载失败或取消时，不会提交新的序列生成任务或产生对应生成费用；普通启动和图片功能不会下载组件。
-
-维护者在 macOS Apple 芯片机器上单独构建组件，需要 Xcode Command Line Tools 和 `brew install pkgconf`：
-
-```bash
-pnpm media-tools:build --version ffmpeg6-r2
-pnpm media-tools:verify
-```
-
-构建使用固定版本 FFmpeg 6.0 与 x264 源码，不启用 nonfree，保持现有 codec 配置；产物位于 `output/media-tools/<version>-darwin-arm64/`，包含两个工具、许可证、对应源码压缩包和构建信息，并把归档及逐文件的真实哈希写入 `shared/media-tools-manifest.json`。组件版本不可变，修改构建时须用新的 `--version`；无参数会验证并复用本地已匹配的归档，`--rebuild` 只在独立目录生成诊断候选，若哈希不同会拒绝覆盖固定版本。当前 `ffmpeg6-r1` 的资产为 GitHub Release `media-tools-ffmpeg6-r1` 上的 `iterlay-media-tools-ffmpeg6-r1-darwin-arm64.zip`。发布引用新组件的应用前，须先由维护者单独上传对应资产。其他平台尚未配置完整打包依赖。签名、公证和安装包分发由维护者自行配置；详见[第三方说明](THIRD_PARTY_NOTICES.md)。
+欢迎通过 [Issues](https://github.com/Davied-H/iterlay/issues) 反馈问题和使用场景，或通过 Pull Request 参与改进。如果 Iterlay 对你有帮助，欢迎点一个 Star，或分享你的画板与创作过程，让更多人看到它能做什么。
 
 ## 许可证
 
-项目原创代码采用 [MIT 许可证](LICENSE)。第三方依赖及资源遵循各自许可证，参见[第三方说明](THIRD_PARTY_NOTICES.md)。
+项目原创代码采用 [MIT 许可证](LICENSE)。第三方依赖与资源遵循各自许可证，详见[第三方说明](THIRD_PARTY_NOTICES.md)。

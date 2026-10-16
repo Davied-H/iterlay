@@ -1,12 +1,8 @@
-import {
-  fauxAssistantMessage as codingFauxAssistantMessage,
-  fauxText as codingFauxText,
-  fauxToolCall as codingFauxToolCall,
-  fauxProvider,
-  type FauxContentBlock as CodingFauxContentBlock,
-  type FauxResponseFactory as CodingFauxResponseFactory
+import type {
+  FauxContentBlock as CodingFauxContentBlock,
+  FauxResponseFactory as CodingFauxResponseFactory,
+  ToolDefinition
 } from "../agents/coding-runtime.js";
-import { ModelRuntime, SessionManager, createAgentSession, type ToolDefinition } from "../agents/coding-runtime.js";
 import type { AgentTool } from "../agents/tool-runtime.js";
 import { parse as parseHtml } from "node-html-parser";
 import path from "node:path";
@@ -221,6 +217,9 @@ export async function collaborateSceneAgentStreamWith(
   resourceOptions?: PiAgentResourceOptions
 ): Promise<CollaborateSceneResult> {
   assertReferenceLimit(req);
+  if (signal?.aborted) throw new ProviderError("REQUEST_CANCELLED", "已停止生成。");
+  // Loading a board must not initialize the coding SDK and all its providers.
+  const { fauxProvider, ModelRuntime, SessionManager, createAgentSession } = await import("../agents/coding-runtime.js");
   if (signal?.aborted) throw new ProviderError("REQUEST_CANCELLED", "已停止生成。");
   const completion: AssistantCompletionState = {
     result: null,
@@ -465,6 +464,11 @@ function createCodingAgentDecisionFactory(
   onReasoningSummary?: (delta: string) => void
 ): CodingFauxResponseFactory {
   return async (context, streamOptions) => {
+    const {
+      fauxAssistantMessage: codingFauxAssistantMessage,
+      fauxText: codingFauxText,
+      fauxToolCall: codingFauxToolCall
+    } = await import("../agents/coding-runtime.js");
     const stop = (text = "") => codingFauxAssistantMessage(
       text ? [codingFauxText(text)] : [],
       { stopReason: "stop" }

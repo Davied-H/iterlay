@@ -126,6 +126,20 @@ describe("OpenRouter video provider", () => {
     expect(openRouterVideoApiRoot("https://openrouter.ai/api/v1/")).toBe("https://openrouter.ai/api/v1");
   });
 
+  it("preserves model parameter constraints from the public catalog", async () => {
+    const provider = new OpenRouterVideoProvider(vi.fn().mockResolvedValue(jsonResponse({ data: [{
+      id: "google/veo-3.1-fast",
+      supported_durations: [4, 6, 8],
+      supported_aspect_ratios: ["16:9", "9:16"],
+      supported_resolutions: ["720p", "1080p", "4K"]
+    }] })));
+    await expect(provider.listModels(config)).resolves.toEqual([{
+      id: "google/veo-3.1-fast", ownedBy: "google",
+      supportedDurations: [4, 6, 8], supportedRatios: ["16:9", "9:16"],
+      supportedResolutions: ["720p", "1080p", "4K"]
+    }]);
+  });
+
   it("lists public video models without requiring an API key", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [{ id: "google/veo-3.1" }] }));
     const provider = new OpenRouterVideoProvider(fetchMock);

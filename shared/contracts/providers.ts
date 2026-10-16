@@ -125,6 +125,13 @@ export interface VideoProviderModelOption extends ProviderModelOption {
   supportedModes?: VideoProviderMode[];
   capability?: VideoProviderCapability;
   pricingLabel?: string;
+  /** 缺失时保守要求描述；只有明确 false 才允许纯媒体生成。 */
+  requiresPrompt?: boolean;
+  supportsGeneratedAudio?: boolean;
+  supportedFrameImages?: Array<"first_frame" | "last_frame">;
+  supportedDurations?: number[];
+  supportedRatios?: string[];
+  supportedResolutions?: string[];
 }
 
 export interface ProviderTestResult {

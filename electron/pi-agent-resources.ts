@@ -1,7 +1,7 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { DefaultResourceLoader, loadSkills, type InlineExtension, type Skill } from "./agents/coding-runtime.js";
+import type { DefaultResourceLoader, InlineExtension, Skill } from "./agents/coding-runtime.js";
 import type { AppSettings, PiAgentResourceEntry, PiAgentResourceInventory } from "../shared/types.js";
 import { listWorkspaceTools } from "./workspace-tools.js";
 
@@ -22,6 +22,7 @@ export async function discoverPiAgentResources(
   agentDir: string,
   settings: AppSettings
 ): Promise<PiAgentResourceInventory> {
+  const { loadSkills } = await import("./agents/coding-runtime.js");
   const packageResources = await discoverPackageResources(agentDir);
   const configured = await readPiSettings(agentDir);
   const skillPaths = [
@@ -64,6 +65,7 @@ export async function createPiAgentResourceLoader(
   requiredSkillIds: string[] = [],
   extensionFactories: InlineExtension[] = []
 ): Promise<DefaultResourceLoader> {
+  const { DefaultResourceLoader } = await import("./agents/coding-runtime.js");
   const loader = new DefaultResourceLoader({
     cwd,
     agentDir,

@@ -10,6 +10,33 @@ import { ASSISTANT_WIDTH_KEY, ASSISTANT_WIDTHS, readAssistantWidth, setAssistant
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("production prompt fusion", () => {
+  it("uses the same centered button to expand and collapse the conversation", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return createElement(PromptFusionDock, {
+        open, onOpenChange: setOpen, busy: false, inputDisabled: false,
+        assistant: createElement("p", null, "对话内容"), value: "", directValue: "", contextImages: [],
+        controls: null, directEditor: null, directAction: null,
+        onValueChange: vi.fn(), onDirectValueChange: vi.fn(), onPromptContextChange: vi.fn(),
+        onSubmit: vi.fn(), onStop: vi.fn(), onPasteImages: vi.fn(), onPasteCanvasReferences: vi.fn()
+      });
+    }
+    try {
+      await act(async () => root.render(createElement(Harness)));
+      const button = container.querySelector<HTMLButtonElement>(".prompt-fusion-expand-handle")!;
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => button.click());
+      expect(container.querySelector(".prompt-fusion-expand-handle")).toBe(button);
+      expect(button.getAttribute("aria-expanded")).toBe("true");
+      expect(button.getAttribute("aria-label")).toBe("收起创作助手");
+      await act(async () => button.click());
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      expect(container.querySelector(".prompt-fusion-conversation")?.hasAttribute("hidden")).toBe(true);
+    } finally { await act(async () => root.unmount()); }
+  });
+
   it("shows corner resize handles only for an expanded floating conversation", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -38,6 +65,7 @@ describe("production prompt fusion", () => {
       expect(container.querySelectorAll("[data-assistant-resize-handle]")).toHaveLength(0);
       await render(true, "right");
       expect(container.querySelectorAll("[data-assistant-resize-handle]")).toHaveLength(0);
+      expect(container.querySelector(".prompt-fusion-expand-handle")).toBeNull();
     } finally {
       await act(async () => root.unmount());
     }

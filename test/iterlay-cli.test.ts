@@ -11,6 +11,10 @@ async function fixture() {
   const home = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-")); directories.push(home);
   const skill = path.join(home, "bundle"); await mkdir(skill);
   await writeFile(path.join(skill, "SKILL.md"), "---\nname: iterlay-workspace\ndescription: Use the CLI\n---\nUse iterlay CLI.");
+  const entry = path.join(home, "using-iterlay"); await mkdir(entry);
+  await writeFile(path.join(entry, "SKILL.md"), "---\nname: using-iterlay\ndescription: Explicit Iterlay entrypoint\ndisable-model-invocation: true\n---\nRead ../iterlay-workspace/SKILL.md");
+  await mkdir(path.join(entry, "agents"));
+  await writeFile(path.join(entry, "agents/openai.yaml"), "policy:\n  allow_implicit_invocation: false\n");
   return { home, skill, userDataPath: path.join(home, "data") };
 }
 describe("CLI installation and Skill migration", () => {

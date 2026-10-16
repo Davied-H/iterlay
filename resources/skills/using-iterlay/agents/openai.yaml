@@ -1,0 +1,6 @@
+interface:
+  display_name: "Using Iterlay"
+  short_description: "手动调用 Iterlay，生成编辑图片视频、管理画板素材并验证交付"
+  default_prompt: "Use $using-iterlay to complete my request with Iterlay and validate the delivered assets."
+policy:
+  allow_implicit_invocation: false

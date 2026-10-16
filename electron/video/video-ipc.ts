@@ -5,7 +5,7 @@ import path from "node:path";
 import { getProviderModels } from "../../shared/provider-models.js";
 
 import { isBoardVideoGenerationNode, isBoardVideoNode, VideoGenerationInput, VideoGenerationJob } from "../../shared/types.js";
-import { resolveVideoModelCapability } from "../../shared/video-provider-models.js";
+import { resolveVideoModelCapability, validateVideoParameters } from "../../shared/video-provider-models.js";
 
 import { PaidMediaQuoteService } from "../paid-media-quote.js";
 
@@ -307,11 +307,11 @@ export function registerVideoIpc({
       if (existing) return existing;
     }
     const resolved = providerConfig(input);
+    const option = await videoService.modelOption(resolved.config);
     if (input.requireFirstLastFrameCapability) {
       if (!input.firstFramePath || !input.lastFramePath) {
         throw new ProviderError("INVALID_REQUEST", "漫剧视频必须连接已采用的首帧和尾帧。");
       }
-      const option = await videoService.modelOption(resolved.config);
       const capability = resolveVideoModelCapability(option, "first-last-frame");
       if (capability !== "supported") {
         throw new ProviderError(
@@ -326,6 +326,20 @@ export function registerVideoIpc({
     const effectivePrompt = resolved.config.provider === "fal"
       ? normalizeFalVideoPrompt(input.prompt, resolved.config.model, hasImageInput)
       : input.prompt.trim();
+    const parameterError = validateVideoParameters({
+      prompt: effectivePrompt,
+      durationSeconds: input.durationSeconds,
+      aspectRatio: input.aspectRatio,
+      resolution: input.resolution,
+      generateAudio: input.generateAudio,
+      firstFrame: Boolean(input.firstFramePath),
+      lastFrame: Boolean(input.lastFramePath),
+      images: input.referenceImagePaths.length + Number(Boolean(input.firstFramePath)) + Number(Boolean(input.lastFramePath)),
+      videos: new Set([input.sourceVideoPath, ...(input.referenceVideoPaths ?? [])].filter(Boolean)).size,
+      audios: input.referenceAudioPaths?.length ?? 0,
+      ...(input.mode === "remix" || input.mode === "extend" ? { mode: input.mode } : {})
+    }, option);
+    if (parameterError) throw new ProviderError("INVALID_REQUEST", parameterError);
     if (input.boardId && input.generationNodeId) {
       const board = await boards.getBoard(input.boardId);
       if (!board?.nodes.some((node) => node.id === input.generationNodeId && isBoardVideoGenerationNode(node))) {

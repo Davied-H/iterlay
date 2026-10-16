@@ -443,7 +443,7 @@ interface PromptDockProps {
     sourceRect: { left: number; top: number; width: number; height: number } | undefined,
     prompt: string
   ) => void;
-  onGeneratePrompts: (requests: AssistantGenerationRequest[], assistantConversationId?: string) => void;
+  onGeneratePrompts: (requests: AssistantGenerationRequest[], assistantConversationId?: string) => Promise<string | null> | void;
   /** 从全部画板历史恢复时，先导航到会话所属画板。 */
   onOpenAssistantConversation?: (conversationId: string, boardId?: string) => void;
   /** 外部从图片详情恢复指定 AI 助手绘画记录。 */
@@ -1111,22 +1111,21 @@ export function PromptDock({
     assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
   }, [assistantAwarenessEnabled, assistantEnabled, pendingAssistantReferenceCountRef]);
 
-  const assistantIntentAvailabilityRef = useRef({ assistantStreaming, assistantActivity, assistantInteraction });
-  assistantIntentAvailabilityRef.current = { assistantStreaming, assistantActivity, assistantInteraction };
-  // 推荐是入口提示，不应随着每次输入、消息流式更新或画布字段变化而
-  // 自动重刷；否则用户会看到推荐内容不断跳变。打开助手时加载一次，
-  // 后续只由用户点击“换一组”或切换助手上下文触发更新。
+  const assistantIntentRefreshKey = `${assistantConversationId}:${assistantMessages.at(-1)?.id ?? "opening"}`;
+  const assistantIntentAttemptedKeyRef = useRef<string | null>(null);
+  // Refresh once per settled turn. Stream deltas and composer edits must not
+  // keep replacing suggestions; a busy opening must retry once it becomes idle.
   useEffect(() => {
     if (
       !assistantOpen ||
       assistantSurface === "comic-drama" ||
       !assistantIntentSuggestionsEnabled ||
       !supportsPromptEnhancement ||
-      assistantIntentAvailabilityRef.current.assistantStreaming ||
-      assistantIntentAvailabilityRef.current.assistantActivity ||
-      assistantIntentAvailabilityRef.current.assistantInteraction
+      assistantStreaming || assistantActivity || assistantInteraction ||
+      assistantIntentAttemptedKeyRef.current === assistantIntentRefreshKey
     ) return;
     const timer = window.setTimeout(() => {
+      assistantIntentAttemptedKeyRef.current = assistantIntentRefreshKey;
       void requestAssistantIntentSuggestionsRef.current();
     }, 300);
     return () => window.clearTimeout(timer);
@@ -1134,6 +1133,10 @@ export function PromptDock({
     assistantIntentSuggestionsEnabled,
     assistantOpen,
     assistantSurface,
+    assistantIntentRefreshKey,
+    assistantStreaming,
+    assistantActivity,
+    assistantInteraction,
     requestAssistantIntentSuggestionsRef,
     supportsPromptEnhancement
   ]);
@@ -2080,8 +2083,8 @@ export function PromptDock({
       return {
         label: executesGeneration
           ? generationRequests.length > 1
-            ? `已提交 ${generationRequests.length} 个方向`
-            : `已提交生成 · ${generationRequests[0].count} 张`
+            ? `正在生成 ${generationRequests.length} 个方向…`
+            : `正在生成 · ${generationRequests[0].count} 张…`
           : changesPrompt && changesGenerationCount
           ? assistantSurface === "canvas-edit" ? "已更新编辑指令和生成数量" : "已更新提示词和生成数量"
           : changesGenerationCount
@@ -2124,7 +2127,17 @@ export function PromptDock({
       if (assistantSurface === "canvas-prompt" && generationRequests.length === 1) {
         assistantPreviousGenerationPromptRef.current = generationRequests[0].prompt;
       }
-      onGeneratePrompts(generationRequests, assistantConversationId);
+      void Promise.resolve().then(async () => await onGeneratePrompts(generationRequests, assistantConversationId))
+        .then((error) => {
+          setAssistantMessages((messages) => messages.map((message) => message.id === assistantMessageId
+            ? { ...message, receipt: { label: error ? `生成失败：${error}` : "生成完成", actions: [] } }
+            : message));
+        }).catch((error: unknown) => {
+          const reason = error instanceof Error ? error.message : "请重试。";
+          setAssistantMessages((messages) => messages.map((message) => message.id === assistantMessageId
+            ? { ...message, receipt: { label: `生成失败：${reason}`, actions: [] } }
+            : message));
+        });
     }
   }
 
@@ -2734,9 +2747,15 @@ export function PromptDock({
       setAssistantIntentSuggestions(result.suggestions);
       if (!assistantOpenRef.current && result.suggestions.length > 0) setAssistantHasUnreadResult(true);
       onAssistantCreditsUsed?.();
-    } catch {
+    } catch (error) {
       if (assistantIntentSuggestionRequestRef.current !== requestId) return;
-      if (suggestionMode === "contextual") setAssistantIntentSuggestions([]);
+      // Keep usable entry points and the refresh button even if the API fails.
+      setAssistantIntentSuggestions((current) => current.length > 0 ? current : [
+        translateSourceText("帮我探索创作方向"),
+        translateSourceText("帮我调整背景与光线"),
+        translateSourceText("帮我整理完整提示词")
+      ]);
+      toast.error(getWorkbenchErrorMessage(error, "推荐暂时无法加载，请点击“换一组”重试。"));
     } finally {
       if (assistantIntentSuggestionRequestRef.current === requestId) {
         setAssistantIntentSuggestionsLoading(false);
@@ -2774,9 +2793,14 @@ export function PromptDock({
     setAssistantInteraction(null);
     setAssistantActivity(activityLabel ?? "正在执行…");
     assistantApplyTimerRef.current = window.setTimeout(() => {
-      action();
-      setAssistantActivity(null);
-      assistantApplyTimerRef.current = null;
+      try {
+        action();
+      } catch (error) {
+        toast.error(getWorkbenchErrorMessage(error, "操作未完成，请重试。"));
+      } finally {
+        assistantApplyTimerRef.current = null;
+        setAssistantActivity(null);
+      }
     }, 420);
   }
 
@@ -3359,7 +3383,7 @@ export function PromptDock({
         contextImages={assistantContextImages}
         onOpenChange={(open) => {
           syncPromptToParent();
-          if (assistantDockSide && !open) return;
+          if (assistantDockSide && !open) { collapseDockedAssistant(); return; }
           if (open) {
             // Re-enter from the bottom anchor so the collapsed bar and the
             // expanded Fusion panel do not flash through the old drag offset.
@@ -3442,7 +3466,8 @@ export function PromptDock({
             intentSuggestions={assistantIntentSuggestions.length ? assistantIntentSuggestions : assistantMessages.length === 0 ? ["帮我探索创作方向", "帮我调整背景与光线", "帮我整理完整提示词"] : []} intentSuggestionsLoading={assistantIntentSuggestionsLoading}
             history={assistantHistory} historyLoading={assistantHistoryLoading} historyScope={assistantHistoryScope}
             currentConversationId={assistantConversationId} onValueChange={setAssistantValue} onSubmit={submitAssistant} onStop={stopAssistant}
-            onClose={() => assistantDockSide ? collapseDockedAssistant() : setAssistantOpen(false)} onIntentSuggestionSelect={selectAssistantIntentSuggestion}
+            onClose={assistantDockSide ? () => collapseDockedAssistant() : undefined}
+            onIntentSuggestionSelect={selectAssistantIntentSuggestion}
             onRefreshIntentSuggestions={() => void requestAssistantIntentSuggestions("divergent")}
             onInteractionSubmit={submitAssistantInteraction} onInteractionDismiss={dismissAssistantInteraction}
             onInteractionRefine={refineAssistantInteraction} onInteractionGenerate={generateAssistantInteraction}

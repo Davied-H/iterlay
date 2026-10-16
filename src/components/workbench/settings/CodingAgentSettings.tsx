@@ -9,7 +9,7 @@ import type { CodingAgentIntegrationStatus } from "@shared/agent-integration";
 import { SettingsPageHeader } from "./SettingsPrimitives";
 import "./coding-agent-settings.css";
 
-const EXAMPLE = "使用 Iterlay，列出我已配置的图片服务。";
+const EXAMPLE = "$using-iterlay 列出我已配置的图片服务。";
 const STEPS = [
   { title: "准备环境", description: "CLI 与模型服务" },
   { title: "安装 Skill", description: "选择你的 Coding Agent" },
@@ -124,7 +124,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels }: {
           const installing = busy === `install:${agent.id}`;
           const migrated = agent.legacyConfigured;
           const installed = agent.skillInstalled && !migrated;
-          const description = installed ? "新开会话后，Skill 会引导 Agent 使用 Iterlay CLI。" : migrated ? "发现旧版本集成，一键迁移为 CLI Skill。" : agent.detected ? "已找到本机应用，安装 Skill 即可开始。" : agent.detection === "config-only" ? "发现配置，尚未确认程序安装；也可先安装 Skill。" : "暂未检测到程序，也可先安装 Skill，稍后使用。";
+          const description = installed ? "已安装 iterlay-workspace 和 using-iterlay，新开会话后可手动调用。" : migrated ? "发现旧版本集成，一键迁移为 CLI Skill。" : agent.detected ? "已找到本机应用，安装 Skill 即可开始。" : agent.detection === "config-only" ? "发现配置，尚未确认程序安装；也可先安装 Skill。" : "暂未检测到程序，也可先安装 Skill，稍后使用。";
           return <div className="coding-agent-setup-row" key={agent.id}>
             <div className="coding-agent-avatar" aria-hidden="true">{agent.id === "codex" ? <Terminal className="size-5" /> : <CodeXml className="size-5" />}</div>
             <div className="coding-agent-info"><div className="coding-agent-name"><strong>{title}</strong><Badge variant="outline">{uiText(installed ? "Skill 已安装" : agent.detected ? "已检测到" : "待配置")}</Badge></div><p>{uiText(description)}</p></div>
@@ -132,7 +132,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels }: {
           </div>;
         })}
       </> : <>
-        <div className="coding-agent-panel-heading"><h3>{uiText("把第一句话交给 Agent")}</h3><p>{uiText("新开一个 Agent 会话，把这句话交给它。")}</p></div>
+        <div className="coding-agent-panel-heading"><h3>{uiText("把第一句话交给 Agent")}</h3><p>{uiText("新开一个 Agent 会话，把这句话交给它。")}</p><p>{uiText("Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。")}</p></div>
         {installedAgents.length ? <div className="coding-agent-ready"><CheckCircle2 className="size-4" aria-hidden="true" /><span>{installedAgents.map((agent) => agent.id === "codex" ? "Codex" : "Claude Code").join(" / ")} · {uiText("Skill 已安装")}</span></div> : <p className="coding-agent-guidance">{uiText("先完成 Skill 安装，再在新会话中尝试。")}</p>}
         {!providerReady ? <div className="coding-agent-provider"><p>{uiText("还没有可用的图片服务。配置后即可开始生成。")}</p><Button variant="outline" size="sm" disabled={locked} onClick={onOpenModels}>{uiText("配置图片服务")}</Button></div> : null}
         <div className="coding-agent-prompt"><span>{uiText(EXAMPLE)}</span><Button variant="ghost" size="icon" aria-label={uiText("复制试用提示词")} onClick={() => void copy(uiText(EXAMPLE), "example")}>{copied === "example" ? <Check /> : <Copy />}</Button></div>

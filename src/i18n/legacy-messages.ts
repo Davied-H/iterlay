@@ -7,6 +7,18 @@ const catalogEntries = Object.keys(zhCN).map((key) => {
 });
 
 const legacyEnglish: Record<string, string> = {
+  "模型未提供完整参数约束，请按服务商要求填写。": "Model parameter constraints are incomplete. Follow your provider’s requirements.",
+  "当前模型不支持自动时长。": "This model does not support automatic duration.",
+  "视频时长必须大于 0。": "Video duration must be greater than zero.",
+  "视频时长不在当前模型支持的范围内。": "The duration is not supported by this model.",
+  "当前模型不支持所选画幅。": "This model does not support the selected aspect ratio.",
+  "当前模型不支持所选清晰度。": "This model does not support the selected resolution.",
+  "当前模型不支持生成声音。": "This model does not support generated audio.",
+  "当前模型不支持首帧输入。": "This model does not support first-frame input.",
+  "当前模型不支持尾帧输入。": "This model does not support last-frame input.",
+  "当前模型不支持所选生成模式。": "This model does not support the selected generation mode.",
+  "参考素材数量超出当前模型支持的上限。": "The number of references exceeds this model’s limit.",
+  "当前模型需要视频描述，请填写后再生成。": "This model requires a video description. Enter one before generating.",
   "检查更新失败": "Could not check for updates",
   "正在检查更新": "Checking for updates",
   "更新未完成": "Update incomplete",
@@ -109,6 +121,9 @@ const legacyEnglish: Record<string, string> = {
   "你的 Coding Agent": "Your coding agents",
   "重新检测": "Detect again",
   "新开会话后，Skill 会引导 Agent 使用 Iterlay CLI。": "Start a new session to let the Skill guide your agent through the Iterlay CLI.",
+  "已安装 iterlay-workspace 和 using-iterlay，新开会话后可手动调用。": "iterlay-workspace and using-iterlay are installed. Start a new session to invoke them manually.",
+  "Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。": "Use $using-iterlay in Codex or /using-iterlay in Claude Code. This entrypoint activates only when explicitly invoked.",
+  "$using-iterlay 列出我已配置的图片服务。": "$using-iterlay List my configured image services.",
   "发现旧版本集成，一键迁移为 CLI Skill。": "An older integration was found. Migrate it to the CLI Skill in one step.",
   "已找到本机应用，安装 Skill 即可开始。": "App detected. Install the Skill to get started.",
   "发现配置，尚未确认程序安装；也可先安装 Skill。": "Configuration found; installation is unconfirmed. You can install the Skill now.",

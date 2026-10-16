@@ -5701,7 +5701,7 @@ export default function App(): React.ReactElement {
   async function generateAssistantPrompts(
     requests: AssistantGenerationRequest[],
     assistantConversationId?: string
-  ): Promise<void> {
+  ): Promise<string | null> {
     const normalized = requests
       .map((request) => ({
         prompt: request.prompt.trim(),
@@ -5714,7 +5714,7 @@ export default function App(): React.ReactElement {
       .filter((request) => request.prompt);
     if (normalized.length === 0) {
       toast.error(translateSourceText("AI 助手没有提供可生成的提示词。"));
-      return;
+      return translateSourceText("AI 助手没有提供可生成的提示词。");
     }
     const blockedMessage = getBlockedGenerateMessage({
       ...inputRef.current,
@@ -5723,15 +5723,20 @@ export default function App(): React.ReactElement {
     });
     if (blockedMessage) {
       toast.error(blockedMessage);
-      return;
+      return blockedMessage;
     }
 
-    await Promise.all(normalized.map((request) => generate(
+    const results = await Promise.all(normalized.map((request) => generate(
       undefined,
       { prompt: request.prompt, n: request.count, sceneId: undefined, assistantConversationId },
       { preservePrompt: request.preservePrompt }
     )));
+    return results.some((images) => images.length === 0)
+      ? "生成未完成，请查看画布中的失败提示后重试。"
+      : null;
   }
+
+  const handleGenerateAssistantPrompts = useStableCallback(generateAssistantPrompts);
 
   const visibleHistory = useMemo(
     () => history.filter((job) => job.boardId === activeBoard?.id),
@@ -6636,7 +6641,7 @@ export default function App(): React.ReactElement {
           onAddCanvasReference={(image) => void addImageReference(image)}
           onRemoveReference={removeReference}
           onGenerate={(rect, prompt) => void generate(rect, { prompt })}
-          onGeneratePrompts={(requests, conversationId) => void generateAssistantPrompts(requests, conversationId)}
+          onGeneratePrompts={handleGenerateAssistantPrompts}
           onOpenAssistantConversation={(conversationId, targetBoardId) => {
             void (async () => {
               if (targetBoardId && targetBoardId !== activeBoardRef.current?.id) {

@@ -1,112 +1,124 @@
+<div align="center">
+
 # Iterlay
 
-**A bring-your-own-key AI visual workspace where you and your agents generate and refine images and videos on an infinite canvas.**
+### Turn ideas into visuals, one iteration at a time.
 
-English · [简体中文](README.zh-CN.md)
+An open-source AI visual workspace. Bring references, image generation, editing, and video creation onto one infinite canvas — and let your coding agents work there too.
 
-<!-- Add a 60–90 second real workflow recording here: start a generation, show the actual wait, revise the result, and show final image and video outputs. Label any speedups or cuts. Do not substitute animations or a screenshot slideshow for real use. -->
+**Your models · Infinite canvas · Agent tools · MIT licensed**
 
-## Download and get started
+[Download Iterlay](https://github.com/Davied-H/iterlay/releases) · [Website](https://davied-h.github.io/iterlay/) · [Connect your agent](#give-your-agent-visual-tools) · [简体中文](README.zh-CN.md)
 
-[Download installers](https://github.com/Davied-H/iterlay/releases) · [Choose your platform](https://davied-h.github.io/iterlay/#/download) · [Website](https://davied-h.github.io/iterlay/)
+</div>
 
-1. Download an installer for your system, install it, and open Iterlay. Releases determine build availability; the download page groups builds for Apple silicon, Intel Macs, and Windows x64.
-2. Configure your AI providers, API keys, and models in settings. No activation or trial is required.
-3. Create a board and enter a prompt to generate an image or video. Use a result as a reference to continue refining your work.
+![The current Iterlay workspace with a FIELD speaker brief, orange product shot, green colorway, outdoor scene, and brand poster on one board](docs/assets/readme/field-canvas.webp)
 
-To let Codex or Claude Code work with your canvas, install the desktop app, then run:
+One speaker, from a product shot to color exploration, an outdoor scene, and a brand poster. **Your references, experiments, and outputs stay together.**
+
+Codex created this example through the Iterlay CLI using the App's configured model. Screenshots show the current browser workspace. See the [example assets, prompts, and production notes](docs/readme-example.md).
+
+## Why Iterlay?
+
+### Keep the context behind every iteration
+
+Arrange references, generated images, and assets on an infinite canvas. Select an image to describe your next change, or use an existing result as a reference. Version comparison and generation history help you revisit earlier directions.
+
+### Choose your models. Reuse your setup.
+
+Bring your own API keys or authorize a Codex account. Choose image, video, and chat models for different tasks, with multiple providers in one workspace. Agents can reuse the models and credentials already configured in the App.
+
+### You direct. Your agent executes.
+
+Give Codex, Claude Code, and other coding agents CLI tools and a Skill to generate images, edit assets, create videos, arrange boards, and export files. Review and adjust results on the canvas, or have your agent export assets into the project you are building.
+
+### Local workspace. Free, open-source tools.
+
+Boards and assets are stored on your computer. Original code for the desktop app, canvas, AI integrations, CLI, and website is MIT licensed, so you can modify and build it yourself. The app is permanently free, with no activation required; model providers charge for their usage. When you use a remote model, prompts and required reference assets are sent to that provider.
+
+## From reference to usable assets
+
+### 1. Start with a reference
+
+Import an existing image or generate one from a prompt. Keep style references, product images, and candidate directions together to guide your next step.
+
+### 2. Refine on the canvas
+
+Select a result and describe the background, object, or style you want to change. The image editing assistant uses the current image to help clarify what should change and what should stay.
+
+![The current image editing assistant recognizes the FIELD speaker and offers options for changing its body color, background, lettering, loop, or lighting](docs/assets/readme/field-edit.webp)
+
+### 3. Compare before you commit
+
+Change the product from burnt orange to sage green while keeping the original and edited image in the same node. Drag the comparison slider to inspect the changes before choosing a version.
+
+![A slider comparison of the actual FIELD speaker edit: orange original on the left, green version on the right](docs/assets/readme/field-versions.webp)
+
+### 4. Organize and deliver
+
+Slice images into reusable assets, organize them across boards and the asset library, then export them for design or development. For motion, use supported models to generate video from text or images.
+
+## What can you make?
+
+- **Product and commerce visuals:** Explore scenes, backgrounds, and lighting from a product reference, then compare presentation options.
+- **Content and brand assets:** Create posters, covers, and social graphics with references and candidate directions on the same board.
+- **Assets for design and development:** Ask your coding agent to generate illustrations, backgrounds, and images, then export them into your project.
+- **Video concepts:** Generate video from text or an existing image and organize it alongside your still visuals.
+
+## Get started
+
+1. **Install Iterlay.** Choose your system on the [download page](https://davied-h.github.io/iterlay/#/download). Available installers are listed in [GitHub Releases](https://github.com/Davied-H/iterlay/releases).
+2. **Connect your models.** Add providers, API keys, and models in settings, or authorize a Codex account.
+3. **Create your first board.** Import a reference or enter a prompt, then select the result to keep refining.
+
+### Supported model services
+
+- **Image generation and editing:** OpenAI-compatible endpoints, OpenRouter, Alibaba Cloud Bailian, Volcengine Ark, Poe, fal.ai, Codex OAuth.
+- **Video generation:** Volcengine Ark, fal.ai, OpenRouter, MiniMax.
+- **Chat and creative assistance:** OpenAI-compatible endpoints, Codex OAuth.
+
+Configure these capabilities separately. Image editing, references, text-to-video, image-to-video, and available parameters depend on the selected model and API. A provider integration does not imply support for every capability. Iterlay does not sell hosted model credits or top-ups.
+
+## Give your agent visual tools
+
+Let Codex or Claude Code create visual assets as part of your existing workflow.
+
+Install and open Iterlay, configure a model, then install the Skills from **Settings → Coding Agent**, or run:
 
 ```bash
-npx iterlay add
+npx iterlay add --agent codex
+# Or: npx iterlay add --agent claude-code
 ```
 
-The App installs the Iterlay CLI automatically. Coding agents use its bundled Skill to generate images and videos with saved providers and manage the workspace. See the [agent integration guide (Chinese)](cli/README.md).
+Then give your agent a concrete task:
 
-## Chat, Image, and Video providers
+> Use Iterlay to create a visual set for the FIELD portable speaker: start with an orange product shot, then explore a green colorway, an outdoor scene, and a brand poster. Arrange the results on one board and export them into the project's assets directory.
 
-- **Chat (conversation and creative assistance):** OpenAI-compatible endpoints, Codex OAuth.
-- **Image (generation and editing):** OpenAI-compatible endpoints, OpenRouter, Alibaba Cloud Bailian, Volcengine Ark, Poe, fal.ai, Codex OAuth.
-- **Video (generation):** Volcengine Ark, fal.ai, OpenRouter, MiniMax.
+The App installs its bundled CLI on first launch. Agents use Skills to call the CLI with the providers and authorization already saved in the App. The current integration uses **CLI + Skill**; migration removes that agent's old Iterlay MCP configuration.
 
-Configure these capabilities separately: a provider integration does not imply support for all three. Custom endpoints require the corresponding service URL, API key, and model; Codex OAuth uses account authorization. Image editing, text-to-video, image-to-video, and available parameters depend on the selected model and API. Your providers bill usage of your own keys.
+You can also use the CLI directly:
 
-## Open source and services
+```bash
+iterlay image generate --prompt "A warm, minimalist illustration of a coffee cup" --out ./coffee.png --json
+iterlay image edit --input ./coffee.png --prompt "Make the cup off-white" --out ./coffee-light.png --json
+```
 
-Iterlay is permanently free, with no activation or trial requirements. Original code for the desktop app, canvas, AI integrations, CLI, and website is licensed under MIT.
+See the [CLI and agent integration guide (Chinese)](cli/README.md) for more.
 
-The client does not offer hosted Iterlay model services, credits, or purchase flows. Configure your own model providers using API keys or a Codex account; the respective providers bill model usage. Updates and installers are delivered through GitHub Releases, without the paid edition's licensing, account, or update services.
+## Develop and contribute
 
-## The canvas workflow
-
-![Screenshot of the Iterlay infinite canvas workspace](website/public/iterlay-demo-board.png)
-
-- **Infinite canvas:** Keep images, references, and results together with their context.
-- **Generate and refine:** Create images and videos with AI, then iterate using reference material.
-- **References and slicing:** Bring existing images into your workflow and split them into reusable assets.
-- **Versions and history:** Compare image versions and review past generations.
-- **Asset organization:** Organize creative materials across boards and your workspace.
-
-## Local development
-
-Requirements:
-
-- Node.js **22.12+** and **pnpm 10**.
-- On macOS, Xcode Command Line Tools (`xcode-select --install`). The native image-layer component uses the macOS 14 SDK.
+Requires Node.js **22.12+** and **pnpm 10**. On macOS, install Xcode Command Line Tools as well.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open **http://127.0.0.1:5180** in your browser. `pnpm dev` (or `pnpm dev:web`) starts Vite and a hidden Electron service process, so the browser uses real boards, settings, generation tasks, and native media services. Renderer changes use Vite hot reload; changes to Electron services rebuild and restart the backend. Stop everything with Ctrl+C.
+Open **http://127.0.0.1:5180** to develop against the real workspace in your browser. This starts a hidden Electron backend service and keeps development data separate from the installed App.
 
-Backend restarts and shutdown wait for pending board saves. If the workspace stays open because saving failed, development services remain available and automatic restarts pause. Resolve the save error in the browser, then press Ctrl+C again; the launcher never force-kills the workspace.
+[Development, checks, and packaging](docs/development.md) · [Engineering notes (Chinese)](docs/engineering.md) · [Contribution guide (Chinese)](CONTRIBUTING.md)
 
-Browser development stores its data separately in `tmp/browser-dev/user-data/`; existing app data stays separate. Set `ITERLAY_BROWSER_DEV_USER_DATA` to choose another development directory. The authenticated bridge listens on loopback and starts only in this development mode. Packaged apps keep using Electron IPC.
-
-Use the browser for routine debugging and verification. Run `pnpm electron:dev` for visible desktop app testing only when explicitly requested, including native window and application lifecycle behavior. `pnpm dev:ui` retains the standalone Vite server for isolated UI previews without backend services.
-
-Run the project checks:
-
-```bash
-pnpm setup:subprojects
-pnpm check:all
-```
-
-`setup:subprojects` installs the CLI and website dependencies using their own lockfiles. `check:all` covers type checks, lint, tests, and builds across all four projects. Use `pnpm typecheck`, `pnpm lint`, or `pnpm test` for focused checks. After building Electron, run `pnpm bench:storage` for a storage benchmark with temporary fixtures. See the [engineering notes (Chinese)](docs/engineering.md) for module boundaries, persistence formats, compatibility, and measured results.
-
-### Repository layout
-
-- `src/` — React canvas and desktop interface.
-- `electron/` — Electron main process and desktop services.
-- `cli/` — Coding-agent integration CLI and its [documentation](cli/README.md).
-- `website/` — Product website and download page; see its [development guide (Chinese)](website/README.md).
-- `resources/` — Bundled skills, icons, and native resources.
-- `docs/` — Product notes and maintainer documentation.
-
-## Contributing
-
-Report bugs through [GitHub Issues](https://github.com/Davied-H/iterlay/issues) or submit improvements via pull requests. Read the [contribution guide (Chinese)](CONTRIBUTING.md) before contributing.
-
-## Local packaging
-
-```bash
-pnpm build
-pnpm package
-```
-
-`pnpm package` creates an application directory under `release/`. `pnpm release` builds an unsigned, unnotarized macOS ARM64 DMG using UDZO compression. Use `pnpm release --platform mac --arch all` on macOS for ARM64 and Intel x64 DMGs, or `pnpm release --platform win --arch all` in Git Bash on Windows for separate ARM64 and x64 NSIS installers. `--arch arm64` and `--arch x64` build a single architecture. The manually dispatched `Build desktop release packages` workflow runs this same script for all four variants. Packaging audits exclude development modules, renderer-only dependency trees, production JavaScript source maps, and bundled FFmpeg; app budgets are 380 MiB on macOS and 480 MiB on Windows (whose Electron runtime is larger), with a shared ASAR budget of 120 MiB. Reports are saved to `output/package-size/`. These commands and the workflow do not publish a GitHub Release.
-
-The app downloads its video tools only after asking on the first operation that needs them. The versioned component comes from GitHub Releases, is verified with SHA-256, and is stored under Electron's user-data directory at `tools/ffmpeg/ffmpeg6-r1/darwin-arm64/`. Once installed, it works offline and survives app updates. A failed or cancelled download prevents a new sequence generation from being submitted or charged. Image work and ordinary startup do not download the component.
-
-Maintainers build the component separately on an Apple silicon Mac with Xcode Command Line Tools and `brew install pkgconf`:
-
-```bash
-pnpm media-tools:build --version ffmpeg6-r2
-pnpm media-tools:verify
-```
-
-This compiles pinned FFmpeg 6.0 and x264 sources without nonfree components and retains the existing codec configuration. The archive under `output/media-tools/<version>-darwin-arm64/` contains both executables, licenses, matching source archives, and build information. The build writes exact archive/file hashes into `shared/media-tools-manifest.json`. Component revisions are immutable: use a new `--version` for each changed build. With no arguments, the command verifies and reuses a matching local archive; `--rebuild` writes an isolated diagnostic candidate and refuses to change a pinned version's hashes. The current `ffmpeg6-r1` asset is `iterlay-media-tools-ffmpeg6-r1-darwin-arm64.zip` on GitHub Release `media-tools-ffmpeg6-r1`. Publish each new component before shipping an app that references it; publishing is a separate maintainer action. Other platforms lack complete packaging dependencies. Maintainers must configure signing, notarization, and distribution themselves. See [Third-party notices](THIRD_PARTY_NOTICES.md).
+Share bugs and use cases through [Issues](https://github.com/Davied-H/iterlay/issues), or contribute a pull request. If Iterlay helps you create something, give it a Star or share your board and process so others can see what it can do.
 
 ## License
 

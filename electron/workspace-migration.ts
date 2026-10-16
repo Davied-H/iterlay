@@ -2,6 +2,7 @@ import { access, cp, readFile, readdir, rename, writeFile } from "node:fs/promis
 import path from "node:path";
 
 const LEGACY_APP_NAMES = ["ImageRelay Studio", "image-relay-studio"] as const;
+const MIGRATION_MARKER = ".legacy-workspace-paths-v1";
 
 function isWithin(root: string, candidate: string): string | null {
   if (!path.isAbsolute(candidate)) return null;
@@ -80,6 +81,12 @@ async function rewriteJsonFiles(
 }
 
 export async function migrateLegacyWorkspace(dataDir: string, appData: string): Promise<void> {
+  const markerPath = path.join(dataDir, MIGRATION_MARKER);
+  try {
+    if (await readFile(markerPath, "utf8") === "complete\n") return;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   const legacyRoots = LEGACY_APP_NAMES.map((name) => path.join(appData, name, "workspace"));
   let exists = true;
   try {
@@ -100,5 +107,12 @@ export async function migrateLegacyWorkspace(dataDir: string, appData: string): 
     }
   }
 
-  if (exists) await rewriteJsonFiles(dataDir, legacyRoots, dataDir);
+  if (exists) {
+    await rewriteJsonFiles(dataDir, legacyRoots, dataDir);
+    // Commit only after all files were repaired. A failed/interrupted migration
+    // remains retryable; subsequent launches need only this small marker read.
+    const temporaryPath = `${markerPath}.${process.pid}.tmp`;
+    await writeFile(temporaryPath, "complete\n", "utf8");
+    await rename(temporaryPath, markerPath);
+  }
 }

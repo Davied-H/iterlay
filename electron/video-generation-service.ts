@@ -1,7 +1,8 @@
 import type { VideoProviderModelOption } from "../shared/types.js";
 import {
 findVideoProviderModelOption,
-videoProviderModelOptionFromCapability
+videoProviderModelOptionFromCapability,
+validateVideoParameters
 } from "../shared/video-provider-models.js";
 import { ProviderError,normalizeProviderError } from "./providers/errors.js";
 import { ArkVideoProvider } from "./providers/video-ark.js";
@@ -44,6 +45,7 @@ export class VideoTaskServiceError extends ProviderError {
 
 /** Stateless orchestration around serializable remote task snapshots. */
 export class VideoGenerationService {
+  private readonly modelCatalogs = new Map<string, { options: VideoProviderModelOption[]; expiresAt: number }>();
   private readonly providers: Map<VideoRemoteTask["provider"], VideoProvider>;
 
   constructor(
@@ -59,7 +61,11 @@ export class VideoGenerationService {
 
   async listModels(config: VideoProviderConfig, apiKeyOverride?: string): Promise<VideoProviderModelOption[]> {
     const provider = this.provider(config.provider);
-    if (provider.listModels) return provider.listModels(config, apiKeyOverride);
+    if (provider.listModels) {
+      const options = await provider.listModels(config, apiKeyOverride);
+      if (!apiKeyOverride) this.modelCatalogs.set(this.catalogKey(config), { options, expiresAt: Date.now() + 60_000 });
+      return options;
+    }
     return provider.capabilityAppliesToAllModels
       ? [videoProviderModelOptionFromCapability(config.model, provider.capability)]
       : [{ id: config.model }];
@@ -70,12 +76,35 @@ export class VideoGenerationService {
     if (provider.capabilityAppliesToAllModels) {
       return videoProviderModelOptionFromCapability(config.model, provider.capability);
     }
-    return findVideoProviderModelOption(await this.listModels(config), config.model);
+    const cached = this.modelCatalogs.get(this.catalogKey(config));
+    const options = cached && cached.expiresAt > Date.now() ? cached.options : await this.listModels(config);
+    return findVideoProviderModelOption(options, config.model);
   }
 
   async submit(input: VideoSubmitInput, config: VideoProviderConfig, signal?: AbortSignal): Promise<VideoRemoteTask> {
     const normalized = await this.normalizeSubmitInput(input, config);
+    const model = normalized.model?.trim() || config.model;
+    const option = await this.modelOption({ ...config, model });
+    const media = normalized.inputs ?? [];
+    const validationError = validateVideoParameters({
+      prompt: normalized.prompt, durationSeconds: normalized.durationSeconds,
+      aspectRatio: normalized.ratio, resolution: normalized.resolution,
+      generateAudio: normalized.generateAudio,
+      firstFrame: media.some((item) => item.role === "first-frame"),
+      lastFrame: media.some((item) => item.role === "last-frame"),
+      images: media.filter((item) => item.kind === "image").length,
+      videos: media.filter((item) => item.kind === "video").length,
+      audios: media.filter((item) => item.kind === "audio").length,
+      ...(normalized.mode === "remix" || normalized.mode === "extend" ? { mode: normalized.mode } : {})
+    }, option);
+    if (validationError) throw new ProviderError("INVALID_REQUEST", validationError);
     return this.provider(config.provider).submit(normalized, config, { signal });
+  }
+
+  private catalogKey(config: VideoProviderConfig): string {
+    return config.provider === "official"
+      ? JSON.stringify([config.provider, config.model])
+      : JSON.stringify([config.provider, config.baseUrl, config.model, config.apiKey]);
   }
 
   async poll(task: VideoRemoteTask, config: VideoProviderConfig, signal?: AbortSignal): Promise<VideoRemoteTask> {

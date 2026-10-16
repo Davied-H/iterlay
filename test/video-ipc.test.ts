@@ -56,7 +56,7 @@ function makeHarness(options: { wait?: (task: VideoRemoteTask, signal?: AbortSig
   };
   const service = {
     capability: vi.fn(() => ({ provider: "ark", supportsCancel: false })),
-    modelOption: vi.fn(async () => options.modelCapability === "unknown" ? { id: input.model } : { id: input.model, supportedModes: options.modelCapability === "unsupported" ? ["image-to-video"] : ["first-last-frame"] }),
+    modelOption: vi.fn(async () => options.modelCapability === "unknown" ? { id: input.model } : { id: input.model, supportedModes: options.modelCapability === "unsupported" ? ["image-to-video"] : ["first-last-frame", "remix", "extend"] }),
     submit: vi.fn(async (submittedInput: unknown, _config?: unknown) => {
       void submittedInput;
       void _config;
@@ -129,6 +129,19 @@ describe("video IPC", () => {
     electronMocks.handlers.clear();
     electronMocks.showSaveDialog.mockReset();
     electronMocks.netFetch.mockReset();
+  });
+
+  it("rejects a blank HappyHorse description before creating a task or output node", async () => {
+    const harness = makeHarness({ provider: "openrouter" });
+    harness.settings.getSettings().videoProviders[0].models.push("alibaba/happyhorse-1.1");
+    const registration = registerVideoIpc(harness as never);
+    const start = electronMocks.handlers.get("video:start")!;
+    await expect(start({}, { ...input, model: "alibaba/happyhorse-1.1", prompt: "  " }))
+      .rejects.toThrow("当前模型需要视频描述");
+    expect(harness.videoTasks.addJob).not.toHaveBeenCalled();
+    expect(harness.boards.startVideoGenerationNode).not.toHaveBeenCalled();
+    expect(harness.service.submit).not.toHaveBeenCalled();
+    registration.dispose();
   });
 
   it("imports video bytes and exposes Ark capabilities with a controlled asset URL", async () => {

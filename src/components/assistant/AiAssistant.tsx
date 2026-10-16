@@ -950,7 +950,7 @@ const AssistantMessage = memo(function AssistantMessage({
               isAnimating={Boolean(message.streaming && !reduceMotion)}
               caret={message.streaming ? "block" : undefined}
               controls={false}
-              className="[&_li]:my-1 [&_ol]:my-2 [&_ol]:pl-5 [&_p]:my-0 [&_ul]:my-2 [&_ul]:pl-5"
+              className="assistant-message-markdown [&_li]:my-1 [&_ol]:my-2 [&_ol]:pl-5 [&_p]:my-0 [&_ul]:my-2 [&_ul]:pl-5"
             >
               {message.content}
             </Streamdown>

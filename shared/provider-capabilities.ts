@@ -60,9 +60,8 @@ export function providerSupportsTransparentBackground(provider?: ProviderConfig)
 }
 
 export function providerSupportsGenerateReferences(provider: ProviderConfig): boolean {
-  if (!provider.supportsReferenceImages || provider.type === "poe") return false;
-  if (provider.type !== "openai-compatible") return true;
-  return provider.apiMode === "responses" || (!provider.apiMode && /\/responses\/?$/u.test(provider.generationEndpoint));
+  // Images API routes reference-based creation through the configured edits endpoint.
+  return provider.supportsReferenceImages && provider.type !== "poe";
 }
 
 export function imageProviderCapabilities(provider: ProviderConfig) {

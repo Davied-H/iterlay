@@ -1603,46 +1603,7 @@ describe("Sub2ApiImageProvider", () => {
     ]);
   });
 
-  it("rejects reference images in Images generation mode", async () => {
-    const fetchMock = vi.fn();
-    const provider = new Sub2ApiImageProvider(fetchMock);
-
-    await expect(
-      provider.generate(
-        {
-          workflowMode: "generate",
-          prompt: "按参考图生成海报",
-          model: "gpt-image-2",
-          size: "1024x1024",
-          n: 1,
-          referenceImages: [
-            {
-              name: "ref.png",
-              mimeType: "image/png",
-              bytes: Buffer.from("reference-image")
-            }
-          ]
-        },
-        {
-          id: "images",
-          name: "Images",
-          type: "openai-compatible",
-          apiMode: "images",
-          baseUrl: "https://proxy.example.com",
-          generationEndpoint: "/v1/images/generations",
-          referenceEndpoint: "/v1/images/edits",
-          model: "gpt-image-2",
-          supportsReferenceImages: true
-        },
-        "sk-test"
-      )
-    ).rejects.toMatchObject({
-      code: "REFERENCE_GENERATION_UNSUPPORTED"
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("sends edit-mode images to the Images edits endpoint as multipart data", async () => {
+  it.each(["generate", "edit"] as const)("sends %s-mode references to the Images edits endpoint as multipart data", async (workflowMode) => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1653,7 +1614,7 @@ describe("Sub2ApiImageProvider", () => {
 
     await provider.generate(
       {
-        workflowMode: "edit",
+        workflowMode,
         prompt: "change only the cup lid; keep all else unchanged",
         model: "gpt-image-2",
         size: "1024x1024",

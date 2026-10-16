@@ -39,6 +39,28 @@ class FakeVideoProvider implements VideoProvider {
 }
 
 describe("VideoGenerationService", () => {
+  it("validates arbitrary catalog models before remote submission and caches the catalog", async () => {
+    const provider = Object.assign(new FakeVideoProvider(), { listModels: vi.fn(async () => [{
+      id: "vendor/unseen-model", supportedDurations: [4, 8], supportedRatios: ["16:9"],
+      supportsGeneratedAudio: false
+    }]) });
+    const service = new VideoGenerationService([provider]);
+    const customConfig = { ...config, model: "vendor/unseen-model" };
+    await expect(service.submit({ prompt: "", inputs: [{ id: "frame", kind: "image", role: "first-frame", mimeType: "image/png", url: "https://image.test/a.png" }] }, customConfig)).rejects.toThrow("视频描述");
+    await expect(service.submit({ prompt: "镜头移动", durationSeconds: 10 }, customConfig)).rejects.toThrow("时长");
+    await expect(service.submit({ prompt: "镜头移动", generateAudio: true }, customConfig)).rejects.toThrow("声音");
+    expect(provider.submit).not.toHaveBeenCalled();
+    await service.submit({ prompt: "镜头移动", durationSeconds: 8 }, customConfig);
+    expect(provider.submit).toHaveBeenCalledOnce();
+    expect(provider.listModels).toHaveBeenCalledOnce();
+  });
+  it("honors explicit prompt-optional metadata for an unseen model", async () => {
+    const provider = Object.assign(new FakeVideoProvider(), { listModels: vi.fn(async () => [{ id: "vendor/optional-model", requiresPrompt: false }]) });
+    const service = new VideoGenerationService([provider]);
+    await service.submit({ prompt: "", inputs: [{ id: "frame", kind: "image", role: "first-frame", mimeType: "image/png", url: "https://image.test/a.png" }] }, { ...config, model: "vendor/optional-model" });
+    expect(provider.submit).toHaveBeenCalledOnce();
+  });
+
   it("exposes capabilities and delegates submit", async () => {
     const provider = new FakeVideoProvider();
     const service = new VideoGenerationService([provider]);
