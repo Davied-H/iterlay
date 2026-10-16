@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -6,7 +6,7 @@ import { runAdd, runRemove } from "../cli/src/commands.js";
 import { installCli } from "../electron/cli-installation.js";
 import { getAgentIntegrationStatus, removeLegacyIntegration } from "../electron/agent-integration.js";
 const directories: string[] = [];
-afterEach(async () => { await Promise.all(directories.splice(0).map((p) => rm(p, { recursive: true, force: true }))); });
+afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(directories.splice(0).map((p) => rm(p, { recursive: true, force: true }))); });
 async function fixture() {
   const home = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-")); directories.push(home);
   const skill = path.join(home, "bundle"); await mkdir(skill);
@@ -33,13 +33,14 @@ describe("CLI installation and Skill migration", () => {
     await expect(removeLegacyIntegration("claude-code", f.home)).rejects.toThrow("有效 JSON");
     expect(await readFile(configPath, "utf8")).toBe("malformed");
   });
-  it("installs a launcher that handles spaces and shell quotes without duplicating PATH blocks", async () => {
+  it.each([["/bin/zsh", ".zshrc"], ["/bin/bash", ".bashrc"]])("installs a launcher for %s that handles quotes without duplicating PATH blocks", async (shell, profileName) => {
+    vi.stubEnv("SHELL", shell);
     const f = await fixture(); const scriptPath = path.join(f.home, "App's Resources/main.js");
     await mkdir(path.dirname(scriptPath)); await writeFile(scriptPath, "console.log('ok')");
     const options = { homeDir: f.home, executable: "/Applications/Iterlay App/Iterlay", scriptPath };
     expect((await installCli(options)).installed).toBe(true);
     await installCli(options);
-    const profile = await readFile(path.join(f.home, ".zshrc"), "utf8");
+    const profile = await readFile(path.join(f.home, profileName), "utf8");
     expect(profile.match(/# >>> Iterlay CLI >>>/gu)).toHaveLength(1);
     const launcher = await readFile(path.join(f.home, ".local/bin/iterlay"), "utf8");
     expect(launcher).toContain("ELECTRON_RUN_AS_NODE=1"); expect(launcher).toContain('"$@"'); expect(launcher).toContain("'\\''");

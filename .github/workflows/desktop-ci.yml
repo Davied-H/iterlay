@@ -39,6 +39,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:subprojects
+      - run: pnpm build:cli
       - run: pnpm exec playwright install chromium
       - name: Verify the isolated browser workbench
         shell: bash
