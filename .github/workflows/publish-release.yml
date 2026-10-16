@@ -1,0 +1,77 @@
+name: Publish verified desktop release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without v prefix
+        required: true
+        type: string
+      build_run_id:
+        description: Successful desktop packaging run ID
+        required: true
+        type: string
+      target_commit:
+        description: Full commit SHA used by the packaging run
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      TARGET_COMMIT: ${{ inputs.target_commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate build and checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$TARGET_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > /tmp/build.json
+          jq -e --arg sha "$TARGET_COMMIT" '.head_sha == $sha and .conclusion == "success" and .path == ".github/workflows/release-packages.yml"' /tmp/build.json
+          gh api "repos/$GH_REPO/actions/workflows/desktop-ci.yml/runs?head_sha=$TARGET_COMMIT&status=success" | jq -e '.workflow_runs | length > 0'
+          git fetch origin "$TARGET_COMMIT"
+          test "$(git show "$TARGET_COMMIT:package.json" | jq -r .version)" = "$VERSION"
+          test "$(git show "$TARGET_COMMIT:cli/package.json" | jq -r .version)" = "$VERSION"
+      - name: Download and verify installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$BUILD_RUN_ID" -D artifacts
+          python3 - <<'PY'
+          import os, pathlib, json, hashlib, shutil
+          root = pathlib.Path('artifacts')
+          version = os.environ['VERSION']
+          output = pathlib.Path('publish')
+          output.mkdir()
+          sums = []
+          for platform, ext in [('mac', 'dmg'), ('win', 'exe')]:
+              for arch in ['arm64', 'x64']:
+                  artifact = root / f'installers-{platform}-{arch}'
+                  report = json.loads((artifact / 'output/package-size' / f'{platform}-{arch}.json').read_text())
+                  assert report['violations'] == [], report
+                  assert report['appBytes'] <= report['appBudgetBytes'], report
+                  assert report['asarBytes'] <= report['asarBudgetBytes'], report
+                  name = f'Iterlay-{version}-{arch}.{ext}'
+                  installer = artifact / 'release' / name
+                  assert installer.stat().st_size > 1_000_000, installer
+                  digest = hashlib.file_digest(installer.open('rb'), 'sha256').hexdigest()
+                  sums.append(f'{digest}  {name}\n')
+                  shutil.copy2(installer, output / name)
+          (output / 'SHA256SUMS.txt').write_text(''.join(sorted(sums)))
+          PY
+          (cd publish && sha256sum --check SHA256SUMS.txt)
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "v$VERSION" publish/* --target "$TARGET_COMMIT" --title "Iterlay $VERSION · 视频生成与启动优化" --notes-file "docs/releases/$VERSION.md" --latest
