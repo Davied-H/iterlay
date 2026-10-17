@@ -88,3 +88,5 @@ Skill 通过临时目录替换托管副本，保留升级文件差异通知和�
 - [CC Switch Skills 官方文档](https://github.com/farion1231/cc-switch/blob/main/docs/user-manual/en/3-extensions/3.3-skills.md)：按目标 Agent 安装、独立启用状态、冲突与更新处理。文档是流程证据，未将其当成实测桌面 App 界面。
 
 用户已确认采用“CLI 状态＋按 Agent 一键安装＋试用提示词”的方向并直接实施。
+
+CLI 默认画板可在「设置 → Coding Agent → CLI 创作」中配置。`--board` 优先于该设置；未配置时复用或创建「CLI 创作」。默认画板已删除时，提交前报错并引导重新选择，避免生成结果进入意外画板。目标画板由 App 统一解析，图片、视频和 `call generate_image` 共用该规则。

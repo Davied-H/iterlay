@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ReactFlowProvider } from "@xyflow/react";
 import type { BoardComicDramaEntryNode, BoardConnection, BoardEnterOrigin, ComicCharacterNode, ComicSettingNode } from "@shared/types";
@@ -8,7 +8,6 @@ import {
   type AiAssistantMessage
 } from "../../components/assistant/AiAssistant";
 import { CanvasBoard } from "../../components/canvas/CanvasBoard";
-import type { GeneratedImage } from "../../components/canvas/image-node-model";
 import { BoardEntryTransition } from "../../components/workbench/BoardEntryTransition";
 import { ComicDramaWorkspace } from "../../components/comic-drama/ComicDramaWorkspace";
 import { Button } from "../../components/ui/button";
@@ -42,33 +41,6 @@ const previewConnection: BoardConnection = {
   style: { dash: "solid", endMarker: "arrow", markerSize: 9, width: 2 },
   routing: { mode: "auto", kind: "curved", waypoints: [] }
 };
-const pendingCharacterImage: GeneratedImage = {
-  id: "character-image-pending",
-  path: "",
-  dataUrl: "",
-  jobId: "",
-  pending: true,
-  generationStatus: "running",
-  pendingStartedAt: Date.now(),
-  pendingPrompt: "冷色手绘角色设定",
-  placementAnchorId: previewCharacter.id,
-  placementPosition: { x: 860, y: 80 },
-  source: "generated",
-  width: 1024,
-  height: 1792
-};
-const characterImageConnection: BoardConnection = {
-  id: "character-image-connection",
-  source: previewCharacter.id,
-  target: pendingCharacterImage.id,
-  sourceHandle: "system-output",
-  targetHandle: "system-input",
-  kind: "visual",
-  label: "角色形象",
-  sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
-  targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-  routing: { mode: "auto", kind: "curved", waypoints: [] }
-};
 const projectEntry: BoardComicDramaEntryNode = {
   id: "comic-project",
   type: "comic-drama-entry",
@@ -90,15 +62,6 @@ function Preview(): React.ReactElement {
   const previewState = new URLSearchParams(window.location.search).get("state");
   const showPendingOutput = previewState === "pending-output";
   const showConnections = previewState === "connections" || previewState === "failed" || showPendingOutput;
-  const [pendingOutputConnectionReady, setPendingOutputConnectionReady] = useState(false);
-  useEffect(() => {
-    if (!showPendingOutput) {
-      setPendingOutputConnectionReady(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setPendingOutputConnectionReady(true), 80);
-    return () => window.clearTimeout(timer);
-  }, [showPendingOutput]);
   const displayedCharacter: ComicCharacterNode = previewState === "failed"
     ? { ...previewCharacter, status: "failed", generationError: "Provider 鉴权失败，请检查 API Key 后重试。" }
     : previewCharacter;
@@ -203,14 +166,14 @@ function Preview(): React.ReactElement {
   if (inChildBoard) {
     return <I18nProvider>
       <ComicDramaWorkspace
+        onBeforeAgentRequest={async () => undefined}
+        onAgentMutation={async () => undefined}
+        onApplyPlan={async () => undefined}
+        onSelect={() => undefined}
         snapshot={snapshot}
         selectedNodeIds={[]}
         onBack={() => setInChildBoard(false)}
-      >
-        <ReactFlowProvider>
-          <CanvasBoard images={showPendingOutput ? [pendingCharacterImage] : []} workflowNodes={previewNodes} initialConnections={showConnections ? [previewConnection, ...(pendingOutputConnectionReady ? [characterImageConnection] : [])] : []} clipboardEnabled={false} showMinimap={false} onSave={() => undefined} onUseReference={() => undefined} onUseReferences={() => undefined} onDownloadImages={() => undefined} onPasteImages={() => undefined} onDropImages={() => undefined} showEmptyCanvasStart={false} emptyCanvasSuggestedMode="compass" promptFocused={false} onStartPrompt={() => undefined} onAddRecentAssets={() => undefined} onOpenAssetLibrary={() => undefined} showDemoStart={false} onOpenDemoStart={() => undefined} onCreateWorkflowNode={() => undefined} comicDramaBoard onStartComicDrama={() => setConfirmation(["continue-setting"])} onContinueComicDrama={() => setConfirmation(["continue-setting"])} onRetryComicCharacter={(node) => setConfirmation([node.id])} />
-        </ReactFlowProvider>
-      </ComicDramaWorkspace>
+      />
       {entryMotion ? <BoardEntryTransition origin={entryMotion.rect} thumbnailDataUrl={entryMotion.thumbnailDataUrl} onComplete={() => setEntryMotion(null)} /> : null}
       <Dialog open={confirmation.length > 0} onOpenChange={(open) => !open && setConfirmation([])}>
         <DialogContent className="max-w-md">

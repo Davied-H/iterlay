@@ -147,6 +147,83 @@ describe("CreateChatPage", () => {
     expect(container?.querySelector('button[aria-label="打开画板查看第 1 张生成图片"]')).not.toBeNull();
   });
 
+  it("replaces an edited first message and removes its old replies from future model context", async () => {
+    const onInterpret = vi.fn(async (request: CollaborateSceneRequest): Promise<CollaborateSceneResult> => ({
+      message: `答复：${request.instruction}`,
+      intent: "chat",
+      fields: []
+    }));
+    const onCreate = vi.fn();
+    await renderPage(onCreate, onInterpret);
+
+    await setComposer("旧问题：给咖啡馆设计海报");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    await setComposer("原来的后续要求：使用红色");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+
+    await act(async () => findButton("编辑消息")?.click());
+    expect(container?.querySelector<HTMLTextAreaElement>("#create-chat-input")?.value).toBe("旧问题：给咖啡馆设计海报");
+    await setComposer("更新的问题：设计绿色的书店海报");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+
+    expect(onInterpret).toHaveBeenCalledTimes(3);
+    expect(onInterpret.mock.calls[2]?.[0]).toMatchObject({
+      instruction: "更新的问题：设计绿色的书店海报",
+      conversation: []
+    });
+    expect(container?.textContent).not.toContain("旧问题：给咖啡馆设计海报");
+    expect(container?.textContent).not.toContain("原来的后续要求：使用红色");
+    expect(container?.textContent).toContain("答复：更新的问题：设计绿色的书店海报");
+    expect(findButton("取消编辑")).toBeUndefined();
+
+    await setComposer("继续完善更新后的海报");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+
+    expect(onInterpret.mock.calls[3]?.[0].conversation).toEqual([
+      { role: "user", content: "更新的问题：设计绿色的书店海报" },
+      { role: "assistant", content: "答复：更新的问题：设计绿色的书店海报" }
+    ]);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("cancels message editing without changing the conversation or its pending plan", async () => {
+    const onInterpret = vi.fn(async (request: CollaborateSceneRequest): Promise<CollaborateSceneResult> => ({
+      message: `创作建议：${request.instruction}`,
+      intent: "direct",
+      fields: [{ label: "提示词", value: request.instruction }]
+    }));
+    const onCreate = vi.fn();
+    await renderPage(onCreate, onInterpret);
+
+    await setComposer("为陶瓷花瓶设计一幅静物照片");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    await setComposer("保留窗边的柔和自然光");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+
+    await act(async () => findButton("编辑消息")?.click());
+    await setComposer("这段编辑内容应当被放弃");
+    await act(async () => findButton("取消编辑")?.click());
+
+    expect(onInterpret).toHaveBeenCalledTimes(2);
+    expect(container?.querySelector<HTMLTextAreaElement>("#create-chat-input")?.value).toBe("");
+    expect(container?.textContent).toContain("为陶瓷花瓶设计一幅静物照片");
+    expect(container?.textContent).toContain("创作建议：保留窗边的柔和自然光");
+    expect(container?.textContent).not.toContain("这段编辑内容应当被放弃");
+    expect(findButton("取消编辑")).toBeUndefined();
+    expect(findButton("确认生成")?.disabled).toBe(false);
+
+    await setComposer("继续添加亚麻桌布");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+
+    expect(onInterpret.mock.calls[2]?.[0].conversation).toEqual([
+      { role: "user", content: "为陶瓷花瓶设计一幅静物照片" },
+      { role: "assistant", content: "创作建议：为陶瓷花瓶设计一幅静物照片" },
+      { role: "user", content: "保留窗边的柔和自然光" },
+      { role: "assistant", content: "创作建议：保留窗边的柔和自然光" }
+    ]);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
   it("renders ask-question and does not create until the answers produce a confirmed plan", async () => {
     const onInterpret = vi.fn(async (request: CollaborateSceneRequest): Promise<CollaborateSceneResult> => {
       if (request.clarificationRounds === 0) {
@@ -204,7 +281,7 @@ describe("CreateChatPage", () => {
       setter?.call(characterInput, "圆滚滚的橘猫");
       characterInput.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await act(async () => findButton("可爱手绘")?.click());
+    await act(async () => document.body.querySelector<HTMLInputElement>('input[type="radio"][value="可爱手绘"]')?.click());
     await act(async () => findButton("继续")?.click());
 
     expect(onInterpret).toHaveBeenCalledTimes(2);
@@ -289,7 +366,7 @@ describe("CreateChatPage", () => {
     expect(container?.textContent).toContain("会话历史");
     expect(container?.textContent).toContain("生成一个复古头像");
 
-    const conversationScroll = container?.querySelector<HTMLDivElement>(".overflow-y-auto.px-5");
+    const conversationScroll = container?.querySelector<HTMLDivElement>("[data-create-chat-scroll]");
     const smoothScroll = vi.fn();
     if (conversationScroll) {
       Object.defineProperty(conversationScroll, "scrollHeight", { configurable: true, value: 800 });
@@ -299,10 +376,113 @@ describe("CreateChatPage", () => {
     await act(async () => findButton("打开会话：生成一个复古头像")?.click());
 
     expect(container?.textContent).toContain("我整理了一版复古胶片头像方案。");
-    expect(container?.textContent).toContain("已执行的创作方案");
+    expect(container?.textContent).toContain("历史创作方案");
     expect(findButton("人物肖像")).toBeDefined();
     expect(conversationScroll?.scrollTop).toBe(800);
     expect(smoothScroll).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { destination: "history", outcome: "success" },
+    { destination: "history", outcome: "failure" },
+    { destination: "new", outcome: "success" },
+    { destination: "new", outcome: "failure" }
+  ] as const)("keeps a $destination conversation unchanged when a previous generation ends in $outcome", async ({ destination, outcome }) => {
+    let resolveCreate: ((result: CreateChatResult) => void) | undefined;
+    let rejectCreate: ((error: Error) => void) | undefined;
+    const onCreate = vi.fn<(plan: CreateChatGenerationPlan) => Promise<CreateChatResult>>(() => new Promise<CreateChatResult>((resolve, reject) => {
+      resolveCreate = resolve;
+      rejectCreate = reject;
+    }));
+    const onInterpret = vi.fn(async (request: CollaborateSceneRequest): Promise<CollaborateSceneResult> => ({
+      message: "本次创作方案。",
+      intent: "direct",
+      fields: [{ label: "提示词", value: request.instruction }]
+    }));
+    Object.defineProperty(globalThis, "imageWorkbench", {
+      configurable: true,
+      value: {
+        listAssistantConversations: vi.fn().mockResolvedValue([{
+          id: "restored-record",
+          conversationId: "restored-conversation",
+          surface: "canvas-prompt",
+          instruction: "讨论咖啡馆的光线",
+          response: "可以先从窗边的自然光开始。",
+          occurredAt: now,
+          boardId: "board-1"
+        }])
+      }
+    });
+    await renderPage(onCreate, onInterpret);
+
+    await setComposer("生成一张旧会话的风景图");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    await act(async () => findButton("确认生成")?.click());
+    expect(onCreate).toHaveBeenCalledOnce();
+
+    await act(async () => findButton("查看会话历史")?.click());
+    await act(async () => {
+      findButton(destination === "history" ? "打开会话：讨论咖啡馆的光线" : "新建对话")?.click();
+    });
+    expect(container?.textContent).not.toContain("生成一张旧会话的风景图");
+
+    await act(async () => {
+      if (outcome === "success") {
+        resolveCreate?.({
+          boardId: "old-result-board",
+          boardName: "旧会话生成结果",
+          images: [{ id: "old-image", dataUrl: "data:image/png;base64,AA==" }]
+        });
+      } else {
+        rejectCreate?.(new Error("旧会话的生成失败了"));
+      }
+    });
+
+    expect(container?.textContent).not.toContain("旧会话生成结果");
+    expect(container?.textContent).not.toContain("旧会话的生成失败了");
+    expect(container?.querySelector('button[aria-label="打开画板查看第 1 张生成图片"]')).toBeNull();
+    if (destination === "history") {
+      expect(container?.textContent).toContain("讨论咖啡馆的光线");
+      expect(container?.textContent).toContain("可以先从窗边的自然光开始。");
+      expect(findButton("人物肖像")).toBeDefined();
+    } else {
+      expect(container?.querySelector<HTMLTextAreaElement>("#create-chat-input")?.value).toBe("");
+      expect(findButton("新建画板")).toBeDefined();
+    }
+
+    await setComposer("继续当前会话");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    expect(onInterpret).toHaveBeenCalledTimes(2);
+    expect(onInterpret.mock.calls[1]?.[0]).toMatchObject({
+      conversationId: destination === "history" ? "restored-conversation" : expect.any(String),
+      memoryQuery: destination === "history" ? { boardId: "board-1" } : undefined
+    });
+    expect(onInterpret.mock.calls[1]?.[0].conversationId).not.toBe(onCreate.mock.calls[0]?.[0].conversationId);
+  });
+
+  it("retries a failed generation with the same confirmed prompt and destination", async () => {
+    const onCreate = vi.fn<(plan: CreateChatGenerationPlan) => Promise<CreateChatResult>>()
+      .mockRejectedValueOnce(new Error("图像模型暂时繁忙"))
+      .mockResolvedValueOnce({
+        boardId: "retry-board",
+        boardName: "重试成功的画板",
+        images: [{ id: "retry-image", dataUrl: "data:image/png;base64,AA==" }]
+      });
+    await renderPage(onCreate);
+
+    await setComposer("自然光中的银色花瓶，细腻胶片颗粒");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    await act(async () => findButton("确认生成")?.click());
+
+    expect(container?.textContent).toContain("图像模型暂时繁忙");
+    expect(container?.textContent).toContain("自然光中的银色花瓶，细腻胶片颗粒");
+    expect(findButton("确认生成")?.disabled).toBe(false);
+
+    await act(async () => findButton("确认生成")?.click());
+
+    expect(onCreate).toHaveBeenCalledTimes(2);
+    expect(onCreate.mock.calls[1]?.[0]).toEqual(onCreate.mock.calls[0]?.[0]);
+    expect(container?.textContent).toContain("已生成并保存到「重试成功的画板」");
   });
 });
 

@@ -116,7 +116,7 @@ pnpm dev
 
 Open **http://127.0.0.1:5180** to develop against the real workspace in your browser. This starts a hidden Electron backend service and keeps development data separate from the installed App.
 
-[Development, checks, and packaging](docs/development.md) · [Engineering notes (Chinese)](docs/engineering.md) · [Contribution guide (Chinese)](CONTRIBUTING.md)
+[Development, checks, and packaging](docs/development.md) · [Engineering notes (Chinese)](docs/engineering.md) · [Contribution guide (Chinese)](CONTRIBUTING.md) · [Plugin development (experimental, Chinese)](docs/plugins.md)
 
 Share bugs and use cases through [Issues](https://github.com/Davied-H/iterlay/issues), or contribute a pull request. If Iterlay helps you create something, give it a Star or share your board and process so others can see what it can do.
 

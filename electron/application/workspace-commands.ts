@@ -48,6 +48,7 @@ function choice<T extends string>(value: unknown, values: readonly T[], fallback
 export class WorkspaceCommands {
   private readonly tasks = new Map<string, GenerationRecord>();
   private readonly submissions = new Map<string, { hash: string; promise: Promise<GenerationRecord> }>();
+  private defaultBoardResolution?: Promise<string>;
   constructor(private readonly dependencies: CommandDependencies) {}
   async call(method: string, a: Record<string, unknown>): Promise<unknown> {
     const { api, emit } = this.dependencies;
@@ -83,6 +84,7 @@ export class WorkspaceCommands {
       case "read_asset": return { dataUrl: await api.readAssetDataUrl(string(a.path)) };
       case "list_tasks": return api.listHistory();
       case "list_boards": return api.listBoards();
+      case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId) };
       case "get_active_board": {
         const state = await api.getBoardsState();
         return state.lastOpenedBoardId ? api.getBoard(state.lastOpenedBoardId) : null;
@@ -153,6 +155,7 @@ export class WorkspaceCommands {
       case "generate_image": case "edit_image": return this.startGeneration(a, method === "edit_image");
       case "get_generation_status": return this.generationStatus(string(a.generationId));
       case "generate_video": {
+        const targetBoardId = await this.resolveGenerationBoard(boardId);
         const input: VideoGenerationInput = {
           mode: choice(a.mode, ["generate", "remix", "extend"] as const, "generate"),
           prompt: string(a.prompt), model: string(a.model), aspectRatio: string(a.aspectRatio, "16:9"),
@@ -161,10 +164,10 @@ export class WorkspaceCommands {
           referenceAudioPaths: strings(a.referenceAudioPaths, 4), sourceVideoPath: string(a.sourceVideoPath) || undefined,
           firstFramePath: string(a.firstFramePath) || undefined, lastFramePath: string(a.lastFramePath) || undefined,
           generationNodeId: string(a.generationNodeId) || undefined, targetVideoNodeId: string(a.targetVideoNodeId) || undefined,
-          generateAudio: a.generateAudio === true, watermark: a.watermark === true, providerId: string(a.providerId) || undefined, boardId
+          generateAudio: a.generateAudio === true, watermark: a.watermark === true, providerId: string(a.providerId) || undefined, boardId: targetBoardId
         };
         const job = await api.startVideoGeneration(input);
-        return { videoGenerationId: job.id, status: job.status, boardId, job };
+        return { videoGenerationId: job.id, status: job.status, boardId: targetBoardId, job };
       }
       case "get_video_generation_status": {
         const job = await api.getVideoJob(string(a.videoGenerationId));
@@ -184,6 +187,30 @@ export class WorkspaceCommands {
       case "stop_video_polling": return { ...await api.stopVideoPolling(string(a.videoGenerationId)), videoGenerationId: a.videoGenerationId, remoteCancelled: false, message: "仅停止本机轮询，远端任务不会被取消。" };
       default: throw new Error(`未知的 工作台 工具：${method}`);
     }
+  }
+
+  /** Resolve once in the App so CLI and raw workspace calls share the same destination. */
+  private async resolveGenerationBoard(explicitBoardId: string): Promise<string> {
+    const { api, emit } = this.dependencies;
+    const configured = explicitBoardId || (await api.getSettings()).cliDefaultBoardId;
+    if (configured) {
+      if (!await api.getBoard(configured)) throw new Error(explicitBoardId
+        ? "画板不存在或已移入回收站。"
+        : "CLI 默认画板不存在或已移入回收站，请在设置 → Coding Agent 中重新选择，或使用 --board 指定画板。");
+      return configured;
+    }
+    // Concurrent first-time submissions must not create multiple CLI boards.
+    if (this.defaultBoardResolution) return this.defaultBoardResolution;
+    const pending = (async () => {
+      const existing = (await api.listBoards()).find((board) => board.name === "CLI 创作");
+      if (existing) return existing.id;
+      const board = await api.createBoard("CLI 创作");
+      emit({ type: "board-created", boardId: board.id, name: board.name });
+      return board.id;
+    })();
+    this.defaultBoardResolution = pending;
+    try { return await pending; }
+    finally { this.defaultBoardResolution = undefined; }
   }
 
   private async startGeneration(a: Record<string, unknown>, edit: boolean): Promise<GenerationRecord> {
@@ -207,7 +234,7 @@ export class WorkspaceCommands {
 
   private async performGeneration(a: Record<string, unknown>, edit: boolean, requestId: string, requestHash: string): Promise<GenerationRecord> {
     const { api, emit } = this.dependencies;
-    const boardId = string(a.boardId);
+    const boardId = await this.resolveGenerationBoard(string(a.boardId));
     const sourcePath = string(a.sourcePath);
     const references = edit ? [sourcePath] : strings(a.referencePaths, 4);
     const prompt = string(a.prompt);

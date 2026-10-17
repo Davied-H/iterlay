@@ -17,6 +17,36 @@ describe("typed workspace image tasks", () => {
     expect(f.mocks.generateImage).toHaveBeenCalledWith(expect.objectContaining({ providerId: "custom", n: 1, background: "auto" }));
     expect(f.flush).toHaveBeenCalledTimes(2);
   });
+  it("uses the configured default for raw generation calls and persists the images there", async () => {
+    const f = workspaceFixture();
+    f.mocks.getSettings.mockResolvedValue({ cliDefaultBoardId: "configured", activeProviderId: "custom", providers: [{ id: "custom", type: "openai-compatible", model: "fixture" }] });
+    const task = await f.commands.call("generate_image", { prompt: "default" });
+    expect(task).toMatchObject({ boardId: "configured" });
+    await vi.waitFor(() => expect(f.mocks.appendBoardNodes).toHaveBeenCalledWith("configured", expect.arrayContaining([expect.objectContaining({ imagePath: "/managed/result.png" })])));
+    const explicit = await f.commands.call("generate_image", { boardId: "override", prompt: "explicit" });
+    expect(explicit).toMatchObject({ boardId: "override" });
+    await vi.waitFor(() => expect(f.mocks.appendBoardNodes).toHaveBeenCalledWith("override", expect.any(Array)));
+  });
+  it("rejects a deleted default before any provider request but allows an explicit target", async () => {
+    const f = workspaceFixture();
+    f.mocks.getSettings.mockResolvedValue({ cliDefaultBoardId: "deleted" });
+    f.mocks.getBoard.mockImplementation(async (id) => id === "deleted" ? null : { id, nodes: [] });
+    await expect(f.commands.call("generate_image", { prompt: "test" })).rejects.toThrow("CLI 默认画板");
+    expect(f.mocks.generateImage).not.toHaveBeenCalled();
+    expect(await f.commands.call("resolve_generation_board", { boardId: "valid" })).toEqual({ boardId: "valid" });
+  });
+  it("reuses CLI 创作 when unset and creates only one board for concurrent first use", async () => {
+    const f = workspaceFixture();
+    f.mocks.listBoards.mockResolvedValue([{ id: "existing", name: "CLI 创作" }]);
+    expect(await f.commands.call("resolve_generation_board", {})).toEqual({ boardId: "existing" });
+    expect(f.mocks.createBoard).not.toHaveBeenCalled();
+    f.mocks.listBoards.mockResolvedValue([]);
+    f.mocks.createBoard.mockResolvedValue({ id: "new", name: "CLI 创作" });
+    const results = await Promise.all([f.commands.call("resolve_generation_board", {}), f.commands.call("resolve_generation_board", {})]);
+    expect(results).toEqual([{ boardId: "new" }, { boardId: "new" }]);
+    expect(f.mocks.createBoard).toHaveBeenCalledOnce();
+    expect(f.emit).toHaveBeenCalledWith({ type: "board-created", boardId: "new", name: "CLI 创作" });
+  });
   it("rejects obsolete official provider before submitting", async () => {
     const f = workspaceFixture();
     f.mocks.getSettings.mockResolvedValue({ activeProviderId: "official", providers: [{ id: "official", type: "official" }] });

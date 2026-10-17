@@ -90,6 +90,7 @@ import { promoteRecentlyUsedBoard, sortBoardsByRecentUse } from "@shared/board-o
 import { isComicDramaNode } from "@shared/comic-drama";
 import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
+import { pendingVideoJobId, reconcileVideoGenerationPlaceholder } from "@shared/video-generation-placeholder";
 
 import type {
   AssetComment,
@@ -198,6 +199,8 @@ const TopBar = lazy(() =>
 const PromptDock = lazy(() =>
   import("@/components/workbench/PromptDock").then((module) => ({ default: module.PromptDock }))
 );
+const PluginTools = lazy(() => import("@/components/plugins/PluginTools").then(module => ({ default: module.PluginTools })));
+
 const ComicDramaWorkspace = lazy(() =>
   import("@/components/comic-drama/ComicDramaWorkspace").then((module) => ({ default: module.ComicDramaWorkspace }))
 );
@@ -2960,20 +2963,27 @@ export default function App(): React.ReactElement {
       confirmLabel: "确认并生成视频"
     });
     if (!confirmed) return;
+    if (paidSubmissionInFlightRef.current.has(node.id)) return;
     paidSubmissionInFlightRef.current.add(node.id);
-    const pendingJobId = `pending-`;
+    const pendingJobId = pendingVideoJobId(node.id);
     const pendingOutputId = `video-output-${pendingJobId}`;
+    let submittedJobId = pendingJobId;
     updateWorkflowNode(node.id, { status: "submitting", lastGenerationId: undefined, error: undefined });
     const syncPlaceholder = (
       job: Pick<VideoGenerationJob, "id" | "status" | "outputVideoPath" | "outputPosterPath" | "error">
     ): void => {
       if (node.mode === "remix" || activeBoardRef.current?.id !== boardId) return;
       const placeholderId = `video-output-${job.id}`;
-      const current = workflowNodesRef.current;
+      const reconciled = reconcileVideoGenerationPlaceholder(
+        workflowNodesRef.current, canvasStateRef.current.connections, node.id, job.id
+      );
+      const current = reconciled.nodes as CanvasPersistedNode[];
+      canvasStateRef.current.connections = reconciled.connections;
       const existing = current.find((candidate): candidate is BoardVideoNode => (
         (candidate.id === placeholderId || candidate.id === pendingOutputId) && isBoardVideoNode(candidate)
       ));
       const placeholder: BoardVideoNode = {
+        ...existing,
         id: placeholderId,
         type: "video",
         title: "视频结果",
@@ -3030,8 +3040,8 @@ export default function App(): React.ReactElement {
       outputPosterPath: undefined,
       error: undefined
     });
-    await flushBoardSave();
     try {
+      await flushBoardSave();
       const imageInputs = resolveVideoGenerationImageInputs(
         selectedVideoProvider.type === "official",
         resolved.startFrame,
@@ -3079,6 +3089,7 @@ export default function App(): React.ReactElement {
         ...metadata
       };
       let job = await api.startVideoGeneration(input);
+      submittedJobId = job.id;
       videoPollingStoppedRef.current.delete(job.id);
       if (activeBoardRef.current?.id === boardId) {
         updateWorkflowNode(node.id, {
@@ -3116,7 +3127,7 @@ export default function App(): React.ReactElement {
       const message = getWorkbenchErrorMessage(error, "视频生成失败。");
       updateWorkflowNode(node.id, { status: "failed", error: message });
       syncPlaceholder({
-        id: pendingJobId,
+        id: submittedJobId,
         status: "failed",
         outputVideoPath: undefined,
         outputPosterPath: undefined,
@@ -6142,6 +6153,15 @@ export default function App(): React.ReactElement {
 
   function renderCanvasBoard(rightRailInset = effectiveRightRailCanvasInset): React.ReactElement {
     return (
+      <>
+      {activeBoard && activeBoard.kind !== "comic-drama" ? <PluginTools
+        context={{ boardId: activeBoard.id, selectedNodeIds: selectedCanvasNodeIds, theme: effectiveTheme, locale }}
+        beforeRequest={flushBoardSave}
+        onMutation={handleComicDramaAgentMutation}
+        onApplyPlan={applyComicDramaPlan}
+        onSelect={(ids) => setSelectionTarget({ ids, nonce: Date.now() })}
+        onLaunchShortDrama={() => startComicDramaAt({ x: 200, y: 200 })}
+      /> : null}
       <MemoizedCanvasBoard
         key={activeBoard?.id ?? "empty"}
         images={images}
@@ -6257,6 +6277,7 @@ export default function App(): React.ReactElement {
         onOpenShortcutHelp={openCanvasShortcutHelp}
         onExitCanvas={exitCanvas}
       />
+      </>
     );
   }
 
@@ -6280,11 +6301,9 @@ export default function App(): React.ReactElement {
               onBack={() => void openBoard(activeBoard.parentBoardId!, undefined, { suppressLoadingScreen: true })}
               onBeforeAgentRequest={flushBoardSave}
               onAgentMutation={handleComicDramaAgentMutation}
-            >
-              <Suspense fallback={<div aria-hidden className="absolute inset-0 bg-background" />}>
-                {renderCanvasBoard(0)}
-              </Suspense>
-            </ComicDramaWorkspace>
+              onApplyPlan={applyComicDramaPlan}
+              onSelect={setSelectedCanvasNodeIds}
+            />
           </CanvasRoot>
         </Suspense>
         <GenerationConfirmationDialog

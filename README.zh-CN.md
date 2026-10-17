@@ -116,7 +116,7 @@ pnpm dev
 
 在浏览器打开 **http://127.0.0.1:5180**，使用真实工作台进行开发。网页模式会启动隐藏的 Electron 后台服务，开发数据与正式 App 隔离。
 
-[开发、检查与打包指南](docs/development.zh-CN.md) · [工程说明](docs/engineering.md) · [贡献指南](CONTRIBUTING.md)
+[开发、检查与打包指南](docs/development.zh-CN.md) · [工程说明](docs/engineering.md) · [贡献指南](CONTRIBUTING.md) · [插件开发（实验版）](docs/plugins.md)
 
 欢迎通过 [Issues](https://github.com/Davied-H/iterlay/issues) 反馈问题和使用场景，或通过 Pull Request 参与改进。如果 Iterlay 对你有帮助，欢迎点一个 Star，或分享你的画板与创作过程，让更多人看到它能做什么。
 

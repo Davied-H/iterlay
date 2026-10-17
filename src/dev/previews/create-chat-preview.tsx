@@ -8,6 +8,9 @@ import {
 import "@/styles.css";
 
 const now = new Date().toISOString();
+const previewParams = new URLSearchParams(window.location.search);
+const generationDelay = Math.min(60_000, Math.max(650, Number(previewParams.get("delay")) || 650));
+document.documentElement.classList.toggle("dark", previewParams.get("theme") === "dark");
 const boards: BoardSummary[] = [
   { id: "brand", name: "品牌视觉探索", createdAt: now, updatedAt: now, imageCount: 12 },
   { id: "portrait", name: "人物肖像", createdAt: now, updatedAt: now, imageCount: 8 },
@@ -44,15 +47,14 @@ Object.defineProperty(globalThis, "imageWorkbench", {
 async function createPreviewResult(
   plan: CreateChatGenerationPlan
 ): Promise<CreateChatResult> {
-  await new Promise((resolve) => window.setTimeout(resolve, 650));
+  await new Promise((resolve) => window.setTimeout(resolve, generationDelay));
+  if (plan.prompt.includes("测试失败")) throw new Error("图片服务暂时无法连接。请稍后重试，你的创作方案已保留。");
   const target = boards.find((board) => board.id === plan.targetBoardId);
   return {
     boardId: target?.id ?? "new-board",
     boardName: target?.name ?? "未命名画板",
     images: [
-      { id: "one", dataUrl: "/scene-previews/edit-style/1.webp" },
-      { id: "two", dataUrl: "/scene-previews/edit-style/2.webp" },
-      { id: "three", dataUrl: "/scene-previews/edit-style/3.webp" }
+      { id: "one", dataUrl: "/scene-previews/edit-style/1.webp" }
     ]
   };
 }

@@ -1,5 +1,6 @@
 import type { CodingAgentIntegrationStatus } from "./agent-integration.js";
 import { WORKBENCH_COMMANDS } from "./contracts/workbench-commands.js";
+import type { InstalledPlugin, PluginManifest, PluginPackage } from "./plugins.js";
 import {
   WINDOW_SAVE_REQUEST,
   WINDOW_SAVE_RESULT,
@@ -134,6 +135,18 @@ export const VIDEO_SEQUENCE_MUTATIONS = [
 
 export function createWorkbenchClient(transport: WorkbenchTransport) {
   return {
+  listPlugins: () => transport.invoke("plugins:list") as Promise<InstalledPlugin[]>,
+  listPluginCatalog: () => transport.invoke("plugins:catalog") as Promise<PluginManifest[]>,
+  getPlugin: (id: string) => transport.invoke("plugins:get", id) as Promise<PluginPackage & InstalledPlugin>,
+  getPluginFrameUrl: (id: string) => transport.invoke("plugins:frameUrl", id) as Promise<string>,
+  inspectPlugin: (bytes: Uint8Array) => transport.invoke("plugins:inspect", bytes) as Promise<PluginManifest>,
+  installPlugin: (bytes: Uint8Array) => transport.invoke("plugins:install", bytes) as Promise<InstalledPlugin>,
+  installCatalogPlugin: (id: string) => transport.invoke("plugins:installCatalog", id) as Promise<InstalledPlugin>,
+  setPluginEnabled: (id: string, enabled: boolean) => transport.invoke("plugins:setEnabled", id, enabled) as Promise<void>,
+  uninstallPlugin: (id: string) => transport.invoke("plugins:uninstall", id) as Promise<void>,
+  readPluginState: (id: string, scope: string) => transport.invoke("plugins:readState", id, scope) as Promise<unknown>,
+  writePluginState: (id: string, scope: string, value: unknown) => transport.invoke("plugins:writeState", id, scope, value) as Promise<void>,
+  authorizePlugin: (id: string, permission: string) => transport.invoke("plugins:authorize", id, permission) as Promise<void>,
   onWorkbenchEvent: (listener: (event: { type: string; [key: string]: unknown }) => void) => {
     const handler = (event: { type: string; [key: string]: unknown }): void => { listener(event); };
     return transport.on("workbench:event", handler);

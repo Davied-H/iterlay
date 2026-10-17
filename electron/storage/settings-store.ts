@@ -79,6 +79,7 @@ interface SettingsSchema {
   editInfoMode?: "flip" | "panel";
   imageDoubleClickAction?: ImageDoubleClickAction;
   downloadDirectory?: string;
+  cliDefaultBoardId?: string;
   versionSeparationMode?: VersionSeparationMode;
   generateButtonStyle?: GenerateButtonStyle;
   appIcon?: AppIconPreference;
@@ -242,6 +243,7 @@ export class SettingsStore {
       editInfoMode: current.editInfoMode ?? "flip",
       imageDoubleClickAction: current.imageDoubleClickAction ?? "edit",
       downloadDirectory: current.downloadDirectory ?? "",
+      cliDefaultBoardId: current.cliDefaultBoardId ?? "",
       versionSeparationMode: current.versionSeparationMode ?? "copy",
       generateButtonStyle: current.generateButtonStyle ?? "folded",
       appIcon: normalizeStoredAppIcon(current.appIcon, current.customAppIcons),
@@ -378,6 +380,7 @@ export class SettingsStore {
       editInfoMode: settings.editInfoMode ?? current.editInfoMode ?? "flip",
       imageDoubleClickAction: settings.imageDoubleClickAction ?? current.imageDoubleClickAction ?? "edit",
       downloadDirectory: settings.downloadDirectory ?? current.downloadDirectory ?? "",
+      cliDefaultBoardId: typeof settings.cliDefaultBoardId === "string" ? settings.cliDefaultBoardId.trim() : current.cliDefaultBoardId ?? "",
       versionSeparationMode: settings.versionSeparationMode ?? current.versionSeparationMode ?? "copy",
       generateButtonStyle: settings.generateButtonStyle ?? current.generateButtonStyle ?? "folded",
       appIcon: normalizeStoredAppIcon(
@@ -693,6 +696,7 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     editInfoMode: parsed.editInfoMode,
     imageDoubleClickAction: parsed.imageDoubleClickAction,
     downloadDirectory: parsed.downloadDirectory,
+    cliDefaultBoardId: typeof parsed.cliDefaultBoardId === "string" ? parsed.cliDefaultBoardId.trim() : "",
     versionSeparationMode: parsed.versionSeparationMode === "extract" ? "extract" : "copy",
     generateButtonStyle:
       parsed.generateButtonStyle === "glow" ||

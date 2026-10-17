@@ -610,7 +610,82 @@ describe("BoardStore", () => {
     });
   });
 
-  it("promotes the immediate video placeholder without duplicating its card or connection", async () => {
+  it("keeps an older recovery from consuming the placeholder of a newer submitting job", async () => {
+    const store = new BoardStore(dir);
+    const board = await store.createBoard("视频提交恢复竞态画板");
+    const pendingId = "video-output-pending-video-generation-1";
+    await store.saveBoard({
+      id: board.id,
+      nodes: [
+        {
+          id: "video-generation-1",
+          type: "video-generation",
+          status: "submitting",
+          lastGenerationId: "new-job",
+          x: 0,
+          y: 0
+        },
+        {
+          id: pendingId,
+          type: "video",
+          videoPath: "",
+          jobId: "pending-video-generation-1",
+          source: "generated",
+          generationNodeId: "video-generation-1",
+          status: "submitting",
+          x: 532,
+          y: 0
+        }
+      ],
+      connections: [{
+        id: "new-pending-result",
+        source: "video-generation-1",
+        target: pendingId,
+        sourceHandle: "source-right",
+        targetHandle: "target-left",
+        kind: "visual",
+        label: "生成结果"
+      }]
+    });
+
+    await store.startVideoGenerationNode(board.id, "video-generation-1", {
+      jobId: "old-job",
+      status: "generating"
+    });
+    await store.finishVideoGenerationNode(board.id, "video-generation-1", {
+      jobId: "old-job",
+      error: "旧任务失败"
+    });
+
+    const saved = await store.getBoard(board.id);
+    expect(saved?.nodes).toHaveLength(3);
+    expect(saved?.nodes.find((node) => node.id === "video-generation-1")).toMatchObject({
+      status: "submitting",
+      lastGenerationId: "new-job"
+    });
+    expect(saved?.nodes.find((node) => node.id === pendingId)).toMatchObject({
+      jobId: "pending-video-generation-1",
+      generationNodeId: "video-generation-1",
+      status: "submitting"
+    });
+    expect(saved?.nodes.find((node) => node.id === "video-output-old-job")).toMatchObject({
+      jobId: "old-job",
+      status: "failed",
+      error: "旧任务失败"
+    });
+    expect(saved?.connections).toHaveLength(2);
+    expect(saved?.connections).toContainEqual(expect.objectContaining({
+      id: "new-pending-result",
+      source: "video-generation-1",
+      target: pendingId
+    }));
+    expect(saved?.connections).toContainEqual(expect.objectContaining({
+      source: "video-generation-1",
+      target: "video-output-old-job"
+    }));
+  });
+
+  it.each(["pending-video-generation-1", "pending-"])("promotes the immediate video placeholder %s without duplicating its card or connection", async (pendingJobId) => {
     const store = new BoardStore(dir);
     const board = await store.createBoard("视频即时占位画板");
     await store.saveBoard({
@@ -618,10 +693,10 @@ describe("BoardStore", () => {
       nodes: [
         { id: "video-generation-1", type: "video-generation", status: "submitting", aspectRatio: "1:1", x: 0, y: 0 },
         {
-          id: "video-output-pending-video-generation-1",
+          id: `video-output-${pendingJobId}`,
           type: "video",
           videoPath: "",
-          jobId: "pending-video-generation-1",
+          jobId: pendingJobId,
           source: "generated",
           generationNodeId: "video-generation-1",
           status: "submitting",
@@ -632,7 +707,7 @@ describe("BoardStore", () => {
       connections: [{
         id: "pending-result",
         source: "video-generation-1",
-        target: "video-output-pending-video-generation-1",
+        target: `video-output-${pendingJobId}`,
         sourceHandle: "source-right",
         targetHandle: "target-left",
         kind: "visual",

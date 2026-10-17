@@ -9,15 +9,18 @@ import { build } from "esbuild";
 const exec = promisify(execFile);
 let directory: string, script: string;
 let generated = 0;
+let lastGenerationArgs: Record<string, unknown>;
+let resolvedBoards = 0;
 const server = createServer(async (request, response) => {
   if (request.headers.authorization !== 'Bearer ' + 'a'.repeat(32)) { response.writeHead(401).end(); return; }
   let content = ''; for await (const chunk of request) content += chunk;
-  const { method } = JSON.parse(content);
+  const { method, args } = JSON.parse(content);
   let result: unknown;
   switch (method) {
     case 'status': result = { protocolVersion: 1 }; break;
+    case 'resolve_generation_board': resolvedBoards++; result = { boardId: 'configured-default' }; break;
     case 'list_boards': result = [{ id: 'board', name: 'CLI 创作' }]; break;
-    case 'generate_image': generated++; result = { generationId: 'task', status: 'running' }; break;
+    case 'generate_image': lastGenerationArgs = args; generated++; result = { generationId: 'task', status: 'running' }; break;
     case 'get_generation_status': result = { generationId: 'task', status: 'succeeded', images: [{ path: '/managed/test.png' }] }; break;
     case 'read_asset': result = { dataUrl: 'data:image/png;base64,aW1hZ2U=' }; break;
     default: response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'unsupported operation' })); return;
@@ -39,8 +42,15 @@ describe('CLI subprocess workflow', () => {
     const run = await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'test', '--out', target, '--user-data-path', directory, '--json']);
     expect(JSON.parse(run.stdout)).toMatchObject({ ok: true, data: { generationId: 'task', exportedPaths: [target] } });
     expect(await readFile(target, 'utf8')).toBe('image'); expect(generated).toBe(1);
+    expect(lastGenerationArgs.boardId).toBe('configured-default');
     await expect(exec(process.execPath, [script, 'tasks', 'wait', 'task', '--out', target, '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('导出失败') });
     expect(generated).toBe(1);
+  });
+  it('honors an explicit board without resolving the default', async () => {
+    const before = resolvedBoards;
+    await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'override', '--board', 'explicit', '--async', '--user-data-path', directory, '--json']);
+    expect(lastGenerationArgs.boardId).toBe('explicit');
+    expect(resolvedBoards).toBe(before);
   });
   it('returns a structured business error without resubmitting the operation', async () => {
     await expect(exec(process.execPath, [script, 'providers', 'list', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('unsupported operation') });

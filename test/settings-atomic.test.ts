@@ -16,6 +16,19 @@ describe("settings atomic transactions", () => {
       expect(JSON.parse(await readFile(path.join(directory, "settings.json"), "utf8")).schemaVersion).toBe(1);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+  it("persists and clears the CLI default without losing it when other settings are saved", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-settings-"));
+    try {
+      const store = new SettingsStore(directory);
+      const original = store.getSettings();
+      store.updateSettings({ cliDefaultBoardId: "my-board" });
+      expect(new SettingsStore(directory).getSettings().cliDefaultBoardId).toBe("my-board");
+      store.saveSettings({ ...original, cliDefaultBoardId: undefined, theme: "dark" });
+      expect(new SettingsStore(directory).getSettings().cliDefaultBoardId).toBe("my-board");
+      store.updateSettings({ cliDefaultBoardId: "" });
+      expect(new SettingsStore(directory).getSettings().cliDefaultBoardId).toBe("");
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
   it("restores cached settings when commit fails", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-atomic-"));
     try {

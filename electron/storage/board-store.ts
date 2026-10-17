@@ -60,6 +60,7 @@ import {
 import { sortBoardsByRecentUse } from "../../shared/board-order.js";
 import { arrangeImageNodes, type ImageNodeLayoutMode } from "../../shared/image-node-layout.js";
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "../../shared/generation-output-layout.js";
+import { reconcileVideoGenerationPlaceholder } from "../../shared/video-generation-placeholder.js";
 import { MutationQueue, writeJsonAtomic } from "./atomic-json.js";
 
 interface BoardsState {
@@ -894,14 +895,20 @@ export class BoardStore {
       if (!current) return false;
       const generation = current.nodes.find((node) => node.id === generationNodeId && isBoardVideoGenerationNode(node));
       if (!generation || !isBoardVideoGenerationNode(generation)) return false;
+      const ownsGeneration = !generation.lastGenerationId
+        || generation.lastGenerationId === attempt.jobId
+        || (generation.status === "submitting" && attempt.status === "submitting");
+      if (ownsGeneration) {
+        const reconciled = reconcileVideoGenerationPlaceholder(
+          current.nodes, current.connections ?? [], generationNodeId, attempt.jobId
+        );
+        current.nodes = reconciled.nodes;
+        current.connections = reconciled.connections;
+      }
       const placeholderId = `video-output-${attempt.jobId}`;
-      const pendingPlaceholderId = `video-output-pending-${generationNodeId}`;
       const existing = current.nodes.find((node) => (
-        (node.id === placeholderId || node.id === pendingPlaceholderId) && isBoardVideoNode(node)
+        node.id === placeholderId && isBoardVideoNode(node)
       ));
-      const ownsGeneration = generation.status === "submitting"
-        || !generation.lastGenerationId
-        || generation.lastGenerationId === attempt.jobId;
       const x = generation.x + Math.max(1, generation.displayWidth ?? 340)
         + GENERATION_OUTPUT_HORIZONTAL_GAP;
       const placeholder: BoardVideoNode = existing && isBoardVideoNode(existing) && existing.status === "completed" ? existing
@@ -933,7 +940,7 @@ export class BoardStore {
       if (!existing) nodes.push(placeholder);
       const connections = (current.connections ?? []).map((connection) => (
         connection.source === generationNodeId
-          && (connection.target === placeholderId || connection.target === pendingPlaceholderId)
+          && connection.target === placeholderId
           ? {
               ...connection,
               target: placeholderId,
@@ -974,6 +981,19 @@ export class BoardStore {
         return false;
       }
 
+      const generation = current.nodes.find((node): node is Extract<BoardNode, { type: "video-generation" }> => (
+        node.id === generationNodeId && isBoardVideoGenerationNode(node)
+      ));
+      const ownsGeneration = Boolean(generation) && (
+        !generation?.lastGenerationId || !result.jobId || generation.lastGenerationId === result.jobId
+      );
+      if (result.jobId && ownsGeneration) {
+        const reconciled = reconcileVideoGenerationPlaceholder(
+          current.nodes, current.connections ?? [], generationNodeId, result.jobId
+        );
+        current.nodes = reconciled.nodes;
+        current.connections = reconciled.connections;
+      }
       const placeholder = result.jobId
         ? current.nodes.find((node) => isBoardVideoNode(node) && node.jobId === result.jobId)
         : current.nodes.find((node) => isBoardVideoNode(node) && node.generationNodeId === generationNodeId && !node.videoPath);
@@ -981,12 +1001,6 @@ export class BoardStore {
         ? current.nodes.find((node) => isBoardVideoNode(node) && Boolean(node.videoPath) && node.videoPath === result.node!.videoPath)
         : undefined;
       const succeeded = Boolean(result.jobId) && Boolean(result.node || duplicate) && !result.error;
-      const generation = current.nodes.find((node): node is Extract<BoardNode, { type: "video-generation" }> => (
-        node.id === generationNodeId && isBoardVideoGenerationNode(node)
-      ));
-      const ownsGeneration = Boolean(generation) && (
-        !generation?.lastGenerationId || !result.jobId || generation.lastGenerationId === result.jobId
-      );
       const nodes = current.nodes.map((node) => (
         ownsGeneration && node.id === generationNodeId && isBoardVideoGenerationNode(node)
           ? {

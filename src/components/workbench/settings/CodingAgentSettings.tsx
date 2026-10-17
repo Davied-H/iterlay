@@ -7,6 +7,7 @@ import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-work
 import { useUiText } from "@/i18n";
 import type { CodingAgentIntegrationStatus } from "@shared/agent-integration";
 import { SettingsPageHeader } from "./SettingsPrimitives";
+import { CliDefaultBoardSettings } from "./CliDefaultBoardSettings";
 import "./coding-agent-settings.css";
 
 const EXAMPLE = "$using-iterlay 列出我已配置的图片服务。";
@@ -147,6 +148,8 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels }: {
         {activeStep < 2 ? <Button size="sm" disabled={locked || !status} onClick={() => selectStep((activeStep + 1) as SetupStep)}>{uiText(activeStep === 0 ? "下一步：安装 Skill" : "下一步：开始使用")}<ArrowRight /></Button> : <Button variant="outline" size="sm" disabled={locked} onClick={() => selectStep(1)}>{uiText("配置其他 Agent")}</Button>}
       </footer>
     </section>
+
+    <CliDefaultBoardSettings disabled={disabled} />
 
     <details className="coding-agent-details"><summary>{uiText("命令、安装位置与维护")}</summary><div className="coding-agent-detail-content">
       <p>{uiText("CLI 与 Skill 共用 App 的模型配置；安装 Skill 不会发起生成请求。")}</p>

@@ -21,5 +21,13 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["src", "shared", "test", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "shared",
+    "test",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "packages/plugin-sdk/src",
+    "plugins/short-drama/src"
+  ]
 }

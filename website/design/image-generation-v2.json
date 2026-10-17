@@ -1,0 +1,498 @@
+{
+  "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+  "providerId": "openai-compatible",
+  "model": "gpt-image-2.5-flare",
+  "size": "1024x1024",
+  "safeArea": "4% horizontal, 3% vertical",
+  "status": "awaiting-console-repair-approval",
+  "cases": [
+    {
+      "caseId": "clear-console",
+      "source": {
+        "requestId": "c7e2171e-d648-46de-8a87-454d5fbdebde",
+        "output": "website/public/gallery/v2/console-source.png",
+        "response": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "0a977f3f9f1625dec403336835cd41253d7168c12234c778bc73f078e387d983",
+            "generationId": "c7e2171e-d648-46de-8a87-454d5fbdebde",
+            "status": "running",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+            "createdAt": "2026-10-16T16:18:45.076Z"
+          }
+        },
+        "completion": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "0a977f3f9f1625dec403336835cd41253d7168c12234c778bc73f078e387d983",
+            "generationId": "c7e2171e-d648-46de-8a87-454d5fbdebde",
+            "status": "succeeded",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+            "createdAt": "2026-10-16T16:18:45.076Z",
+            "completedAt": "2026-10-16T16:19:13.498Z",
+            "job": {
+              "id": "fabf3f81-196a-4d4f-8bde-7413b6c6e9d3",
+              "status": "succeeded",
+              "createdAt": "2026-10-16T16:18:45.084Z",
+              "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+              "providerId": "openai-compatible",
+              "providerName": "GPT Relay",
+              "model": "gpt-image-2.5-flare",
+              "input": {
+                "workflowMode": "generate",
+                "promptSpec": {
+                  "primaryRequest": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference."
+                },
+                "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+                "model": "gpt-image-2.5-flare",
+                "size": "1024x1024",
+                "n": 1,
+                "quality": "high",
+                "style": "natural",
+                "background": "auto",
+                "outputFormat": "png"
+              },
+              "referenceImagePaths": [],
+              "outputImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/fabf3f81-196a-4d4f-8bde-7413b6c6e9d3-1.png"
+              ],
+              "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+              "completedAt": "2026-10-16T16:19:13.440Z"
+            },
+            "images": [
+              {
+                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/fabf3f81-196a-4d4f-8bde-7413b6c6e9d3-1.png",
+                "dataUrl": ""
+              }
+            ],
+            "exportedPaths": [
+              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/console-source.png"
+            ]
+          }
+        },
+        "rawOutput": "output/imagegen/iterlay-website-v2/console-source.png",
+        "webOutput": "website/public/gallery/v2/console-source.webp",
+        "rawSize": [
+          1254,
+          1254
+        ],
+        "webSize": [
+          1024,
+          1024
+        ]
+      },
+      "result": {
+        "requestId": "6eef64cc-859d-4417-acaa-ec616fe69cf1",
+        "output": "website/public/gallery/v2/console-campaign.png",
+        "response": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "f29ba1260b51238c83e12b96e397ce131dd89152e62040273f48fea1be88a23f",
+            "generationId": "6eef64cc-859d-4417-acaa-ec616fe69cf1",
+            "status": "running",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: compositing. Input image: edit target and sole product identity reference, the newly generated transparent handheld game console. Create a fresh contemporary campaign photograph of THIS EXACT DEVICE at the same viewing angle. Keep the body geometry, smoky transparent casing, circuit traces, screen, sticks, pale celadon buttons and screws unchanged. Change its scene to a shallow, glass-clear tidal pool over pale mineral sand, with one low sculpted wet stone supporting the device just above the water. Sunlight through gentle ripples makes sharp restrained caustic lines on the stone and transparent edge; calm blue-green horizon reflected in the surface, strong but plausible clean daylight. Tight art-directed composition, product clearly readable and large, no clutter, no sunset, no neon, no glowing tech effects, no floating fantasy product, no tropical props. Square 1024x1024, all device edges inside frame. No text, logos, watermark, interface or image collage.",
+            "createdAt": "2026-10-16T16:21:58.355Z"
+          }
+        },
+        "completion": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "f29ba1260b51238c83e12b96e397ce131dd89152e62040273f48fea1be88a23f",
+            "generationId": "6eef64cc-859d-4417-acaa-ec616fe69cf1",
+            "status": "succeeded",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: compositing. Input image: edit target and sole product identity reference, the newly generated transparent handheld game console. Create a fresh contemporary campaign photograph of THIS EXACT DEVICE at the same viewing angle. Keep the body geometry, smoky transparent casing, circuit traces, screen, sticks, pale celadon buttons and screws unchanged. Change its scene to a shallow, glass-clear tidal pool over pale mineral sand, with one low sculpted wet stone supporting the device just above the water. Sunlight through gentle ripples makes sharp restrained caustic lines on the stone and transparent edge; calm blue-green horizon reflected in the surface, strong but plausible clean daylight. Tight art-directed composition, product clearly readable and large, no clutter, no sunset, no neon, no glowing tech effects, no floating fantasy product, no tropical props. Square 1024x1024, all device edges inside frame. No text, logos, watermark, interface or image collage.",
+            "createdAt": "2026-10-16T16:21:58.355Z",
+            "completedAt": "2026-10-16T16:22:44.342Z",
+            "job": {
+              "id": "a91ac3f3-ecb4-4ddd-90ae-517b41d72635",
+              "status": "succeeded",
+              "createdAt": "2026-10-16T16:21:58.367Z",
+              "prompt": "Use case: compositing. Input image: edit target and sole product identity reference, the newly generated transparent handheld game console. Create a fresh contemporary campaign photograph of THIS EXACT DEVICE at the same viewing angle. Keep the body geometry, smoky transparent casing, circuit traces, screen, sticks, pale celadon buttons and screws unchanged. Change its scene to a shallow, glass-clear tidal pool over pale mineral sand, with one low sculpted wet stone supporting the device just above the water. Sunlight through gentle ripples makes sharp restrained caustic lines on the stone and transparent edge; calm blue-green horizon reflected in the surface, strong but plausible clean daylight. Tight art-directed composition, product clearly readable and large, no clutter, no sunset, no neon, no glowing tech effects, no floating fantasy product, no tropical props. Square 1024x1024, all device edges inside frame. No text, logos, watermark, interface or image collage.",
+              "providerId": "openai-compatible",
+              "providerName": "GPT Relay",
+              "model": "gpt-image-2.5-flare",
+              "input": {
+                "workflowMode": "edit",
+                "promptSpec": {
+                  "primaryRequest": "Use case: compositing. Input image: edit target and sole product identity reference, the newly generated transparent handheld game console. Create a fresh contemporary campaign photograph of THIS EXACT DEVICE at the same viewing angle. Keep the body geometry, smoky transparent casing, circuit traces, screen, sticks, pale celadon buttons and screws unchanged. Change its scene to a shallow, glass-clear tidal pool over pale mineral sand, with one low sculpted wet stone supporting the device just above the water. Sunlight through gentle ripples makes sharp restrained caustic lines on the stone and transparent edge; calm blue-green horizon reflected in the surface, strong but plausible clean daylight. Tight art-directed composition, product clearly readable and large, no clutter, no sunset, no neon, no glowing tech effects, no floating fantasy product, no tropical props. Square 1024x1024, all device edges inside frame. No text, logos, watermark, interface or image collage."
+                },
+                "prompt": "Use case: compositing. Input image: edit target and sole product identity reference, the newly generated transparent handheld game console. Create a fresh contemporary campaign photograph of THIS EXACT DEVICE at the same viewing angle. Keep the body geometry, smoky transparent casing, circuit traces, screen, sticks, pale celadon buttons and screws unchanged. Change its scene to a shallow, glass-clear tidal pool over pale mineral sand, with one low sculpted wet stone supporting the device just above the water. Sunlight through gentle ripples makes sharp restrained caustic lines on the stone and transparent edge; calm blue-green horizon reflected in the surface, strong but plausible clean daylight. Tight art-directed composition, product clearly readable and large, no clutter, no sunset, no neon, no glowing tech effects, no floating fantasy product, no tropical props. Square 1024x1024, all device edges inside frame. No text, logos, watermark, interface or image collage.",
+                "model": "gpt-image-2.5-flare",
+                "size": "1024x1024",
+                "n": 1,
+                "quality": "high",
+                "style": "natural",
+                "background": "auto",
+                "outputFormat": "png"
+              },
+              "referenceImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/references/1792167718379-b34933fd-14bd-449f-ae13-e24d4e5482ee.png"
+              ],
+              "outputImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a91ac3f3-ecb4-4ddd-90ae-517b41d72635-1.png"
+              ],
+              "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+              "completedAt": "2026-10-16T16:22:44.299Z"
+            },
+            "images": [
+              {
+                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a91ac3f3-ecb4-4ddd-90ae-517b41d72635-1.png",
+                "dataUrl": ""
+              }
+            ],
+            "exportedPaths": [
+              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/console-campaign.png"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "caseId": "silver-trail",
+      "source": {
+        "requestId": "d71464bc-2541-4cc8-9fe7-7921197ead6f",
+        "output": "website/public/gallery/v2/runner-source.png",
+        "response": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "71a21cb8263bf6a5ca1fc198c43bb887868fc61db5d0cc0566d5c8f4ff9d11dc",
+            "generationId": "d71464bc-2541-4cc8-9fe7-7921197ead6f",
+            "status": "running",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after image-editing example. Design one new unbranded technical trail running shoe, advanced but wearable and anatomically plausible. Silver-gray ripstop mesh upper with thin brushed-metallic structural overlays, charcoal outsole with distinct rugged tread, pale chartreuse laces and tiny chartreuse lace loops, one sculpted translucent smoke-gray heel stabilizer. No marks resembling existing sports brand logos. Photorealistic high-end contemporary sports-product photography, visible textile grain, stitching and believable material transitions. Single left shoe in full three-quarter side profile, toe pointing slightly right, complete shoe centered on light-gray seamless background with restrained soft shadow. Commercially accurate proportions, comfortable enough to run in, no mechanical sci-fi armor. Square 1024x1024, no cropping. No text, logos, people, extra shoes, frames or watermark. Newly designed subject, no existing project assets as references.",
+            "createdAt": "2026-10-16T16:18:45.263Z"
+          }
+        },
+        "completion": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "71a21cb8263bf6a5ca1fc198c43bb887868fc61db5d0cc0566d5c8f4ff9d11dc",
+            "generationId": "d71464bc-2541-4cc8-9fe7-7921197ead6f",
+            "status": "succeeded",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after image-editing example. Design one new unbranded technical trail running shoe, advanced but wearable and anatomically plausible. Silver-gray ripstop mesh upper with thin brushed-metallic structural overlays, charcoal outsole with distinct rugged tread, pale chartreuse laces and tiny chartreuse lace loops, one sculpted translucent smoke-gray heel stabilizer. No marks resembling existing sports brand logos. Photorealistic high-end contemporary sports-product photography, visible textile grain, stitching and believable material transitions. Single left shoe in full three-quarter side profile, toe pointing slightly right, complete shoe centered on light-gray seamless background with restrained soft shadow. Commercially accurate proportions, comfortable enough to run in, no mechanical sci-fi armor. Square 1024x1024, no cropping. No text, logos, people, extra shoes, frames or watermark. Newly designed subject, no existing project assets as references.",
+            "createdAt": "2026-10-16T16:18:45.263Z",
+            "completedAt": "2026-10-16T16:19:11.792Z",
+            "job": {
+              "id": "a3b9037d-a9c7-4d07-ad05-15977ad66a83",
+              "status": "succeeded",
+              "createdAt": "2026-10-16T16:18:45.269Z",
+              "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after image-editing example. Design one new unbranded technical trail running shoe, advanced but wearable and anatomically plausible. Silver-gray ripstop mesh upper with thin brushed-metallic structural overlays, charcoal outsole with distinct rugged tread, pale chartreuse laces and tiny chartreuse lace loops, one sculpted translucent smoke-gray heel stabilizer. No marks resembling existing sports brand logos. Photorealistic high-end contemporary sports-product photography, visible textile grain, stitching and believable material transitions. Single left shoe in full three-quarter side profile, toe pointing slightly right, complete shoe centered on light-gray seamless background with restrained soft shadow. Commercially accurate proportions, comfortable enough to run in, no mechanical sci-fi armor. Square 1024x1024, no cropping. No text, logos, people, extra shoes, frames or watermark. Newly designed subject, no existing project assets as references.",
+              "providerId": "openai-compatible",
+              "providerName": "GPT Relay",
+              "model": "gpt-image-2.5-flare",
+              "input": {
+                "workflowMode": "generate",
+                "promptSpec": {
+                  "primaryRequest": "Use case: product-mockup. Asset: original product photograph for a paired before/after image-editing example. Design one new unbranded technical trail running shoe, advanced but wearable and anatomically plausible. Silver-gray ripstop mesh upper with thin brushed-metallic structural overlays, charcoal outsole with distinct rugged tread, pale chartreuse laces and tiny chartreuse lace loops, one sculpted translucent smoke-gray heel stabilizer. No marks resembling existing sports brand logos. Photorealistic high-end contemporary sports-product photography, visible textile grain, stitching and believable material transitions. Single left shoe in full three-quarter side profile, toe pointing slightly right, complete shoe centered on light-gray seamless background with restrained soft shadow. Commercially accurate proportions, comfortable enough to run in, no mechanical sci-fi armor. Square 1024x1024, no cropping. No text, logos, people, extra shoes, frames or watermark. Newly designed subject, no existing project assets as references."
+                },
+                "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after image-editing example. Design one new unbranded technical trail running shoe, advanced but wearable and anatomically plausible. Silver-gray ripstop mesh upper with thin brushed-metallic structural overlays, charcoal outsole with distinct rugged tread, pale chartreuse laces and tiny chartreuse lace loops, one sculpted translucent smoke-gray heel stabilizer. No marks resembling existing sports brand logos. Photorealistic high-end contemporary sports-product photography, visible textile grain, stitching and believable material transitions. Single left shoe in full three-quarter side profile, toe pointing slightly right, complete shoe centered on light-gray seamless background with restrained soft shadow. Commercially accurate proportions, comfortable enough to run in, no mechanical sci-fi armor. Square 1024x1024, no cropping. No text, logos, people, extra shoes, frames or watermark. Newly designed subject, no existing project assets as references.",
+                "model": "gpt-image-2.5-flare",
+                "size": "1024x1024",
+                "n": 1,
+                "quality": "high",
+                "style": "natural",
+                "background": "auto",
+                "outputFormat": "png"
+              },
+              "referenceImagePaths": [],
+              "outputImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a3b9037d-a9c7-4d07-ad05-15977ad66a83-1.png"
+              ],
+              "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+              "completedAt": "2026-10-16T16:19:11.734Z"
+            },
+            "images": [
+              {
+                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a3b9037d-a9c7-4d07-ad05-15977ad66a83-1.png",
+                "dataUrl": ""
+              }
+            ],
+            "exportedPaths": [
+              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/runner-source.png"
+            ]
+          }
+        },
+        "rawOutput": "output/imagegen/iterlay-website-v2/runner-source.png",
+        "webOutput": "website/public/gallery/v2/runner-source.webp",
+        "rawSize": [
+          1254,
+          1254
+        ],
+        "webSize": [
+          1024,
+          1024
+        ]
+      },
+      "result": {
+        "requestId": "ba0fd57d-6553-428e-a3d9-865bf3114a28",
+        "output": "website/public/gallery/v2/runner-campaign.png",
+        "response": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "078d39356c7cfac366703a22d08246bd03cd98d3ae41913206e732131853e33b",
+            "generationId": "ba0fd57d-6553-428e-a3d9-865bf3114a28",
+            "status": "running",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: compositing. Input image: edit target and exact product identity reference, the newly designed silver technical trail shoe. Preserve THIS EXACT shoe: shape, mesh, metallic overlays, pale chartreuse laces, eyelets, heel stabilizer and dark tread. Create a modern outdoor performance campaign photographed low to the ground: the shoe planted on a sharply ridged ochre-red sandstone surface, one clean diagonal line of wind-shaped sand crossing the foreground, expansive restrained rust-orange dunes and pale desaturated sky behind. Hard late-morning sunlight brings out silver technical textures; an extremely subtle trace of moving sand near the sole implies motion, but the product remains razor sharp and the terrain plausible. Graphic composition with substantial quiet space, editorial sports campaign, realistic rather than 3D render. No decorative orbs, no neon gradients, no explosions, no text or slogans. Single complete shoe, matching input angle, square 1024x1024, no cropping, logos or watermark.",
+            "createdAt": "2026-10-16T16:21:58.495Z"
+          }
+        },
+        "completion": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "078d39356c7cfac366703a22d08246bd03cd98d3ae41913206e732131853e33b",
+            "generationId": "ba0fd57d-6553-428e-a3d9-865bf3114a28",
+            "status": "succeeded",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: compositing. Input image: edit target and exact product identity reference, the newly designed silver technical trail shoe. Preserve THIS EXACT shoe: shape, mesh, metallic overlays, pale chartreuse laces, eyelets, heel stabilizer and dark tread. Create a modern outdoor performance campaign photographed low to the ground: the shoe planted on a sharply ridged ochre-red sandstone surface, one clean diagonal line of wind-shaped sand crossing the foreground, expansive restrained rust-orange dunes and pale desaturated sky behind. Hard late-morning sunlight brings out silver technical textures; an extremely subtle trace of moving sand near the sole implies motion, but the product remains razor sharp and the terrain plausible. Graphic composition with substantial quiet space, editorial sports campaign, realistic rather than 3D render. No decorative orbs, no neon gradients, no explosions, no text or slogans. Single complete shoe, matching input angle, square 1024x1024, no cropping, logos or watermark.",
+            "createdAt": "2026-10-16T16:21:58.495Z",
+            "completedAt": "2026-10-16T16:22:32.677Z",
+            "job": {
+              "id": "a070a917-71d9-4009-9c54-4c354e4f746c",
+              "status": "succeeded",
+              "createdAt": "2026-10-16T16:21:58.509Z",
+              "prompt": "Use case: compositing. Input image: edit target and exact product identity reference, the newly designed silver technical trail shoe. Preserve THIS EXACT shoe: shape, mesh, metallic overlays, pale chartreuse laces, eyelets, heel stabilizer and dark tread. Create a modern outdoor performance campaign photographed low to the ground: the shoe planted on a sharply ridged ochre-red sandstone surface, one clean diagonal line of wind-shaped sand crossing the foreground, expansive restrained rust-orange dunes and pale desaturated sky behind. Hard late-morning sunlight brings out silver technical textures; an extremely subtle trace of moving sand near the sole implies motion, but the product remains razor sharp and the terrain plausible. Graphic composition with substantial quiet space, editorial sports campaign, realistic rather than 3D render. No decorative orbs, no neon gradients, no explosions, no text or slogans. Single complete shoe, matching input angle, square 1024x1024, no cropping, logos or watermark.",
+              "providerId": "openai-compatible",
+              "providerName": "GPT Relay",
+              "model": "gpt-image-2.5-flare",
+              "input": {
+                "workflowMode": "edit",
+                "promptSpec": {
+                  "primaryRequest": "Use case: compositing. Input image: edit target and exact product identity reference, the newly designed silver technical trail shoe. Preserve THIS EXACT shoe: shape, mesh, metallic overlays, pale chartreuse laces, eyelets, heel stabilizer and dark tread. Create a modern outdoor performance campaign photographed low to the ground: the shoe planted on a sharply ridged ochre-red sandstone surface, one clean diagonal line of wind-shaped sand crossing the foreground, expansive restrained rust-orange dunes and pale desaturated sky behind. Hard late-morning sunlight brings out silver technical textures; an extremely subtle trace of moving sand near the sole implies motion, but the product remains razor sharp and the terrain plausible. Graphic composition with substantial quiet space, editorial sports campaign, realistic rather than 3D render. No decorative orbs, no neon gradients, no explosions, no text or slogans. Single complete shoe, matching input angle, square 1024x1024, no cropping, logos or watermark."
+                },
+                "prompt": "Use case: compositing. Input image: edit target and exact product identity reference, the newly designed silver technical trail shoe. Preserve THIS EXACT shoe: shape, mesh, metallic overlays, pale chartreuse laces, eyelets, heel stabilizer and dark tread. Create a modern outdoor performance campaign photographed low to the ground: the shoe planted on a sharply ridged ochre-red sandstone surface, one clean diagonal line of wind-shaped sand crossing the foreground, expansive restrained rust-orange dunes and pale desaturated sky behind. Hard late-morning sunlight brings out silver technical textures; an extremely subtle trace of moving sand near the sole implies motion, but the product remains razor sharp and the terrain plausible. Graphic composition with substantial quiet space, editorial sports campaign, realistic rather than 3D render. No decorative orbs, no neon gradients, no explosions, no text or slogans. Single complete shoe, matching input angle, square 1024x1024, no cropping, logos or watermark.",
+                "model": "gpt-image-2.5-flare",
+                "size": "1024x1024",
+                "n": 1,
+                "quality": "high",
+                "style": "natural",
+                "background": "auto",
+                "outputFormat": "png"
+              },
+              "referenceImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/references/1792167718523-cd6fb237-a4c3-4e63-b523-21d1f1947413.png"
+              ],
+              "outputImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a070a917-71d9-4009-9c54-4c354e4f746c-1.png"
+              ],
+              "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+              "completedAt": "2026-10-16T16:22:32.639Z"
+            },
+            "images": [
+              {
+                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a070a917-71d9-4009-9c54-4c354e4f746c-1.png",
+                "dataUrl": ""
+              }
+            ],
+            "exportedPaths": [
+              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/runner-campaign.png"
+            ]
+          }
+        },
+        "rawOutput": "output/imagegen/iterlay-website-v2/runner-campaign.png",
+        "webOutput": "website/public/gallery/v2/runner-campaign.webp",
+        "rawSize": [
+          1254,
+          1254
+        ],
+        "webSize": [
+          1024,
+          1024
+        ]
+      }
+    },
+    {
+      "caseId": "yuzu-poster",
+      "source": {
+        "requestId": "71b463f5-410b-4dbf-9ad6-0c8551f51d3e",
+        "output": "website/public/gallery/v2/yuzu-source.png",
+        "response": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "50854b657690d49c128160181d52624d2be683b30aebf97709d607c1d6db2859",
+            "generationId": "71b463f5-410b-4dbf-9ad6-0c8551f51d3e",
+            "status": "running",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired beverage-launch-poster example. Design one slim 330 ml aluminum can for a new fictional yuzu sparkling drink. Contemporary independent beverage packaging: satin pale citron-yellow body, one oversized bold vermilion-red word YUZU in clean playful condensed sans serif, small dark-green secondary text SPARKLING and 330 ml only. Silver pull-tab top. Precise professional print alignment, minimal memorable packaging, subtle condensation droplets, no familiar beverage brand marks. Entire upright can in near-front three-quarter view, on neutral pale cool-gray seamless studio background, soft diffuse daylight and natural soft shadow. Photorealistic, tactile aluminum, no fake CGI gloss. Square 1024x1024, generous quiet space, no cropped edges, no fruit or props, no border, no watermark. Create a new can design; do not reference existing project images.",
+            "createdAt": "2026-10-16T16:18:45.438Z"
+          }
+        },
+        "completion": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "50854b657690d49c128160181d52624d2be683b30aebf97709d607c1d6db2859",
+            "generationId": "71b463f5-410b-4dbf-9ad6-0c8551f51d3e",
+            "status": "succeeded",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired beverage-launch-poster example. Design one slim 330 ml aluminum can for a new fictional yuzu sparkling drink. Contemporary independent beverage packaging: satin pale citron-yellow body, one oversized bold vermilion-red word YUZU in clean playful condensed sans serif, small dark-green secondary text SPARKLING and 330 ml only. Silver pull-tab top. Precise professional print alignment, minimal memorable packaging, subtle condensation droplets, no familiar beverage brand marks. Entire upright can in near-front three-quarter view, on neutral pale cool-gray seamless studio background, soft diffuse daylight and natural soft shadow. Photorealistic, tactile aluminum, no fake CGI gloss. Square 1024x1024, generous quiet space, no cropped edges, no fruit or props, no border, no watermark. Create a new can design; do not reference existing project images.",
+            "createdAt": "2026-10-16T16:18:45.438Z",
+            "completedAt": "2026-10-16T16:19:12.609Z",
+            "job": {
+              "id": "a14bc53c-747f-4e4d-a928-ef1517959490",
+              "status": "succeeded",
+              "createdAt": "2026-10-16T16:18:45.444Z",
+              "prompt": "Use case: product-mockup. Asset: original product photograph for a paired beverage-launch-poster example. Design one slim 330 ml aluminum can for a new fictional yuzu sparkling drink. Contemporary independent beverage packaging: satin pale citron-yellow body, one oversized bold vermilion-red word YUZU in clean playful condensed sans serif, small dark-green secondary text SPARKLING and 330 ml only. Silver pull-tab top. Precise professional print alignment, minimal memorable packaging, subtle condensation droplets, no familiar beverage brand marks. Entire upright can in near-front three-quarter view, on neutral pale cool-gray seamless studio background, soft diffuse daylight and natural soft shadow. Photorealistic, tactile aluminum, no fake CGI gloss. Square 1024x1024, generous quiet space, no cropped edges, no fruit or props, no border, no watermark. Create a new can design; do not reference existing project images.",
+              "providerId": "openai-compatible",
+              "providerName": "GPT Relay",
+              "model": "gpt-image-2.5-flare",
+              "input": {
+                "workflowMode": "generate",
+                "promptSpec": {
+                  "primaryRequest": "Use case: product-mockup. Asset: original product photograph for a paired beverage-launch-poster example. Design one slim 330 ml aluminum can for a new fictional yuzu sparkling drink. Contemporary independent beverage packaging: satin pale citron-yellow body, one oversized bold vermilion-red word YUZU in clean playful condensed sans serif, small dark-green secondary text SPARKLING and 330 ml only. Silver pull-tab top. Precise professional print alignment, minimal memorable packaging, subtle condensation droplets, no familiar beverage brand marks. Entire upright can in near-front three-quarter view, on neutral pale cool-gray seamless studio background, soft diffuse daylight and natural soft shadow. Photorealistic, tactile aluminum, no fake CGI gloss. Square 1024x1024, generous quiet space, no cropped edges, no fruit or props, no border, no watermark. Create a new can design; do not reference existing project images."
+                },
+                "prompt": "Use case: product-mockup. Asset: original product photograph for a paired beverage-launch-poster example. Design one slim 330 ml aluminum can for a new fictional yuzu sparkling drink. Contemporary independent beverage packaging: satin pale citron-yellow body, one oversized bold vermilion-red word YUZU in clean playful condensed sans serif, small dark-green secondary text SPARKLING and 330 ml only. Silver pull-tab top. Precise professional print alignment, minimal memorable packaging, subtle condensation droplets, no familiar beverage brand marks. Entire upright can in near-front three-quarter view, on neutral pale cool-gray seamless studio background, soft diffuse daylight and natural soft shadow. Photorealistic, tactile aluminum, no fake CGI gloss. Square 1024x1024, generous quiet space, no cropped edges, no fruit or props, no border, no watermark. Create a new can design; do not reference existing project images.",
+                "model": "gpt-image-2.5-flare",
+                "size": "1024x1024",
+                "n": 1,
+                "quality": "high",
+                "style": "natural",
+                "background": "auto",
+                "outputFormat": "png"
+              },
+              "referenceImagePaths": [],
+              "outputImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a14bc53c-747f-4e4d-a928-ef1517959490-1.png"
+              ],
+              "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+              "completedAt": "2026-10-16T16:19:12.543Z"
+            },
+            "images": [
+              {
+                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a14bc53c-747f-4e4d-a928-ef1517959490-1.png",
+                "dataUrl": ""
+              }
+            ],
+            "exportedPaths": [
+              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/yuzu-source.png"
+            ]
+          }
+        },
+        "rawOutput": "output/imagegen/iterlay-website-v2/yuzu-source.png",
+        "webOutput": "website/public/gallery/v2/yuzu-source.webp",
+        "rawSize": [
+          1254,
+          1254
+        ],
+        "webSize": [
+          1024,
+          1024
+        ]
+      },
+      "result": {
+        "requestId": "a4d5f405-0f51-446a-849b-d01e49722ffc",
+        "output": "website/public/gallery/v2/yuzu-poster.png",
+        "response": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "f755ce3a1fdab91557689752551341fcc88d05b1897391d9c74fc4d204b70967",
+            "generationId": "a4d5f405-0f51-446a-849b-d01e49722ffc",
+            "status": "running",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: ads-marketing. Input image: edit target and strict product identity reference, the newly generated YUZU can. Make a refined contemporary launch poster using THIS EXACT CAN, preserving its yellow packaging, vermilion YUZU lettering, green small print, silver top and realistic dimensions. The upright can occupies the lower-middle of the square composition, gently offset, on a flat cool pistachio-green field with crisp directional sunlight and a real grounding shadow. One cut yuzu fruit and a single small peel curl sit naturally near the base, sparse and carefully composed. Large editorial condensed vermilion typography across the upper portion reads exactly YUZU; small dark-green line reads exactly A LITTLE CITRUS. A LOT OF SPARKLE. One tiny bottom line reads exactly NEW FLAVOUR. Intentionally asymmetric graphic hierarchy, clean printed-poster aesthetic, tactile believable product photography, ample negative space, high legibility. No wavy liquid splashes, neon, floating fruit, excessive bubbles, gradients, extra copy, logos, watermark, mockup frame or collage. Square 1024x1024, all text and can fully in frame.",
+            "createdAt": "2026-10-16T16:21:58.634Z"
+          }
+        },
+        "completion": {
+          "schemaVersion": 1,
+          "ok": true,
+          "data": {
+            "requestHash": "f755ce3a1fdab91557689752551341fcc88d05b1897391d9c74fc4d204b70967",
+            "generationId": "a4d5f405-0f51-446a-849b-d01e49722ffc",
+            "status": "succeeded",
+            "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+            "prompt": "Use case: ads-marketing. Input image: edit target and strict product identity reference, the newly generated YUZU can. Make a refined contemporary launch poster using THIS EXACT CAN, preserving its yellow packaging, vermilion YUZU lettering, green small print, silver top and realistic dimensions. The upright can occupies the lower-middle of the square composition, gently offset, on a flat cool pistachio-green field with crisp directional sunlight and a real grounding shadow. One cut yuzu fruit and a single small peel curl sit naturally near the base, sparse and carefully composed. Large editorial condensed vermilion typography across the upper portion reads exactly YUZU; small dark-green line reads exactly A LITTLE CITRUS. A LOT OF SPARKLE. One tiny bottom line reads exactly NEW FLAVOUR. Intentionally asymmetric graphic hierarchy, clean printed-poster aesthetic, tactile believable product photography, ample negative space, high legibility. No wavy liquid splashes, neon, floating fruit, excessive bubbles, gradients, extra copy, logos, watermark, mockup frame or collage. Square 1024x1024, all text and can fully in frame.",
+            "createdAt": "2026-10-16T16:21:58.634Z",
+            "completedAt": "2026-10-16T16:22:29.681Z",
+            "job": {
+              "id": "3038ab7a-52b1-454b-b452-ef606a524768",
+              "status": "succeeded",
+              "createdAt": "2026-10-16T16:21:58.652Z",
+              "prompt": "Use case: ads-marketing. Input image: edit target and strict product identity reference, the newly generated YUZU can. Make a refined contemporary launch poster using THIS EXACT CAN, preserving its yellow packaging, vermilion YUZU lettering, green small print, silver top and realistic dimensions. The upright can occupies the lower-middle of the square composition, gently offset, on a flat cool pistachio-green field with crisp directional sunlight and a real grounding shadow. One cut yuzu fruit and a single small peel curl sit naturally near the base, sparse and carefully composed. Large editorial condensed vermilion typography across the upper portion reads exactly YUZU; small dark-green line reads exactly A LITTLE CITRUS. A LOT OF SPARKLE. One tiny bottom line reads exactly NEW FLAVOUR. Intentionally asymmetric graphic hierarchy, clean printed-poster aesthetic, tactile believable product photography, ample negative space, high legibility. No wavy liquid splashes, neon, floating fruit, excessive bubbles, gradients, extra copy, logos, watermark, mockup frame or collage. Square 1024x1024, all text and can fully in frame.",
+              "providerId": "openai-compatible",
+              "providerName": "GPT Relay",
+              "model": "gpt-image-2.5-flare",
+              "input": {
+                "workflowMode": "edit",
+                "promptSpec": {
+                  "primaryRequest": "Use case: ads-marketing. Input image: edit target and strict product identity reference, the newly generated YUZU can. Make a refined contemporary launch poster using THIS EXACT CAN, preserving its yellow packaging, vermilion YUZU lettering, green small print, silver top and realistic dimensions. The upright can occupies the lower-middle of the square composition, gently offset, on a flat cool pistachio-green field with crisp directional sunlight and a real grounding shadow. One cut yuzu fruit and a single small peel curl sit naturally near the base, sparse and carefully composed. Large editorial condensed vermilion typography across the upper portion reads exactly YUZU; small dark-green line reads exactly A LITTLE CITRUS. A LOT OF SPARKLE. One tiny bottom line reads exactly NEW FLAVOUR. Intentionally asymmetric graphic hierarchy, clean printed-poster aesthetic, tactile believable product photography, ample negative space, high legibility. No wavy liquid splashes, neon, floating fruit, excessive bubbles, gradients, extra copy, logos, watermark, mockup frame or collage. Square 1024x1024, all text and can fully in frame."
+                },
+                "prompt": "Use case: ads-marketing. Input image: edit target and strict product identity reference, the newly generated YUZU can. Make a refined contemporary launch poster using THIS EXACT CAN, preserving its yellow packaging, vermilion YUZU lettering, green small print, silver top and realistic dimensions. The upright can occupies the lower-middle of the square composition, gently offset, on a flat cool pistachio-green field with crisp directional sunlight and a real grounding shadow. One cut yuzu fruit and a single small peel curl sit naturally near the base, sparse and carefully composed. Large editorial condensed vermilion typography across the upper portion reads exactly YUZU; small dark-green line reads exactly A LITTLE CITRUS. A LOT OF SPARKLE. One tiny bottom line reads exactly NEW FLAVOUR. Intentionally asymmetric graphic hierarchy, clean printed-poster aesthetic, tactile believable product photography, ample negative space, high legibility. No wavy liquid splashes, neon, floating fruit, excessive bubbles, gradients, extra copy, logos, watermark, mockup frame or collage. Square 1024x1024, all text and can fully in frame.",
+                "model": "gpt-image-2.5-flare",
+                "size": "1024x1024",
+                "n": 1,
+                "quality": "high",
+                "style": "natural",
+                "background": "auto",
+                "outputFormat": "png"
+              },
+              "referenceImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/references/1792167718660-99db07f1-cced-4827-aefd-ac0252c99bae.png"
+              ],
+              "outputImagePaths": [
+                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/3038ab7a-52b1-454b-b452-ef606a524768-1.png"
+              ],
+              "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
+              "completedAt": "2026-10-16T16:22:29.642Z"
+            },
+            "images": [
+              {
+                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/3038ab7a-52b1-454b-b452-ef606a524768-1.png",
+                "dataUrl": ""
+              }
+            ],
+            "exportedPaths": [
+              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/yuzu-poster.png"
+            ]
+          }
+        },
+        "rawOutput": "output/imagegen/iterlay-website-v2/yuzu-poster.png",
+        "webOutput": "website/public/gallery/v2/yuzu-poster.webp",
+        "rawSize": [
+          1254,
+          1254
+        ],
+        "webSize": [
+          1024,
+          1024
+        ]
+      }
+    }
+  ],
+  "validation": {
+    "sourceInspection": "All three source products inspected at original resolution.",
+    "acceptedResults": [
+      "silver-trail",
+      "yuzu-poster"
+    ],
+    "rejectedResult": {
+      "caseId": "clear-console",
+      "reason": "RGBA alpha ranges from 0 to 253; large missing/transparent background, cannot be delivered as a complete campaign photo.",
+      "taskId": "6eef64cc-859d-4417-acaa-ec616fe69cf1"
+    },
+    "rawPixelSize": [
+      1254,
+      1254
+    ],
+    "webPixelSize": [
+      1024,
+      1024
+    ],
+    "webProcessing": "Full-frame Lanczos resize and WebP quality 89; no crop."
+  }
+}

@@ -26,3 +26,5 @@ For JSON with shell-sensitive text, construct arguments with your shell's proper
 Task states `succeeded` (images) and `completed` (video) indicate a generated result; `failed`, `interrupted` and `cancelled` are unsuccessful terminal states. Poll uncertain tasks rather than resubmitting them. `stop_video_polling` stops this App session's polling only.
 
 `iterlay call` exposes the entire native workspace operation catalogue, including board CRUD and layout, image/video generation, references, media import, exports and recoverable image trash. Import image/video operations accept explicit data URLs; they are intended for programmatic callers. Prefer file-based CLI imports in an agent workflow so base64 does not enter the conversation.
+
+Without `--board`, generation uses the default board in Settings → Coding Agent; when unset it reuses or creates `CLI 创作`. An explicit `--board` overrides this preference. A deleted default board causes an error before submission; choose a new default or provide `--board`.

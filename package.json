@@ -9,7 +9,7 @@
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "native:build": "bash scripts/build-photo-layer-segmenter.sh",
-    "preelectron:dev": "pnpm native:build",
+    "preelectron:dev": "pnpm plugins:build && pnpm native:build",
     "dev": "node scripts/dev-browser.mjs",
     "dev:web": "node scripts/dev-browser.mjs",
     "dev:ui": "vite --host 127.0.0.1 --port 5180 --strictPort",
@@ -30,7 +30,7 @@
     "media-tools:build": "node scripts/prepare-ffmpeg.mjs",
     "media-tools:verify": "node scripts/verify-packaged-ffmpeg.mjs",
     "package:verify": "node scripts/verify-package-size.mjs",
-    "build:renderer": "tsc -p tsconfig.json && vite build",
+    "build:renderer": "pnpm plugins:build && tsc -p tsconfig.json && vite build",
     "build:electron": "pnpm clean:electron && tsc -p electron/tsconfig.json && pnpm preload:build",
     "preload:build": "node scripts/build-preload.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p electron/tsconfig.json --noEmit && tsc -p cli/tsconfig.json --noEmit && tsc -p website/tsconfig.json --noEmit",
@@ -38,7 +38,11 @@
     "build:cli": "npm run build --prefix cli",
     "build:website": "npm run build --prefix website",
     "bench:storage": "node --expose-gc scripts/benchmark-storage.mjs",
-    "setup:subprojects": "npm ci --prefix cli && npm ci --prefix website"
+    "setup:subprojects": "npm ci --prefix cli && npm ci --prefix website",
+    "plugins:build": "pnpm exec tsc -p packages/plugin-sdk/tsconfig.json && node scripts/build-plugins.mjs",
+    "predev": "pnpm plugins:build",
+    "predev:web": "pnpm plugins:build",
+    "test:browser:plugins": "node scripts/playwright-browser-plugins.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -171,6 +175,10 @@
           "package.json",
           "skills/**"
         ]
+      },
+      {
+        "from": "resources/plugins",
+        "to": "plugins"
       }
     ],
     "mac": {

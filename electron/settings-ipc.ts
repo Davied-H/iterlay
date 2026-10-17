@@ -98,6 +98,7 @@ export function registerSettingsIpc({
       editInfoMode: payload.editInfoMode,
       imageDoubleClickAction: payload.imageDoubleClickAction,
       downloadDirectory: payload.downloadDirectory,
+      cliDefaultBoardId: payload.cliDefaultBoardId,
       versionSeparationMode: payload.versionSeparationMode,
       generateButtonStyle: payload.generateButtonStyle,
       appIcon: payload.appIcon,

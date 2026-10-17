@@ -111,6 +111,7 @@ import {
   type ComicMediaQuote
 } from "./comic-drama-agent-tools.js";
 import { registerComicDramaIpc } from "./comic-drama-ipc.js";
+import { registerPluginIpc } from "./plugins/plugin-ipc.js";
 import { ManagerFeedbackClient } from "./feedback-client.js";
 import { ImageTaskQueue, ImageWorkerClient } from "./image-worker-client.js";
 import { ManagerInspirationClient } from "./inspiration-client.js";
@@ -401,6 +402,7 @@ export function registerIpc({
     paidMediaQuotes
   });
   const disposeComicDramaIpc = registerComicDramaIpc(boards);
+  const disposePluginIpc = registerPluginIpc();
   const publicShareClient = new ManagerPublicShareClient(
     license,
     managerApiBaseUrl,
@@ -2914,6 +2916,7 @@ export function registerIpc({
     videoIpc.dispose();
     videoSequenceIpc.dispose();
     disposeComicDramaIpc();
+    disposePluginIpc();
     unsubscribePiAgentLogs();
     sharingIpc.dispose();
   };

@@ -7,6 +7,7 @@ import {
   type VideoGenerationJob
 } from "@shared/types";
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
+import { reconcileVideoGenerationPlaceholder } from "@shared/video-generation-placeholder";
 
 const ACTIVE_VIDEO_JOB_STATUSES = new Set<VideoGenerationJob["status"]>([
   "submitting",
@@ -45,6 +46,11 @@ export function reconcileRecoveredVideoCanvas(
     ));
     if (!generation || !isBoardVideoGenerationNode(generation)) continue;
     if (generation.lastGenerationId && generation.lastGenerationId !== job.id) continue;
+
+    const reconciled = reconcileVideoGenerationPlaceholder(nextNodes, nextConnections, generationNodeId, job.id);
+    nextNodes = reconciled.nodes;
+    nextConnections = reconciled.connections;
+    changed ||= reconciled.changed;
 
     const generationStatus = job.status;
     if (

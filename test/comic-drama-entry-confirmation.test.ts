@@ -27,10 +27,8 @@ describe("comic drama board entry and paid confirmation", () => {
     expect(app).toContain('<ComicDramaWorkspace');
     expect(workspace).not.toContain("PromptDock");
     expect(workspace).not.toContain("TopBar");
-    expect(workspace).toContain("<AiAssistant");
-    expect(workspace).toContain("snapshotRef.current");
-    expect(workspace).toContain("startSceneCollaborationStream");
-    expect(workspace).toContain("onComicMutation");
+    expect(workspace).toContain("<PluginTools workspace");
+    expect(workspace).toContain("onMutation={onAgentMutation}");
     expect(workspace).not.toContain("createComicDramaMutationPlan");
     expect(app).toContain("进入独立漫剧制作画板");
     expect(app).toContain("新建漫剧项目");

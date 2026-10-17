@@ -1,0 +1,13 @@
+{
+  "id": "dev.iterlay.short-drama",
+  "name": "短剧助手",
+  "version": "1.3.0",
+  "apiVersion": 1,
+  "type": "tool",
+  "description": "从故事设定、角色到分镜与视频。可编辑的制作面板，配合了解当前画板的 AI 导演。",
+  "author": "Iterlay",
+  "entry": "index.html",
+  "permissions": ["board:read", "board:write", "storage", "assistant:comic-drama"],
+  "surface": "workspace",
+  "settings": true
+}

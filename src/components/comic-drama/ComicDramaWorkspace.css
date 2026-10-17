@@ -1,54 +1,16 @@
 .comic-drama-workspace {
-  --comic-drama-assistant-width: clamp(336px, 31vw, 400px);
   position: fixed;
   inset: 0;
   overflow: hidden;
   color: hsl(var(--foreground));
   background: hsl(var(--background));
 }
-
-.comic-drama-workspace__back {
-  position: fixed;
-  top: 8px;
-  left: 12px;
-  z-index: 40;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
-  color: hsl(var(--foreground));
-  background: hsl(var(--background) / 0.95);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-  font-size: 12px;
-  font-weight: 500;
-  -webkit-app-region: no-drag;
-}
-
-.comic-drama-workspace__back:hover { background: hsl(var(--accent)); }
-.comic-drama-workspace__back:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
-
-.comic-drama-workspace__canvas {
+.comic-drama-workspace .plugin-panel--workspace {
   position: absolute;
-  inset: 0 var(--comic-drama-assistant-width) 0 0;
-  min-width: 0;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
 }
-
-.comic-drama-workspace__assistant {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: var(--comic-drama-assistant-width);
-  padding-block: 12px;
-  background: hsl(var(--background));
-}
-
-@media (min-width: 701px) {
-  .comic-drama-workspace__back { left: 84px; }
-}
-
-@media (max-width: 700px) {
-  .comic-drama-workspace__canvas { right: 0; }
-  .comic-drama-workspace__assistant { display: none; }
-}
+.comic-drama-workspace .plugin-panel--workspace > header { display: none; }
+.comic-drama-workspace .plugin-launcher--workspace { display: none; }

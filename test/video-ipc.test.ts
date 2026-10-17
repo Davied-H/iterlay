@@ -506,6 +506,121 @@ describe("video IPC", () => {
     registration.dispose();
   });
 
+  it("ends an interrupted submission without resubmitting an unknown remote task", async () => {
+    const harness = makeHarness();
+    const stored: VideoGenerationJob = {
+      id: "video-job-interrupted-submit",
+      status: "submitting",
+      createdAt: "2026-08-11T00:00:00.000Z",
+      input,
+      providerId: "ark-provider",
+      model: input.model
+    };
+    harness.jobs.set(stored.id, stored);
+    const registration = registerVideoIpc(harness as never);
+    const recover = electronMocks.handlers.get("video:recover")!;
+
+    await expect(recover({})).resolves.toMatchObject([{
+      id: stored.id,
+      status: "failed",
+      error: expect.stringContaining("无法确认服务商是否已接收")
+    }]);
+
+    expect(harness.jobs.get(stored.id)).toMatchObject({
+      status: "failed",
+      completedAt: expect.any(String),
+      error: expect.stringContaining("请先核对服务商任务记录和费用")
+    });
+    expect(harness.boards.finishVideoGenerationNode).toHaveBeenCalledWith(
+      input.boardId,
+      input.generationNodeId,
+      { jobId: stored.id, error: expect.stringContaining("未获取远端任务 ID") }
+    );
+    expect(harness.service.submit).not.toHaveBeenCalled();
+    expect(harness.service.waitForCompletion).not.toHaveBeenCalled();
+    registration.dispose();
+  });
+
+  it("keeps a live submission in progress when recovery runs before it receives a remote id", async () => {
+    const harness = makeHarness();
+    let release: ((task: VideoRemoteTask) => void) | undefined;
+    harness.service.submit.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const registration = registerVideoIpc(harness as never);
+    const start = electronMocks.handlers.get("video:start")!;
+    const recover = electronMocks.handlers.get("video:recover")!;
+    const pending = start({}, input) as Promise<VideoGenerationJob>;
+    await vi.waitFor(() => expect(harness.service.submit).toHaveBeenCalledOnce());
+    const stored = [...harness.jobs.values()][0];
+
+    await expect(recover({})).resolves.toEqual([]);
+    expect(harness.jobs.get(stored.id)?.status).toBe("submitting");
+    expect(harness.boards.finishVideoGenerationNode).not.toHaveBeenCalled();
+
+    release?.({
+      provider: "ark",
+      id: "remote-live-submission",
+      model: input.model,
+      status: "queued",
+      submittedAt: stored.createdAt,
+      updatedAt: stored.createdAt
+    });
+    await expect(pending).resolves.toMatchObject({ id: stored.id, status: "queued" });
+    await vi.waitFor(() => expect(harness.jobs.get(stored.id)?.status).toBe("completed"));
+    expect(harness.service.submit).toHaveBeenCalledOnce();
+    registration.dispose();
+  });
+
+  it("resumes a submitting snapshot that already has a remote task id without resubmitting", async () => {
+    const harness = makeHarness();
+    const stored: VideoGenerationJob = {
+      id: "video-job-accepted-before-exit",
+      status: "submitting",
+      createdAt: "2026-08-11T00:00:00.000Z",
+      input,
+      providerId: "ark-provider",
+      model: input.model,
+      remoteTaskId: "remote-already-accepted"
+    };
+    harness.jobs.set(stored.id, stored);
+    const registration = registerVideoIpc(harness as never);
+    const recover = electronMocks.handlers.get("video:recover")!;
+
+    await expect(recover({})).resolves.toMatchObject([{ id: stored.id, status: "recovering" }]);
+    await vi.waitFor(() => expect(harness.jobs.get(stored.id)?.status).toBe("completed"));
+
+    expect(harness.service.submit).not.toHaveBeenCalled();
+    expect(harness.service.waitForCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({ id: stored.remoteTaskId }),
+      expect.anything(),
+      expect.anything()
+    );
+    registration.dispose();
+  });
+
+  it("rechecks a submitting snapshot before treating it as interrupted", async () => {
+    const harness = makeHarness();
+    const stored: VideoGenerationJob = {
+      id: "video-job-finished-submission",
+      status: "queued",
+      createdAt: "2026-08-11T00:00:00.000Z",
+      input,
+      providerId: "ark-provider",
+      model: input.model,
+      remoteTaskId: "remote-finished-submission"
+    };
+    harness.jobs.set(stored.id, stored);
+    harness.videoTasks.listJobs.mockResolvedValueOnce([{ ...stored, status: "submitting", remoteTaskId: undefined }]);
+    const registration = registerVideoIpc(harness as never);
+    const recover = electronMocks.handlers.get("video:recover")!;
+
+    await expect(recover({})).resolves.toMatchObject([{ id: stored.id, status: "recovering" }]);
+    await vi.waitFor(() => expect(harness.jobs.get(stored.id)?.status).toBe("completed"));
+
+    expect(harness.videoTasks.updateJob.mock.calls.every(([job]) => job.status !== "failed")).toBe(true);
+    expect(harness.service.submit).not.toHaveBeenCalled();
+    registration.dispose();
+  });
+
   it("recovers persisted remote jobs without submitting a duplicate task", async () => {
     const { registerVideoIpc } = await import("../electron/ipc.js");
     const harness = makeHarness();

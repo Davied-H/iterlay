@@ -57,6 +57,7 @@ export function registerVideoIpc({
   onAssetsChanged
 }: VideoIpcDependencies): VideoIpcRegistration {
   const activeRuns = new Map<string, { controller: AbortController; promise: Promise<void> }>();
+  const activeSubmissions = new Set<string>();
 
   function providerConfig(input: VideoGenerationInput): { config: RuntimeVideoProviderConfig; providerId: string; providerName: string } {
     const current = settings.getSettings();
@@ -360,7 +361,8 @@ export function registerVideoIpc({
       providerName: resolved.providerName,
       model: resolved.config.model
     };
-    const persistCreated = async (): Promise<VideoGenerationJob> => {
+    activeSubmissions.add(created.id);
+    try {
       await videoTasks.addJob(created);
       if (input.boardId && input.generationNodeId && !targetsVideoVersion(input)) {
         await boards.startVideoGenerationNode(input.boardId, input.generationNodeId, {
@@ -368,14 +370,6 @@ export function registerVideoIpc({
           status: "submitting"
         });
       }
-      return created;
-    };
-    let persistedCreated: VideoGenerationJob;
-    {
-      persistedCreated = await persistCreated();
-    }
-    if (persistedCreated.id !== created.id) return persistedCreated;
-    try {
       const frameInputs = await Promise.all([
         ...(input.firstFramePath ? [{ imagePath: input.firstFramePath, role: "first-frame" as const }] : []),
         ...(input.lastFramePath ? [{ imagePath: input.lastFramePath, role: "last-frame" as const }] : [])
@@ -440,7 +434,9 @@ export function registerVideoIpc({
       return queued;
     } catch (error) {
       const normalized = normalizeProviderError(error);
-      return finishFailedJob(created, normalized.message);
+      return await finishFailedJob(created, normalized.message);
+    } finally {
+      activeSubmissions.delete(created.id);
     }
   };
   ipcMain.handle("video:start", (_event, input: VideoGenerationInput) => {
@@ -454,6 +450,17 @@ export function registerVideoIpc({
     const allJobs = await videoTasks.listJobs();
     const reconciled: VideoGenerationJob[] = [];
     for (const job of allJobs) {
+      if (job.status === "submitting" && !job.remoteTaskId && !activeSubmissions.has(job.id)) {
+        // A submission may have finished since the recovery snapshot was read.
+        const latest = await videoTasks.getJob(job.id);
+        if (latest?.status === "submitting" && !latest.remoteTaskId && !activeSubmissions.has(job.id)) {
+          reconciled.push(await finishFailedJob(
+            latest,
+            "视频提交已中断，未获取远端任务 ID，无法确认服务商是否已接收。请先核对服务商任务记录和费用，再决定是否重试。"
+          ));
+        }
+        continue;
+      }
       if (!job.input.boardId || !job.input.generationNodeId || targetsVideoVersion(job.input)) continue;
       if (job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") continue;
       const board = await boards.getBoard(job.input.boardId);
@@ -493,8 +500,10 @@ export function registerVideoIpc({
       }
     }
     const reconciledIds = new Set(reconciled.map((job) => job.id));
-    const candidates = (await videoTasks.listRecoverableJobs()).filter((job) => (
-      !reconciledIds.has(job.id) && !["completed", "failed", "cancelled"].includes(job.status)
+    const candidates = (await videoTasks.listJobs()).filter((job) => (
+      !reconciledIds.has(job.id)
+      && Boolean(job.remoteTaskId)
+      && ["submitting", "queued", "generating", "post_processing", "recovering"].includes(job.status)
     ));
     const resumed: VideoGenerationJob[] = [...reconciled];
     for (const job of candidates) {

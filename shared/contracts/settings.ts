@@ -129,6 +129,8 @@ export interface AppSettings {
   imageDoubleClickAction?: ImageDoubleClickAction;
   /** 图片与批量压缩包的自动下载目录；首次下载时由用户选择。 */
   downloadDirectory?: string;
+  /** CLI 未指定画板时的默认目标；空字符串表示使用「CLI 创作」。 */
+  cliDefaultBoardId?: string;
   /** 版本分离默认保留原版本栈。 */
   versionSeparationMode?: VersionSeparationMode;
   /** 画板底部主生成按钮样式，默认 folded。 */

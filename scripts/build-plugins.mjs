@@ -1,0 +1,17 @@
+import { URL } from "node:url";
+import { build } from "esbuild";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import AdmZip from "adm-zip";
+const root = new URL("../", import.meta.url);
+const manifest = JSON.parse(await readFile(new URL("plugins/short-drama/manifest.json", root), "utf8"));
+const result = await build({ entryPoints: [new URL("plugins/short-drama/src/main.tsx", root).pathname], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", minify: true, jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' } });
+const javascript = result.outputFiles.find(f => f.path.endsWith(".js"))?.text ?? result.outputFiles[0].text;
+const css = await readFile(new URL("plugins/short-drama/src/style.css", root), "utf8");
+const html = `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><div id="root"></div><script>${javascript.replaceAll("</script", "<\\/script")}</script></body></html>`;
+const zip = new AdmZip();
+zip.addFile("manifest.json", Buffer.from(JSON.stringify(manifest, null, 2)));
+zip.addFile("index.html", Buffer.from(html));
+for (const entry of zip.getEntries()) entry.header.time = new Date("2026-01-01T00:00:00Z");
+await mkdir(new URL("resources/plugins/", root), { recursive: true });
+await writeFile(new URL(`resources/plugins/${manifest.id}.iterlay-plugin`, root), zip.toBuffer());
+console.log(`Built ${manifest.id}@${manifest.version} (${Math.round(zip.toBuffer().length / 1024)} kB)`);

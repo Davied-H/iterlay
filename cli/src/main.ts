@@ -29,6 +29,7 @@ iterlay remove --agent <id>             移除 Skill
 通用选项：--json --async --provider <id> --model <id> --board <id>
 --user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
 生成：--size auto --n 1 --quality high --background transparent
+未指定 --board 时使用设置中的 CLI 默认画板；未配置时使用「CLI 创作」。
 默认等待任务完成；Ctrl+C 只结束等待。已有输出文件不会覆盖，除非 --overwrite。`;
 
 type Flags = Record<string, string[]>;
@@ -129,9 +130,7 @@ async function main(): Promise<void> {
     if (action === "edit" && !get("input")) throw new Error("缺少 --input。");
     let boardId = get("board");
     if (!boardId) {
-      const boards = await call("list_boards") as Array<{ id: string; name: string }>;
-      const saved = boards.find((b) => b.name === "CLI 创作");
-      boardId = saved?.id ?? String(record(await call("create_board", { name: "CLI 创作" })).id);
+      boardId = String(record(await call("resolve_generation_board")).boardId);
     }
     const args: Record<string, unknown> = { boardId, prompt: get("prompt"), providerId: get("provider"), model: get("model"), size: get("size"), quality: get("quality"), background: get("background"), style: get("style"), n: get("n") ? Number(get("n")) : 1 };
     if (flags.reference) args[video ? "referenceImagePaths" : "referencePaths"] = await Promise.all(flags.reference.map((file) => importFile(call, file, boardId)));

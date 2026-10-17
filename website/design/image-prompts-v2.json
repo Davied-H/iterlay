@@ -1,0 +1,75 @@
+{
+  "status": "generated-five-accepted-one-needs-repair",
+  "assets": 6,
+  "size": "1024x1024",
+  "cases": [
+    {
+      "caseId": "clear-console",
+      "title": "把透明掌机拍成海面广告",
+      "subject": "a new unbranded transparent handheld game console",
+      "demoPrompt": "保留掌机的透明机身和按键，把背景换成清浅海水与湿润礁石。用自然日光和水波反射，拍出清透的产品广告。",
+      "source": {
+        "mode": "generate",
+        "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+        "output": "website/public/gallery/v2/console-source.png",
+        "taskId": "c7e2171e-d648-46de-8a87-454d5fbdebde",
+        "finalOutput": "website/public/gallery/v2/console-source.webp",
+        "status": "accepted"
+      },
+      "result": {
+        "mode": "edit",
+        "reference": "website/public/gallery/v2/console-source.png",
+        "prompt": "Use case: compositing. Input image: edit target and sole product identity reference, the newly generated transparent handheld game console. Create a fresh contemporary campaign photograph of THIS EXACT DEVICE at the same viewing angle. Keep the body geometry, smoky transparent casing, circuit traces, screen, sticks, pale celadon buttons and screws unchanged. Change its scene to a shallow, glass-clear tidal pool over pale mineral sand, with one low sculpted wet stone supporting the device just above the water. Sunlight through gentle ripples makes sharp restrained caustic lines on the stone and transparent edge; calm blue-green horizon reflected in the surface, strong but plausible clean daylight. Tight art-directed composition, product clearly readable and large, no clutter, no sunset, no neon, no glowing tech effects, no floating fantasy product, no tropical props. Square 1024x1024, all device edges inside frame. No text, logos, watermark, interface or image collage.",
+        "output": "website/public/gallery/v2/console-campaign.png",
+        "taskId": "6eef64cc-859d-4417-acaa-ec616fe69cf1",
+        "status": "rejected-transparent-background"
+      }
+    },
+    {
+      "caseId": "silver-trail",
+      "title": "给银色跑鞋拍一张沙丘大片",
+      "subject": "a fictional silver technical trail running shoe",
+      "demoPrompt": "保持银色鞋面、浅黄绿鞋带和鞋底不变，把鞋放到赭红砂岩与风蚀沙丘中。用硬朗日光突出材质，做一张运动品牌感的广告。",
+      "source": {
+        "mode": "generate",
+        "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after image-editing example. Design one new unbranded technical trail running shoe, advanced but wearable and anatomically plausible. Silver-gray ripstop mesh upper with thin brushed-metallic structural overlays, charcoal outsole with distinct rugged tread, pale chartreuse laces and tiny chartreuse lace loops, one sculpted translucent smoke-gray heel stabilizer. No marks resembling existing sports brand logos. Photorealistic high-end contemporary sports-product photography, visible textile grain, stitching and believable material transitions. Single left shoe in full three-quarter side profile, toe pointing slightly right, complete shoe centered on light-gray seamless background with restrained soft shadow. Commercially accurate proportions, comfortable enough to run in, no mechanical sci-fi armor. Square 1024x1024, no cropping. No text, logos, people, extra shoes, frames or watermark. Newly designed subject, no existing project assets as references.",
+        "output": "website/public/gallery/v2/runner-source.png",
+        "taskId": "d71464bc-2541-4cc8-9fe7-7921197ead6f",
+        "finalOutput": "website/public/gallery/v2/runner-source.webp",
+        "status": "accepted"
+      },
+      "result": {
+        "mode": "edit",
+        "reference": "website/public/gallery/v2/runner-source.png",
+        "prompt": "Use case: compositing. Input image: edit target and exact product identity reference, the newly designed silver technical trail shoe. Preserve THIS EXACT shoe: shape, mesh, metallic overlays, pale chartreuse laces, eyelets, heel stabilizer and dark tread. Create a modern outdoor performance campaign photographed low to the ground: the shoe planted on a sharply ridged ochre-red sandstone surface, one clean diagonal line of wind-shaped sand crossing the foreground, expansive restrained rust-orange dunes and pale desaturated sky behind. Hard late-morning sunlight brings out silver technical textures; an extremely subtle trace of moving sand near the sole implies motion, but the product remains razor sharp and the terrain plausible. Graphic composition with substantial quiet space, editorial sports campaign, realistic rather than 3D render. No decorative orbs, no neon gradients, no explosions, no text or slogans. Single complete shoe, matching input angle, square 1024x1024, no cropping, logos or watermark.",
+        "output": "website/public/gallery/v2/runner-campaign.png",
+        "taskId": "ba0fd57d-6553-428e-a3d9-865bf3114a28",
+        "finalOutput": "website/public/gallery/v2/runner-campaign.webp",
+        "status": "accepted"
+      }
+    },
+    {
+      "caseId": "yuzu-poster",
+      "title": "把气泡饮做成新口味海报",
+      "subject": "a fictional yuzu sparkling drink can",
+      "demoPrompt": "保留这罐柚子气泡饮的包装，做一张新口味海报。使用浅开心果绿背景、朱红标题和干净的日光阴影，加入少量柚子元素，排版清晰。",
+      "source": {
+        "mode": "generate",
+        "prompt": "Use case: product-mockup. Asset: original product photograph for a paired beverage-launch-poster example. Design one slim 330 ml aluminum can for a new fictional yuzu sparkling drink. Contemporary independent beverage packaging: satin pale citron-yellow body, one oversized bold vermilion-red word YUZU in clean playful condensed sans serif, small dark-green secondary text SPARKLING and 330 ml only. Silver pull-tab top. Precise professional print alignment, minimal memorable packaging, subtle condensation droplets, no familiar beverage brand marks. Entire upright can in near-front three-quarter view, on neutral pale cool-gray seamless studio background, soft diffuse daylight and natural soft shadow. Photorealistic, tactile aluminum, no fake CGI gloss. Square 1024x1024, generous quiet space, no cropped edges, no fruit or props, no border, no watermark. Create a new can design; do not reference existing project images.",
+        "output": "website/public/gallery/v2/yuzu-source.png",
+        "taskId": "71b463f5-410b-4dbf-9ad6-0c8551f51d3e",
+        "finalOutput": "website/public/gallery/v2/yuzu-source.webp",
+        "status": "accepted"
+      },
+      "result": {
+        "mode": "edit",
+        "reference": "website/public/gallery/v2/yuzu-source.png",
+        "prompt": "Use case: ads-marketing. Input image: edit target and strict product identity reference, the newly generated YUZU can. Make a refined contemporary launch poster using THIS EXACT CAN, preserving its yellow packaging, vermilion YUZU lettering, green small print, silver top and realistic dimensions. The upright can occupies the lower-middle of the square composition, gently offset, on a flat cool pistachio-green field with crisp directional sunlight and a real grounding shadow. One cut yuzu fruit and a single small peel curl sit naturally near the base, sparse and carefully composed. Large editorial condensed vermilion typography across the upper portion reads exactly YUZU; small dark-green line reads exactly A LITTLE CITRUS. A LOT OF SPARKLE. One tiny bottom line reads exactly NEW FLAVOUR. Intentionally asymmetric graphic hierarchy, clean printed-poster aesthetic, tactile believable product photography, ample negative space, high legibility. No wavy liquid splashes, neon, floating fruit, excessive bubbles, gradients, extra copy, logos, watermark, mockup frame or collage. Square 1024x1024, all text and can fully in frame.",
+        "output": "website/public/gallery/v2/yuzu-poster.png",
+        "taskId": "a4d5f405-0f51-446a-849b-d01e49722ffc",
+        "finalOutput": "website/public/gallery/v2/yuzu-poster.webp",
+        "status": "accepted"
+      }
+    }
+  ]
+}
