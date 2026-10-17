@@ -131,7 +131,7 @@ function AssetCardComponent({
         <button
           type="button"
           onClick={(event) => onOpen(item, event.currentTarget)}
-          aria-label={item.prompt || "查看素材"}
+          aria-label={item.prompt || uiText("查看素材")}
           className="absolute inset-0 block h-full w-full overflow-hidden rounded-xl border border-transparent bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-ring/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {!isVideo && item.hasAlpha && <span aria-hidden className="asset-checkerboard absolute inset-0" />}
@@ -168,7 +168,7 @@ function AssetCardComponent({
               <img
                 ref={handleImageRef}
                 src={item.thumbnailUrl}
-                alt={item.prompt || "素材"}
+                alt={item.prompt || uiText("素材")}
                 draggable={false}
                 onLoad={() => {
                   setLoadFailed(false);

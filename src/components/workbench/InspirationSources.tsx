@@ -85,14 +85,14 @@ export function InspirationSources(): React.ReactElement {
               {source.iconUrl ? <img src={source.iconUrl} alt="" className="absolute inset-0 h-full w-full object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]">{source.name}</h2>
+              <h2 className="text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]">{uiText(source.name)}</h2>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{source.category}</span>
+                <span className="text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{uiText(source.category)}</span>
                 <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-4 text-muted-foreground">{uiText("外部来源")}</span>
               </div>
             </div>
           </div>
-          <p className="mt-4 text-xs leading-5 text-foreground/75 [overflow-wrap:anywhere]">{source.description}</p>
+          <p className="mt-4 text-xs leading-5 text-foreground/75 [overflow-wrap:anywhere]">{uiText(source.description)}</p>
           <div className="mt-auto flex min-w-0 items-end justify-between gap-3 border-t border-border pt-4">
             <span className="min-w-0 text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{host}</span>
             <Button
@@ -101,8 +101,8 @@ export function InspirationSources(): React.ReactElement {
               disabled={opening}
               onClick={() => void openSource(source.id)}
               className="h-8 shrink-0 whitespace-nowrap px-2.5"
-              aria-label={`${opening ? "正在打开" : "浏览"}${source.name}`}
-              title={uiText("浏览 {{ui:0}}", [source.name])}
+              aria-label={uiText(opening ? "正在打开 {{ui:0}}" : "浏览 {{ui:0}}", [uiText(source.name)])}
+              title={uiText("浏览 {{ui:0}}", [uiText(source.name)])}
             >
               {opening ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />}
               {opening ? uiText("打开中") : uiText("浏览")}

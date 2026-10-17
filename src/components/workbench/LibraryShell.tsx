@@ -1,5 +1,5 @@
 import { translateSourceText } from "@/i18n/ui-text";
-import { useUiText } from "@/i18n";
+import { useI18n, useUiText } from "@/i18n";
 import appIconDefault from "@/assets/app-icon-default.png";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -163,6 +163,7 @@ interface LibrarySidebarResizeSession {
  */
 export function LibraryShell(props: LibraryShellProps): React.ReactElement {
   const uiText = useUiText();
+  const { locale } = useI18n();
 
   const {
   boards,
@@ -690,7 +691,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-medium leading-4">{board.name}</span>
                           <span className="block truncate pt-0.5 text-[10px] leading-3 text-muted-foreground">
-                            {formatSidebarRelativeTime(board.updatedAt)}
+                            {uiText(formatSidebarRelativeTime(board.updatedAt, locale))}
                           </span>
                         </span>
                       </button>
@@ -1321,7 +1322,7 @@ function SidebarUtilityEntries({
         {trashedBoardCount > 0 ? <span className="text-[11px] tabular-nums text-muted-foreground">{trashedBoardCount}</span> : null}
       </button>
     </CompactSidebarTooltip>
-    <CompactSidebarTooltip compact={compact} label={updateLabel}>
+    <CompactSidebarTooltip compact={compact} label={uiText(updateLabel)}>
       <button
         type="button"
         data-sidebar-utility
@@ -1331,7 +1332,7 @@ function SidebarUtilityEntries({
         className={utilityClass()}
       >
         <RefreshCw className={cn("h-4 w-4 shrink-0", isChecking && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
-        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{updateLabel}</span>
+        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText(updateLabel)}</span>
         {updateMeta ? <span className="library-sidebar-label text-[11px] tabular-nums text-[hsl(var(--ai-accent))]">{updateMeta}</span> : null}
       </button>
     </CompactSidebarTooltip>
@@ -1344,7 +1345,7 @@ function SidebarUtilityEntries({
   </>;
 }
 
-function formatSidebarRelativeTime(value: string): string {
+function formatSidebarRelativeTime(value: string, locale: string): string {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return "最近更新";
   const elapsedMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
@@ -1354,7 +1355,7 @@ function formatSidebarRelativeTime(value: string): string {
   if (elapsedHours < 24) return `${elapsedHours} 小时前`;
   const elapsedDays = Math.floor(elapsedHours / 24);
   if (elapsedDays < 7) return `${elapsedDays} 天前`;
-  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(timestamp);
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(timestamp);
 }
 
 function NavItem({

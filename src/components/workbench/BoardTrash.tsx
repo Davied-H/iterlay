@@ -98,7 +98,7 @@ export function BoardTrash({
             </SelectTrigger>
             <SelectContent align="end">
               {RETENTION_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
+                <SelectItem key={option.value} value={String(option.value)}>{uiText(option.label)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -153,14 +153,14 @@ export function BoardTrash({
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium">{board.name}</p>
                       <p className="mt-1 text-[11px] text-muted-foreground min-[980px]:hidden">
-                        {board.imageCount} {uiText("张图片 · ")}{formatExpiry(board.expiresAt)}
+                        {board.imageCount} {uiText("张图片 · ")}{uiText(formatExpiry(board.expiresAt))}
                       </p>
                     </div>
                   </div>
                   <span className="hidden text-xs tabular-nums text-muted-foreground min-[980px]:block">{board.imageCount}</span>
                   <div className="hidden min-[980px]:block">
                     <p className="text-xs tabular-nums text-muted-foreground">{formatDate(board.deletedAt)}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/75">{formatExpiry(board.expiresAt)}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/75">{uiText(formatExpiry(board.expiresAt))}</p>
                   </div>
                   <div className="flex justify-end gap-1.5">
                     <Button

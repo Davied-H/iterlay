@@ -104,7 +104,7 @@ export function AppIconPickerDialog({
             }}
           >
             <AvatarOption
-              name="系统伙伴"
+              name={uiText("系统伙伴")}
               source={appIconMascot}
               selected={appIcon === "mascot"}
               disabled={busy}

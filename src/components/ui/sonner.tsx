@@ -1,8 +1,10 @@
 import * as React from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUiText } from "@/i18n";
 
 export function Toaster(props: ToasterProps): React.ReactElement {
+  const uiText = useUiText();
   const { className, style, toastOptions, ...sonnerProps } = props;
   const classNames = toastOptions?.classNames;
 
@@ -14,7 +16,7 @@ export function Toaster(props: ToasterProps): React.ReactElement {
       visibleToasts={3}
       offset={16}
       mobileOffset={12}
-      containerAriaLabel="通知"
+      containerAriaLabel={uiText("通知")}
       style={{ "--width": "22rem", ...style } as React.CSSProperties}
       toastOptions={{
         ...toastOptions,

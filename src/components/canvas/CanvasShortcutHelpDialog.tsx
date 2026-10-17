@@ -85,20 +85,20 @@ export function CanvasShortcutHelpDialog({
           {groups.map((group) => {
             const Icon = group.icon;
             return (
-              <section key={group.title} className="min-w-0 bg-popover px-4 py-4">
+              <section key={uiText(group.title)} className="min-w-0 bg-popover px-4 py-4">
                 <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-foreground">
                   <Icon aria-hidden className="h-3.5 w-3.5 text-muted-foreground" />
-                  {group.title}
+                  {uiText(group.title)}
                 </h3>
                 <dl className="space-y-2.5">
                   {group.shortcuts.filter(([, shortcut]) =>
                     (shortcut !== "C" || commentsEnabled) && (shortcut !== "G" || galleryEnabled)
                   ).map(([label, shortcut]) => (
-                    <div key={label} className="flex min-w-0 items-center justify-between gap-3">
-                      <dt className="min-w-0 text-[11px] leading-4 text-muted-foreground">{label}</dt>
+                    <div key={uiText(label)} className="flex min-w-0 items-center justify-between gap-3">
+                      <dt className="min-w-0 text-[11px] leading-4 text-muted-foreground">{uiText(label)}</dt>
                       <dd className="shrink-0">
                         <kbd className="inline-flex min-h-5 items-center rounded border border-border bg-muted/60 px-1.5 font-sans text-[10px] font-medium leading-none text-foreground shadow-[0_1px_0_hsl(var(--border))]">
-                          {shortcut}
+                          {uiText(shortcut)}
                         </kbd>
                       </dd>
                     </div>

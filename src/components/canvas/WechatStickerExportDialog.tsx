@@ -659,7 +659,7 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
               active={props.personalExportStyle === "sequence"}
               onClick={() => props.onPersonalExportStyleChange("sequence")}
               title={uiText("合成 1 个动图")}
-              detail="每张图作为一帧"
+              detail={uiText("每张图作为一帧")}
             />
             <OptionButton
               active={props.personalExportStyle === "separate"}
@@ -715,8 +715,8 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
       <section className="space-y-3 border-t border-border pt-5">
         <h3 className="text-xs font-semibold text-foreground">{uiText("画面适配")}</h3>
         <div className="grid grid-cols-2 gap-2">
-          <OptionButton active={props.fit === "contain"} onClick={() => props.onFitChange("contain")} title={uiText("完整显示")} detail="保留全部主体" />
-          <OptionButton active={props.fit === "cover"} onClick={() => props.onFitChange("cover")} title={uiText("填满画布")} detail="居中裁成方形" />
+          <OptionButton active={props.fit === "contain"} onClick={() => props.onFitChange("contain")} title={uiText("完整显示")} detail={uiText("保留全部主体")} />
+          <OptionButton active={props.fit === "cover"} onClick={() => props.onFitChange("cover")} title={uiText("填满画布")} detail={uiText("居中裁成方形")} />
         </div>
         <div className="space-y-2 rounded-lg border border-border px-3 py-3">
           <div className="flex items-center justify-between">
@@ -735,8 +735,8 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <OptionButton active={props.background === "transparent"} onClick={() => props.onBackgroundChange("transparent")} title={uiText("透明背景")} detail="推荐用于表情" />
-          <OptionButton active={props.background === "white"} onClick={() => props.onBackgroundChange("white")} title={uiText("白色背景")} detail="适合照片素材" />
+          <OptionButton active={props.background === "transparent"} onClick={() => props.onBackgroundChange("transparent")} title={uiText("透明背景")} detail={uiText("推荐用于表情")} />
+          <OptionButton active={props.background === "white"} onClick={() => props.onBackgroundChange("white")} title={uiText("白色背景")} detail={uiText("适合照片素材")} />
         </div>
       </section>
 
@@ -752,7 +752,7 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
           <Field label={uiText("版权信息")} hint={`${Array.from(props.copyright).length}/10`}>
             <Input value={props.copyright} maxLength={10} placeholder={uiText("选填")} onChange={(event) => props.onCopyrightChange(event.target.value)} />
           </Field>
-          <Field label={uiText("第 {{ui:0}} 张含义词", [props.activeIndex + 1])} hint="最多 4 字">
+          <Field label={uiText("第 {{ui:0}} 张含义词", [props.activeIndex + 1])} hint={uiText("最多 4 字")}>
             <Input
               value={props.meanings[props.activeIndex] || ""}
               maxLength={4}

@@ -519,7 +519,7 @@ export function EmptyCanvasStart({
             transition={{ duration: reduceMotion ? 0.08 : 0.16, ease: EASE_OUT }}
           >
             <div className="flex items-center justify-center gap-2">
-              <h2 className="text-xl font-semibold leading-7 text-foreground">{activeOption.title}</h2>
+              <h2 className="text-xl font-semibold leading-7 text-foreground">{uiText(activeOption.title)}</h2>
               {mode === "recent" && recentAssets.length > 3 ? (
                 <button
                   type="button"
@@ -537,7 +537,7 @@ export function EmptyCanvasStart({
                 </button>
               ) : null}
             </div>
-            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{activeOption.description}</p>
+            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{uiText(activeOption.description)}</p>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -644,7 +644,7 @@ function ModeRail({
               active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {option.label}
+            {uiText(option.label)}
             {active ? (
               <motion.span
                 layoutId={`${id}-active-mode`}
@@ -735,8 +735,8 @@ function StartDeck({
                 </span>
                 <span className="flex h-[72px] items-center justify-between gap-3 px-4">
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{item.detail}</span>
+                    <span className="block text-sm font-semibold text-foreground">{uiText(item.title)}</span>
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{uiText(item.detail)}</span>
                   </span>
                   <ArrowRight className="h-4 w-4 shrink-0 text-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
                 </span>
@@ -750,15 +750,15 @@ function StartDeck({
                   <Icon className="h-[18px] w-[18px]" />
                 </span>
                 <span className="block">
-                  <span className="block text-base font-semibold">{item.title}</span>
-                  <span className={cn("mt-1 block text-xs", primary ? "text-background/70" : "text-muted-foreground")}>{item.detail}</span>
+                  <span className="block text-base font-semibold">{uiText(item.title)}</span>
+                  <span className={cn("mt-1 block text-xs", primary ? "text-background/70" : "text-muted-foreground")}>{uiText(item.detail)}</span>
                 </span>
                 <span className={cn(
                   "flex items-center text-[11px]",
                   alignToOuterEdge ? "w-auto gap-2" : "w-full justify-between",
                   primary ? "text-background/65" : "text-muted-foreground"
                 )}>
-                  {item.meta}
+                  {uiText(item.meta)}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
                 </span>
               </span>
@@ -806,13 +806,13 @@ function InspirationDeck({
             data-deck-surface
             onFocus={() => deckMotion.handleEnter(index)}
             onBlur={deckMotion.handleLeave}
-            onClick={() => onStartPrompt(item.prompt)}
+            onClick={() => onStartPrompt(uiText(item.prompt))}
             className="group absolute left-1/2 top-1/2 -ml-[116px] -mt-[92px] flex h-[184px] w-[232px] flex-col items-start justify-between rounded-lg bg-card p-5 text-left text-foreground shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Sparkles className="h-[18px] w-[18px] text-muted-foreground" />
             <span className="block">
-              <span className="block text-base font-semibold">{item.title}</span>
-              <span className="mt-2 line-clamp-3 block text-xs leading-5 text-muted-foreground">{item.prompt}</span>
+              <span className="block text-base font-semibold">{uiText(item.title)}</span>
+              <span className="mt-2 line-clamp-3 block text-xs leading-5 text-muted-foreground">{uiText(item.prompt)}</span>
             </span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
               {uiText("带入描述")}<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
@@ -825,6 +825,7 @@ function InspirationDeck({
 }
 
 function WorkflowDeck({ reduceMotion }: { reduceMotion: boolean }): React.ReactElement {
+  const uiText = useUiText();
   const steps = [
     { title: "参考", detail: "构图、风格或主体", icon: FileImage },
     { title: "生成", detail: "建立主画面", icon: ImagePlus },
@@ -862,8 +863,8 @@ function WorkflowDeck({ reduceMotion }: { reduceMotion: boolean }): React.ReactE
             <span className={cn("flex h-10 w-10 items-center justify-center rounded-md", primary ? "bg-background/15" : "bg-muted")}>
               <Icon className="h-[18px] w-[18px]" />
             </span>
-            <h3 className="mt-3 text-sm font-semibold">{step.title}</h3>
-            <p className={cn("mt-1 text-xs", primary ? "text-background/65" : "text-muted-foreground")}>{step.detail}</p>
+            <h3 className="mt-3 text-sm font-semibold">{uiText(step.title)}</h3>
+            <p className={cn("mt-1 text-xs", primary ? "text-background/65" : "text-muted-foreground")}>{uiText(step.detail)}</p>
           </div>
         );
       })}
@@ -1006,7 +1007,7 @@ function RecentAssetPicker({
                     </span>
                     <span className="block px-2.5 py-2">
                       <span className="block truncate text-xs font-medium text-foreground">{asset.boardName}</span>
-                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{sourceLabel(asset.source)}</span>
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{uiText(sourceLabel(asset.source))}</span>
                     </span>
                   </motion.button>
                 );
@@ -1383,7 +1384,7 @@ function RecentDeck({
               onClick={() => {
                 if (draggedKeyRef.current !== key) addAsset(asset);
               }}
-              aria-label={uiText("将{{ui:0}}素材「{{ui:1}}」添加到画板", [sourceLabel(asset.source), asset.boardName])}
+              aria-label={uiText("将{{ui:0}}素材「{{ui:1}}」添加到画板", [uiText(sourceLabel(asset.source)), asset.boardName])}
               className="group h-full w-full touch-none cursor-grab overflow-hidden rounded-lg bg-card text-left shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <img
@@ -1395,7 +1396,7 @@ function RecentDeck({
               <span className="flex h-12 items-center justify-between gap-3 bg-card px-3.5">
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-foreground">{asset.boardName}</span>
-                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{sourceLabel(asset.source)}</span>
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{uiText(sourceLabel(asset.source))}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                   <Plus className="h-3.5 w-3.5" />

@@ -846,12 +846,12 @@ function SceneBrowser({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {!compact ? (
-        <header className="window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-4 border-b border-border px-4 [-webkit-app-region:drag]">
+        <header className="window-titlebar-overlay-safe flex min-h-12 shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2 [-webkit-app-region:drag]">
           <div className="flex shrink-0 items-baseline gap-2">
             <span className="text-sm font-semibold tracking-tight">{uiText("探索模版")}</span>
             <span className="text-xs tabular-nums text-muted-foreground">{scenes.length} {uiText("个模板")}</span>
           </div>
-          <div className="min-w-0 [-webkit-app-region:no-drag]">{filterTabs}</div>
+          <div className="shrink-0 [-webkit-app-region:no-drag]">{filterTabs}</div>
           <Button
             variant="ghost"
             size="sm"
@@ -1137,7 +1137,7 @@ const SceneCard = memo(function SceneCard({
       ) : null}
       <button
         type="button"
-        aria-label={favorite ? uiText("取消收藏 {{ui:0}}", [scene.name]) : uiText("收藏 {{ui:0}}", [scene.name])}
+        aria-label={favorite ? uiText("取消收藏 {{ui:0}}", [scene.source === "preset" ? uiText(scene.name) : scene.name]) : uiText("收藏 {{ui:0}}", [scene.source === "preset" ? uiText(scene.name) : scene.name])}
         title={favorite ? uiText("取消收藏") : uiText("收藏这个模板")}
         onClick={() => onToggleFavorite(scene.id)}
         className={cn(
@@ -1160,7 +1160,7 @@ const SceneCard = memo(function SceneCard({
         {!mediaLoaded ? (
           <div className={cn("w-full animate-pulse bg-muted", isMasonryGallery ? "absolute inset-0 h-full" : layout === "collage" ? "h-52" : showDetails ? "h-40" : "h-32")} />
         ) : previews.length > 0 ? (
-          <ScenePreviewGallery sceneName={scene.name} images={previews} layout={layout} compact={!showDetails} masonry={isMasonryGallery} />
+          <ScenePreviewGallery sceneName={scene.source === "preset" ? uiText(scene.name) : scene.name} images={previews} layout={layout} compact={!showDetails} masonry={isMasonryGallery} />
         ) : (
           <div className={cn(
             "flex w-full items-center gap-3 bg-muted/55",
@@ -1226,7 +1226,7 @@ function ScenePromptOverlay({
               type="button"
               aria-expanded={expanded}
               aria-controls={promptRegionId}
-              aria-label={expanded ? uiText("收起 {{ui:0}} 的完整提示词", [scene.name]) : uiText("展开 {{ui:0}} 的完整提示词", [scene.name])}
+              aria-label={expanded ? uiText("收起 {{ui:0}} 的完整提示词", [scene.source === "preset" ? uiText(scene.name) : scene.name]) : uiText("展开 {{ui:0}} 的完整提示词", [scene.source === "preset" ? uiText(scene.name) : scene.name])}
               onClick={() => onExpandedChange(!expanded)}
               className={cn(
                 "pointer-events-auto absolute bottom-2 left-1/2 z-30 flex h-7 w-12 -translate-x-1/2 items-center justify-center opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none motion-reduce:transition-none",
@@ -1250,10 +1250,10 @@ function ScenePromptOverlay({
       <div className={cn("flex min-h-0 flex-1 flex-col px-4", expanded ? "pb-12 pt-12" : "justify-end py-4")}>
         <div className="flex shrink-0 items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-semibold">{scene.name}</h3>
+            <h3 className="truncate text-base font-semibold">{scene.source === "preset" ? uiText(scene.name) : scene.name}</h3>
             {!expanded ? (
               <p className="mt-0 max-h-0 -translate-y-1 overflow-hidden text-xs leading-5 text-white/75 opacity-0 transition-[max-height,opacity,transform,margin] duration-300 ease-out group-hover:mt-1 group-hover:max-h-10 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:mt-1 group-focus-within:max-h-10 group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:transition-none">
-                {scene.description || SCENE_CATEGORY_LABELS[scene.category]}
+                {scene.source === "preset" ? uiText(scene.description || SCENE_CATEGORY_LABELS[scene.category]) : scene.description || uiText(SCENE_CATEGORY_LABELS[scene.category])}
               </p>
             ) : (
               <p className="mt-1 text-[11px] font-medium text-white/60">{uiText("完整提示词")}</p>
@@ -1270,7 +1270,7 @@ function ScenePromptOverlay({
           <div
             id={promptRegionId}
             role="region"
-            aria-label={uiText("{{ui:0}} 的完整提示词", [scene.name])}
+            aria-label={uiText("{{ui:0}} 的完整提示词", [scene.source === "preset" ? uiText(scene.name) : scene.name])}
             className="pointer-events-auto mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-white/15 pt-3 pr-2 text-sm leading-6 text-white/90 [scrollbar-color:rgba(255,255,255,0.38)_transparent] [scrollbar-width:thin]"
           >
             <p className="whitespace-pre-wrap break-words pb-3">{scene.prompt}</p>
@@ -1294,13 +1294,14 @@ function ScenePreviewGallery({
   compact?: boolean;
   masonry?: boolean;
 }): React.ReactElement {
+  const uiText = useUiText();
   if (layout === "collage") {
     if (masonry) {
       const image = images[0];
       return (
         <img
           src={image.src}
-          alt={`${sceneName}${image.generated ? "生成示例" : "内置示例"}`}
+          alt={`${sceneName} ${uiText(image.generated ? "生成示例" : "内置示例")}`}
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025] motion-reduce:transition-none"
           style={{ objectPosition: `${image.focus.x * 100}% ${image.focus.y * 100}%` }}
           loading="lazy"
@@ -1314,7 +1315,7 @@ function ScenePreviewGallery({
       return (
         <img
           src={image.src}
-          alt={`${sceneName}${image.generated ? "生成示例" : "内置示例"}`}
+          alt={`${sceneName} ${uiText(image.generated ? "生成示例" : "内置示例")}`}
           className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
           style={{ objectPosition: `${image.focus.x * 100}% ${image.focus.y * 100}%` }}
           loading="lazy"
@@ -1329,7 +1330,7 @@ function ScenePreviewGallery({
           <img
             key={image.src}
             src={image.src}
-            alt={`${sceneName}${image.generated ? "生成示例" : "内置示例"} ${index + 1}`}
+            alt={`${sceneName} ${uiText(image.generated ? "生成示例" : "内置示例")} ${index + 1}`}
             className={cn(
               "h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]",
               index === 0 && "row-span-2",
@@ -1351,7 +1352,7 @@ function ScenePreviewGallery({
         <img
           key={image.src}
           src={image.src}
-          alt={`${sceneName}${image.generated ? "生成示例" : "内置示例"} ${index + 1}`}
+          alt={`${sceneName} ${uiText(image.generated ? "生成示例" : "内置示例")} ${index + 1}`}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
           style={{ objectPosition: `${image.focus.x * 100}% ${image.focus.y * 100}%` }}
           loading="lazy"
@@ -1386,7 +1387,7 @@ function SceneCardContent({
       {showDetails ? (
         <div className="mb-3 flex items-center gap-2">
           <span className="rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            {scene.mode === "edit" ? uiText("图片编辑") : SCENE_CATEGORY_LABELS[scene.category]}
+            {scene.mode === "edit" ? uiText("图片编辑") : uiText(SCENE_CATEGORY_LABELS[scene.category])}
           </span>
           <span className="rounded-sm border border-border px-2 py-1 text-[10px] font-medium text-muted-foreground">
             {scene.source === "preset" ? uiText("官方模板") : uiText("我的模板")}
@@ -1401,12 +1402,12 @@ function SceneCardContent({
 
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className={cn("truncate font-semibold", showDetails ? "text-base" : "text-sm")}>{scene.name}</h3>
+          <h3 className={cn("truncate font-semibold", showDetails ? "text-base" : "text-sm")}>{scene.source === "preset" ? uiText(scene.name) : scene.name}</h3>
           <p className={cn(
             "mt-1 truncate text-muted-foreground",
             showDetails ? "text-xs" : "text-[11px]"
           )}>
-            {scene.description || SCENE_CATEGORY_LABELS[scene.category]}
+            {scene.source === "preset" ? uiText(scene.description || SCENE_CATEGORY_LABELS[scene.category]) : scene.description || uiText(SCENE_CATEGORY_LABELS[scene.category])}
           </p>
         </div>
         <span className={cn("mt-0.5 flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground", !showDetails && "transition-colors group-hover:text-foreground")}>
@@ -1464,7 +1465,7 @@ function SaveSceneDialog({
             <label className="space-y-1.5">
               <span className="text-sm font-medium">{uiText("分类")}</span>
               <Select value={category} onValueChange={(value) => setCategory(value as SceneCategory)}>
-                <SelectTrigger>{SCENE_CATEGORY_LABELS[category]}</SelectTrigger>
+                <SelectTrigger>{uiText(SCENE_CATEGORY_LABELS[category])}</SelectTrigger>
                 <SelectContent>
                   {CATEGORY_OPTIONS.map(([value, label]) => (
                     <SelectItem key={value} value={value}>

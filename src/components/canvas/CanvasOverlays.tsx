@@ -248,6 +248,7 @@ interface CanvasMiniMapProps {
 }
 
 export function CanvasMiniMap(props: CanvasMiniMapProps): React.ReactElement {
+  const uiText = useUiText();
   return (
     <AnimatePresence initial={false}>
       {props.visible ? (
@@ -264,7 +265,7 @@ export function CanvasMiniMap(props: CanvasMiniMapProps): React.ReactElement {
           transition={{ duration: props.reduceMotion ? 0.1 : 0.22, ease: EASE_OUT }}
         >
           <MiniMapImagesContext.Provider value={props.images}>
-            <MiniMap position="top-left" pannable={false} zoomable={false} ariaLabel="画布图片预览" className="pointer-events-none !m-0 overflow-hidden !rounded-xl !border !border-border !bg-card shadow-lg" style={{ width: 240, height: 160, left: 0, top: 0 }} bgColor="transparent" maskColor="hsl(var(--foreground) / 0.06)" maskStrokeWidth={0} nodeComponent={MiniMapImageNode} nodeBorderRadius={4} />
+            <MiniMap position="top-left" pannable={false} zoomable={false} ariaLabel={uiText("画布图片预览")} className="pointer-events-none !m-0 overflow-hidden !rounded-xl !border !border-border !bg-card shadow-lg" style={{ width: 240, height: 160, left: 0, top: 0 }} bgColor="transparent" maskColor="hsl(var(--foreground) / 0.06)" maskStrokeWidth={0} nodeComponent={MiniMapImageNode} nodeBorderRadius={4} />
           </MiniMapImagesContext.Provider>
         </motion.div>
       ) : null}

@@ -374,9 +374,9 @@ function DisconnectedState({
         </div>
       </div>
       <ol className="mt-5 grid gap-3 border-y py-4 text-sm">
-        <ConnectionStep number="1" text="打开 MasterGo 桌面客户端和目标设计文件" />
-        <ConnectionStep number="2" text="在文件右上角点击“ＭCP 未连接”，完成连接" />
-        <ConnectionStep number="3" text="回到这里重新检查；Vibe MCP 不需要 Token" />
+        <ConnectionStep number="1" text={uiText("打开 MasterGo 桌面客户端和目标设计文件")} />
+        <ConnectionStep number="2" text={uiText("在文件右上角点击“ＭCP 未连接”，完成连接")} />
+        <ConnectionStep number="3" text={uiText("回到这里重新检查；Vibe MCP 不需要 Token")} />
       </ol>
       <div className="mt-5 flex flex-wrap gap-2">
         <Button disabled={checking} onClick={onRetry}>

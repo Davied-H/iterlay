@@ -17,7 +17,11 @@ export function translateUiText(text: string, locale: ResolvedAppLocale, values:
     const value = values[Number(index)];
     return typeof value === "number" || typeof value === "string" && /^\d+(?:\.\d+)?$/u.test(value) ? String(value) : token;
   });
-  const translated = translator ? translator(numeric, locale) : numeric;
+  // Keep dynamic count rules (including singular/plural forms), then fall back
+  // to the catalog template if substituting numbers prevents an exact match.
+  const template = translator ? translator(text, locale) : text;
+  const dynamic = translator ? translator(numeric, locale) : numeric;
+  const translated = dynamic !== numeric ? dynamic : template;
   return translated.replace(/\{\{ui:(\d+)\}\}/gu, (_token, index: string) => String(values[Number(index)] ?? ""));
 }
 

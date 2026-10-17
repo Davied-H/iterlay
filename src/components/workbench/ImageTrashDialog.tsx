@@ -118,7 +118,7 @@ export function ImageTrashDialog({ open, onOpenChange, onRestore }: ImageTrashDi
           <Select value={String(retentionDays)} disabled={loading || Boolean(busyId)} onValueChange={(value) => void changeRetention(Number(value) as BoardTrashRetentionDays)}>
             <SelectTrigger className="h-8 w-24 text-xs" aria-label={uiText("图片回收站自动清理周期")}><SelectValue /></SelectTrigger>
             <SelectContent align="end">
-              {retentionOptions.map((option) => <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>)}
+              {retentionOptions.map((option) => <SelectItem key={option.value} value={String(option.value)}>{uiText(option.label)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" disabled={items.length === 0 || loading || Boolean(busyId)} onClick={() => setConfirmEmpty(true)}>
@@ -140,7 +140,7 @@ export function ImageTrashDialog({ open, onOpenChange, onRestore }: ImageTrashDi
                   <div className="flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
                     {item.previewUrl ? <img src={item.previewUrl} alt="" className="h-full w-full object-cover" /> : <ImageOff className="h-4 w-4 text-muted-foreground" />}
                   </div>
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.boardName}</p><p className="mt-1 text-xs text-muted-foreground">{formatExpiry(item.expiresAt)}</p></div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.boardName}</p><p className="mt-1 text-xs text-muted-foreground">{uiText(formatExpiry(item.expiresAt))}</p></div>
                   <Button variant="outline" size="sm" disabled={Boolean(busyId)} onClick={() => void restore(item)}>{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}{uiText("恢复")}</Button>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" disabled={Boolean(busyId)} aria-label={uiText("彻底删除图片")} onClick={() => void removePermanently(item)}><Trash2 className="h-4 w-4" /></Button>
                 </div>;

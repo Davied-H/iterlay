@@ -14,6 +14,17 @@ describe("React-owned UI localization", () => {
     expect(label).toContain("画板库");
     expect(label).not.toContain("Boards");
   });
+  it("matches catalog templates before substituting numbers and preserves supplied content", async () => {
+    await loadUiTextCatalog();
+    expect(translateUiText("当前缩放 {{ui:0}}%", "en-US", [125])).toBe("Current zoom 125%");
+    expect(translateUiText("{{ui:0}} Skills · {{ui:1}} 扩展", "en-US", [2, 3]))
+      .toBe("2 skills · 3 extensions");
+    expect(translateUiText("{{ui:0}} 条有效记忆 · {{ui:1}} 条来源记录{{ui:2}}", "en-US", [3, 8, " · Custom note"]))
+      .toBe("3 active memories · 8 source records · Custom note");
+    expect(translateUiText("切换画板，当前为{{ui:0}}", "en-US", ["我的画板 {{ui:1}}", "ignore"]))
+      .toBe("Switch board, currently 我的画板 {{ui:1}}");
+    expect(translateUiText("当前缩放 {{ui:0}}%", "zh-CN", [125])).toBe("当前缩放 125%");
+  });
   it("updates rendered labels while preserving user text and using no MutationObserver", async () => {
     await loadUiTextCatalog();
     localStorage.setItem("iterlay:language", "en-US");

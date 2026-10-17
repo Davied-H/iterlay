@@ -1,6 +1,7 @@
+import { useUiText } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import type { BoardMutationPlan, BoardMutationResult } from "@shared/comic-drama";
-import type { PluginContext, InstalledPlugin } from "@shared/plugins";
+import { SHORT_DRAMA_PLUGIN_ID, type PluginContext, type InstalledPlugin } from "@shared/plugins";
 import { getImageWorkbenchApi } from "@/lib/image-workbench-api";
 import { startSceneCollaborationStream, type SceneCollaborationStreamHandle } from "@/lib/scene-collaboration-stream";
 
@@ -20,9 +21,13 @@ const permissionByMethod: Record<string, string> = {
   "assistant.cancel": "assistant:comic-drama", "assistant.respond": "assistant:comic-drama"
 };
 export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps & { plugin: InstalledPlugin; view?: "tool" | "settings" }) {
+  const uiText = useUiText();
   const frame = useRef<HTMLIFrameElement>(null);
   const current = useRef(props);
   current.current = props;
+  useEffect(() => {
+    frame.current?.contentWindow?.postMessage({ source: "iterlay-host", type: "context", context: current.current.context, view }, "*");
+  }, [props.context.locale, props.context.theme, view]);
   const [html, setHtml] = useState("");
   const [error, setError] = useState("");
   const stream = useRef<SceneCollaborationStreamHandle | null>(null);
@@ -150,7 +155,7 @@ export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps
     window.addEventListener("message", listener);
     return () => { live = false; window.removeEventListener("message", listener); stream.current?.dispose(); stream.current = null; };
   }, [plugin.manifest.id, view]);
-  if (error) return <div role="alert" className="plugin-message">{error}{props.onBack && <button onClick={props.onBack}>返回主画板</button>}</div>;
-  if (!html) return <div className="plugin-message">正在加载工具…</div>;
-  return <iframe ref={frame} title={`${plugin.manifest.name}${view === "settings" ? "设置" : ""}`} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" src={html} className="plugin-frame" onLoad={() => frame.current?.contentWindow?.postMessage({ source: "iterlay-host", type: "context", context: current.current.context, view }, "*")} />;
+  if (error) return <div role="alert" className="plugin-message">{error}{props.onBack && <button onClick={props.onBack}>{uiText("返回主画板")}</button>}</div>;
+  if (!html) return <div className="plugin-message">{uiText("正在加载工具…")}</div>;
+  return <iframe ref={frame} title={`${plugin.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(plugin.manifest.name) : plugin.manifest.name} ${view === "settings" ? uiText("设置") : ""}`} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" src={html} className="plugin-frame" onLoad={() => frame.current?.contentWindow?.postMessage({ source: "iterlay-host", type: "context", context: current.current.context, view }, "*")} />;
 }

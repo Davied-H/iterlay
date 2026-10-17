@@ -573,7 +573,7 @@ export function TextProviderSetupWizard({
               status={status}
               action={action}
               error={error}
-              capabilityLabel="文本模型"
+              capabilityLabel={uiText("文本模型")}
               capabilityValue={provider.model || "gpt-5.4-mini"}
               onSignIn={onSignIn}
             />
@@ -627,8 +627,8 @@ export function TextProviderSetupWizard({
                       {uiText("可用模型由当前 ChatGPT 账号提供，打开菜单时自动刷新。")}</p>
                   </Field>
                   <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                    <SummaryRow label={uiText("可用能力")} value="提示词润色、场景协作、图片分析" />
-                    <SummaryRow label={uiText("账号绑定")} value={provider.authProviderId === provider.id ? "独立账号" : "与图片能力共用"} />
+                    <SummaryRow label={uiText("可用能力")} value={uiText("提示词润色、场景协作、图片分析")} />
+                    <SummaryRow label={uiText("账号绑定")} value={uiText(provider.authProviderId === provider.id ? "独立账号" : "与图片能力共用")} />
                   </div>
                 </div>
               ) : (
@@ -823,9 +823,9 @@ export function ProviderSetupWizard({
               </div>
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 <SummaryRow label={uiText("图片模型")} value={provider.model || "gpt-image-2"} mono />
-                <SummaryRow label={uiText("同步文本模型")} value="gpt-5.4-mini · 自动绑定" mono />
-                <SummaryRow label={uiText("可用能力")} value="文生图、参考图、图片编辑" />
-                <SummaryRow label={uiText("连接方式")} value="Codex Responses · 本机直连" />
+                <SummaryRow label={uiText("同步文本模型")} value={uiText("gpt-5.4-mini · 自动绑定")} mono />
+                <SummaryRow label={uiText("可用能力")} value={uiText("文生图、参考图、图片编辑")} />
+                <SummaryRow label={uiText("连接方式")} value={uiText("Codex Responses · 本机直连")} />
               </div>
             </div>
           ) : null}
@@ -998,7 +998,7 @@ export function CodexAccountPanel({
           <div className="grid grid-cols-1 border-t border-border sm:grid-cols-3">
             <AccountFact label={uiText("状态")} value={stateLabel} />
             <AccountFact label={capabilityLabel} value={capabilityValue} mono />
-            <AccountFact label={uiText("凭据")} value="系统安全存储" />
+            <AccountFact label={uiText("凭据")} value={uiText("系统安全存储")} />
           </div>
         ) : null}
       </div>
@@ -1129,7 +1129,7 @@ export function ProviderModelsEditor({
           providerId={provider.id}
           apiKeyOverride={apiKeyOverride}
           excludedValues={models}
-          emptyMessage="没有更多可添加的模型"
+          emptyMessage={uiText("没有更多可添加的模型")}
           placeholder={uiText("选择或搜索模型")}
           onChange={addModel}
         />
@@ -1149,7 +1149,7 @@ export function ProviderModelsEditor({
           }
           loadRemote={provider.type !== "bailian"}
           excludedValues={models}
-          emptyMessage="没有更多可添加的模型"
+          emptyMessage={uiText("没有更多可添加的模型")}
           placeholder={uiText("选择或搜索模型")}
           onChange={addModel}
         />
@@ -1286,7 +1286,7 @@ export function VideoProviderModelAddControl({
         providerId={provider.connectionProviderId || provider.id}
         apiKeyOverride={apiKeyOverride}
         excludedValues={models}
-        emptyMessage="没有更多可添加的视频模型"
+        emptyMessage={uiText("没有更多可添加的视频模型")}
         placeholder={uiText("添加模型")}
         triggerClassName={triggerClassName}
         onChange={onChange}
@@ -1303,7 +1303,7 @@ export function VideoProviderModelAddControl({
       loadRemote={provider.type === "openrouter" || provider.type === "minimax"}
       allowCustom={provider.type !== "minimax"}
       excludedValues={models}
-      emptyMessage="没有更多可添加的视频模型"
+      emptyMessage={uiText("没有更多可添加的视频模型")}
       placeholder={uiText("添加模型")}
       triggerClassName={triggerClassName}
       onChange={onChange}

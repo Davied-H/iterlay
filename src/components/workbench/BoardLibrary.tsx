@@ -1,5 +1,5 @@
 import { translateSourceText } from "@/i18n/ui-text";
-import { useUiText } from "@/i18n";
+import { useI18n, useUiText } from "@/i18n";
 import { useBoardLibraryWindow } from "@/features/boards/use-board-library-window";
 import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import {
@@ -76,6 +76,7 @@ export function BoardLibrary({
   onClose
 }: BoardLibraryProps): React.ReactElement {
   const uiText = useUiText();
+  const { locale } = useI18n();
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -126,7 +127,7 @@ export function BoardLibrary({
     empty: boards.filter((board) => board.imageCount === 0).length
   }), [boards]);
   const hasCustomizedView = query.length > 0 || filter !== "all" || sort !== "updated";
-  const sortLabel = sort === "updated" ? "最近更新" : sort === "created" ? "创建时间" : "名称";
+  const sortLabel = uiText(sort === "updated" ? "最近更新" : sort === "created" ? "创建时间" : "名称");
   const activeGenerationsByBoard = useMemo(
     () => groupActiveBoardGenerations(activeBoardGenerations),
     [activeBoardGenerations]
@@ -396,7 +397,7 @@ export function BoardLibrary({
                   </button>
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] tabular-nums text-muted-foreground">
-                  {board.imageCount} {uiText("张图片 · ")}{formatRelativeTime(board.updatedAt)}
+                  {board.imageCount} {uiText("张图片 · ")}{uiText(formatRelativeTime(board.updatedAt, locale))}
                 </span>
               </>
             )}
@@ -518,7 +519,7 @@ export function BoardLibrary({
                       ] as const).map(([value, label]) => (
                         <DropdownMenuItem key={value} onSelect={() => setSort(value)}>
                           <Check className={cn("h-4 w-4", sort !== value && "opacity-0")} />
-                          {label}
+                          {uiText(label)}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -623,13 +624,13 @@ export function BoardLibrary({
                               ) : null}
                             </span>
                             <span className="mt-1 block truncate text-[10px] tabular-nums text-muted-foreground min-[900px]:hidden">
-                              {board.imageCount} {uiText("张图片 · ")}{formatRelativeTime(board.updatedAt)}{uiText("更新")}</span>
+                              {board.imageCount} {uiText("张图片 · ")}{uiText(formatRelativeTime(board.updatedAt, locale))}{uiText("更新")}</span>
                           </>
                         )}
                       </span>
                     </span>
                     <span className="hidden text-[11px] tabular-nums text-muted-foreground min-[900px]:block">{board.imageCount}</span>
-                    <span className="hidden text-[11px] tabular-nums text-muted-foreground min-[900px]:block">{formatRelativeTime(board.updatedAt)}</span>
+                    <span className="hidden text-[11px] tabular-nums text-muted-foreground min-[900px]:block">{uiText(formatRelativeTime(board.updatedAt, locale))}</span>
                     <span className="hidden text-[11px] tabular-nums text-muted-foreground min-[900px]:block">{formatStorageSize(board.storageBytes)}</span>
                   </>
                 );
@@ -837,7 +838,7 @@ function BoardThumbnail({
   );
 }
 
-function formatRelativeTime(iso: string): string {
+function formatRelativeTime(iso: string, locale: string): string {
   const time = Date.parse(iso);
   if (Number.isNaN(time)) return "";
   const diff = Date.now() - time;
@@ -848,7 +849,7 @@ function formatRelativeTime(iso: string): string {
   if (hours < 24) return `${hours} 小时前`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days} 天前`;
-  return new Date(time).toLocaleDateString();
+  return new Date(time).toLocaleDateString(locale);
 }
 
 export function formatStorageSize(bytes: number | undefined): string {

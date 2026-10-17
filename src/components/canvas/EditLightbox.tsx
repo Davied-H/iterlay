@@ -408,7 +408,7 @@ export function EditLightbox({
                 onClick={() => setInfoOpen((value) => !value)}
                 className="absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-2xl [transform:rotateY(180deg)] [backface-visibility:hidden]"
               >
-                <PromptInfo info={info} footer="点击返回图片" />
+                <PromptInfo info={info} footer={uiText("点击返回图片")} />
               </div>
             </motion.div>
           ) : (

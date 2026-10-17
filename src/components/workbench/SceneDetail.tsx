@@ -319,6 +319,7 @@ function buildScenePreviewDownloadName(sceneName: string, label: string, source:
 }
 
 function GenerationTaskStatus({ task }: { task: SceneGenerationTask }): React.ReactElement {
+  const uiText = useUiText();
   const content = task.status === "queued"
     ? { label: "排队中", icon: <Clock3 className="h-3 w-3" />, className: "text-muted-foreground" }
     : task.status === "running"
@@ -329,7 +330,7 @@ function GenerationTaskStatus({ task }: { task: SceneGenerationTask }): React.Re
   return (
     <span className={cn("flex shrink-0 items-center gap-1 text-[11px] font-medium", content.className)}>
       {content.icon}
-      {content.label}
+      {uiText(content.label)}
     </span>
   );
 }
@@ -1210,7 +1211,7 @@ export function SceneDetail({
           : hasFailedGenerationTasks
             ? { label: "重试失败项", disabled: !canGenerateInstance, kind: "generate" }
             : {
-                label: `生成 ${generationCount} 张`,
+                label: uiText("生成 {{ui:0}} 张", [generationCount]),
                 disabled: !canGenerateInstance,
                 kind: "generate"
               };
@@ -1318,7 +1319,7 @@ export function SceneDetail({
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <span className="hidden min-w-0 truncate text-sm font-semibold min-[700px]:block">{activeScene.name}</span>
+          <span className="hidden min-w-0 truncate text-sm font-semibold min-[700px]:block">{activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name}</span>
 
           <div className="ml-2 shrink-0 [-webkit-app-region:no-drag]">
             <LibraryFilterTabs
@@ -1339,7 +1340,7 @@ export function SceneDetail({
                   controls: "scene-history-panel"
                 }
               ]}
-              ariaLabel="模板内容"
+              ariaLabel={uiText("模板内容")}
               semantics="tablist"
               onValueChange={setWorkspaceView}
             />
@@ -1369,7 +1370,7 @@ export function SceneDetail({
                   variant="ghost"
                   size="icon"
                   className={cn("h-8 w-8", isFavorite && "text-amber-500 hover:text-amber-600")}
-                  aria-label={isFavorite ? uiText("取消收藏 {{ui:0}}", [activeScene.name]) : uiText("收藏 {{ui:0}}", [activeScene.name])}
+                  aria-label={isFavorite ? uiText("取消收藏 {{ui:0}}", [activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name]) : uiText("收藏 {{ui:0}}", [activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name])}
                   onClick={() => onToggleFavorite(activeScene.id)}
                 >
                   <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
@@ -1612,7 +1613,7 @@ export function SceneDetail({
                               <SlidersHorizontal className="h-3.5 w-3.5" />
                               <span className="max-[700px]:hidden">{generationSize === "auto" ? uiText("自动尺寸") : generationSize}</span>
                               <span className="text-border max-[700px]:hidden">·</span>
-                              <span>{generationCount} {uiText("张")}</span>
+                              <span>{uiText("{{ui:0}} 张", [generationCount])}</span>
                               <ChevronDown className="h-3.5 w-3.5" />
                             </Button>
                           </PopoverTrigger>
@@ -1622,8 +1623,8 @@ export function SceneDetail({
                               {!canGenerateInDetail ? <Button variant="ghost" size="sm" onClick={onOpenSettings}>{uiText("配置")}</Button> : null}
                             </div>
                             <div className="mt-4 grid gap-3">
-                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">{uiText("尺寸")}</span><Select value={generationSize} onValueChange={setGenerationSize} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs tabular-nums">{generationSize === "auto" ? uiText("自动") : generationSize}</SelectTrigger><SelectContent>{SIZE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></label>
-                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">{uiText("质量")}</span><Select value={generationQuality} onValueChange={(value) => setGenerationQuality(value as ImageQuality)} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs">{QUALITY_LABELS[generationQuality]}</SelectTrigger><SelectContent>{QUALITY_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></label>
+                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">{uiText("尺寸")}</span><Select value={generationSize} onValueChange={setGenerationSize} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs tabular-nums">{generationSize === "auto" ? uiText("自动") : generationSize}</SelectTrigger><SelectContent>{SIZE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{uiText(option.label)} · {uiText(option.description)}</SelectItem>)}</SelectContent></Select></label>
+                              <label className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs"><span className="text-muted-foreground">{uiText("质量")}</span><Select value={generationQuality} onValueChange={(value) => setGenerationQuality(value as ImageQuality)} disabled={sceneGenerationActive}><SelectTrigger className="h-8 text-xs">{uiText(QUALITY_LABELS[generationQuality])}</SelectTrigger><SelectContent>{QUALITY_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{uiText(option.label)}</SelectItem>)}</SelectContent></Select></label>
                               <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 text-xs">
                                 <span className="text-muted-foreground">{uiText("数量")}</span>
                                 <div className="flex h-8 rounded-md bg-muted p-0.5" role="group" aria-label={uiText("生成张数")}>
@@ -1661,7 +1662,7 @@ export function SceneDetail({
                           onClick={runCreationAction}
                         >
                           {sceneGenerationActive || assistantLoading ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : creationAction.kind === "generate" ? <ImageIcon className="h-4 w-4" /> : creationAction.kind === "settings" ? <SlidersHorizontal className="h-4 w-4" /> : creationAction.kind === "apply-proposal" ? <Check className="h-4 w-4" /> : creationAction.kind === "waiting" ? <CircleAlert className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                          <span className="truncate">{creationAction.label}</span>
+                          <span className="truncate">{uiText(creationAction.label)}</span>
                         </Button>
                       </div>
                     </div>
@@ -1686,7 +1687,7 @@ export function SceneDetail({
                 className="min-h-0 min-w-0 overflow-hidden bg-background min-[900px]:border-l min-[900px]:border-border"
               >
                 <TemplateUseAssistant
-                  templateName={activeScene.name}
+                  templateName={activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name}
                   templatePrompt={activeScene.prompt}
                   templateFields={activeScene.fields}
                   messages={assistantMessages}
@@ -1735,9 +1736,9 @@ export function SceneDetail({
                   <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={wideWorkspace ? uiText("关闭模板信息") : uiText("返回创作")} onClick={closeInspector}><X className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>{wideWorkspace ? uiText("关闭模板信息") : uiText("返回创作")}</TooltipContent></Tooltip>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                  <h1 className="text-base font-semibold">{activeScene.name}</h1>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeScene.description || SCENE_CATEGORY_LABELS[activeScene.category]}</p>
-                  <dl className="mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 border-y border-border py-3 text-xs"><dt className="text-muted-foreground">{uiText("分类")}</dt><dd>{SCENE_CATEGORY_LABELS[activeScene.category]}</dd><dt className="text-muted-foreground">{uiText("模式")}</dt><dd>{activeScene.mode === "edit" ? uiText("图片编辑") : uiText("文生图")}</dd><dt className="text-muted-foreground">{uiText("示例")}</dt><dd>{(media?.results.length ?? 0)} {uiText("张生成示例 · ")}{(activeScene.previewImages?.length ?? 0)} {uiText("张内置示例")}</dd></dl>
+                  <h1 className="text-base font-semibold">{activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name}</h1>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeScene.source === "preset" ? uiText(activeScene.description || SCENE_CATEGORY_LABELS[activeScene.category]) : activeScene.description || uiText(SCENE_CATEGORY_LABELS[activeScene.category])}</p>
+                  <dl className="mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 border-y border-border py-3 text-xs"><dt className="text-muted-foreground">{uiText("分类")}</dt><dd>{uiText(SCENE_CATEGORY_LABELS[activeScene.category])}</dd><dt className="text-muted-foreground">{uiText("模式")}</dt><dd>{activeScene.mode === "edit" ? uiText("图片编辑") : uiText("文生图")}</dd><dt className="text-muted-foreground">{uiText("示例")}</dt><dd>{(media?.results.length ?? 0)} {uiText("张生成示例 · ")}{(activeScene.previewImages?.length ?? 0)} {uiText("张内置示例")}</dd></dl>
                   <section className="mt-5">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 rounded-md bg-muted p-0.5" role="tablist" aria-label={uiText("提示词视图")}>
@@ -1803,7 +1804,7 @@ export function SceneDetail({
                     <Loader2 className="h-5 w-5 animate-spin" />
                   </div>
                   <DialogTitle>{uiText("正在刷新审核状态")}</DialogTitle>
-                  <DialogDescription>{uiText("正在从 Manager 获取「")}{activeScene.name}{uiText("」的最新发布信息。")}</DialogDescription>
+                  <DialogDescription>{uiText("正在从 Manager 获取「")}{activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name}{uiText("」的最新发布信息。")}</DialogDescription>
                 </DialogHeader>
               </>
             ) : submission && submissionMeta && SubmissionStatusIcon ? (
@@ -2074,19 +2075,19 @@ function SceneMediaStage({
       key: `builtin:${index}`,
       kind: "builtin",
       src,
-      label: `内置示例 ${index + 1}`,
+      label: uiText("内置示例 {{ui:0}}", [index + 1]),
       prompt: scene.previewPrompts?.[index] || scene.prompt
     }));
     const resultItems: SceneStageItem[] = results.map((result, index) => ({
       key: `result:${result.id}`,
       kind: "result",
       src: result.imageUrl,
-      label: `生成示例 ${index + 1}`,
+      label: uiText("生成示例 {{ui:0}}", [index + 1]),
       prompt: result.prompt || scene.prompt,
       result
     }));
     return [...resultItems, ...builtinItems];
-  }, [results, scene.previewImages, scene.previewPrompts, scene.prompt]);
+  }, [results, scene.previewImages, scene.previewPrompts, scene.prompt, uiText]);
 
   useEffect(() => {
     if (previewItems.length === 0) {
@@ -2174,7 +2175,7 @@ function SceneMediaStage({
         <div id="scene-examples-panel" role="tabpanel" aria-labelledby="scene-examples-tab" className="grid min-h-0 flex-1 grid-cols-[80px_minmax(0,1fr)] overflow-hidden">
           <div data-template-media-rail="" className="min-h-0 overflow-y-auto border-r border-border bg-black/10 p-3 dark:bg-black/40" role="listbox" aria-label={uiText("模板示例")}>
             {mediaGroups.map((group, groupIndex) => (
-              <div key={group.key} role="group" aria-label={group.label} className={cn(groupIndex > 0 && "mt-3 border-t border-border pt-3")}>
+              <div key={group.key} role="group" aria-label={uiText(group.label)} className={cn(groupIndex > 0 && "mt-3 border-t border-border pt-3")}>
                 <div className="grid gap-2">
                   {group.items.map((item) => {
                     const sortable = item.kind === "result";
@@ -2244,7 +2245,7 @@ function SceneMediaStage({
                       key={selectedItem.key}
                       data-scene-preview-image
                       src={selectedItem.src}
-                      alt={`${scene.name}${selectedItem.label}`}
+                      alt={`${scene.source === "preset" ? uiText(scene.name) : scene.name} ${selectedItem.label}`}
                       initial={reduceMotion ? false : { opacity: 0, scale: 0.992 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={reduceMotion ? undefined : { opacity: 0 }}

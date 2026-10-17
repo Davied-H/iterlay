@@ -1,5 +1,6 @@
 import type { ResolvedAppLocale } from "@shared/i18n";
 import { enUS, zhCN } from "./messages";
+import { workbenchEnglish } from "./workbench-messages";
 
 const catalogEntries = Object.keys(zhCN).map((key) => {
   const messageKey = key as keyof typeof zhCN;
@@ -592,7 +593,8 @@ const legacyEnglish: Record<string, string> = {
 
 const zhToEn = new Map<string, string>([
   ...catalogEntries,
-  ...Object.entries(legacyEnglish)
+  ...Object.entries(legacyEnglish),
+  ...Object.entries(workbenchEnglish)
 ]);
 const enToZh = new Map<string, string>(
   Array.from(zhToEn, ([zh, en]) => [en, zh] as const)
@@ -604,7 +606,11 @@ enToZh.set("Assets", "素材");
 
 function localizeDynamicChinese(value: string): string | null {
   if (value === "auto") return "Auto";
-  let match = /^打开画板\s+(.+)$/u.exec(value);
+  let match = /^(\d+)\s*天$/u.exec(value);
+  if (match) return `${match[1]} ${match[1] === "1" ? "day" : "days"}`;
+  match = /^(\d+)\s*天后清理$/u.exec(value);
+  if (match) return `Remove in ${match[1]} days`;
+  match = /^打开画板\s+(.+)$/u.exec(value);
   if (match) return `Open board ${match[1]}`;
   match = /^问题编号\s+(.+)$/u.exec(value);
   if (match) return `Error ID ${match[1]}`;

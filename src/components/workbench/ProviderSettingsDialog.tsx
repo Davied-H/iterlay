@@ -154,7 +154,7 @@ export function ProviderSettingsDialog({
 }: ProviderSettingsDialogProps): React.ReactElement {
   const uiText = useUiText();
 
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const segmentedControlId = useId();
   const assistantWidth = useAssistantWidth();
   const updateCenter = useUpdateCenter();
@@ -960,7 +960,7 @@ export function ProviderSettingsDialog({
                       title={uiText("本地记忆")}
                       description={
                         memoryStats
-                          ? uiText("{{ui:0}} 条有效记忆 · {{ui:1}} 条来源记录{{ui:2}}", [memoryStats.activeMemoryCount, memoryStats.eventCount, memoryStats.lastOrganizedAt ? ` · 最近整理 ${new Date(memoryStats.lastOrganizedAt).toLocaleDateString()}` : ""])
+                          ? uiText("{{ui:0}} 条有效记忆 · {{ui:1}} 条来源记录{{ui:2}}", [memoryStats.activeMemoryCount, memoryStats.eventCount, memoryStats.lastOrganizedAt ? uiText(" · 最近整理 {{ui:0}}", [new Date(memoryStats.lastOrganizedAt).toLocaleDateString(locale)]) : ""])
                           : uiText("正在读取记忆状态…")
                       }
                       control={
@@ -1015,7 +1015,7 @@ export function ProviderSettingsDialog({
                               buttonStyle={option.value}
                               role="radio"
                               aria-checked={generateButtonStyle === option.value}
-                              aria-label={uiText("选择{{ui:0}}样式", [option.title])}
+                              aria-label={uiText("选择{{ui:0}}样式", [uiText(option.title)])}
                               onClick={(event) => {
                                 event.stopPropagation();
                                 onGenerateButtonStyleChange(option.value);
@@ -1025,7 +1025,7 @@ export function ProviderSettingsDialog({
                             <span className={cn(
                               "text-xs font-medium",
                               generateButtonStyle === option.value ? "text-foreground" : "text-muted-foreground"
-                            )}>{option.title}</span>
+                            )}>{uiText(option.title)}</span>
                           </div>
                         ))}
                       </div>

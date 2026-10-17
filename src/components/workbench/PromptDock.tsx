@@ -3463,7 +3463,7 @@ export function PromptDock({
             value={assistantValue} streaming={assistantStreaming} activityLabel={assistantActivity ?? undefined}
             interaction={assistantInteraction?.state} disabled={Boolean(assistantActivity)}
             intentSuggestionsEnabled={assistantIntentSuggestionsEnabled} intentSuggestionCount={assistantIntentSuggestionCount}
-            intentSuggestions={assistantIntentSuggestions.length ? assistantIntentSuggestions : assistantMessages.length === 0 ? ["帮我探索创作方向", "帮我调整背景与光线", "帮我整理完整提示词"] : []} intentSuggestionsLoading={assistantIntentSuggestionsLoading}
+            intentSuggestions={assistantIntentSuggestions.length ? assistantIntentSuggestions : assistantMessages.length === 0 ? [uiText("帮我探索创作方向"), uiText("帮我调整背景与光线"), uiText("帮我整理完整提示词")] : []} intentSuggestionsLoading={assistantIntentSuggestionsLoading}
             history={assistantHistory} historyLoading={assistantHistoryLoading} historyScope={assistantHistoryScope}
             currentConversationId={assistantConversationId} onValueChange={setAssistantValue} onSubmit={submitAssistant} onStop={stopAssistant}
             onClose={assistantDockSide ? () => collapseDockedAssistant() : undefined}

@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { useUiText } from "@/i18n";
 
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
 import { cn } from "@/lib/utils";
@@ -33,17 +34,18 @@ export function LibraryFilterTabs<Value extends string>({
   countClassName,
   onValueChange
 }: LibraryFilterTabsProps<Value>): React.ReactElement {
+  const uiText = useUiText();
   const indicatorId = `${useId()}-library-filter-indicator`;
 
   return (
     <div
       role={semantics}
-      aria-label={ariaLabel}
+      aria-label={uiText(ariaLabel)}
       className={cn(
         "inline-grid shrink-0 items-center rounded-lg border border-border bg-muted/40 p-0.5",
         className
       )}
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${options.length}, max-content)` }}
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -72,7 +74,7 @@ export function LibraryFilterTabs<Value extends string>({
               />
             ) : null}
             <span className="relative z-10 whitespace-nowrap">
-              {option.label}
+              {uiText(option.label)}
               {option.count !== undefined ? (
                 <span
                   data-filter-count=""
