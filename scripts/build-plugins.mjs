@@ -1,10 +1,10 @@
-import { URL } from "node:url";
+import { URL, fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import AdmZip from "adm-zip";
 const root = new URL("../", import.meta.url);
 const manifest = JSON.parse(await readFile(new URL("plugins/short-drama/manifest.json", root), "utf8"));
-const result = await build({ entryPoints: [new URL("plugins/short-drama/src/main.tsx", root).pathname], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", minify: true, jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' } });
+const result = await build({ entryPoints: [fileURLToPath(new URL("plugins/short-drama/src/main.tsx", root))], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", minify: true, jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' } });
 const javascript = result.outputFiles.find(f => f.path.endsWith(".js"))?.text ?? result.outputFiles[0].text;
 const css = await readFile(new URL("plugins/short-drama/src/style.css", root), "utf8");
 const html = `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><div id="root"></div><script>${javascript.replaceAll("</script", "<\\/script")}</script></body></html>`;
