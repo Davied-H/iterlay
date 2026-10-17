@@ -129,6 +129,13 @@ try {
 
   await tool.getByRole("button", { name: "剧本面板", exact: true }).click();
   await tool.getByRole("textbox", { name: "镜头 1 台词 / 旁白", exact: true }).fill("这封信……来自明天。");
+  await page.waitForFunction(async ({ id, boardId }) => {
+    const state = await window.imageWorkbench.readPluginState(id, `board:${boardId}`);
+    return Object.values(state?.scriptDrafts ?? {}).some(draft => draft.values.dialogue === "这封信……来自明天。");
+  }, { id, boardId });
+  await page.reload(); await ready();
+  tool = page.frameLocator('iframe[title="短剧助手"]');
+  assert.equal(await tool.getByRole("textbox", { name: "镜头 1 台词 / 旁白", exact: true }).inputValue(), "这封信……来自明天。");
   await tool.getByRole("button", { name: "保存剧本", exact: true }).click();
   await page.waitForFunction(async boardId => {
     const snapshot = await window.imageWorkbench.getComicDramaBoardSnapshot(boardId);
@@ -285,7 +292,12 @@ try {
   assert.equal(await page.locator(".react-flow").count(), 0);
   await tool.getByRole("button", { name: "剧本面板", exact: true }).click();
   await page.setViewportSize({ width: 1235, height: 846 });
+  await page.evaluate(() => new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve))));
   await page.screenshot({ path: path.join(output, "short-drama-replica-1235.png") });
+  await tool.getByRole("button", { name: "列表视图", exact: true }).click();
+  assert.equal(await tool.locator(".studio-inspector").count(), 0);
+  await page.screenshot({ path: path.join(output, "short-drama-replica-list-1235.png") });
+  await tool.getByRole("button", { name: "网格视图", exact: true }).click();
   await checkPluginLayout();
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ ok: true, boardId, screenshots: ["plugins-market.png", "short-drama-shots-1440.png", "short-drama-production-1280.png"], verified: ["catalog install", "real React UI", "story versioning", "cast and shot editing", "reference connections", "draft recovery", "settings", "selection sync", "sandbox", "assistant error recovery", "native Agent form", "Agent mutation", "Agent cancellation", "disable", "uninstall", "file import", "reinstall data preservation"] }, null, 2));

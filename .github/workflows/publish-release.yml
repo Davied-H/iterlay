@@ -74,4 +74,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "v$VERSION" publish/* --target "$TARGET_COMMIT" --title "Iterlay $VERSION · 视频生成与启动优化" --notes-file "docs/releases/$VERSION.md" --latest
+          gh release create "v$VERSION" publish/* --target "$TARGET_COMMIT" --title "Iterlay $VERSION" --notes-file "docs/releases/$VERSION.md" --latest
