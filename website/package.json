@@ -13,15 +13,16 @@
     "check:live": "node scripts/check-live-seo.mjs"
   },
   "dependencies": {
+    "lucide-react": "^0.468.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react-router-dom": "^7.18.1",
-    "lucide-react": "^0.468.0"
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
-    "vite": "^6.4.1",
-    "typescript": "^5.9.3",
+    "@types/node": "^22.20.5",
     "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
   }
 }
