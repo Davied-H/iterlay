@@ -25,10 +25,15 @@ export default function Site() {
   useEffect(() => {
     if (previousLanguage.current === language) return
     previousLanguage.current = language
+    if (typeof location.state?.languageScrollY === 'number') {
+      // Settle the translated layout before restoring its viewport position.
+      content.current?.getBoundingClientRect()
+      window.scrollTo(0, location.state.languageScrollY)
+    }
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const animation = content.current?.animate?.([{ opacity: .82 }, { opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.22, 1, .36, 1)' })
     return () => animation?.cancel()
-  }, [language])
+  }, [language, location.state])
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   return <div className="public-app">
     <Seo /><Analytics />

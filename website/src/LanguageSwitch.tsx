@@ -12,7 +12,7 @@ export default function LanguageSwitch() {
     const path = window.location.pathname.slice(base.length) || '/'
     const next = siteLanguage(path, window.location.search) === 'en' ? 'zh' : 'en'
     try { localStorage.setItem(languagePreferenceKey, next) } catch { /* Switching also works without storage. */ }
-    navigate(sitePath(`${path}${window.location.search}${window.location.hash}`, next))
+    navigate(sitePath(`${path}${window.location.search}${window.location.hash}`, next), { state: { languageScrollY: window.scrollY } })
   }
   return <nav className="site-language" aria-label="Language / 语言">
     <button className="language-switch" type="button" role="switch" aria-checked={english} aria-label={english ? 'English language' : '使用英文'} aria-describedby="language-switch-description" title={english ? 'Switch to Chinese' : '切换为英文'} onClick={toggle}>
