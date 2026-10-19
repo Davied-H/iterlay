@@ -9,17 +9,17 @@ export const siteBase = import.meta.env.BASE_URL.replace(/\/$/, '')
 export const absoluteUrl = (path: string) => `${origin}${siteBase}${path}`
 const summaries = {
   zh: {
-    '/': ['Iterlay — 开源 AI 图片创作、编辑与无限画板', '面向视觉创作的免费 MIT 开源桌面工作台。连接自己的模型，在无限画板中生成和编辑图片、比较版本、整理素材；支持 macOS 与 Windows，画板保存在本地。'],
+    '/': ['Iterlay — 图片、视频与创作工作流，一张画布串起来', '免费开源的 AI 创作 App。生成图片、修改细节、制作视频，把参考、版本和成品整理在同一张画布上。支持 macOS 与 Windows；自选模型，调用由服务商计费。'],
     '/download': ['下载 Iterlay — macOS 与 Windows 安装包', '按操作系统和处理器下载 Iterlay 免费开源桌面版，核对 GitHub Releases 安装包、版本记录与原始更新说明。'],
-    '/wiki': ['Iterlay 功能库 — 图片编辑、画板、模型与 Agent', '浏览 Iterlay 十类创作功能，了解图片编辑、模板、素材库、版本管理、视频、导出和 Coding Agent 的操作与能力边界。'],
+    '/wiki': ['Iterlay 功能库 — 图片、视频与创作工作流', '浏览 Iterlay 十类创作功能，了解图片编辑、模板、素材库、版本管理、视频、导出和 Coding Agent 的操作与能力边界。'],
     '/agents': ['Iterlay Coding Agent 集成 — Codex / Claude Code 的 CLI + Skill 工作流', '通过 CLI + Skill，让 Codex 或 Claude Code 使用 Iterlay 配置的模型生成、编辑、比较并导出图片；查看真实 FIELD 示例与交付步骤。'],
     '/help': ['Iterlay 配置与帮助 — 模型、保存和故障排查', '配置自己的模型服务商，了解官网示例、桌面画板和开发工作区的保存边界，排查 CLI、生成、导出与版本问题。'],
     '/guides': ['Iterlay 使用指南 — 从模型配置到素材交付', '阅读 Iterlay 模型配置、版本对比、Coding Agent 和 FIELD 案例教程，核对实际操作、模型费用和本地保存边界。'],
   },
   en: {
-    '/': ['Iterlay — Open-source AI image editing & infinite canvas', 'A free, MIT-licensed desktop workspace for visual creation on macOS and Windows. Generate and edit images, compare versions and organize local boards using your own model providers.'],
+    '/': ['Iterlay — Images, videos, and creative workflows. One canvas.', 'A free, open-source AI creative app for macOS and Windows. Generate and edit images, create videos, and keep references, versions and finished assets on one canvas. Choose your models; provider fees apply.'],
     '/download': ['Download Iterlay — macOS and Windows installers', 'Download the free, open-source Iterlay desktop app for your OS and processor. Check installers, release history and original GitHub release notes.'],
-    '/wiki': ['Iterlay features — Images, boards, models and agents', 'Explore ten creative tool categories, including image editing, templates, assets, versions, video, export and coding agents, with instructions and limits.'],
+    '/wiki': ['Iterlay features — Images, videos and creative workflows', 'Explore ten creative tool categories, including image editing, templates, assets, versions, video, export and coding agents, with instructions and limits.'],
     '/agents': ['Iterlay Coding Agent integration — CLI + Skill for Codex & Claude Code', 'Use CLI + Skill with Codex or Claude Code to generate, edit, compare and export images using your configured providers. Inspect the real FIELD example and delivery workflow.'],
     '/help': ['Iterlay setup & help — Models, saving and troubleshooting', 'Configure a model provider, understand website and desktop storage boundaries, and troubleshoot CLI connections, generation, exports and release versions.'],
     '/guides': ['Iterlay guides — From model setup to asset delivery', 'Follow practical model setup, version comparison, coding agent and FIELD case guides. Understand provider charges, real operations and local storage limits.'],

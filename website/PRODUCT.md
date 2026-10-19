@@ -3,9 +3,9 @@
 ## Platform
 web
 ## Product Purpose
-Iterlay 是开源 AI 创作桌面工作台，在无限画板中完成图片生成、编辑、版本比较和素材整理。
+Iterlay 是免费开源的 AI 创作 App，把图片、视频与创作工作流放在同一个工作空间。生成图片、修改细节、制作视频，再把参考、版本和成品整理在同一张画布上。对外主表达为「图片、视频与创作工作流，一张画布串起来。」英文为「Images, videos, and creative workflows. One canvas.」。Coding Agent 是可选的执行与交付能力，不是产品的唯一受众。
 ## Capabilities and Constraints
-官网使用 React、Vite 和 HashRouter，通过公开 GitHub Releases 获取安装包。保留下载、平台切换、版本记录和失败重试。真实 AI 功能需在桌面版自行配置 Provider。官网体验为本地预置素材模拟，不调用付费生成接口。
+官网使用 React、Vite 和 HashRouter，通过公开 GitHub Releases 获取安装包。保留下载、平台切换、版本记录和失败重试。真实 AI 功能需在桌面版自行配置模型服务商，调用由服务商计费。「创作工作流」指图片生成与编辑、视频生成、版本比较、素材整理、模板复用和导出衔接，不承诺通用节点编辑器或全自动流水线；视频能力由所选模型决定。官网体验为本地预置素材模拟，不调用付费生成接口。
 ## Brand Commitments
 保留 Iterlay 名称、标识与开源属性。用户明确要求官网简单大气、低饱和、层级克制、流畅动效；2026-10-17 最新约定：默认展示成果和具体案例，允许正常滚动；用户点击按钮后才进入沉浸式交互画板，退出返回案例原位置。2026-10-16 用户指定 https://www.dingtalk.com/ 为官网外层视觉参考，授权调研后自动完成一轮优化；当前 App 的交互结构与预制体验边界继续优先保留。
 ## Evidence on Hand

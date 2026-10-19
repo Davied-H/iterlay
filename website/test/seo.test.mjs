@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { createServer } from 'vite'
 let vite, server, language
 before(async () => {
@@ -77,6 +77,59 @@ test('desktop product and coding agent integration have separate search identiti
   }
   const productBody = server.render('/en/')
   assert.match(productBody, /Explore the creative tools/)
-  assert.match(productBody, /Working with a coding agent\?/)
+  assert.match(productBody, /Your coding agent handles the steps\./)
   assert.match(server.render('/en/agents/'), /Set up CLI \+ Skill/)
+})
+
+test('every public page has matching language coverage and translated English body', () => {
+  const zh = server.publicPaths('zh').map(path => language.contentPath(path)).sort()
+  const en = server.publicPaths('en').map(path => language.contentPath(path)).sort()
+  assert.deepEqual(en, zh, 'Each Chinese page must have an English counterpart')
+  for (const path of server.publicPaths('en')) {
+    const html = server.render(path)
+    const body = html.replace(/<nav class="site-language"[\s\S]*?<\/nav>/g, '').replace(/<[^>]+>/g, '')
+    assert.doesNotMatch(body, /\p{Script=Han}/u, `Untranslated English-page copy: ${path}`)
+    const withoutSwitcher = html.replace(/<nav class="site-language"[\s\S]*?<\/nav>/g, '')
+    assert.doesNotMatch(withoutSwitcher, /href="\/iterlay\/zh\//, `Unexpected Chinese navigation: ${path}`)
+  }
+  for (const lang of ['zh', 'en']) {
+    const home = server.render(`/${lang}/`)
+    assert.equal((home.match(/class="showcase-case"/g) || []).length, 2)
+    assert.match(home, /class="showcase-scene-controls"/)
+    assert.match(home, /class="showcase-primary"/)
+  }
+})
+
+
+test('published release translations match the exact source and retain platform limits', async () => {
+  const { localizedReleaseBody } = await vite.ssrLoadModule('/src/release-copy.ts')
+  const records = JSON.parse(await readFile('src/release-translations.json', 'utf8'))
+  assert.equal(Object.keys(records).length, 6)
+  for (const [tag, record] of Object.entries(records)) {
+    assert.equal(localizedReleaseBody(tag, record.source, true).body, record.en)
+    assert.equal(localizedReleaseBody(tag, record.source, false).body, record.source)
+    assert.doesNotMatch(record.en, /\p{Script=Han}/u)
+    assert.match(record.en, /notariz/i)
+    assert.match(record.en, /provider/i)
+    const changed = `${record.source}\nChanged upstream`
+    assert.deepEqual(localizedReleaseBody(tag, changed, true), { body: changed, translated: false })
+  }
+  assert.deepEqual(localizedReleaseBody('unknown', 'Original notes', true), { body: 'Original notes', translated: false })
+})
+
+test('creative UI and case metadata cannot add untranslated Chinese copy', async () => {
+  const ts = (await import('typescript')).default
+  const { creativeCopy } = await vite.ssrLoadModule('/src/creative-copy.ts')
+  for (const name of ['HomePage.tsx', 'InteractiveWorkbench.tsx', 'FeaturePreview.tsx', 'demo-cases.ts']) {
+    const text = await readFile(`src/${name}`, 'utf8')
+    const file = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true, name.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+    const walk = node => {
+      if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isJsxText(node)) && /\p{Script=Han}/u.test(node.text)) {
+        const translated = creativeCopy[node.text.trim()]
+        assert.ok(translated && !/\p{Script=Han}/u.test(translated), `${name}: missing translation for ${node.text}`)
+      }
+      ts.forEachChild(node, walk)
+    }
+    walk(file)
+  }
 })

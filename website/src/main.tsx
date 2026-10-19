@@ -5,7 +5,6 @@ import HomePage from './HomePage'
 import DownloadPage from './DownloadPage'
 import FeatureWiki from './FeatureWiki'
 import AgentPage from './AgentPage'
-import EnglishHomePage from './EnglishHomePage'
 import HelpPage from './HelpPage'
 import { contentPath, languagePreferenceKey, siteLanguage, sitePath } from './site-language'
 import { repository } from './releases.mjs'
@@ -32,7 +31,7 @@ export default function Site() {
     <main id="content" tabIndex={-1} className="public-main">
       <Routes>
         {(['en', 'zh'] as const).flatMap(locale => [
-          <Route key={`${locale}-home`} path={`/${locale}/`} element={english ? <EnglishHomePage /> : <HomePage />} />,
+          <Route key={`${locale}-home`} path={`/${locale}/`} element={<HomePage key={language} />} />,
           <Route key={`${locale}-download`} path={`/${locale}/download`} element={<DownloadPage />} />,
           <Route key={`${locale}-wiki`} path={`/${locale}/wiki`} element={<FeatureWiki />} />,
           <Route key={`${locale}-agents`} path={`/${locale}/agents`} element={<AgentPage />} />,
@@ -44,6 +43,6 @@ export default function Site() {
         <Route path="*" element={<div className="help-page"><h1>{english ? 'Page not found' : '页面未找到'}</h1><NavLink to={sitePath('/', language)}>{english ? 'Back to product' : '返回产品首页'}</NavLink></div>} />
       </Routes>
     </main>
-    <footer className="public-footer"><div className="public-footer-inner"><span>{english ? 'Iterlay · Open-source visual workspace' : 'Iterlay · 开源 AI 创作工作台'}</span><div><NavLink to={sitePath('/guides', language)}>{english ? 'Guides' : '使用指南'}</NavLink><NavLink to={sitePath('/help', language)}>{english ? 'Setup & help' : '配置与帮助'}</NavLink><a href={`${repository}/blob/main/LICENSE`}>MIT License</a><a href={`${repository}/issues`}>{english ? 'Report an issue' : '反馈问题'}</a><a href={`${repository}/releases`}>GitHub Releases</a></div></div></footer>
+    <footer className="public-footer"><div className="public-footer-inner"><span>{english ? 'Iterlay · Images, videos, creative workflows' : 'Iterlay · 图片、视频与创作工作流'}</span><div><NavLink to={sitePath('/guides', language)}>{english ? 'Guides' : '使用指南'}</NavLink><NavLink to={sitePath('/help', language)}>{english ? 'Setup & help' : '配置与帮助'}</NavLink><a href={`${repository}/blob/main/LICENSE`}>MIT License</a><a href={`${repository}/issues`}>{english ? 'Report an issue' : '反馈问题'}</a><a href={`${repository}/releases`}>GitHub Releases</a></div></div></footer>
   </div>
 }

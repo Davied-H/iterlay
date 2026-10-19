@@ -18,7 +18,7 @@ type TaskMode = 'check' | 'create' | 'deliver'
 const text = {
   en: {
     language: 'Page language', title: 'Give your coding agent a canvas.',
-    intro: 'Connect Codex or Claude Code to the Iterlay desktop app through CLI + Skill. Let your agent generate and edit project images, review the versions on the canvas, and export the files into your code project.',
+    intro: 'Iterlay brings images, videos and creative workflows into one desktop app. Connect Codex or Claude Code through CLI + Skill to generate and edit project images, review versions on the canvas, and export the files into your code project.',
     seeResult: 'Open the finished website', start: 'Set up CLI + Skill',
     terms: 'Free, MIT-licensed app · macOS & Windows · Model usage billed by your provider',
     heroAlt: 'Screenshot of the finished FIELD example website using the generated orange speaker image',
@@ -53,7 +53,7 @@ const text = {
   },
   zh: {
     language: '页面语言', title: '给你的 Coding Agent，一张创作画布。',
-    intro: '通过 CLI + Skill，把 Codex 或 Claude Code 接到 Iterlay 桌面 App。让 Agent 生成、修改项目图片，你在画布中检查版本，再把选定文件交付到代码目录。',
+    intro: 'Iterlay 把图片、视频与创作工作流放在同一个 App。通过 CLI + Skill 接入 Codex 或 Claude Code，让 Agent 生成、修改项目图片，你在画布中检查版本，再把选定文件导出到代码目录。',
     seeResult: '打开案例成品网页', start: '配置 CLI + Skill',
     terms: 'MIT 免费开源 · macOS 与 Windows · 模型调用由服务商计费',
     heroAlt: 'FIELD 成品示例网页的真实截图，使用已生成的橙色音箱主图',
@@ -114,11 +114,12 @@ export default function AgentPage() {
     }
   }
   const scrollToSetup = () => document.getElementById('agent-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+  const examplePage = language === 'zh' ? AGENT_STARTER.pagePath.replace('index.html', 'index.zh.html') : AGENT_STARTER.pagePath
   const appDownload = publicHref('/download', language)
 
   return <div className="agent-page" lang={language === 'zh' ? 'zh-CN' : 'en'}>
     <section className="agent-hero agent-container" aria-labelledby="agent-title">
-      <div className="agent-hero-layout"><div className="agent-hero-copy"><h1 id="agent-title">{t.title}</h1><p>{t.intro}</p><div className="agent-actions"><button className="agent-primary" onClick={scrollToSetup}>{t.start}<ArrowDown size={16} /></button><a className="agent-text-link" href={`${import.meta.env.BASE_URL}${AGENT_STARTER.pagePath}`} target="_blank" rel="noreferrer">{t.seeResult}<ArrowUpRight size={16} /></a></div><p className="agent-terms">{t.terms}</p></div><figure className="agent-hero-image"><a href={`${import.meta.env.BASE_URL}${AGENT_STARTER.pagePath}`} target="_blank" rel="noreferrer" aria-label={t.seeResult}><img src={`${import.meta.env.BASE_URL}agent-field-site.webp`} alt={t.heroAlt} width="1200" height="900" fetchPriority="high" /></a><figcaption><span>{t.heroCaption}</span><span>{t.heroProof}</span></figcaption></figure></div>
+      <div className="agent-hero-layout"><div className="agent-hero-copy"><h1 id="agent-title">{t.title}</h1><p>{t.intro}</p><div className="agent-actions"><button className="agent-primary" onClick={scrollToSetup}>{t.start}<ArrowDown size={16} /></button><a className="agent-text-link" href={`${import.meta.env.BASE_URL}${examplePage}`} target="_blank" rel="noreferrer">{t.seeResult}<ArrowUpRight size={16} /></a></div><p className="agent-terms">{t.terms}</p></div><figure className="agent-hero-image"><a href={`${import.meta.env.BASE_URL}${examplePage}`} target="_blank" rel="noreferrer" aria-label={t.seeResult}><img src={`${import.meta.env.BASE_URL}agent-field-site.webp`} alt={t.heroAlt} width="1200" height="900" fetchPriority="high" /></a><figcaption><span>{t.heroCaption}</span><span>{t.heroProof}</span></figcaption></figure></div>
     </section>
 
     <section className="agent-case agent-container" aria-labelledby="agent-case-title"><div className="agent-section-heading"><h2 id="agent-case-title">{t.caseTitle}</h2><p>{t.caseIntro}</p></div><div className="agent-asset-grid">
