@@ -194,3 +194,17 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 状态：本地截图已更新；GitHub main 包含本条记录时即已同步源码与截图，尚未重新核验 GitHub 网页渲染。
 - 核验依据：逐张视觉检查截图内容与语言、WebP尺寸检查及git diff --check通过。
 - 指标及采集日期：未采集。
+
+## App 版本发布
+
+### APP-001 · Iterlay v0.1.63
+
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.63 。
+- 内容：CLI 隐藏后台运行、视频与 TTS Provider 配置、编辑工具栏优化及官网双语体验更新。
+- 日期 / 时区：2026-10-19 22:20:10 / Asia/Shanghai。
+- 发布提交：`0fb16bc43577d3ea77650dcd314e7c87c197903e`；安装包与 CI 固定使用此提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64 与 Windows ARM64 / x64 四份安装包和 SHA256SUMS.txt 已公开。
+- 验证：本地完整检查通过（2043 项单元测试通过、4 项跳过；官网 13 项测试与 40 页 SEO 通过）。打包：https://github.com/Davied-H/iterlay/actions/runs/39266808462 。
+- CI：main 上原检查被并行文档提交触发的自动取消规则取消；独立发布分支完整检查及隔离网页冒烟通过：https://github.com/Davied-H/iterlay/actions/runs/39267168633 。
+- 发布与线上核验：2026-10-19；发布流程成功 https://github.com/Davied-H/iterlay/actions/runs/39267923255 ，四包内容/体积审计与 SHA-256 校验通过；GitHub API 确认非草稿、非预发布、Latest=v0.1.63，公开安装包摘要与下载的 SHA256SUMS.txt 四项一致。
+- 指标及采集日期：未采集。
