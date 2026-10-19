@@ -262,3 +262,17 @@ Agent 内容不添加阴影或浮动窗口，依靠白底、浅灰绿分区、�
 ### Bilingual product and help (2026-10-19)
 
 英文产品页沿用 Agent 页的白底、石墨文字、浅灰绿分隔与既有 FIELD 实图。功能目录采用平面文字行和细分隔线，桌面两列、手机一列。`HelpPage` 为正常滚动的阅读页，内容上限 (1000px)，桌面留白 (40px)、手机 (20px)，正文 (15px / 1.9)、手机 (14px)。目录在当前 HashRouter 页面内滚动，不破坏 `lang` 路由。下载页保留既有视觉与真实版本机制，翻译界面和状态，不伪造英文发布说明。手机导航收紧间距，确保英文下载按钮完整可见。
+
+### ContentPage reading surface (2026-10-19)
+
+`ContentPage.tsx` 承载独立功能文章、四篇双语教程与指南索引。当前入口使用正常路径：`/zh/guides/`、`/en/guides/`，文章为 `/{zh|en}/guides/:slug/` 与 `/{zh|en}/features/:slug/`；前文 `/#/…` 与 HashRouter 是历史记录，不作为这些页面的新链接格式。
+
+阅读表面继承 `HelpPage` 的白底、石墨文字、灰绿正文和系统无衬线字体，以单列和细线分段建立层级。容器上限 (1000px)，桌面两侧留白 (40px)、手机 (20px)；正文 (15px / 1.9)、手机 (14px)，标题 (32–48px / 1.2)。索引按「教程 → 功能 → 产品与费用、保存边界」排列，每条仅含普通下划线链接和摘要。文章按「面包屑 → 标题与简介 → 可选案例图 → 操作与边界 → 来源和后续入口 → 相关指南」阅读；已有 FIELD 真实生成素材注明虚构案例身份，图片上限 (640px)，不添加装饰卡片或阴影。
+
+窄屏标题与导航自然换行，媒体随列宽缩放；代码保留等宽与横向滚动，不撑开页面。独立视觉 finish review 为 `ship`、无 material findings，证据为 `.impeccable/review/seo/` 下的 `desktop.png`、`mobile.png`、`user-320.png`；该结论针对阅读表面，不代表独立验证了全部交互或 SEO 行为。
+
+### Product and Coding Agent positioning (2026-10-19)
+
+英文产品首页面向视觉创作者，以桌面图片生成、编辑、版本比较和画板组织为主线；首图使用已有 FIELD 产品原图，主要行动为下载与了解工具。Coding Agent 页面向开发者，以 CLI + Skill 配置集成为主要行动，继续使用已有 FIELD 网站截图；明确这是同一桌面 App 的可选集成方式。指南索引分为产品使用与 Agent 集成内容，文章的后续入口和相关指南按主题关联，保持两类读者各自的阅读路径。
+
+本轮定位表面的独立 finish review 为 `ship`、无 material findings；证据为 `.impeccable/review/positioning/` 中 product、agent、guides 各自的 desktop/mobile 六张截图。该记录限于页面定位与视觉表面。

@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs && node scripts/check-seo.mjs",
     "preview": "vite preview",
     "test": "node --test test/*.test.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:seo": "node scripts/check-seo.mjs",
+    "check:live": "node scripts/check-live-seo.mjs"
   },
   "dependencies": {
     "react": "^19.2.1",

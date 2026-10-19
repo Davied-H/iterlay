@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { publicHref, sitePath, useSiteLanguage } from './site-language'
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Copy, Download } from 'lucide-react'
 import { AGENT_STARTER, buildAgentStarterPrompt } from '../../shared/agent-starter'
 import './agent-page.css'
@@ -18,8 +19,8 @@ type TaskMode = 'check' | 'create' | 'deliver'
 const text = {
   en: {
     language: 'Page language', title: 'Give your coding agent a canvas.',
-    intro: 'Create a set of images for your project. Review the results, ask for a change, and export the versions you choose—all with the models you configure in Iterlay.',
-    seeResult: 'Open the finished website', start: 'Try this workflow',
+    intro: 'Connect Codex or Claude Code to the Iterlay desktop app through CLI + Skill. Let your agent generate and edit project images, review the versions on the canvas, and export the files into your code project.',
+    seeResult: 'Open the finished website', start: 'Set up CLI + Skill',
     terms: 'Free, MIT-licensed app · macOS & Windows · Model usage billed by your provider',
     heroAlt: 'Screenshot of the finished FIELD example website using the generated orange speaker image',
     heroCaption: 'FIELD / Finished example website', heroProof: 'Actual page screenshot',
@@ -53,8 +54,8 @@ const text = {
   },
   zh: {
     language: '页面语言', title: '给你的 Coding Agent，一张创作画布。',
-    intro: '为项目做一组图片，查看结果、提出修改，再把选好的版本导出到代码项目。Agent 沿用你在 Iterlay 中配置的模型完成创作。',
-    seeResult: '打开案例成品网页', start: '试试这套工作流',
+    intro: '通过 CLI + Skill，把 Codex 或 Claude Code 接到 Iterlay 桌面 App。让 Agent 生成、修改项目图片，你在画布中检查版本，再把选定文件交付到代码目录。',
+    seeResult: '打开案例成品网页', start: '配置 CLI + Skill',
     terms: 'MIT 免费开源 · macOS 与 Windows · 模型调用由服务商计费',
     heroAlt: 'FIELD 成品示例网页的真实截图，使用已生成的橙色音箱主图',
     heroCaption: 'FIELD / 成品示例网页', heroProof: '实际网页截图',
@@ -92,8 +93,8 @@ const asset = (file: string) => `${import.meta.env.BASE_URL}examples/field/site/
 const taskModes: TaskMode[] = ['check', 'create', 'deliver']
 
 export default function AgentPage() {
-  const [params, setParams] = useSearchParams()
-  const language: Language = params.get('lang') === 'zh' ? 'zh' : 'en'
+  const language: Language = useSiteLanguage()
+  const navigate = useNavigate()
   const t = text[language]
   const [agent, setAgent] = useState<Agent>('codex')
   const [mode, setMode] = useState<TaskMode>('check')
@@ -115,11 +116,11 @@ export default function AgentPage() {
     }
   }
   const scrollToSetup = () => document.getElementById('agent-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
-  const appDownload = `#/download?lang=${language}`
+  const appDownload = publicHref('/download', language)
 
   return <div className="agent-page" lang={language === 'zh' ? 'zh-CN' : 'en'}>
     <section className="agent-hero agent-container" aria-labelledby="agent-title">
-      <div className="agent-language" aria-label={t.language}><button lang="en" aria-pressed={language === 'en'} onClick={() => { setParams({ lang: 'en' }, { preventScrollReset: true }); setCopied(null); setCopyError(false) }}>English</button><span aria-hidden="true">/</span><button lang="zh-CN" aria-pressed={language === 'zh'} onClick={() => { setParams({ lang: 'zh' }, { preventScrollReset: true }); setCopied(null); setCopyError(false) }}>中文</button></div>
+      <div className="agent-language" aria-label={t.language}><button lang="en" aria-pressed={language === 'en'} onClick={() => { navigate(sitePath('/agents', 'en')); setCopied(null); setCopyError(false) }}>English</button><span aria-hidden="true">/</span><button lang="zh-CN" aria-pressed={language === 'zh'} onClick={() => { navigate(sitePath('/agents', 'zh')); setCopied(null); setCopyError(false) }}>中文</button></div>
       <div className="agent-hero-layout"><div className="agent-hero-copy"><h1 id="agent-title">{t.title}</h1><p>{t.intro}</p><div className="agent-actions"><button className="agent-primary" onClick={scrollToSetup}>{t.start}<ArrowDown size={16} /></button><a className="agent-text-link" href={`${import.meta.env.BASE_URL}${AGENT_STARTER.pagePath}`} target="_blank" rel="noreferrer">{t.seeResult}<ArrowUpRight size={16} /></a></div><p className="agent-terms">{t.terms}</p></div><figure className="agent-hero-image"><a href={`${import.meta.env.BASE_URL}${AGENT_STARTER.pagePath}`} target="_blank" rel="noreferrer" aria-label={t.seeResult}><img src={`${import.meta.env.BASE_URL}agent-field-site.webp`} alt={t.heroAlt} width="1200" height="900" fetchPriority="high" /></a><figcaption><span>{t.heroCaption}</span><span>{t.heroProof}</span></figcaption></figure></div>
     </section>
 
@@ -138,7 +139,7 @@ export default function AgentPage() {
       <li><div className="agent-step-heading"><span aria-hidden="true">3</span><h3>{t.inspectTitle}</h3></div><div className="agent-step-body"><p>{t.inspectBody}</p><ul className="agent-checklist">{t.checklist.map(item => <li key={item}><Check size={16} aria-hidden="true" />{item}</li>)}</ul></div></li></ol><p className="agent-scope">{t.scope}</p>
     </div></section>
 
-    <section className="agent-privacy agent-container"><h2>{t.privacyTitle}</h2><div><p>{t.privacy}</p><a className="agent-text-link" href={`#/help?lang=${language}`}>{t.docs}<ArrowUpRight size={15} /></a><p className="help-note">{language === 'en' ? 'This website shows prepared examples and does not save an editable desktop board. Download the FIELD files to keep them. In the desktop app, wait for a successful save; if saving fails, keep it open and retry.' : '官网展示预制示例，不会保存可编辑的桌面画板。请下载 FIELD 文件留存。桌面 App 中请等待保存成功；保存失败时保持打开并重试。'}</p></div></section>
+    <section className="agent-privacy agent-container"><h2>{t.privacyTitle}</h2><div><p>{t.privacy}</p><a className="agent-text-link" href={publicHref('/help', language)}>{t.docs}<ArrowUpRight size={15} /></a><p className="help-note">{language === 'en' ? 'This website shows prepared examples and does not save an editable desktop board. Download the FIELD files to keep them. In the desktop app, wait for a successful save; if saving fails, keep it open and retry.' : '官网展示预制示例，不会保存可编辑的桌面画板。请下载 FIELD 文件留存。桌面 App 中请等待保存成功；保存失败时保持打开并重试。'}</p></div></section>
     <section className="agent-close"><h2>{t.finalTitle}</h2><p>{t.finalBody}</p><a className="agent-primary" href={appDownload}>{t.getApp}<Download size={16} /></a></section>
   </div>
 }

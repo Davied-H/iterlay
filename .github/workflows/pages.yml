@@ -30,12 +30,31 @@ jobs:
         working-directory: website
       - run: npm test
         working-directory: website
+      - run: npm run typecheck
+        working-directory: website
       - run: npm run build
         working-directory: website
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          VITE_SITE_ORIGIN: ${{ vars.SITE_ORIGIN || 'https://davied-h.github.io' }}
+          VITE_GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
+          VITE_BING_SITE_VERIFICATION: ${{ vars.BING_SITE_VERIFICATION }}
+          VITE_PLAUSIBLE_DOMAIN: ${{ vars.PLAUSIBLE_DOMAIN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist
       - uses: actions/deploy-pages@v4
         id: deployment
+
+      - name: Check published SEO pages
+        run: npm run check:live
+        working-directory: website
+        env:
+          SEO_SITE_URL: ${{ steps.deployment.outputs.page_url }}
+      - name: Save published SEO audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-seo-audit
+          path: website/output/seo/live-audit.json
+          if-no-files-found: ignore

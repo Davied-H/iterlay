@@ -3,6 +3,7 @@
 // The numbered guide is website chrome; actions run on the product-like surface.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, Download, Hand, History, ImagePlus, Maximize, Minus, MousePointer2, Pencil, Plus, RotateCcw, Sparkles, SplitSquareHorizontal, X } from 'lucide-react'
+import { sitePath } from './site-language'
 import { Link } from 'react-router-dom'
 import './workbench-demo.css'
 import { demoCases as cases, galleryAsset as asset } from './demo-cases'
@@ -164,7 +165,7 @@ export default function InteractiveWorkbench({ initialCase = 0, onExit }: { init
       </div>
       <aside className="demo-guide" aria-label="当前步骤与案例">
         <div className="demo-step-copy" key={step}><span className="demo-step-count">{step + 1} / 3</span><h2>{step === 0 ? current.title : steps[step].title}</h2><p>{steps[step].description}</p>{step === 0 && <div className="demo-guide-detail"><MousePointer2 size={16} /><span>{selected ? '已选中。点击图片上方的「编辑」。' : '图片可以像 App 中一样拖动、选中。'}</span></div>}{step === 1 && <div className="demo-guide-detail"><ImagePlus size={16} /><span>图片已带入编辑目标，直接描述调整即可。</span></div>}{step === 2 && <button className="demo-guide-compare" aria-pressed={compare} onClick={() => { setCompare(value => !value); setVersion(1) }}><SplitSquareHorizontal size={15} />{compare ? '退出对比' : '比较原图与新版本'}</button>}</div>
-        <div className="demo-guide-bottom">{step === 2 ? <><h3>轮到你的想法了。</h3><p>下载 Iterlay，用自己的图片继续创作。</p><Link to="/download">下载 Iterlay<ArrowUpRight size={14} /></Link><button onClick={onExit}>换个案例<ArrowRight size={12} /></button></> : <p className="demo-guide-footnote">本体验还原 App 的核心操作，<br />使用预制素材，无需登录或配置模型。</p>}</div>
+        <div className="demo-guide-bottom">{step === 2 ? <><h3>轮到你的想法了。</h3><p>下载 Iterlay，用自己的图片继续创作。</p><Link to={sitePath("/download", "zh")}>下载 Iterlay<ArrowUpRight size={14} /></Link><button onClick={onExit}>换个案例<ArrowRight size={12} /></button></> : <p className="demo-guide-footnote">本体验还原 App 的核心操作，<br />使用预制素材，无需登录或配置模型。</p>}</div>
       </aside>
     </div><p className="sr-only" role="status">{announcement}</p>
   </div>

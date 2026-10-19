@@ -5,6 +5,7 @@ import InteractiveWorkbench from './InteractiveWorkbench'
 import { demoCases, galleryAsset } from './demo-cases'
 import './home-gallery.css'
 import FeaturePreview from './FeaturePreview'
+import { sitePath } from './site-language'
 import { useTour } from './useTour'
 import './agent-page.css'
 
@@ -48,7 +49,7 @@ export default function HomePage() {
   return <div className="showcase-home">
     <section className="showcase-hero" aria-labelledby="home-title">
       <div className="showcase-hero-inner" onMouseEnter={() => tour.setHeld(true)} onMouseLeave={() => tour.setHeld(false)} onFocusCapture={() => tour.setHeld(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) tour.setHeld(false) }}>
-        <div className="showcase-hero-copy"><div className="showcase-scene-copy" key={scene.id}><h1 id="home-title">{scene.title}<br /><span>{scene.emphasis}</span></h1><p>{scene.description}</p></div><div className="showcase-actions">{'caseIndex' in scene ? <button className="showcase-primary" data-experience-key="hero" onClick={() => startExperience(scene.caseIndex, 'hero')}>开始体验<ArrowRight size={16} /></button> : <Link className="showcase-primary" data-experience-key="hero" to={`/wiki?feature=${scene.feature}`}>了解{scene.label}<ArrowRight size={16} /></Link>}<Link className="showcase-download" to="/download"><Download size={15} />下载桌面版</Link></div></div>
+        <div className="showcase-hero-copy"><div className="showcase-scene-copy" key={scene.id}><h1 id="home-title">{scene.title}<br /><span>{scene.emphasis}</span></h1><p>{scene.description}</p></div><div className="showcase-actions">{'caseIndex' in scene ? <button className="showcase-primary" data-experience-key="hero" onClick={() => startExperience(scene.caseIndex, 'hero')}>开始体验<ArrowRight size={16} /></button> : <Link className="showcase-primary" data-experience-key="hero" to={sitePath(`/wiki?feature=${scene.feature}`, 'zh')}>了解{scene.label}<ArrowRight size={16} /></Link>}<Link className="showcase-download" to={sitePath('/download', 'zh')}><Download size={15} />下载桌面版</Link></div></div>
         <div className="showcase-scene-visual" key={scene.id}>{heroCase ? <figure className="showcase-hero-visual"><img className="showcase-finished" src={galleryAsset(heroCase.result)} alt={heroCase.heroAlt} fetchPriority="high" /><figcaption><span>{heroCase.outcome}</span><span>案例效果</span></figcaption><div className="showcase-source"><img src={galleryAsset(heroCase.source)} alt={heroCase.sourceName} /><span>原图</span><ArrowRight size={16} /></div></figure> : 'preview' in scene ? <FeaturePreview kind={scene.preview}/> : null}</div>
       </div>
       <div className="showcase-scene-controls" aria-label="首页场景轮播">{heroScenes.map((item,index)=><button key={item.id} aria-label={`切换到${item.label}`} aria-pressed={tour.index===index} onClick={()=>tour.select(index)}><span/>{item.label}</button>)}<button className="showcase-scene-toggle" aria-label={tour.playing?'暂停场景轮播':'播放场景轮播'} onClick={()=>tour.setPlaying(value=>!value)}>{tour.playing?<Pause size={12}/>:<Play size={12}/>}</button></div>
@@ -59,10 +60,10 @@ export default function HomePage() {
       <div className="showcase-case-grid">{demoCases.map((item, index) => <article className="showcase-case" key={item.id}>
         <div className="showcase-case-images"><figure><img src={galleryAsset(item.source)} alt={`${item.sourceName}，修改前`} loading="lazy" /><figcaption>原图</figcaption></figure><ArrowRight size={16} aria-hidden="true" /><figure><img src={galleryAsset(item.result)} alt={`${item.resultName}，预制效果`} loading="lazy" /><figcaption>{item.resultName}</figcaption></figure></div>
         <div className="showcase-case-copy"><h3>{item.title}</h3><p>{item.description}</p></div><button className="showcase-case-start" data-experience-key={`case-${index}`} onClick={() => startExperience(index, `case-${index}`)}>{item.action}<ArrowUpRight size={16} /></button>
-      </article>)}</div><p className="showcase-preset-note">以上为预制交互示例，不会调用模型，也不会保存可编辑的桌面画板；刷新可能重置体验。请下载图片留存，或在桌面版连接自己的 AI 服务商继续创作。<Link to="/help?lang=zh">查看保存边界</Link></p>
+      </article>)}</div><p className="showcase-preset-note">以上为预制交互示例，不会调用模型，也不会保存可编辑的桌面画板；刷新可能重置体验。请下载图片留存，或在桌面版连接自己的 AI 服务商继续创作。<Link to={sitePath('/help?lang=zh', 'zh')}>查看保存边界</Link></p>
     </section>
-    <section className="showcase-agent-link"><h2>你看画布，<br />Coding Agent 做执行。</h2><div><p>让 Codex、Claude Code 为项目生成素材、修改版本、整理画板，再导出到代码目录。从 FIELD 音箱案例开始，看一次完整的创作与交付。</p><Link to="/agents?lang=zh">查看 Agent 工作流<ArrowUpRight size={17}/></Link></div></section>
-    <section className="showcase-wiki-link"><div><h2>不止改图，还有完整的创作工作流。</h2><p>AI 助手、模板、素材库、视频、Coding Agent……<br />进入功能 Wiki，跟随自动巡览，看懂每一项能力和操作。</p></div><Link to="/wiki">浏览全部功能<ArrowUpRight size={18}/></Link></section>
-    <section className="showcase-close"><h2>把自己的图片，带进 Iterlay。</h2><p>生成、编辑、比较与整理，都在同一个工作空间。</p><Link className="showcase-primary" to="/download"><Download size={16} />下载 Iterlay<ArrowUpRight size={15} /></Link><span>免费开源 · macOS & Windows · AI 功能需自行配置服务商</span></section>
+    <section className="showcase-agent-link"><h2>你看画布，<br />Coding Agent 做执行。</h2><div><p>让 Codex、Claude Code 为项目生成素材、修改版本、整理画板，再导出到代码目录。从 FIELD 音箱案例开始，看一次完整的创作与交付。</p><Link to={sitePath('/agents?lang=zh', 'zh')}>查看 Agent 工作流<ArrowUpRight size={17}/></Link></div></section>
+    <section className="showcase-wiki-link"><div><h2>不止改图，还有完整的创作工作流。</h2><p>AI 助手、模板、素材库、视频、Coding Agent……<br />进入功能 Wiki，跟随自动巡览，看懂每一项能力和操作。</p></div><Link to={sitePath('/wiki', 'zh')}>浏览全部功能<ArrowUpRight size={18}/></Link></section>
+    <section className="showcase-close"><h2>把自己的图片，带进 Iterlay。</h2><p>生成、编辑、比较与整理，都在同一个工作空间。</p><Link className="showcase-primary" to={sitePath('/download', 'zh')}><Download size={16} />下载 Iterlay<ArrowUpRight size={15} /></Link><span>免费开源 · macOS & Windows · AI 功能需自行配置服务商</span></section>
   </div>
 }

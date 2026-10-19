@@ -1,0 +1,12 @@
+.content-page h1{max-width:26ch;overflow-wrap:anywhere}
+.content-page section p+p{margin-top:16px}
+.content-page .content-directory{list-style:none;padding:0}
+.content-directory li{padding:20px 0;border-bottom:1px solid #dce2d5}
+.content-directory li+li{margin-top:0}
+.content-directory a{font-size:19px;font-weight:550}
+.content-directory p{margin-top:8px}
+.content-figure{max-width:640px;margin:32px 0}
+.content-figure img{display:block;width:100%;height:auto}
+.content-figure figcaption{font-size:13px;line-height:1.8;color:#596450;margin-top:12px}
+.content-page pre{max-width:100%;white-space:pre;overflow-x:auto}
+.content-page nav{align-items:baseline}

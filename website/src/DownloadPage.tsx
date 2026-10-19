@@ -22,12 +22,13 @@ export default function DownloadPage() {
   const english = language === 'en'
   const t = (zh: string, en: string) => english ? en : zh
   const platforms = platformsZh.map(platform => ({ ...platform, label: english ? ({ 'win32-x64': 'Windows x64', 'win32-arm64': 'Windows ARM64', 'darwin-x64': 'macOS Intel', 'darwin-arm64': 'macOS Apple silicon' }[platform.id]) : platform.label, detail: english ? ({ 'win32-x64': 'For Windows devices with an x64 processor', 'win32-arm64': 'For Windows devices with an ARM processor', 'darwin-x64': 'For Mac computers with an Intel processor', 'darwin-arm64': 'For Mac computers with an Apple M-series processor' }[platform.id]) : platform.detail }))
-  const [variant, setVariant] = useState<InstallerVariant>(() => /Windows/i.test(navigator.userAgent) ? 'win32-x64' : 'darwin-arm64')
+  const [variant, setVariant] = useState<InstallerVariant>('darwin-arm64')
   const [releases, setReleases] = useState<GitHubRelease[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [retry, setRetry] = useState(0)
   const [detected, setDetected] = useState<InstallerVariant | null>(null)
   useEffect(() => {
+    if (/Windows/i.test(navigator.userAgent)) setVariant('win32-x64')
     // Architecture is unavailable in some browsers; never guess Apple vs Intel.
     const ua = navigator as Navigator & { userAgentData?: { getHighEntropyValues: (keys: string[]) => Promise<{ platform?: string; architecture?: string }> } }
     let active = true

@@ -8,7 +8,7 @@ An open-source AI visual workspace. Bring references, image generation, editing,
 
 **Your models · Infinite canvas · Agent tools · MIT licensed**
 
-[Download Iterlay](https://github.com/Davied-H/iterlay/releases) · [Website](https://davied-h.github.io/iterlay/) · [Agent workflow & example](https://davied-h.github.io/iterlay/#/agents) · [简体中文](README.zh-CN.md)
+[Download Iterlay](https://github.com/Davied-H/iterlay/releases) · [Website](https://davied-h.github.io/iterlay/en/) · [Agent workflow & example](https://davied-h.github.io/iterlay/en/agents/) · [简体中文](README.zh-CN.md)
 
 </div>
 
@@ -81,7 +81,7 @@ Configure these capabilities separately. Image editing, references, text-to-vide
 
 ## Give your agent visual tools
 
-See the [FIELD walkthrough](https://davied-h.github.io/iterlay/#/agents) for the finished sample website, an importable board with real images and version history, and copyable tasks for setup, creation, and delivery. Opening the example does not run a model; creating new images uses your configured provider.
+See the [FIELD walkthrough](https://davied-h.github.io/iterlay/en/agents/) for the finished sample website, an importable board with real images and version history, and copyable tasks for setup, creation, and delivery. Opening the example does not run a model; creating new images uses your configured provider.
 
 Let Codex or Claude Code create visual assets as part of your existing workflow.
 

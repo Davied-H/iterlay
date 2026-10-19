@@ -10,7 +10,13 @@ npm test
 npm run build
 ```
 
-默认部署到 https://davied-h.github.io/iterlay/ 。使用 HashRouter，下载页为 `/#/download`，GitHub Pages 不需要服务器路由回退。
+默认部署到 https://davied-h.github.io/iterlay/ 。使用正常中英文路径和构建时静态生成，下载页为 `/zh/download/` 或 `/en/download/`；GitHub Pages 直接提供每个目录的 HTML，无需 SPA 回退。旧 Hash 链接通过浏览器兼容转换。
+
+## 当前 SEO 与 AI 搜索实现
+
+构建输出 40 个双语完整 HTML 页面、独立元信息、结构化数据、sitemap、robots 与 llms 索引。功能说明与教程都能在不执行 JS 时阅读。`npm run build` 包含 SEO 校验；部署工作流还会执行线上 HTTP 巡检。
+
+访问 `/zh/guides/` 或 `/en/guides/` 阅读功能与四篇重点教程。站点验证、可选 Plausible 统计、GitHub Pages 根 robots 限制、上线后收录与 AI 引用评估见 [SEO.md](SEO.md)。下文旧 Hash 地址作为历史兼容入口保留，当前导航输出正常路径。
 
 ## 中英文关键路径
 
