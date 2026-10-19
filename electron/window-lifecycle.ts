@@ -12,7 +12,8 @@ export { WindowSaveRequests } from "./window-save-requests.js";
 /** A close acknowledgement is consumed once; failed writes never silently close. */
 export function installWindowLifecycle(
   flushLogs: () => Promise<void>,
-  flushExternal?: (window: BrowserWindow) => Promise<void>
+  flushExternal?: (window: BrowserWindow) => Promise<void>,
+  options: { retainWindow?: (window: BrowserWindow) => boolean; silent?: () => boolean } = {}
 ) {
   const requests = new WindowSaveRequests((senderId, requestId) => {
     const window = BrowserWindow.getAllWindows().find((w) => w.webContents.id === senderId);
@@ -37,8 +38,8 @@ export function installWindowLifecycle(
       try { await requestSave(window); return true; }
       catch (error) {
         if (window.isDestroyed()) return true;
-        if (flushExternal) {
-          console.error("网页工作区保存失败，已取消关闭。请在网页保存后重试。", error);
+        if (flushExternal || options.silent?.()) {
+          console.error("工作区保存失败，已取消关闭。请保存后重试。", error);
           return false;
         }
         const result = await dialog.showMessageBox(window, {
@@ -75,7 +76,7 @@ export function installWindowLifecycle(
       if (closing.has(id)) return;
       closing.add(id);
       void prepare(window).then((ok) => {
-        if (ok && !window.isDestroyed()) { allowed.add(id); window.close(); }
+        if (ok && !window.isDestroyed() && !options.retainWindow?.(window)) { allowed.add(id); window.close(); }
       }).finally(() => closing.delete(id));
     });
     window.webContents.on("did-start-navigation", (_event, _url, _inPlace, mainFrame) => {

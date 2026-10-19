@@ -5,7 +5,19 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export function listWorkspaceTools(): JsonObject[] {
   return [
         tool("status", "Read local workspace status and protocol version."),
-        tool("list_providers", "List saved providers without credentials.", { kind: { type: "string", enum: ["image", "video", "text"] } }),
+        tool("list_providers", "List saved providers without credentials.", { kind: { type: "string", enum: ["image", "video", "text", "audio"] } }),
+        tool("get_provider", "Read saved Provider configuration without credentials.", { providerId: stringField("Provider ID") }, ["providerId"]),
+        tool("configure_provider", "Atomically configure a video or TTS provider. Does not submit generation. Omitted fields and credentials are preserved; empty apiKey clears it.", {
+          kind: { type: "string", enum: ["video", "audio"] },
+          action: { type: "string", enum: ["upsert", "default", "remove"] },
+          providerId: stringField("Existing ID or optional new ID"), name: stringField("Display name"),
+          type: { type: "string", enum: ["ark", "fal", "openrouter", "minimax", "openai-compatible"] },
+          baseUrl: stringField("HTTP(S) service URL"), model: stringField("Default model"),
+          models: stringArrayField("Saved models", 0), voice: stringField("TTS voice ID"),
+          speechEndpoint: stringField("TTS relative endpoint; defaults to /v1/audio/speech"),
+          connectionProviderId: stringField("Video image connection ID; empty detaches"),
+          apiKey: stringField("Credential to encrypt; empty clears; never returned"), setDefault: { type: "boolean" }
+        }, ["kind"]),
         tool("list_models", "Read saved models for a provider.", { providerId: stringField("Provider ID") }, ["providerId"]),
         tool("list_tasks", "Read generation history."),
         tool("cancel_generation", "Cancel a locally queued image task before provider submission. Running requests are not cancelled and remote billing cannot be stopped or confirmed. Ctrl+C in the CLI only stops waiting.", {generationId:stringField("Image client task/generation ID")}, ["generationId"]),

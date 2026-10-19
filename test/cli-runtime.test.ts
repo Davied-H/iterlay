@@ -11,6 +11,7 @@ let directory: string, script: string;
 let generated = 0;
 let lastGenerationArgs: Record<string, unknown>;
 let resolvedBoards = 0;
+const configurations: Record<string, unknown>[] = [];
 const server = createServer(async (request, response) => {
   if (request.headers.authorization !== 'Bearer ' + 'a'.repeat(32)) { response.writeHead(401).end(); return; }
   let content = ''; for await (const chunk of request) content += chunk;
@@ -19,6 +20,8 @@ const server = createServer(async (request, response) => {
   switch (method) {
     case 'status': result = { protocolVersion: 1 }; break;
     case 'resolve_generation_board': resolvedBoards++; result = { boardId: 'configured-default' }; break;
+    case 'configure_provider': configurations.push(args); result = { providerId: args.providerId, kind: args.kind, authConfigured: Boolean(args.apiKey) }; break;
+    case 'get_provider': result = { id: args.providerId, voice: 'nova' }; break;
     case 'list_boards': result = [{ id: 'board', name: 'CLI 创作' }]; break;
     case 'generate_image': lastGenerationArgs = args; generated++; result = { generationId: 'task', status: 'running' }; break;
     case 'get_generation_status': result = args.generationId === 'unknown-task'
@@ -39,6 +42,33 @@ beforeAll(async () => {
 });
 afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); });
 describe('CLI subprocess workflow', () => {
+  it('configures video and TTS via environment or stdin without printing credentials', async () => {
+    const args = [script, 'providers', 'set', '--kind', 'video', '--provider', 'video', '--type', 'openrouter', '--base-url', 'https://openrouter.ai/api', '--model', 'vendor/video', '--saved-model', 'other', '--default', '--api-key-env', 'ITERLAY_TEST_SECRET', '--user-data-path', directory, '--json'];
+    const run = await exec(process.execPath, args, { env: { ...process.env, ITERLAY_TEST_SECRET: 'env-secret-value' } });
+    expect(configurations.at(-1)).toMatchObject({ kind: 'video', model: 'vendor/video', models: ['other'], setDefault: true, apiKey: 'env-secret-value' });
+    expect(run.stdout + run.stderr).not.toContain('env-secret-value');
+    const pending = exec(process.execPath, [script, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', '--base-url', 'https://api.example.com', '--model', 'tts-1', '--voice', 'nova', '--api-key-stdin', '--user-data-path', directory, '--json']);
+    pending.child.stdin!.end('stdin-secret-value\n');
+    const tts = await pending;
+    expect(configurations.at(-1)).toMatchObject({ kind: 'audio', voice: 'nova', apiKey: 'stdin-secret-value' });
+    expect(tts.stdout + tts.stderr).not.toContain('stdin-secret-value');
+    await exec(process.execPath, [script, 'models', 'set', '--kind', 'audio', '--provider', 'tts', '--model', 'tts-2', '--user-data-path', directory, '--json']);
+    expect(configurations.at(-1)).toEqual({ kind: 'audio', action: 'upsert', providerId: 'tts', model: 'tts-2' });
+  });
+  it('routes show/default/remove and rejects invalid key sources before mutation', async () => {
+    const common = ['--user-data-path', directory, '--json'];
+    const shown = await exec(process.execPath, [script, 'providers', 'show', 'tts', ...common]);
+    expect(JSON.parse(shown.stdout).data).toMatchObject({ id: 'tts', voice: 'nova' });
+    for (const action of ['default', 'remove']) {
+      await exec(process.execPath, [script, 'providers', action, 'tts', '--kind', 'audio', ...common]);
+      expect(configurations.at(-1)).toEqual({ kind: 'audio', action, providerId: 'tts' });
+    }
+    const count = configurations.length;
+    for (const invalid of [['--api-key-env', 'ITERLAY_MISSING_TEST_KEY'], ['--api-key-stdin', '--clear-api-key']]) {
+      await expect(exec(process.execPath, [script, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', ...invalid, ...common])).rejects.toMatchObject({ stdout: expect.stringContaining('ok":false') });
+    }
+    expect(configurations).toHaveLength(count);
+  });
   it('waits for generation and exports to a local file, never overwriting by default', async () => {
     const target = path.join(directory, 'output.png');
     const run = await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'test', '--out', target, '--user-data-path', directory, '--json']);

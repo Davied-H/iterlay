@@ -98,13 +98,7 @@ export function buildPromptAssistantGreeting(
       ? `, and I can see ${options.referenceCount} selected reference ${options.referenceCount === 1 ? "image" : "images"}`
       : "";
     if (options.editing) {
-      const editReferenceNote = options.referenceCount > 0
-        ? `, along with ${options.referenceCount} supporting reference ${options.referenceCount === 1 ? "image" : "images"}`
-        : "";
-      if (hasPrompt) {
-        return `The current image is the edit target, and I found the instruction “${promptPreview}”${editReferenceNote}. I’ll identify what should change, the scope, and what must remain untouched, then turn that into an actionable edit instruction.`;
-      }
-      return `The current image is the edit target${editReferenceNote}. Tell me what you want to change, the result you want, and anything that must remain untouched.`;
+      return "Tell me what you’d like to change.";
     }
     if (hasPrompt) {
       return `I found the current prompt “${promptPreview}”${referenceNote}. I can expand it, tighten it, adjust the style, or organize it into a clearer generation structure.`;
@@ -121,13 +115,7 @@ export function buildPromptAssistantGreeting(
     ? `，并注意到你已经选择了 ${options.referenceCount} 张参考图`
     : "";
   if (options.editing) {
-    const editReferenceNote = options.referenceCount > 0
-      ? `，另外还有 ${options.referenceCount} 张辅助参考图`
-      : "";
-    if (hasPrompt) {
-      return `当前图片已作为编辑目标，我也读到编辑要求「${promptPreview}」${editReferenceNote}。我会优先判断修改对象、范围与保持不变的内容，再把它整理成可执行的编辑指令。`;
-    }
-    return `当前图片已作为编辑目标${editReferenceNote}。你可以先告诉我想修改哪一部分、希望变成什么效果，以及哪些内容必须保持不变。`;
+    return "告诉我想修改的地方。";
   }
   if (hasPrompt) {
     return `我已经读到当前提示词「${promptPreview}」${referenceNote}。你可以让我扩写、压缩、调整风格，或把它整理成更清晰的生成结构。`;

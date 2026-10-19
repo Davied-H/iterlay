@@ -1,7 +1,7 @@
 {
   "name": "iterlay",
   "version": "0.1.62",
-  "description": "Use Iterlay App providers to generate images and videos, manage boards and assets, and install Coding Agent Skills.",
+  "description": "CLI for Iterlay: images, videos, and creative workflows on one canvas. Generate, edit, organize, and export with your configured models.",
   "type": "module",
   "license": "MIT",
   "bin": {

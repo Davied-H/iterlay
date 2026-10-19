@@ -66,19 +66,27 @@ export class WorkspaceCommands {
         const settings = await api.getSettings();
         return { protocolVersion: 1, activeProviderId: settings.activeProviderId, boardCount: (await api.listBoards()).length };
       }
+      case "configure_provider": return api.configureProvider(a);
+      case "get_provider": {
+        const settings = await api.getSettings();
+        const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? []), ...(settings.audioProviders ?? [])].find((p) => p.id === string(a.providerId));
+        if (!provider) throw new Error("Provider 不存在。");
+        const fields = new Set(["id", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "authProviderId", "generationEndpoint", "referenceEndpoint", "apiMode", "supportsReferenceImages"]);
+        return { ...Object.fromEntries(Object.entries(provider).filter(([key]) => fields.has(key))), authConfigured: Boolean(settings.providerKeyStatus?.[provider.id]) };
+      }
       case "list_providers": {
         const settings = await api.getSettings();
-        const kinds = a.kind ? [choice(a.kind, ["image", "video", "text"] as const, "image")] : ["image", "video", "text"];
+        const kinds = a.kind ? [choice(a.kind, ["image", "video", "text", "audio"] as const, "image")] : ["image", "video", "text", "audio"];
         const safe = settings as typeof settings & { providerKeyStatus?: Record<string, boolean>; codexAuthStatusByProviderId?: Record<string, { connected?: boolean }> };
         return kinds.flatMap((kind) => {
-          const providers = kind === "image" ? settings.providers : kind === "video" ? settings.videoProviders ?? [] : settings.textProviders ?? [];
-          const activeId = kind === "image" ? settings.activeProviderId : kind === "video" ? settings.activeVideoProviderId : settings.activeTextProviderId;
+          const providers = kind === "image" ? settings.providers : kind === "video" ? settings.videoProviders ?? [] : kind === "audio" ? settings.audioProviders ?? [] : settings.textProviders ?? [];
+          const activeId = kind === "image" ? settings.activeProviderId : kind === "video" ? settings.activeVideoProviderId : kind === "audio" ? settings.activeAudioProviderId : settings.activeTextProviderId;
           return providers.filter((p) => p.type !== "official").map((p) => ({ id: p.id, name: p.name, kind, type: p.type, model: p.model, isDefault: p.id === activeId, authConfigured: Boolean(safe.providerKeyStatus?.[p.id] || safe.codexAuthStatusByProviderId?.[p.id]?.connected) }));
         });
       }
       case "list_models": {
         const settings = await api.getSettings();
-        const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? [])].find((p) => p.id === string(a.providerId));
+        const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? []), ...(settings.audioProviders ?? [])].find((p) => p.id === string(a.providerId));
         if (!provider) throw new Error("Provider 不存在。");
         return { providerId: provider.id, defaultModel: provider.model, models: [...new Set([provider.model, ...("models" in provider && Array.isArray(provider.models) ? provider.models : [])])].filter(Boolean), source: "saved" };
       }

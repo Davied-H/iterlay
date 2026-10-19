@@ -14,7 +14,14 @@ const HELP = `Iterlay CLI — 使用 App 保存的模型创作
 
 iterlay status                         工作区状态
 iterlay providers list [--kind image]   已保存的模型服务（不包含密钥）
+iterlay providers show <id>             查看配置（不包含密钥）
+iterlay providers set --kind video|audio --provider <id> --model <id> [配置选项]
+iterlay providers default|remove <id> --kind video|audio
 iterlay models list --provider <id>     服务已保存的模型
+iterlay models set --kind video|audio --provider <id> --model <id> [--saved-model <id>]
+配置：--type --name --base-url --voice --speech-endpoint --connection-provider
+      --saved-model <id>（可重复） --default --api-key-env <变量名> | --api-key-stdin
+      --clear-api-key 清除密钥；省略密钥参数则保留原凭证。audio 为独立 TTS 配置。
 iterlay image generate --prompt <text> [--reference <file>] [--out <file>]
 iterlay image edit --input <file> --prompt <text> [--out <file>]
 iterlay video generate --prompt <text> [--board <id>]
@@ -29,6 +36,7 @@ iterlay remove --agent <id>             移除 Skill
 
 通用选项：--json --async --provider <id> --model <id> --board <id>
 --user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
+默认自动启动隐藏后台服务，不显示 App 窗口；--no-launch 仅连接已有服务。
 生成：--size auto --n 1 --quality high --background transparent
 未指定 --board 时使用设置中的 CLI 默认画板；未配置时使用「CLI 创作」。
 默认等待任务完成；Ctrl+C 只结束等待。已有输出文件不会覆盖，除非 --overwrite。`;
@@ -36,8 +44,8 @@ iterlay remove --agent <id>             移除 Skill
 type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
-  const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version"]);
-  const values = new Set(["agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path"]);
+  const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
+  const values = new Set(["agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -105,6 +113,38 @@ async function main(): Promise<void> {
   const call = await connect({ userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.ITERLAY_USER_DATA_PATH) || Boolean(get("user-data-path")) });
   if (group === "status" || group === "doctor") { output(await call("status")); return; }
   if (group === "providers" && action === "list") { output(await call("list_providers", get("kind") ? { kind: get("kind") } : {})); return; }
+  if (group === "providers" && action === "show") { output(await call("get_provider", { providerId: id ?? get("provider") })); return; }
+  if ((group === "providers" && ["set", "default", "remove"].includes(action)) || (group === "models" && action === "set")) {
+    if (!["video", "audio"].includes(get("kind") ?? "")) throw new Error("配置必须指定 --kind video 或 audio。");
+    const input: Record<string, unknown> = { kind: get("kind"), action: action === "set" ? "upsert" : action, providerId: id ?? get("provider") };
+    if (action !== "set" && !input.providerId) throw new Error("缺少 Provider ID。");
+    const fields: Record<string, string> = { name: "name", type: "type", "base-url": "baseUrl", model: "model", voice: "voice", "speech-endpoint": "speechEndpoint", "connection-provider": "connectionProviderId" };
+    for (const [flag, field] of Object.entries(fields)) if (get(flag) !== undefined) input[field] = get(flag) === "none" && flag === "connection-provider" ? "" : get(flag);
+    if (flags["saved-model"]) input.models = flags["saved-model"];
+    if (flags.default) input.setDefault = true;
+    const keySources = [Boolean(get("api-key-env")), Boolean(flags["api-key-stdin"]), Boolean(flags["clear-api-key"])].filter(Boolean).length;
+    if (keySources > 1) throw new Error("密钥参数不能同时使用。");
+    if (action !== "set" && (keySources || Object.keys(input).some((key) => !["kind", "action", "providerId"].includes(key)))) throw new Error("默认/删除操作不接受其它配置字段。");
+    if (get("api-key-env")) {
+      const key = process.env[get("api-key-env")!];
+      if (!key?.trim()) throw new Error("指定的 API Key 环境变量为空或不存在。");
+      input.apiKey = key.trim();
+    }
+    if (flags["api-key-stdin"]) {
+      if (process.stdin.isTTY) throw new Error("请通过管道向 stdin 提供密钥。");
+      const chunks: Buffer[] = []; let bytes = 0;
+      for await (const chunk of process.stdin) {
+        const buffer = Buffer.from(chunk as Uint8Array); bytes += buffer.length;
+        if (bytes > 100_000) throw new Error("API Key 输入过长。");
+        chunks.push(buffer);
+      }
+      const key = Buffer.concat(chunks).toString("utf8").trim();
+      if (!key) throw new Error("API Key 输入为空；清除请使用 --clear-api-key。");
+      input.apiKey = key;
+    }
+    if (flags["clear-api-key"]) input.apiKey = "";
+    output(await call("configure_provider", input)); return;
+  }
   if (group === "models" && action === "list") { output(await call("list_models", { providerId: get("provider") })); return; }
   if (group === "call") {
     if (!action || !listWorkspaceTools().some((tool) => tool.name === action)) throw new Error("未知的工作台操作，请运行 iterlay tools list。");

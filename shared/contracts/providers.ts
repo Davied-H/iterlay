@@ -67,6 +67,18 @@ export interface TextProviderConfig {
 
 export type VideoProviderType = "official" | "ark" | "fal" | "openrouter" | "minimax";
 
+/** 独立旁白配置；采用 OpenAI-compatible speech 接口，与视频原生音轨无关。 */
+export interface AudioProviderConfig {
+  id: string;
+  name: string;
+  type: "openai-compatible";
+  baseUrl: string;
+  speechEndpoint: string;
+  model: string;
+  models?: string[];
+  voice: string;
+}
+
 /** 视频生成 Provider，与图片和文本 Provider 独立配置及切换。 */
 export interface VideoProviderConfig {
   id: string;

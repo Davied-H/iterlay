@@ -11,7 +11,7 @@ A complete fictional speaker example for generating, editing, comparing and deli
 3. The board contains the original burnt-orange product image, a sage editing node, outdoor image and poster. The sage node preserves the real orange v1 → sage v2 history. Orange is both the original and the reference for the other three images; sage is an edit variant.
 4. Open Settings → Coding Agent and install the CLI and the Skill for your agent. In your project's terminal, invoke `$using-iterlay` in Codex or `/using-iterlay` in Claude Code, then give it the delivery task below.
 
-After installation, an existing terminal may need to be reopened; alternatively use the launcher path shown in settings. The CLI may start Iterlay to establish its local connection. You do not need to read App settings files or share your API key with the agent.
+After installation, an existing terminal may need to be reopened; alternatively use the launcher path shown in settings. The CLI reuses a running Iterlay service or starts it in the background without showing a window or stealing focus. Opening the App explicitly reveals the same workspace. You do not need to read App settings files or share your API key with the agent.
 
 ## Give your agent the delivery task
 

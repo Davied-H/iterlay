@@ -220,6 +220,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("feedback:getDetail", feedbackId) as Promise<FeedbackDetail>,
   deleteFeedback: (feedbackId: string) =>
     transport.invoke("feedback:delete", feedbackId) as Promise<void>,
+  configureProvider: (input: Record<string, unknown>) =>
+    transport.invoke(WORKBENCH_COMMANDS.configureProvider, input) as Promise<{ providerId: string; kind: string; removed: boolean; authConfigured: boolean }>,
   getSettings: () =>
     transport.invoke(WORKBENCH_COMMANDS.getSettings) as Promise<
       AppSettings & {

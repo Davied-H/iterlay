@@ -21,6 +21,21 @@ iterlay assets export --path <managed-path> --out ./image.png --json
 
 For JSON with shell-sensitive text, construct arguments with your shell's proper escaping. Never interpolate untrusted prompts into executable shell code. Shell-safe argument arrays are preferred when available.
 
+Video and TTS configuration (requires an App version exposing `configure_provider`):
+
+```bash
+iterlay providers show <provider-id> --json
+iterlay models set --kind video --provider <provider-id> --model <video-model-id> --json
+iterlay providers set --kind audio --provider narration --name "Narration" --base-url https://api.openai.com --model gpt-4o-mini-tts --voice nova --api-key-env OPENAI_API_KEY --default --json
+iterlay providers set --kind audio --provider narration --voice alloy --json
+iterlay providers default narration --kind audio --json
+iterlay providers remove narration --kind audio --json
+```
+
+`providers set` upserts by ID, generating one when omitted. New video providers require `--type ark|fal|openrouter|minimax`, `--base-url` and `--model`. Audio uses `openai-compatible`, with `--speech-endpoint /v1/audio/speech` by default; the endpoint is relative to the configured base URL. Audio configuration is persisted only; there is no speech-generation command yet. Repeated `--saved-model` replaces the saved list and includes the selected default model. Omitted fields, including credentials, are preserved. Use `--default` to select the service as its kind's default. Built-in official providers cannot be changed.
+
+Credentials are accepted through `--api-key-env <variable>` or piped `--api-key-stdin`; never pass raw keys in arguments or `call --input`. `--clear-api-key` explicitly clears a key. These flags are mutually exclusive. Queries return only credential presence. `--connection-provider <image-provider-id>` reuses a matching fal/OpenRouter image connection for video, and cannot be combined with setting a standalone key. Use `--connection-provider none` to detach first. Configuration does not submit generation or verify remote availability.
+
 `image generate` supports `--provider`, `--model`, `--size`, `--quality`, `--background`, `--style`, `--n`, repeatable `--reference`, `--board`, `--async`, `--request-id` and `--out`. Supported values depend on the App's provider adapter. `models list` returns saved configuration; it does not probe a remote catalogue.
 
 Task states `succeeded` (images) and `completed` (video) indicate a generated result; `failed`, `interrupted` and `cancelled` are unsuccessful terminal states. Poll uncertain tasks rather than resubmitting them. `stop_video_polling` stops this App session's polling only.

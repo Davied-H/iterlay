@@ -3400,7 +3400,64 @@ export function PromptDock({
         onPasteImages={onPasteImages}
         onPasteCanvasReferences={onPasteCanvasReferences}
         extra={<>
-          {editTarget ? <div className="mb-2 flex items-center gap-3 text-xs text-muted-foreground"><span className="mr-auto">{uiText("正在编辑当前图片")}</span><button type="button" onClick={onOpenAdvancedEdit}>{uiText("高级编辑")}</button><button type="button" onClick={onExitEdit}>{uiText("退出编辑")}</button></div> : null}
+          {editTarget ? (
+            <div className="fusion-edit-tools" data-tour="edit-banner">
+              <div className="flex min-w-0 items-center gap-1">
+                {editSmartSuggestionsEnabled ? <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground"
+                    aria-expanded={suggestedEditsExpanded && suggestedEdits.length > 0}
+                    aria-controls="fusion-suggested-edit-list"
+                    disabled={suggestedEdits.length === 0}
+                    onClick={() => setSuggestedEditsExpanded((value) => !value)}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                    <span aria-live="polite">{suggestingEdits && suggestedEdits.length === 0 ? t("prompt.smartSuggestions.loading") : uiText("编辑建议")}</span>
+                    {suggestedEdits.length > 0 ? (suggestedEditsExpanded ? <ChevronUp className="h-3.5 w-3.5" aria-hidden /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden />) : null}
+                  </Button>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground"
+                          aria-label={t(suggestingEdits ? "prompt.smartSuggestions.regenerating" : "prompt.smartSuggestions.regenerate")}
+                          disabled={suggestingEdits || !canSuggestEdits}
+                          onClick={onRegenerateSuggestedEdits}
+                        >
+                          {suggestingEdits ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{t(canSuggestEdits ? "prompt.smartSuggestions.regenerate" : "prompt.smartSuggestions.noModel")}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </> : null}
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground" onClick={() => { syncPromptToParent(); onOpenAdvancedEdit(); }}>
+                    <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
+                    {t("prompt.editBanner.advanced")}
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" aria-label={t("prompt.editBanner.exit")} title={t("prompt.editBanner.exit")} onClick={() => { syncPromptToParent(); onExitEdit(); }}>
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </Button>
+                </div>
+              </div>
+              <ul id="fusion-suggested-edit-list" hidden={!editSmartSuggestionsEnabled || !suggestedEditsExpanded || suggestedEdits.length === 0} className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
+                {suggestedEdits.map((suggestion, index) => (
+                  <li key={`${suggestion}:${index}`}>
+                    <button type="button" onClick={() => onApplySuggestedEdit(suggestion)} title={t("prompt.smartSuggestions.item", { suggestion })} className="flex min-h-8 w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs leading-5 text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      {suggestion}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {activeScene ? <details className="mb-2 text-xs"><summary>{uiText("模板：")}{activeScene.name}</summary>
             <p className="max-h-24 overflow-auto whitespace-pre-wrap py-2">{activeScene.prompt}</p>
             {templatePreviewImages.length ? <div className="my-2 flex gap-2">{templatePreviewImages.map((preview, index) => <button
@@ -3414,7 +3471,7 @@ export function PromptDock({
           </details> : null}
           {uiBriefPreview ? <details className="mb-2 text-xs"><summary>UI Brief · {uiBriefPreview.brief.goal}</summary><p>{uiBriefPreview.brief.structure}</p><p>{uiBriefPreview.brief.visualDirection}</p></details> : null}
           {isUiDesignMode && input.referenceImages.length ? <details className="mb-2 text-xs"><summary>{uiText("材料职责")}</summary>{input.referenceImages.map((image) => <label className="my-2 flex items-center justify-between gap-2" key={image.id}><span className="truncate">{image.name}</span><select aria-label={t("prompt.uiDesign.role.changeFor", { name: image.name })} value={image.semanticRole ?? inferUiMaterialRole(image.name)} onChange={(event) => changeUiMaterialRole(image.id, event.target.value as UiMaterialRole)}>{UI_MATERIAL_ROLES.map((role) => <option key={role} value={role}>{t(UI_MATERIAL_ROLE_MESSAGE_KEYS[role])}</option>)}</select></label>)}</details> : null}
-          {editTarget && editSmartSuggestionsEnabled ? <details className="mb-2 text-xs"><summary>{uiText("编辑建议")}</summary>{suggestedEdits.map((suggestion) => <button className="block py-1 text-left" type="button" key={suggestion} onClick={() => onApplySuggestedEdit(suggestion)}>{suggestion}</button>)}<button type="button" disabled={suggestingEdits || !canSuggestEdits} onClick={onRegenerateSuggestedEdits}>{suggestingEdits ? uiText("正在获取建议…") : uiText("刷新建议")}</button></details> : null}
+
         </>}
         directEditor={<InlinePromptEditor
           ref={promptEditorRef} prompt={promptDraft} templatePrompts={sceneTemplatePrompts}
@@ -5399,8 +5456,8 @@ function GenerationSettingsPicker({
             aria-label={`${t("prompt.generationSettings")}：${summaryLabel}`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="max-w-28 truncate" title={summary.model}>{uiText(summary.model)}</span>
-            <span className="min-w-0 truncate tabular-nums">· {parameterSummary}</span>
+            <span className="prompt-fusion-settings-model min-w-0 max-w-28 truncate" title={summary.model}>{uiText(summary.model)}</span>
+            <span className="prompt-fusion-settings-parameters min-w-0 truncate tabular-nums">· {parameterSummary}</span>
           </Button>
         </PopoverTrigger>
       </ToolbarTooltip>

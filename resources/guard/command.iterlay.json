@@ -121,7 +121,14 @@
               "--timeout",
               "--request-id",
               "--app-path",
-              "--user-data-path"
+              "--user-data-path",
+              "--type",
+              "--base-url",
+              "--voice",
+              "--speech-endpoint",
+              "--connection-provider",
+              "--saved-model",
+              "--api-key-env"
             ],
             "interspersed_options_with_values": [
               "--agent",
@@ -147,7 +154,14 @@
               "--timeout",
               "--request-id",
               "--app-path",
-              "--user-data-path"
+              "--user-data-path",
+              "--type",
+              "--base-url",
+              "--voice",
+              "--speech-endpoint",
+              "--connection-provider",
+              "--saved-model",
+              "--api-key-env"
             ],
             "interspersed_flags": [
               "--json",
@@ -155,7 +169,10 @@
               "--no-launch",
               "--overwrite",
               "--help",
-              "--version"
+              "--version",
+              "--default",
+              "--api-key-stdin",
+              "--clear-api-key"
             ],
             "options_with_values": [
               "--agent",
@@ -181,7 +198,14 @@
               "--timeout",
               "--request-id",
               "--app-path",
-              "--user-data-path"
+              "--user-data-path",
+              "--type",
+              "--base-url",
+              "--voice",
+              "--speech-endpoint",
+              "--connection-provider",
+              "--saved-model",
+              "--api-key-env"
             ],
             "required_flags": [],
             "required_flags_in_all_arguments": true,
@@ -405,6 +429,14 @@
                       [
                         "call",
                         "get_modification_request"
+                      ],
+                      [
+                        "providers",
+                        "show"
+                      ],
+                      [
+                        "call",
+                        "get_provider"
                       ]
                     ]
                   }

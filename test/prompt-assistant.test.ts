@@ -90,13 +90,11 @@ describe("prompt assistant", () => {
     ]);
   });
 
-  it("uses an edit-specific greeting centered on the target image", () => {
+  it("keeps the edit greeting concise without repeating the prompt or references", () => {
     expect(buildPromptAssistantGreeting("把背景换成浅灰色", { editing: true, referenceCount: 1 }))
-      .toContain("当前图片已作为编辑目标");
-    expect(buildPromptAssistantGreeting("把背景换成浅灰色", { editing: true, referenceCount: 1 }))
-      .toContain("1 张辅助参考图");
+      .toBe("告诉我想修改的地方。");
     expect(buildPromptAssistantGreeting("", { editing: true, referenceCount: 0 }))
-      .toContain("必须保持不变");
+      .toBe("告诉我想修改的地方。");
   });
 
   it("builds assistant greetings in the active interface language", () => {
@@ -105,7 +103,7 @@ describe("prompt assistant", () => {
     expect(buildPromptAssistantGreeting("a ceramic cup", { editing: false, referenceCount: 2 }, "en-US"))
       .toContain("2 selected reference images");
     expect(buildPromptAssistantGreeting("", { editing: true, referenceCount: 1 }, "en-US"))
-      .toContain("supporting reference image");
+      .toBe("Tell me what you’d like to change.");
   });
 
   it("serializes structured assistant fields into a reusable prompt", () => {

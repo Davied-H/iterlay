@@ -18,6 +18,7 @@
     "prebuild": "pnpm native:build",
     "build": "pnpm build:renderer && pnpm build:electron && pnpm build:cli",
     "test": "vitest run",
+    "test:cli:background": "node scripts/cli-background-smoke.mjs",
     "test:browser:smoke": "node scripts/playwright-browser-smoke.mjs",
     "test:browser:restart": "node scripts/playwright-browser-restart.mjs",
     "test:electron:smoke": "pnpm build:electron && ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-smoke.mjs",

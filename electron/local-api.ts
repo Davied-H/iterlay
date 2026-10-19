@@ -9,7 +9,7 @@ import type { BrowserWindow } from "electron";
 
 const BRIDGE_FILE = "local-api.json";
 
-export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow | null), userDataPath: string): Promise<() => void> {
+export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow | null), userDataPath: string, showWindow?: () => void): Promise<() => void> {
   const token = randomBytes(32).toString("base64url");
   const bridgePath = path.join(userDataPath, BRIDGE_FILE);
   const getWindow = typeof window === "function" ? window : () => window;
@@ -22,7 +22,7 @@ export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow
     taskDirectory: path.join(userDataPath, "workspace", "cli-tasks")
   });
   const server = createServer((request, response) => {
-    void handleRequest(runtime, token, request, response, () => { const active = getWindow(); if (active && !active.isDestroyed()) { active.show(); active.focus(); } });
+    void handleRequest(runtime, token, request, response, showWindow ?? (() => { const active = getWindow(); if (active && !active.isDestroyed()) { active.show(); active.focus(); } }));
   });
   server.requestTimeout = 30_000;
   server.headersTimeout = 10_000;

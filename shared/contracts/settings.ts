@@ -1,4 +1,4 @@
-import type { ProviderConfig, TextProviderConfig, VideoProviderConfig } from "./providers.js";
+import type { AudioProviderConfig, ProviderConfig, TextProviderConfig, VideoProviderConfig } from "./providers.js";
 import type { PiAgentBuiltinToolName, AssistantIntentSuggestionCount, MemoryUsageLevel } from "./assistant.js";
 import type { BoardTrashRetentionDays } from "./board.js";
 
@@ -62,6 +62,9 @@ export interface AppSettings {
   videoProviders: VideoProviderConfig[];
   /** 新建视频生成节点默认使用的 Provider。 */
   activeVideoProviderId: string;
+  /** 独立旁白/TTS 配置；旧版本设置可省略。 */
+  audioProviders?: AudioProviderConfig[];
+  activeAudioProviderId?: string;
   /** 应用界面语言；system 会跟随操作系统语言。 */
   language: import("../i18n.js").AppLanguage;
   theme: "light" | "dark" | "system";

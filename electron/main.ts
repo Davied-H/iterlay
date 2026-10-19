@@ -3,6 +3,7 @@ import { readImageDimensions } from "./media/image-metadata.js";
 import { ImageTaskQueue } from "./image-worker-client.js";
 import { allowedExternalUrl, installRendererSecurity, isTrustedRendererUrl } from "./renderer-security.js";
 import { installWindowLifecycle } from "./window-lifecycle.js";
+import { BackgroundSession, CLI_BACKGROUND_FLAG } from "./background-session.js";
 import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell } from "electron";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -86,6 +87,12 @@ const UPDATE_QUIT_FEEDBACK_DELAY_MS = 1_200;
 const processStartedAt = 0;
 // A packaged app ignores all browser-development flags.
 const isBrowserDev = !app.isPackaged && process.env.ITERLAY_BROWSER_DEV === "1";
+const backgroundSession = new BackgroundSession(
+  !isBrowserDev && process.argv.includes(CLI_BACKGROUND_FLAG),
+  () => BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()),
+  () => { if (process.platform === "darwin") void app.dock?.show(); }
+);
+let backgroundWindow: BrowserWindow | undefined;
 let browserDevBridge: { flush: () => Promise<void>; close: () => void } | undefined;
 let updateQuitScheduled = false;
 
@@ -149,6 +156,8 @@ if (isBrowserDev) {
   process.on("SIGINT", () => app.quit());
 } else if (process.env.ITERLAY_PLAYWRIGHT === "1" && process.env.ITERLAY_E2E_USER_DATA) {
   app.setPath("userData", path.resolve(process.env.ITERLAY_E2E_USER_DATA));
+  app.setPath("sessionData", path.join(path.resolve(process.env.ITERLAY_E2E_USER_DATA), "session"));
+  app.setAppLogsPath(path.join(path.resolve(process.env.ITERLAY_E2E_USER_DATA), "logs"));
 }
 app.setName(APP_NAME);
 if (process.platform === "win32") {
@@ -185,12 +194,17 @@ if (!hasSingleInstanceLock) {
   registerDeepLinkIpc();
   app.on("open-url", (event, url) => {
     event.preventDefault();
+    if (!isBrowserDev) backgroundSession.requestForeground();
     dispatchDeepLink(url);
   });
   app.on("second-instance", (_event, argv) => {
+    if (!isBrowserDev && !argv.includes(CLI_BACKGROUND_FLAG)) backgroundSession.requestForeground();
     for (const url of extractIterlayDeepLinks(argv)) dispatchDeepLink(url);
   });
-  for (const url of extractIterlayDeepLinks(process.argv)) dispatchDeepLink(url);
+  for (const url of extractIterlayDeepLinks(process.argv)) {
+    if (!isBrowserDev) backgroundSession.requestForeground();
+    dispatchDeepLink(url);
+  }
 }
 
 function installApplicationMenu(
@@ -246,7 +260,7 @@ async function showLoadFailure(
   description: string,
   locale: ResolvedAppLocale = resolveAppLocale("system", app.getLocale())
 ): Promise<void> {
-  if (isBrowserDev) throw new Error(`网页开发后端加载失败：${description}`);
+  if (isBrowserDev || backgroundSession.hidden) throw new Error(`后台加载失败：${description}`);
   const detail = description.replace(/[<>&]/g, "");
   const copy = locale === "zh-CN"
     ? { title: "Iterlay 未能完成加载", description: "本地工作区没有被修改。", reload: "重新加载" }
@@ -275,11 +289,13 @@ function createWindowFrame(
       preload: path.join(__dirname, "preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      backgroundThrottling: !backgroundSession.startedInBackground
     }
   });
 
   guardWindowClose?.(win);
+  win.on("show", () => { if (!isBrowserDev) backgroundSession.didShow(); });
   const openLink = (url: string): void => {
     if (url.toLowerCase().startsWith("iterlay:")) dispatchDeepLink(url);
     else if (allowedExternalUrl(url)) void shell.openExternal(url);
@@ -294,14 +310,14 @@ function createWindowFrame(
     openLink(url);
   });
   win.once("ready-to-show", () => {
-    if (isBrowserDev) return;
+    if (isBrowserDev || backgroundSession.hidden) return;
     win.show();
     startupMark("window-visible");
   });
   win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _url, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
     console.error("Iterlay main document failed to load", errorCode, errorDescription);
-    void showLoadFailure(win, errorDescription);
+    void showLoadFailure(win, errorDescription).catch((error) => console.error("加载失败提示未显示", error));
   });
   win.webContents.on("render-process-gone", (_event, details) => {
     console.error("Iterlay renderer process exited", details.reason, details.exitCode);
@@ -327,7 +343,7 @@ async function loadApplication(win: BrowserWindow, theme: WindowTheme = "system"
       url.searchParams.set("bootTheme", bootTheme);
       if (isBrowserDev) url.searchParams.set("__iterlay_backend", "1");
       await win.loadURL(url.toString());
-      if (!isBrowserDev && process.env.ITERLAY_PLAYWRIGHT !== "1") {
+      if (!isBrowserDev && !backgroundSession.hidden && process.env.ITERLAY_PLAYWRIGHT !== "1") {
         win.webContents.openDevTools({ mode: "detach" });
       }
     } else {
@@ -357,11 +373,28 @@ app.whenReady().then(async () => {
   if (app.isPackaged) app.setAsDefaultProtocolClient(ITERLAY_DEEP_LINK_SCHEME);
   guardWindowClose = installWindowLifecycle(
     async () => { await waitForStorageMutations(); await flushHistoryStore?.(); await Promise.all([flushAgentLogs?.(), runtimeLog?.flush()]); },
-    isBrowserDev ? () => browserDevBridge?.flush() ?? Promise.resolve() : undefined
+    isBrowserDev ? () => browserDevBridge?.flush() ?? Promise.resolve() : undefined,
+    {
+      silent: () => backgroundSession.hidden,
+      retainWindow: (window) => {
+        if (window !== backgroundWindow) return false;
+        window.hide();
+        if (!BrowserWindow.getAllWindows().some((other) => other !== window && other.isVisible())) {
+          backgroundSession.returnToBackground();
+          if (process.platform === "darwin") app.dock?.hide();
+        }
+        return true;
+      }
+    }
   );
-  if (isBrowserDev && process.platform === "darwin") app.dock?.hide();
+  if ((isBrowserDev || backgroundSession.hidden) && process.platform === "darwin") app.dock?.hide();
+  if (backgroundSession.startedInBackground) {
+    process.on("SIGTERM", () => app.quit());
+    process.on("SIGINT", () => app.quit());
+  }
   startupMark("electron-ready");
   const startupWindow = createWindowFrame("default", [], "system");
+  if (backgroundSession.startedInBackground) backgroundWindow = startupWindow;
   await loadStartupPage(startupWindow, "system");
   startupMark("startup-document-loaded");
 
@@ -1016,7 +1049,9 @@ app.whenReady().then(async () => {
       process.env.ITERLAY_BROWSER_DEV_BRIDGE_CONFIG!, new URL(process.env.VITE_DEV_SERVER_URL!).origin);
     console.info("[browser-dev] 网页真实服务已就绪，桌面编辑器未启动。");
   }
-  const disposeLocalApi = await startLocalApi(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"));
+  backgroundSession.markReady();
+  const disposeLocalApi = await startLocalApi(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"),
+    isBrowserDev ? () => undefined : () => backgroundSession.requestForeground());
 
   if (settings.getSettings().memoryEnabled) {
     const maintenanceTimer = setTimeout(() => {
@@ -1039,6 +1074,7 @@ app.whenReady().then(async () => {
 
   app.on("activate", () => {
     if (isBrowserDev) return;
+    backgroundSession.requestForeground();
     if (BrowserWindow.getAllWindows().length === 0) {
       const current = settings.getSettings();
       void createWindow(current.appIcon ?? "default", current.customAppIcons ?? [], current.theme);
@@ -1046,8 +1082,8 @@ app.whenReady().then(async () => {
   });
 }).catch((error) => {
   console.error("Application startup failed", error);
-  if (isBrowserDev && !browserDevBridge) {
-    // No browser editor exists yet; let the development launcher report failure.
+  if ((isBrowserDev && !browserDevBridge) || backgroundSession.hidden) {
+    // A hidden startup failure must be reported through logs/CLI, never a native dialog.
     void runtimeLog?.flush().finally(() => app.exit(1));
     if (!runtimeLog) app.exit(1);
     return;

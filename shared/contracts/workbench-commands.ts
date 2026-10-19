@@ -7,6 +7,7 @@ export const WORKBENCH_COMMANDS = {
   "prepareModificationRequest": "modifications:prepare",
   "claimModificationRequest": "modifications:claim",
   "finishModificationRequest": "modifications:finish",
+  "configureProvider": "settings:configureProvider",
   "getSettings": "settings:get",
   "generateImage": "image:generate",
   "cancelImageGeneration": "image:cancel",

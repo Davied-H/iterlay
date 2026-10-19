@@ -1,12 +1,13 @@
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import HomePage from './HomePage'
 import DownloadPage from './DownloadPage'
 import FeatureWiki from './FeatureWiki'
 import AgentPage from './AgentPage'
 import HelpPage from './HelpPage'
-import { contentPath, languagePreferenceKey, siteLanguage, sitePath } from './site-language'
+import LanguageSwitch from './LanguageSwitch'
+import { contentPath, siteLanguage, sitePath } from './site-language'
 import { repository } from './releases.mjs'
 import ContentPage from './ContentPage'
 import { Seo } from './seo'
@@ -19,16 +20,25 @@ export default function Site() {
   const pathname = contentPath(location.pathname)
   const language = siteLanguage(location.pathname, location.search)
   const english = language === 'en'
-  useEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
+  const content = useRef<HTMLElement>(null)
+  const previousLanguage = useRef(language)
+  useEffect(() => {
+    if (previousLanguage.current === language) return
+    previousLanguage.current = language
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const animation = content.current?.animate?.([{ opacity: .82 }, { opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.22, 1, .36, 1)' })
+    return () => animation?.cancel()
+  }, [language])
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   return <div className="public-app">
     <Seo /><Analytics />
     <a className="skip-link" href="#content" onClick={event => { event.preventDefault(); document.getElementById('content')?.focus() }}>{english ? 'Skip to content' : '跳到正文'}</a>
     <header className="public-header"><div className="public-header-inner">
       <NavLink to={sitePath('/', language)} className="brand-link" end><img width="30" height="30" src={`${import.meta.env.BASE_URL}iterlay-logo.png`} alt="" />Iterlay</NavLink>
       <nav className="public-nav" aria-label={english ? 'Main navigation' : '主导航'}><NavLink className="nav-link" to={sitePath('/', language)} end>{english ? 'Product' : '产品'}</NavLink><NavLink className="nav-link nav-wiki" to={sitePath('/wiki', language)}>{english ? 'Features' : '功能 Wiki'}</NavLink><NavLink className="nav-link nav-agent" to={sitePath('/agents', language)}>Coding Agent</NavLink><a className="nav-link nav-github" href={repository}>GitHub <ArrowUpRight size={12} /></a><NavLink className="nav-link nav-download" to={sitePath('/download', language)}>{english ? 'Get the app' : '下载 App'} <ArrowUpRight size={13} /></NavLink></nav>
-      <nav className="site-language" aria-label="Language / 语言">{(['zh', 'en'] as const).map(locale => <NavLink key={locale} lang={locale === 'zh' ? 'zh-CN' : 'en'} hrefLang={locale === 'zh' ? 'zh-CN' : 'en'} to={sitePath(`${pathname}${location.search}${location.hash}`, locale)} onClick={() => { try { localStorage.setItem(languagePreferenceKey, locale) } catch { /* Navigation works without storage. */ } }}>{locale === 'zh' ? '中文' : 'English'}</NavLink>)}</nav>
+      <LanguageSwitch />
     </div></header>
-    <main id="content" tabIndex={-1} className="public-main">
+    <main ref={content} id="content" tabIndex={-1} className="public-main">
       <Routes>
         {(['en', 'zh'] as const).flatMap(locale => [
           <Route key={`${locale}-home`} path={`/${locale}/`} element={<HomePage key={language} />} />,

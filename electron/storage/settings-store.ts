@@ -10,6 +10,7 @@ import type {
   AppIconPreference,
   AppSettings,
   AppSettingsPatch,
+  AudioProviderConfig,
   AssistantIntentSuggestionCount,
   BoardTrashRetentionDays,
   CopyImageFormat,
@@ -43,7 +44,9 @@ interface SettingsSchema {
   activeTextProviderId?: string;
   videoProviders?: VideoProviderConfig[];
   activeVideoProviderId?: string;
-  /** 按 provider id 存放加密后的 API Key（base64），图片与文本 Provider 共用此表。 */
+  audioProviders?: AudioProviderConfig[];
+  activeAudioProviderId?: string;
+  /** 按 provider id 存放加密后的 API Key（base64），图片、文本、视频与音频 Provider 共用此表。 */
   encryptedApiKeys?: Record<string, string>;
   language?: AppLanguage;
   theme: "light" | "dark" | "system";
@@ -204,6 +207,8 @@ export class SettingsStore {
         (current.videoProviders ?? [{ ...DEFAULT_VIDEO_PROVIDER_CONFIG }]).map((p) => ({ ...p, models: p.models ? [...p.models] : undefined }))
       ),
       activeVideoProviderId: current.activeVideoProviderId ?? DEFAULT_VIDEO_PROVIDER_ID,
+      audioProviders: (current.audioProviders ?? []).map((p) => ({ ...p, models: p.models ? [...p.models] : undefined })),
+      activeAudioProviderId: current.activeAudioProviderId ?? "",
       language: normalizeAppLanguage(current.language),
       theme: current.theme,
       promptDockAutoCollapse: current.promptDockAutoCollapse ?? false,
@@ -314,8 +319,11 @@ export class SettingsStore {
     const activeVideoProviderId = videoProviders.some((p) => p.id === settings.activeVideoProviderId)
       ? settings.activeVideoProviderId
       : videoProviders[0].id;
-    // 丢弃已删除 provider（图片、文本与视频）的 key。
-    const validIds = new Set([...providers.map((p) => p.id), ...textProviders.map((p) => p.id), ...videoProviders.map((p) => p.id)]);
+    const audioProviders = settings.audioProviders ?? current.audioProviders ?? [];
+    const activeAudioProviderId = audioProviders.some((p) => p.id === (settings.activeAudioProviderId ?? current.activeAudioProviderId))
+      ? (settings.activeAudioProviderId ?? current.activeAudioProviderId ?? "") : audioProviders[0]?.id ?? "";
+    // 丢弃已删除 provider（图片、文本、视频与音频）的 key。
+    const validIds = new Set([...providers.map((p) => p.id), ...textProviders.map((p) => p.id), ...videoProviders.map((p) => p.id), ...audioProviders.map((p) => p.id)]);
     const encryptedApiKeys = {
       ...Object.fromEntries(Object.entries(current.encryptedApiKeys ?? {}).filter(([id]) => validIds.has(id))),
       ...detachedVideoKeys
@@ -328,6 +336,8 @@ export class SettingsStore {
       activeTextProviderId,
       videoProviders,
       activeVideoProviderId,
+      audioProviders,
+      activeAudioProviderId,
       encryptedApiKeys,
       language: normalizeAppLanguage(settings.language),
       theme: settings.theme,
@@ -495,6 +505,7 @@ export class SettingsStore {
         : p.id;
       status[p.id] = Boolean(current.encryptedApiKeys?.[connectionId]);
     }
+    for (const p of current.audioProviders ?? []) status[p.id] = Boolean(current.encryptedApiKeys?.[p.id]);
     return status;
   }
 
@@ -564,6 +575,7 @@ function cloneSettings(settings: SettingsSchema): SettingsSchema {
     providers: settings.providers.map((p) => ({ ...p, models: p.models ? [...p.models] : undefined })),
     textProviders: (settings.textProviders ?? []).map((p) => ({ ...p })),
     videoProviders: (settings.videoProviders ?? []).map((p) => ({ ...p, models: p.models ? [...p.models] : undefined })),
+    audioProviders: (settings.audioProviders ?? []).map((p) => ({ ...p, models: p.models ? [...p.models] : undefined })),
     encryptedApiKeys: { ...(settings.encryptedApiKeys ?? {}) },
     customAppIcons: normalizeCustomAppIcons(settings.customAppIcons)
   };
@@ -643,8 +655,11 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     ? parsed.activeVideoProviderId as string
     : videoProviders[0].id;
 
-  // 仅保留仍存在的 provider（图片、文本与视频）的 key。
-  const validIds = new Set([...providers.map((p) => p.id), ...textProviders.map((p) => p.id), ...videoProviders.map((p) => p.id)]);
+  const audioProviders = Array.isArray(parsed.audioProviders) ? parsed.audioProviders : [];
+  const activeAudioProviderId = audioProviders.some((p) => p.id === parsed.activeAudioProviderId)
+    ? parsed.activeAudioProviderId : audioProviders[0]?.id ?? "";
+  // 仅保留仍存在的 provider（图片、文本、视频与音频）的 key。
+  const validIds = new Set([...providers.map((p) => p.id), ...textProviders.map((p) => p.id), ...videoProviders.map((p) => p.id), ...audioProviders.map((p) => p.id)]);
   for (const id of Object.keys(encryptedApiKeys)) {
     if (!validIds.has(id)) delete encryptedApiKeys[id];
   }
@@ -656,6 +671,8 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     activeTextProviderId,
     videoProviders,
     activeVideoProviderId,
+    audioProviders,
+    activeAudioProviderId,
     language: normalizeAppLanguage(parsed.language),
     encryptedApiKeys,
     theme: parsed.theme || "system",

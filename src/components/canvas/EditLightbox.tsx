@@ -368,8 +368,8 @@ export function EditLightbox({
               <VersionCompareSlider
                 beforeSrc={versions[compareA]?.dataUrl ?? currentSrc}
                 afterSrc={versions[compareB]?.dataUrl ?? currentSrc}
-                beforeLabel={`v${compareA + 1}${compareA === 0 ? " 原图" : ""}`}
-                afterLabel={`v${compareB + 1}${compareB === 0 ? " 原图" : ""}`}
+                beforeLabel={`v${compareA + 1}${compareA === 0 ? ` ${uiText("原图")}` : ""}`}
+                afterLabel={`v${compareB + 1}${compareB === 0 ? ` ${uiText("原图")}` : ""}`}
                 fill
                 className="rounded-2xl border-0 bg-card"
               />

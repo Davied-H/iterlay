@@ -253,7 +253,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
         <div className="prompt-fusion-context">
           {props.contextImages.map((image) => <div key={image.id} className="prompt-fusion-image">
             <button type="button" onClick={() => setPreview(image)} aria-label={uiText("查看 {{ui:0}}", [image.alt])}><img src={image.src} alt={image.alt} /></button>
-            <span><strong>{image.alt}</strong><small>{image.role === "edit-target" ? uiText("编辑目标") : uiText("参考图")}</small></span>
+            {image.role !== "edit-target" ? <span><strong>{image.alt}</strong><small>{uiText("参考图")}</small></span> : null}
             {image.onRemove ? <button type="button" onClick={image.onRemove} disabled={props.busy} aria-label={uiText("移除 {{ui:0}}", [image.alt])}><X /></button> : null}
           </div>)}
           {mode === "chat" && contextPrompt ? <span className="prompt-fusion-context-chip" title={contextPrompt}>{uiText("当前提示词")}<button type="button" disabled={props.busy} aria-label={uiText("移除提示词上下文")} onClick={() => { setContextPrompt(null); props.onPromptContextChange(null); }}><X /></button></span> : null}
@@ -287,7 +287,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
           </button>
           <fieldset disabled={props.busy} className="prompt-fusion-controls">{props.controls}</fieldset>
           <div className="prompt-fusion-action">{mode === "chat"
-            ? <button type="button" className="prompt-fusion-send" disabled={!props.busy && (props.inputDisabled || !props.value.trim())} onClick={props.busy ? props.onStop : submit}>{props.busy ? <>{uiText("停止")}<Square /></> : <>{uiText("发送")}<ArrowUp /></>}</button>
+            ? <button type="button" className="prompt-fusion-send" aria-label={props.busy ? uiText("停止") : uiText("发送")} disabled={!props.busy && (props.inputDisabled || !props.value.trim())} onClick={props.busy ? props.onStop : submit}><span className="prompt-fusion-send-label">{props.busy ? uiText("停止") : uiText("发送")}</span>{props.busy ? <Square /> : <ArrowUp />}</button>
             : props.directAction}
           </div>
         </div>

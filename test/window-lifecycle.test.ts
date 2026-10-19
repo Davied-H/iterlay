@@ -48,11 +48,11 @@ beforeEach(() => {
 
 afterEach(() => vi.restoreAllMocks());
 
-function fixture(flushExternal?: (window: BrowserWindow) => Promise<void>) {
+function fixture(flushExternal?: (window: BrowserWindow) => Promise<void>, options?: Parameters<typeof installWindowLifecycle>[2]) {
   const window = new TestWindow();
   electron.windows.push(window);
   const flushLogs = vi.fn(async () => undefined);
-  const guard = installWindowLifecycle(flushLogs, flushExternal);
+  const guard = installWindowLifecycle(flushLogs, flushExternal, options);
   guard(window.asBrowserWindow());
   const quit = () => {
     const event = { preventDefault: vi.fn() };
@@ -63,6 +63,34 @@ function fixture(flushExternal?: (window: BrowserWindow) => Promise<void>) {
 }
 
 describe("window lifecycle persistence", () => {
+  it("saves before retaining the CLI workspace and still permits explicit application quit", async () => {
+    const retainWindow = vi.fn(() => true);
+    const f = fixture(undefined, { retainWindow });
+    electron.ipcHandlers.get("window:renderer-ready")!(f.window.ipcEvent());
+    f.window.close();
+    expect(retainWindow).not.toHaveBeenCalled();
+    const request = f.window.webContents.send.mock.calls[0][1];
+    electron.ipcHandlers.get("window:save-result")!(f.window.ipcEvent(), { requestId: request.requestId, ok: true });
+    await vi.waitFor(() => expect(retainWindow).toHaveBeenCalledOnce());
+    expect(f.window.destroyed).toBe(false);
+    f.quit();
+    const quitRequest = f.window.webContents.send.mock.calls[1][1];
+    electron.ipcHandlers.get("window:save-result")!(f.window.ipcEvent(), { requestId: quitRequest.requestId, ok: true });
+    await vi.waitFor(() => expect(electron.quit).toHaveBeenCalledOnce());
+    expect(retainWindow).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a hidden workspace alive on save failure without opening a dialog", async () => {
+    const f = fixture(undefined, { silent: () => true });
+    electron.ipcHandlers.get("window:renderer-ready")!(f.window.ipcEvent());
+    f.quit();
+    const request = f.window.webContents.send.mock.calls[0][1];
+    electron.ipcHandlers.get("window:save-result")!(f.window.ipcEvent(), { requestId: request.requestId, ok: false, error: "disk full" });
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalledOnce());
+    expect(electron.quit).not.toHaveBeenCalled();
+    expect(electron.showMessageBox).not.toHaveBeenCalled();
+  });
+
   it("keeps the browser backend open after an external save failure and permits a successful retry", async () => {
     const save = vi.fn<() => Promise<void>>(async () => { throw new Error("disk full"); });
     const f = fixture(save);

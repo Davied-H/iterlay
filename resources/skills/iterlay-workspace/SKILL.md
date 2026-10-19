@@ -31,6 +31,12 @@ Use the `iterlay` CLI through your shell tool. App configuration and credentials
 - Video completion requires a managed local output path. Provider URLs are temporary and are not deliverables. Stopping local polling does not cancel a remote job or its billing.
 - Export only requested results. Return task ID, board ID, managed and exported paths, warnings and validation limits; never expose tokens or provider credentials.
 
+## Video and narration configuration
+
+When the user asks to configure models, use `providers list --kind video|audio`, `providers show <id>` and `models list --provider <id>` for discovery. Use `providers set --kind video|audio --provider <id>` for incremental changes, `models set --kind video|audio --provider <id> --model <id>` for the saved default model, and `providers default <id> --kind video|audio` for the default service. These commands save configuration without generating media. Read [references/cli.md](references/cli.md) for examples.
+
+Audio is an independent OpenAI-compatible TTS configuration with model, voice, base URL and speech endpoint; this version does not generate speech or support music/sound-effect models. Reuse existing credentials by omitting key flags. For new credentials use `--api-key-env <name>` or `--api-key-stdin`; never include raw keys in command arguments, chat, or `call --input`. Do not read settings files or decrypt credentials. Saving or listing a model does not prove remote availability.
+
 ## Saved annotation and mask requests
 
 - Use `iterlay call list_modification_requests --json` and `get_modification_request` to read a user's saved edit brief. Inspect its fixed source version and export the annotation/mask with `iterlay assets export --path <managed-path> --out <local-file>` for visual inspection. Never substitute the currently active canvas version.

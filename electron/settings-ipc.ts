@@ -4,6 +4,8 @@ import { CodexOAuthService } from "./auth/codex-oauth.js";
 import { OnboardingStore } from "./storage/onboarding-store.js";
 import { SettingsStore } from "./storage/settings-store.js";
 
+import { configureProvider } from "./provider-settings.js";
+
 type SettingsPayload = AppSettings & { apiKeyByProviderId?: Record<string, string> };
 
 interface SettingsIpcDependencies {
@@ -25,6 +27,7 @@ export function registerSettingsIpc({
   onThemeChanged,
   trackSettingsUpdated
 }: SettingsIpcDependencies): void {
+  ipcMain.handle("settings:configureProvider", (_event, input: Record<string, unknown>) => configureProvider(settings, input));
   ipcMain.handle("settings:get", () => {
     const current = settings.getSettings();
     const providerKeyStatus = settings.getKeyStatus();
@@ -69,6 +72,8 @@ export function registerSettingsIpc({
       activeTextProviderId: payload.activeTextProviderId,
       videoProviders: payload.videoProviders,
       activeVideoProviderId: payload.activeVideoProviderId,
+      audioProviders: payload.audioProviders,
+      activeAudioProviderId: payload.activeAudioProviderId,
       language: payload.language,
       theme: payload.theme,
       promptDockAutoCollapse: payload.promptDockAutoCollapse ?? false,
