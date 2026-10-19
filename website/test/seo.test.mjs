@@ -16,6 +16,19 @@ test('localized routes preserve deep links and replace legacy language queries',
   assert.equal(language.siteLanguage('/agents', ''), 'en')
   assert.equal(language.sitePath('/help#saving', 'en'), '/en/help/#saving')
 })
+test('entry language follows browser preferences without overriding explicit links', () => {
+  assert.equal(language.initialSitePath('/', '', '', ['zh-CN', 'en']), '/zh/')
+  assert.equal(language.initialSitePath('/', '', '', ['en-US', 'zh']), '/en/')
+  assert.equal(language.initialSitePath('/agents', '', '', ['zh-TW']), '/zh/agents/')
+  assert.equal(language.initialSitePath('/', '', '', ['fr-FR']), '/en/')
+  assert.equal(language.initialSitePath('/', '', '', ['en'], 'zh'), '/zh/')
+  assert.equal(language.initialSitePath('/', '', '', ['zh'], 'invalid'), '/zh/')
+  assert.equal(language.initialSitePath('/en/wiki/', '?feature=templates', '#wiki-details', ['zh'], 'zh'), '/en/wiki/?feature=templates#wiki-details')
+  assert.equal(language.initialSitePath('/wiki', '?feature=templates&lang=zh', '#wiki-details', ['en']), '/zh/wiki/?feature=templates#wiki-details')
+  assert.equal(language.initialSitePath('/', '', '#/wiki?feature=templates', ['en']), '/en/wiki/?feature=templates')
+  assert.equal(language.initialSitePath('/guides/model-setup/', '', '#setup', ['en']), '/en/guides/model-setup/#setup')
+  assert.equal(language.initialSitePath('/missing/', '', '', ['en']), '/missing/')
+})
 test('all public routes render body, local deployment links and consistent language without browser globals', async () => {
   for (const lang of ['zh', 'en']) for (const path of server.publicPaths(lang)) {
     const body = server.render(path)

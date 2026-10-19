@@ -23,7 +23,8 @@ html { scrollbar-gutter: stable; }
   backdrop-filter: none;
 }
 .public-header-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   justify-content: space-between;
   width: min(1280px, calc(100% - 80px));
@@ -43,7 +44,11 @@ html { scrollbar-gutter: stable; }
   letter-spacing: -.7px;
 }
 .brand-link img { width: 28px; height: 28px; border-radius: 7px; }
-.public-nav { display: flex; align-items: center; flex: none; gap: 30px; overflow: visible; }
+.public-nav { display: flex; align-items: center; justify-self: end; flex: none; gap: 30px; overflow: visible; }
+.site-language { display:flex;align-items:center;justify-self:end;gap:12px;white-space:nowrap; }
+.site-language a { display:inline-flex;align-items:center;min-height:44px;color:var(--site-muted);font-size:12px; }
+.site-language a:hover,.site-language a.active { color:var(--public-ink); }
+.site-language a.active { text-decoration:underline;text-underline-offset:5px; }
 .public-nav .nav-link {
   display: inline-flex;
   align-items: center;
@@ -79,16 +84,18 @@ html { scrollbar-gutter: stable; }
 .public-footer a:hover { color: var(--public-ink); }
 .immersive-experience { position: relative; height: calc(100svh - var(--public-header-height)); min-height: 640px; isolation: isolate; }
 @media (max-width: 900px) {
-  .public-header-inner { width: calc(100% - 40px); gap: 24px; }
+  .public-header-inner { width: calc(100% - 40px); gap: 20px; }
   .public-nav { gap: 20px; }
 }
 /* Keep all five destinations, in the same two-row layout on every mobile route. */
 @media (max-width: 760px) {
   .public-app { --public-header-height: 114px; }
-  .public-header-inner { flex-direction: column; justify-content: center; gap: 8px; width: 100%; padding: 12px 16px 8px; }
-  .brand-link { font-size: 19px; align-self: flex-start; }
+  .public-header-inner { grid-template-columns:1fr auto;grid-template-rows:34px 40px;align-content:center;gap:8px 12px;width:100%;padding:12px 16px 8px; }
+  .brand-link { font-size: 19px;grid-column:1;grid-row:1;justify-self:start; }
+  .site-language { grid-column:2;grid-row:1; }
+  .site-language a { min-height:34px; }
   .brand-link img { width: 26px; height: 26px; }
-  .public-nav { justify-content: space-between; width: 100%; gap: 8px; min-width: 0; }
+  .public-nav { grid-column:1/-1;grid-row:2;justify-content: space-between; width: 100%; gap: 8px; min-width: 0; }
   .public-nav .nav-link { min-height: 40px; padding: 8px 0; font-size: 12px; line-height: 20px; gap: 3px; }
   .public-nav .nav-download { padding-inline: 12px; gap: 6px; }
   .public-footer-inner { width: calc(100% - 40px); flex-direction: column; align-items: flex-start; justify-content: center; gap: 14px; padding-block: 24px; }

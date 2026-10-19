@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { publicHref, sitePath, useSiteLanguage } from './site-language'
+import { publicHref, useSiteLanguage } from './site-language'
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Copy, Download } from 'lucide-react'
 import { AGENT_STARTER, buildAgentStarterPrompt } from '../../shared/agent-starter'
 import './agent-page.css'
@@ -94,7 +93,6 @@ const taskModes: TaskMode[] = ['check', 'create', 'deliver']
 
 export default function AgentPage() {
   const language: Language = useSiteLanguage()
-  const navigate = useNavigate()
   const t = text[language]
   const [agent, setAgent] = useState<Agent>('codex')
   const [mode, setMode] = useState<TaskMode>('check')
@@ -120,7 +118,6 @@ export default function AgentPage() {
 
   return <div className="agent-page" lang={language === 'zh' ? 'zh-CN' : 'en'}>
     <section className="agent-hero agent-container" aria-labelledby="agent-title">
-      <div className="agent-language" aria-label={t.language}><button lang="en" aria-pressed={language === 'en'} onClick={() => { navigate(sitePath('/agents', 'en')); setCopied(null); setCopyError(false) }}>English</button><span aria-hidden="true">/</span><button lang="zh-CN" aria-pressed={language === 'zh'} onClick={() => { navigate(sitePath('/agents', 'zh')); setCopied(null); setCopyError(false) }}>中文</button></div>
       <div className="agent-hero-layout"><div className="agent-hero-copy"><h1 id="agent-title">{t.title}</h1><p>{t.intro}</p><div className="agent-actions"><button className="agent-primary" onClick={scrollToSetup}>{t.start}<ArrowDown size={16} /></button><a className="agent-text-link" href={`${import.meta.env.BASE_URL}${AGENT_STARTER.pagePath}`} target="_blank" rel="noreferrer">{t.seeResult}<ArrowUpRight size={16} /></a></div><p className="agent-terms">{t.terms}</p></div><figure className="agent-hero-image"><a href={`${import.meta.env.BASE_URL}${AGENT_STARTER.pagePath}`} target="_blank" rel="noreferrer" aria-label={t.seeResult}><img src={`${import.meta.env.BASE_URL}agent-field-site.webp`} alt={t.heroAlt} width="1200" height="900" fetchPriority="high" /></a><figcaption><span>{t.heroCaption}</span><span>{t.heroProof}</span></figcaption></figure></div>
     </section>
 

@@ -1,6 +1,26 @@
 import { useLocation } from 'react-router-dom'
 
 export type SiteLanguage = 'en' | 'zh'
+export const languagePreferenceKey = 'iterlay.site-language'
+
+export function preferredSiteLanguage(languages: readonly string[], saved?: string | null): SiteLanguage {
+  if (saved === 'zh' || saved === 'en') return saved
+  for (const language of languages) {
+    if (/^zh(?:-|$)/i.test(language)) return 'zh'
+    if (/^en(?:-|$)/i.test(language)) return 'en'
+  }
+  return 'en'
+}
+
+// Explicit locale links and unknown URLs retain their identity (including 404s).
+export function initialSitePath(path: string, search: string, hash: string, languages: readonly string[], saved?: string | null): string {
+  const url = new URL(hash.startsWith('#/') ? hash.slice(1) : `${path}${search}${hash}`, 'https://local.invalid')
+  if (/^\/(en|zh)(\/|$)/.test(url.pathname)) return `${url.pathname}${url.search}${url.hash}`
+  if (!/^\/(?:$|(?:download|wiki|help|agents|guides)\/?$|(?:guides|features)\/[^/]+\/?$)/.test(url.pathname)) return `${url.pathname}${url.search}${url.hash}`
+  const requested = url.searchParams.get('lang')
+  const language = requested === 'zh' || requested === 'en' ? requested : preferredSiteLanguage(languages, saved)
+  return sitePath(`${url.pathname}${url.search}${url.hash}`, language)
+}
 export function siteLanguage(pathname: string, search = ''): SiteLanguage {
   const prefix = pathname.match(/^\/(en|zh)(?:\/|$)/)?.[1]
   if (prefix) return prefix as SiteLanguage
