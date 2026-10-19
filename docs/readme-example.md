@@ -28,7 +28,7 @@
 ## README 截图
 
 - [画布总览](assets/readme/field-canvas.webp)：1600 × 1000，完整网页视口。
-- [图片编辑助手](assets/readme/field-edit.webp)：740 × 940，网页局部截图。
+- [图片编辑界面](assets/readme/field-edit.webp)：720 × 936，当前网页局部截图（2026-10-19 更新）。
 - [版本滑块对比](assets/readme/field-versions.webp)：730 × 682，网页局部截图。
 
 截图使用 WebP 压缩，共约 317 KiB。只做截图取景与格式压缩，没有重绘界面。旧官网图片仍保留，README 改用此次新增的独立素材。
@@ -40,10 +40,14 @@
 英文 README 不再复用中文界面截图。使用 `pnpm dev` 网页模式，在独立的 `tmp/readme-en/user-data/` 开发工作区复用 FIELD 原有生成素材与版本链，将界面切换为英文，并翻译画板名称、两个说明节点与连线标签后重新拍摄。未重新调用图片模型，也未重绘界面或伪造助手回复。
 
 - [英文画布总览](assets/readme/field-canvas.en.webp)：1600 × 1000。
-- [英文图片编辑工作区](assets/readme/field-edit.en.webp)：714 × 930，展示实际编辑预览、版本入口及输入栏，不包含中文截图中的助手对话。
+- [英文图片编辑工作区](assets/readme/field-edit.en.webp)：720 × 936，展示实际编辑预览、版本入口及输入栏。
 - [英文版本对比](assets/readme/field-versions.en.webp)：688 × 710，使用已有橙色原图与绿色编辑版本。
 
 三张图仅取景、裁剪和 WebP 压缩。中文 README 继续使用原有中文截图。英文拍摄时发现版本对比的“原图”标签未走翻译，已补用现有翻译函数。
+
+### 2026-10-19：同步当前图片编辑界面
+
+使用当前代码的 `pnpm dev` 网页模式，复用独立 `tmp/readme-en/user-data/` 工作区的 FIELD 素材，分别切换中英文重新拍摄 `field-edit.webp` 和 `field-edit.en.webp`。两张图均为 720 × 936，展示绿色音箱预览、真实 v1 / v2 版本入口及底部直接编辑输入栏，替换旧版图片编辑助手问答面板截图。未发送生成请求、未伪造对话，仅取景与 WebP 压缩。上文对修改目标选择阶段的描述对应最初截图，当前编辑截图不再展示该阶段。
 
 ### 复用与复现
 
