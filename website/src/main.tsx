@@ -18,11 +18,10 @@ import './site.css'
 export default function Site() {
   const location = useLocation()
   const pathname = contentPath(location.pathname)
-  const isAgentPage = pathname === '/agents'
   const language = siteLanguage(location.pathname, location.search)
   const english = language === 'en'
   useEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
-  return <div className={`public-app ${pathname === '/' && !english ? 'is-immersive' : ''} ${isAgentPage ? 'is-agent-page' : ''}`}>
+  return <div className="public-app">
     <Seo /><Analytics />
     <a className="skip-link" href="#content" onClick={event => { event.preventDefault(); document.getElementById('content')?.focus() }}>{english ? 'Skip to content' : '跳到正文'}</a>
     <header className="public-header"><div className="public-header-inner">

@@ -1,22 +1,106 @@
-/* Website: generous white space, graphite actions and a single quiet green accent.
-   Visual reference: dingtalk.com (observed 2026-10-16). Product controls stay faithful to current App code. */
-.public-app{--public-ink:#171a1d;--public-paper:#fff;--public-accent:#1c2420;--public-accent-hover:#353e38;--public-header-height:68px;--site-muted:#62686d;--site-tint:#f5f6f7;--site-highlight:#e3efd7;color:var(--public-ink);background:#fff}
-.public-header{position:sticky;top:0;background:#ffffffed;border:0;backdrop-filter:blur(14px)}
-.public-header-inner{width:min(1280px,calc(100% - 80px));min-height:68px;gap:30px}
-.brand-link{display:flex;align-items:center;gap:9px;color:#171a1d;font-size:21px;font-weight:650;letter-spacing:-.7px}.brand-link img{width:28px;height:28px;border-radius:7px}
-.public-nav{gap:30px}.nav-link{display:inline-flex;align-items:center;gap:5px;color:#5e6469;padding:10px 0;font-size:13px;font-weight:500}.nav-link:hover,.nav-link.active{color:#171a1d}.public-nav .nav-download{gap:12px;padding:10px 18px;border-radius:999px;background:#171a1d;color:white}.public-nav .nav-download:hover{background:#353e38;color:white}
-.release-text{white-space:pre-wrap;overflow-wrap:anywhere}.skip-link{position:absolute;top:-100px;background:#fff;padding:12px;z-index:100}.skip-link:focus{top:8px}a:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid #427365;outline-offset:4px;box-shadow:none}::selection{background:#dbeacc;color:#171a1d}.public-app{scrollbar-color:#b8beb8 #f6f7f5}.public-app textarea{caret-color:#0f766e}
-.public-footer{background:#f5f6f7;color:#686e72;border-top:1px solid #e8eaec}.public-footer-inner{width:min(1280px,calc(100% - 80px));min-height:88px;font-size:11px}.public-footer a:hover{color:#171a1d}.brand-cta-primary:hover{background:#353e38;border-color:#353e38}.download-intro{background:#f8f9f8}.download-platform-picker{display:flex;flex-wrap:wrap}.download-platform-option.active{background:#171a1d}.download-main-action{border-radius:999px}.download-product-preview{height:300px;width:min(720px,100%);border:0;box-shadow:none;background:transparent}.download-product-preview img{object-fit:contain}.download-page .brand-cta-primary{border-radius:999px}
-@media(max-width:760px){.public-header-inner{width:calc(100% - 36px);min-height:60px;gap:12px}.public-nav{gap:18px}.public-nav>a:nth-child(2){display:none}.public-nav .nav-download{padding:9px 14px;font-size:12px}.brand-link{font-size:19px}.brand-link img{width:26px;height:26px}.public-footer-inner{width:calc(100% - 40px);flex-direction:column;align-items:flex-start;justify-content:center;gap:14px;padding:24px 0}.public-footer-inner>div{gap:15px}.download-platform-option{min-height:44px;flex:1 1 40%}.release-history-item{display:flex;flex-direction:column;align-items:flex-start}.download-intro h1{font-size:34px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-@media(max-width:760px){.public-header .brand-link{flex:none}.public-nav{gap:10px}.public-nav .nav-download{padding-inline:12px;gap:8px}}
-
-/* Immersive entry: the canvas is the page, with navigation floating over it. */
-.is-immersive .public-header { position:absolute;z-index:40;inset:0 0 auto;background:transparent;backdrop-filter:none;pointer-events:none; }
-.is-immersive .public-header-inner { width:calc(100% - 72px);max-width:none;min-height:88px; }
-.is-immersive .public-header a { pointer-events:auto; }
-.is-immersive .public-nav>a:first-child { display:none; }
-.immersive-experience { position:relative;height:100svh;min-height:680px;isolation:isolate; }
-@media(max-width:760px) {
-  .is-immersive .public-header-inner { width:calc(100% - 36px);min-height:76px; }.immersive-experience { height:100svh;min-height:640px; }
+/* Shared website shell. Download is the visual authority for every route. */
+html { scrollbar-gutter: stable; }
+.public-app {
+  --public-ink: #171a1d;
+  --public-paper: #fff;
+  --public-accent: #171a1d;
+  --public-accent-hover: #353a3e;
+  --public-header-height: 80px;
+  --site-muted: #62686d;
+  --site-tint: #f5f5f7;
+  --site-line: #e1e4e7;
+  --site-link: #1677ff;
+  color: var(--public-ink);
+  background: var(--public-paper);
+  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.public-header {
+  position: sticky;
+  z-index: 40;
+  top: 0;
+  background: #fff;
+  border: 0;
+  backdrop-filter: none;
+}
+.public-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1280px, calc(100% - 80px));
+  height: var(--public-header-height);
+  min-height: 0;
+  gap: 32px;
+  margin-inline: auto;
+}
+.brand-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  color: var(--public-ink);
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -.7px;
+}
+.brand-link img { width: 28px; height: 28px; border-radius: 7px; }
+.public-nav { display: flex; align-items: center; flex: none; gap: 30px; overflow: visible; }
+.public-nav .nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-height: 44px;
+  padding: 10px 0;
+  gap: 5px;
+  color: #5e6469;
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.public-nav .nav-link:hover, .public-nav .nav-link.active { color: var(--public-ink); }
+.public-nav .nav-download {
+  gap: 12px;
+  padding-inline: 20px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--public-ink);
+}
+.public-nav .nav-download:hover, .public-nav .nav-download.active { color: #fff; background: var(--public-accent-hover); }
+.release-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.skip-link { position: absolute; top: -100px; background: #fff; padding: 12px; z-index: 100; }
+.skip-link:focus { top: 8px; }
+.public-app :is(a,button,input,select,textarea):focus-visible { outline: 2px solid var(--site-link); outline-offset: 4px; box-shadow: none; }
+.public-app ::selection { background: #dcecff; color: var(--public-ink); }
+.public-app { scrollbar-color: #b8bec4 var(--site-tint); }
+.public-app :is(input,textarea) { caret-color: var(--site-link); }
+.public-footer { background: var(--site-tint); color: var(--site-muted); border-top: 1px solid var(--site-line); }
+.public-footer-inner { width: min(1280px,calc(100% - 80px)); min-height: 88px; font-size: 11px; }
+.public-footer a:hover { color: var(--public-ink); }
+.immersive-experience { position: relative; height: calc(100svh - var(--public-header-height)); min-height: 640px; isolation: isolate; }
+@media (max-width: 900px) {
+  .public-header-inner { width: calc(100% - 40px); gap: 24px; }
+  .public-nav { gap: 20px; }
+}
+/* Keep all five destinations, in the same two-row layout on every mobile route. */
+@media (max-width: 760px) {
+  .public-app { --public-header-height: 114px; }
+  .public-header-inner { flex-direction: column; justify-content: center; gap: 8px; width: 100%; padding: 12px 16px 8px; }
+  .brand-link { font-size: 19px; align-self: flex-start; }
+  .brand-link img { width: 26px; height: 26px; }
+  .public-nav { justify-content: space-between; width: 100%; gap: 8px; min-width: 0; }
+  .public-nav .nav-link { min-height: 40px; padding: 8px 0; font-size: 12px; line-height: 20px; gap: 3px; }
+  .public-nav .nav-download { padding-inline: 12px; gap: 6px; }
+  .public-footer-inner { width: calc(100% - 40px); flex-direction: column; align-items: flex-start; justify-content: center; gap: 14px; padding-block: 24px; }
+  .public-footer-inner > div { gap: 15px; }
+}
+@media (max-width: 380px) {
+  .public-header-inner { padding-inline: 12px; }
+  .public-nav { gap: 6px; }
+  .public-nav .nav-link { font-size: 11px; }
+  .public-nav .nav-download { padding-inline: 10px; }
+  .public-nav .nav-github svg { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

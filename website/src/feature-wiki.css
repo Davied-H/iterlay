@@ -8,3 +8,23 @@
 @media(max-width:1100px) and (min-width:761px){.wiki-page{padding-inline:35px}.wiki-intro{padding-top:55px}.public-app .wiki-intro h1{font-size:66px}.wiki-feature-story{gap:32px;grid-template-columns:1.2fr 1fr}.public-app .wiki-feature-copy h2{font-size:31px}.wiki-feature-line{font-size:17px}.wiki-feature-summary{font-size:12px}.wiki-details{gap:40px}}
 @media(max-width:760px){.wiki-page{padding:0 22px}.wiki-intro{display:block;padding:40px 0 22px}.public-app .wiki-intro h1{font-size:53px;letter-spacing:-1.9px}.wiki-intro p{font-size:12px;line-height:1.8;margin-top:17px}.wiki-search{margin-top:25px;padding:11px 12px}.wiki-index{flex-wrap:nowrap;overflow-x:auto;gap:23px;margin-inline:-22px;padding-inline:22px}.wiki-index>button{padding:15px 0 16px;font-size:12px}.wiki-feature{padding-top:23px}.wiki-feature-story{grid-template-columns:minmax(0,1fr);gap:26px}.wiki-feature-stage{grid-column:1;grid-row:1}.wiki-feature-copy{grid-column:1;grid-row:2}.public-app .wiki-feature-copy h2{font-size:30px;line-height:1.5;letter-spacing:-.8px}.wiki-feature-line{font-size:18px;line-height:1.75;margin-top:12px}.wiki-feature-summary{font-size:12px;line-height:1.95;max-width:none;margin-top:12px}.wiki-see-details{margin-top:21px;font-size:11px}.wiki-tour-controls{margin-top:17px}.wiki-feature-caption{font-size:9px;padding-bottom:26px;line-height:1.8}.wiki-details{grid-template-columns:minmax(0,1fr);gap:28px;padding:30px 0;scroll-margin-top:76px}.wiki-details-heading h2{font-size:23px}.wiki-details-heading p{font-size:10px;margin-top:10px}.wiki-subfeatures>article{padding:21px 0}.wiki-subfeatures h3>button{font-size:14px}.wiki-sub-description{font-size:12px}.wiki-boundary{grid-column:auto}.wiki-page-close{display:block;padding:27px 0 35px}.wiki-page-close>p{font-size:21px}.wiki-page-close>div{margin-top:22px;gap:25px}.wiki-page-close a{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.wiki-page *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Download-page heading and soft gray preview surface. */
+.wiki-page { --wiki-ink:var(--public-ink);--wiki-muted:var(--site-muted);--wiki-line:var(--site-line); }
+.wiki-intro { flex-direction:column;align-items:center;gap:28px;text-align:center;padding:80px 0 40px; }
+.public-app .wiki-intro h1 { font-size:clamp(44px,5vw,72px);font-weight:650;letter-spacing:-2px; }
+.wiki-intro p { font-size:16px; }
+.wiki-search { flex:auto;width:min(420px,100%);padding:14px 18px;border-color:var(--site-line);border-radius:999px;background:var(--site-tint); }
+.wiki-search input { font-size:14px; }
+.wiki-feature { padding:28px;margin-top:28px;border-radius:32px;background:var(--site-tint); }
+.wiki-feature-stage { border-radius:20px; }
+.wiki-feature-caption { padding-bottom:0;border-bottom:0; }
+.wiki-see-details,.wiki-boundary>a,.wiki-page-close a { color:var(--site-link);border-color:currentColor; }
+.wiki-page>.help-page { width:100%;padding-top:40px; }
+@media(max-width:760px) {
+  .wiki-intro { padding:44px 0 26px;gap:24px; }
+  .public-app .wiki-intro h1 { font-size:40px;letter-spacing:-1px; }
+  .wiki-intro p { font-size:14px; }
+  .wiki-search { margin-top:0; }
+  .wiki-feature { padding:18px;margin-inline:-6px;border-radius:28px; }
+}
