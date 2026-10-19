@@ -1,22 +1,29 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BoardSummary } from "../shared/types";
-import { BoardLibrary, formatStorageSize } from "../src/components/workbench/BoardLibrary";
+import { BoardLibrary as BoardLibraryComponent, formatStorageSize } from "../src/components/workbench/BoardLibrary";
+import { I18nProvider } from "../src/i18n";
+
+function BoardLibrary(props: ComponentProps<typeof BoardLibraryComponent>): React.ReactElement {
+  return createElement(I18nProvider, null, createElement(BoardLibraryComponent, props));
+}
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 
+beforeEach(() => window.localStorage.setItem("iterlay:language", "zh-CN"));
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = undefined;
   container?.remove();
   container = undefined;
+  window.localStorage.removeItem("iterlay:language");
 });
 
 describe("BoardLibrary layout", () => {

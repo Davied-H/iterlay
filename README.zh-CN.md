@@ -8,7 +8,7 @@
 
 **自带模型 · 无限画布 · Agent 可操作 · MIT 开源**
 
-[下载 Iterlay](https://github.com/Davied-H/iterlay/releases) · [官网](https://davied-h.github.io/iterlay/) · [接入 Agent](#让你的-agent-也能创作) · [English](README.md)
+[下载 Iterlay](https://github.com/Davied-H/iterlay/releases) · [官网](https://davied-h.github.io/iterlay/) · [Agent 工作流与案例](https://davied-h.github.io/iterlay/#/agents?lang=zh) · [English](README.md)
 
 </div>
 
@@ -80,6 +80,8 @@
 三类能力分别配置。图片编辑、参考图、文生视频、图生视频及可用参数取决于具体模型与接口；接入某个供应商不代表它支持全部能力。Iterlay 不提供官方模型积分或代充值服务。
 
 ## 让你的 Agent 也能创作
+
+先看 [FIELD 完整案例](https://davied-h.github.io/iterlay/#/agents?lang=zh)：打开成品示例网页，下载包含真实图片与版本历史的画板，再复制准备、创作和交付任务。打开案例不会调用模型；创建新图片会使用你配置的服务商。
 
 给 Codex 或 Claude Code 一套能执行的视觉工具，让生成的素材进入你的实际工作流。
 

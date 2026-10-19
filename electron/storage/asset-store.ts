@@ -53,6 +53,8 @@ export class AssetStore {
           name: image.name,
           mimeType: image.mimeType,
           role: image.role,
+          semanticRole: image.semanticRole,
+          sourceNodeId: image.sourceNodeId,
           path: filePath
         };
       })

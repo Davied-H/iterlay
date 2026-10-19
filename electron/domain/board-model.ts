@@ -289,7 +289,8 @@ export function normalizeStoredBoard(value: unknown): BoardData | null {
       : [],
     viewport: parsed.viewport,
     thumbnailDataUrl: parsed.thumbnailDataUrl,
-    videoSequences: Array.isArray(parsed.videoSequences) ? structuredClone(parsed.videoSequences) : []
+    videoSequences: Array.isArray(parsed.videoSequences) ? structuredClone(parsed.videoSequences) : [],
+    deliveryRecipes: Array.isArray(parsed.deliveryRecipes) ? structuredClone(parsed.deliveryRecipes) : []
   };
 }
 
@@ -367,6 +368,7 @@ export function boardStoragePaths(board: BoardData): string[] {
     if (isBoardImageNode(node)) {
       addMediaPath(node.imagePath);
       for (const version of node.versions ?? []) addMediaPath(version.imagePath);
+      addMediaPath(node.finalVersion?.imagePath);
     } else if (isBoardVideoNode(node)) {
       addMediaPath(node.videoPath);
       addMediaPath(node.posterPath);
@@ -376,6 +378,7 @@ export function boardStoragePaths(board: BoardData): string[] {
       }
     }
   }
+  for (const recipe of board.deliveryRecipes ?? []) for (const item of recipe.items) addMediaPath(item.sourceVersion.imagePath);
   return [...mediaPaths].sort();
 }
 

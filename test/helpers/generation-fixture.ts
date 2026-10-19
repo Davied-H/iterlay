@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { GenerateImageInput } from "../../shared/types";
 import { createImageGenerationController, type GenerationControllerDependencies } from "../../src/features/generation/create-generation-controller";
+import type { GenerationQueue } from "../../src/lib/generation-queue";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -9,7 +10,7 @@ function deferred<T>() {
 }
 
 // Execute the production submission function with controlled asynchronous boundaries.
-export function generationHarness(official = true) {
+export function generationHarness(official = true, queue?: GenerationQueue) {
   const quote = deferred<object>();
   const asset = deferred<string>();
   const completion = deferred<object>();
@@ -17,7 +18,7 @@ export function generationHarness(official = true) {
   const boardOpenSequenceRef = { current: 1 };
   const setImages = vi.fn();
   const setInput = vi.fn();
-  const enqueue = vi.fn(() => ({ queued: false, ready: Promise.resolve() }));
+  const enqueue = vi.fn((id: string) => queue?.enqueue(id) ?? ({ queued: false, ready: Promise.resolve(), cancel: () => false }));
   const generateImage = vi.fn<(input: GenerateImageInput) => Promise<object>>(() => completion.promise);
   const appendBoardNodes = vi.fn(async () => undefined);
   const paidGenerationMetadata = vi.fn(() => quote.promise);
@@ -37,7 +38,7 @@ export function generationHarness(official = true) {
     generationFingerprint: async () => "fingerprint",
     paidGenerationMetadata,
     dataUrlToReferencePayload: () => ({ id: "reference" }),
-    generationQueueRef: { current: { enqueue, release: vi.fn() } },
+    generationQueueRef: { current: { enqueue, release: vi.fn((id: string) => queue?.release(id)) } },
     parseSizeDimensions: () => null,
     canvasStateRef: { current: { positions: {}, connections: [] } },
     workflowNodesRef: { current: [] },
@@ -68,6 +69,7 @@ export function generationHarness(official = true) {
   // imported production controller rather than extracting source from App.tsx.
   const generate = createImageGenerationController(bindings as unknown as GenerationControllerDependencies);
   return { generate, quote, asset, completion, activeBoardRef, boardOpenSequenceRef, setImages, setInput,
-    enqueue, generateImage, appendBoardNodes, paidGenerationMetadata, readAssetDataUrl };
+    enqueue, generateImage, appendBoardNodes, paidGenerationMetadata, readAssetDataUrl,
+    setStatus: bindings.setStatus, setActiveBoardGenerations: bindings.setActiveBoardGenerations, toast: bindings.toast };
 }
 

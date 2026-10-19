@@ -78,7 +78,7 @@ describe("ReferralInviteDialog", () => {
         onActivate: vi.fn()
       }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
 
     expect(document.body.textContent).toContain("Iterlay 1.x 永久授权 · 2 台设备");
     expect(document.body.textContent).toContain("ABCD-EFGH-IJKL-MNOP");
@@ -105,6 +105,8 @@ describe("ReferralInviteDialog", () => {
       }));
     });
 
+    await act(async () => { await vi.dynamicImportSettled(); });
+
     expect(document.body.textContent).toContain("激活授权后即可参与邀请活动");
     expect(apiMocks.getGiftActivationOverview).not.toHaveBeenCalled();
   });
@@ -123,7 +125,7 @@ describe("ReferralInviteDialog", () => {
         onActivate: vi.fn()
       }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
 
     expect(apiMocks.getGiftActivationOverview).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).toContain("好友激活礼加载失败");

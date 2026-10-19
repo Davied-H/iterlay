@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { installerVariant, releaseInstallers, loadReleases } from '../src/releases.mjs'
+import { installerVariant, releaseInstallers, loadReleases, releaseNoteParts } from '../src/releases.mjs'
 test('recognizes installer filenames and rejects unsupported packages', () => {
   assert.equal(installerVariant('Iterlay-0.1.56-arm64.dmg'), 'darwin-arm64')
   assert.equal(installerVariant('Iterlay-0.1.56-x64.dmg'), 'darwin-x64')
@@ -24,4 +24,14 @@ test('handles no releases and API failures', async () => {
     globalThis.fetch = async () => ({ ok: false })
     await assert.rejects(loadReleases(), /GitHub/)
   } finally { globalThis.fetch = original }
+})
+test('published issue references link to the same repository without changing original notes', () => {
+  const body = 'Fixed export (#42). See https://github.com/other/repo/issues/7#issuecomment-123. Keep color#123 as text.'
+  const parts = releaseNoteParts(body)
+  assert.equal(parts.map(part => part.text).join(''), body)
+  assert.deepEqual(parts.filter(part => part.href).map(part => part.href), [
+    'https://github.com/Davied-H/iterlay/issues/42',
+    'https://github.com/other/repo/issues/7#issuecomment-123',
+  ])
+  assert.deepEqual(releaseNoteParts('Unreleased change, no issue reference.'), [{ text: 'Unreleased change, no issue reference.' }])
 })

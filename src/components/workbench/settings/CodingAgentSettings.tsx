@@ -8,20 +8,22 @@ import { useUiText } from "@/i18n";
 import type { CodingAgentIntegrationStatus } from "@shared/agent-integration";
 import { SettingsPageHeader } from "./SettingsPrimitives";
 import { CliDefaultBoardSettings } from "./CliDefaultBoardSettings";
+import { AgentStarterGuide } from "./AgentStarterGuide";
 import "./coding-agent-settings.css";
 
-const EXAMPLE = "$using-iterlay 列出我已配置的图片服务。";
 const STEPS = [
   { title: "准备环境", description: "CLI 与模型服务" },
   { title: "安装 Skill", description: "选择你的 Coding Agent" },
-  { title: "开始使用", description: "新开会话，发送提示词" }
+  { title: "开始使用", description: "检查、生成与交付" }
 ] as const;
 type SetupStep = 0 | 1 | 2;
 
-export function CodingAgentSettings({ disabled, providerReady, onOpenModels }: {
+export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onImportBoard, onOpenBoards }: {
   disabled: boolean;
   providerReady: boolean;
   onOpenModels: () => void;
+  onImportBoard?: () => void;
+  onOpenBoards?: () => void;
 }): React.ReactElement {
   const uiText = useUiText();
   const stepId = useId();
@@ -113,7 +115,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels }: {
         </div>
         <div className="coding-agent-setup-row">
           <div className="coding-agent-avatar" aria-hidden="true"><CodeXml className="size-5" /></div>
-          <div className="coding-agent-info"><div className="coding-agent-name"><strong>{uiText("图片服务")}</strong><Badge variant="outline">{uiText(providerReady ? "已就绪" : "待配置")}</Badge></div><p>{uiText(providerReady ? "已配置的模型和授权可直接用于 CLI。" : "配置一次，App、CLI 和 Coding Agent 都能使用。")}</p></div>
+          <div className="coding-agent-info"><div className="coding-agent-name"><strong>{uiText("图片服务")}</strong><Badge variant="outline">{uiText(providerReady ? "已配置" : "待配置")}</Badge></div><p>{uiText(providerReady ? "已保存模型与授权；可在模型设置中测试服务。" : "配置一次，App、CLI 和 Coding Agent 都能使用。")}</p></div>
           <Button variant="outline" size="sm" disabled={locked} onClick={onOpenModels}>{uiText(providerReady ? "管理模型" : "配置图片服务")}</Button>
         </div>
         {status?.development ? <p className="coding-agent-note">{uiText("开发工作区：安装与 Skill 配置仅写入测试目录。")}</p> : null}
@@ -133,10 +135,10 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels }: {
           </div>;
         })}
       </> : <>
-        <div className="coding-agent-panel-heading"><h3>{uiText("把第一句话交给 Agent")}</h3><p>{uiText("新开一个 Agent 会话，把这句话交给它。")}</p><p>{uiText("Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。")}</p></div>
+        <div className="coding-agent-panel-heading"><h3>{uiText("从准备检查，到第一份交付")}</h3><p>{uiText("新开 Agent 会话，选择一项任务。安装 Skill 不代表该会话已加载它。")}</p><p>{uiText("Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。")}</p></div>
         {installedAgents.length ? <div className="coding-agent-ready"><CheckCircle2 className="size-4" aria-hidden="true" /><span>{installedAgents.map((agent) => agent.id === "codex" ? "Codex" : "Claude Code").join(" / ")} · {uiText("Skill 已安装")}</span></div> : <p className="coding-agent-guidance">{uiText("先完成 Skill 安装，再在新会话中尝试。")}</p>}
         {!providerReady ? <div className="coding-agent-provider"><p>{uiText("还没有可用的图片服务。配置后即可开始生成。")}</p><Button variant="outline" size="sm" disabled={locked} onClick={onOpenModels}>{uiText("配置图片服务")}</Button></div> : null}
-        <div className="coding-agent-prompt"><span>{uiText(EXAMPLE)}</span><Button variant="ghost" size="icon" aria-label={uiText("复制试用提示词")} onClick={() => void copy(uiText(EXAMPLE), "example")}>{copied === "example" ? <Check /> : <Copy />}</Button></div>
+        <AgentStarterGuide disabled={locked} defaultAgent={installedAgents[0]?.id ?? "codex"} onCopy={copy} copied={copied} onImportBoard={onImportBoard} onOpenBoards={onOpenBoards} />
         <p className="coding-agent-command-label">{uiText("也可以直接在终端运行")}</p>
         <div className="coding-agent-command"><code>iterlay providers list --json</code><Button variant="ghost" size="icon" aria-label={uiText("复制终端命令")} onClick={() => void copy("iterlay providers list --json", "command")}>{copied === "command" ? <Check /> : <Copy />}</Button></div>
       </>}

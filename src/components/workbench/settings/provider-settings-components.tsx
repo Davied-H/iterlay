@@ -69,6 +69,8 @@ export interface ProviderSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entryPoint?: "default" | "provider-setup" | "model-management" | "coding-agent";
+  onImportStarterBoard?: () => void;
+  onOpenStarterBoards?: () => void;
   providers: ProviderConfig[];
   activeProviderId: string;
   textProviders: TextProviderConfig[];

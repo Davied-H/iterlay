@@ -9,6 +9,7 @@ release/
 .env.*
 .playwright-mcp/
 .playwright-cli/
+.impeccable/review/
 output/
 *-qa.png
 lib-state.jpeg
@@ -18,6 +19,7 @@ resources/native/photo-layer-segmenter-*
 resources/ffmpeg/
 cli/dist/
 cli/skills/
+cli/guard/
 .test-agent/
 *.orig
 resources/native/.build-stamp

@@ -17,6 +17,8 @@ import {
   type VideoSequence
 } from "../shared/types.js";
 import { normalizeBoardGroup } from "../shared/comic-drama.js";
+import { remapGenerationHistorySnapshot } from "../shared/generation-history.js";
+import { remapFinalVersion, remapImageDeliveryMetadata } from "../shared/image-delivery.js";
 import { buildArchiveInWorker, parseArchiveInWorker } from "./archive-worker-client.js";
 
 export const BOARD_ARCHIVE_FORMAT = "iterlay-board";
@@ -91,6 +93,7 @@ export async function buildBoardArchive(
       await addImage(node.imagePath);
       if (node.derivation) await addImage(node.derivation.sourceImagePath);
       for (const version of node.versions ?? []) await addImage(version.imagePath);
+      if (node.finalVersion) await addImage(node.finalVersion.imagePath);
     } else if (isBoardVideoNode(node)) {
       await addMedia(node.videoPath, "videos");
       if (node.posterPath) await addMedia(node.posterPath, "posters");
@@ -105,11 +108,15 @@ export async function buildBoardArchive(
     }
   }
 
+  for (const recipe of board.deliveryRecipes ?? []) for (const item of recipe.items) await addImage(item.sourceVersion.imagePath);
+
   // 引用图/源图也一并打包，导入端才能还原"引用图 + 血缘"。
   for (const job of jobs) {
     for (const referencePath of job.referenceImagePaths) {
       await addImage(referencePath);
     }
+    for (const reference of job.inputSnapshot?.references ?? []) await addImage(reference.path);
+    if (job.inputSnapshot?.input.editSource?.imagePath) await addImage(job.inputSnapshot.input.editSource.imagePath);
   }
   for (const job of videoJobs) {
     for (const referencePath of job.input.referenceImagePaths) await addImage(referencePath);
@@ -142,6 +149,7 @@ export async function buildBoardArchive(
 
   const exportedBoard: BoardData = {
     ...board,
+    deliveryRecipes: remapImageDeliveryMetadata(board.deliveryRecipes, (value) => pathMap.get(value) ?? `missing/${path.basename(value)}`),
     nodes: board.nodes.flatMap((node): BoardNode[] => {
         if (isBoardVideoGenerationNode(node)) {
           return [{
@@ -183,6 +191,7 @@ export async function buildBoardArchive(
         return [{
           ...node,
           imagePath: pathMap.get(node.imagePath)!,
+          finalVersion: remapFinalVersion(node.finalVersion, (value) => pathMap.get(value) ?? `missing/${path.basename(value)}`),
           derivation:
             node.derivation && pathMap.has(node.derivation.sourceImagePath)
               ? { ...node.derivation, sourceImagePath: pathMap.get(node.derivation.sourceImagePath)! }
@@ -197,6 +206,7 @@ export async function buildBoardArchive(
 
   const exportedJobs = jobs.map((job) => ({
     ...job,
+    inputSnapshot: remapGenerationHistorySnapshot(job.inputSnapshot, (p) => pathMap.get(p) ?? path.basename(p)),
     outputImagePaths: job.outputImagePaths.map((p) => pathMap.get(p) ?? path.basename(p)),
     // 引用图打包成功则用包内相对路径（导入端可重映射），否则退回文件名。
     referenceImagePaths: job.referenceImagePaths.map((p) => pathMap.get(p) ?? path.basename(p))

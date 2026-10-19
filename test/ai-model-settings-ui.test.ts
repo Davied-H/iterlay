@@ -90,12 +90,39 @@ afterEach(async () => {
 });
 
 describe("focused model service details", () => {
+  it("requires a separate fee confirmation before submitting an image generation test", async () => {
+    await render();
+    await act(async () => button("生成测试图（可能收费）").click());
+    expect(document.body.textContent).toContain("可能产生服务商费用");
+    expect(mocks.testProvider).not.toHaveBeenCalled();
+    await act(async () => button("取消").click());
+    expect(mocks.testProvider).not.toHaveBeenCalled();
+    await act(async () => button("生成测试图（可能收费）").click());
+    await act(async () => button("确认并生成 1 张").click());
+    expect(mocks.testProvider).toHaveBeenCalledWith(expect.objectContaining({ id: account.id }), undefined, {
+      mode: "generation", acknowledgeCharges: true
+    });
+  });
+  it("uses the non-generating check by default and shows evidence separately", async () => {
+    mocks.testProvider.mockResolvedValueOnce({ ok: true, message: "基础检查完成", mode: "connection", checks: {
+      network: { status: "passed", message: "网络可达" },
+      authentication: { status: "passed", message: "只读接口接受请求" },
+      model: { status: "unknown", message: "目录未发现模型" },
+      capability: { status: "not-tested", message: "尚未验证生图" },
+      generation: { status: "not-tested", message: "未生成" }
+    } });
+    await render();
+    await act(async () => button("检查连接（不生成）").click());
+    expect(mocks.testProvider).toHaveBeenCalledWith(expect.anything(), undefined, { mode: "connection" });
+    expect(document.body.textContent).toContain("模型目录 · 未确认");
+    expect(document.body.textContent).toContain("实际能力 · 未测试");
+  });
   it("distinguishes account login from verification and describes a fixed platform model accurately", async () => {
     await render();
     const editor = document.querySelector(".model-editor")!;
     expect(document.querySelector(".model-editor-title h2")?.textContent).toBe(account.name);
     expect(editor.textContent).toContain("账号已登录");
-    expect(editor.textContent).toContain("尚未验证连接");
+    expect(editor.textContent).toContain("尚未检查连接");
     expect(editor.textContent).toContain("模型由账号提供，无需手动配置。");
     expect(editor.textContent).not.toContain("选择或添加此服务提供的模型");
     expect(document.querySelector(".model-detail-save")).toBeNull();
@@ -103,10 +130,10 @@ describe("focused model service details", () => {
   });
   it("preserves a successful verification after a name change and only saves through the explicit action", async () => {
     await render();
-    await act(async () => button("验证连接").click());
-    expect(document.body.textContent).toContain("连接已验证");
+    await act(async () => button("检查连接（不生成）").click());
+    expect(document.body.textContent).toContain("基础检查完成");
     await rename("新的显示名称");
-    expect(document.body.textContent).toContain("连接已验证");
+    expect(document.body.textContent).toContain("基础检查完成");
     expect(mocks.onSaved).not.toHaveBeenCalled();
     await act(async () => button("保存更改").click());
     expect(mocks.onSaved).toHaveBeenCalledWith(
@@ -124,8 +151,8 @@ describe("focused model service details", () => {
       baseUrl: "https://api.example.com",
       generationEndpoint: "/v1/responses"
     });
-    await act(async () => button("验证连接").click());
-    expect(document.body.textContent).toContain("连接已验证");
+    await act(async () => button("检查连接（不生成）").click());
+    expect(document.body.textContent).toContain("基础检查完成");
     const input = document.querySelector<HTMLInputElement>('[aria-label="服务地址"]')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -134,8 +161,8 @@ describe("focused model service details", () => {
       );
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(document.body.textContent).not.toContain("连接已验证");
-    expect(document.body.textContent).toContain("尚未验证连接");
+    expect(document.body.textContent).not.toContain("基础检查完成");
+    expect(document.body.textContent).toContain("尚未检查连接");
   });
   it("keeps a failed save in the editor and still protects the draft when going back", async () => {
     await render();
@@ -151,9 +178,9 @@ describe("focused model service details", () => {
   it("keeps account authorization distinct from a failed model connection", async () => {
     mocks.testProvider.mockResolvedValueOnce({ ok: false, message: "当前模型连接失败" });
     await render();
-    await act(async () => button("验证连接").click());
+    await act(async () => button("检查连接（不生成）").click());
     expect(document.body.textContent).toContain("账号已登录");
-    expect(document.body.textContent).toContain("验证未通过");
+    expect(document.body.textContent).toContain("检查未通过或未能确认");
     expect(document.body.textContent).toContain("当前模型连接失败");
     expect(document.querySelector(".model-detail-save")).toBeNull();
   });

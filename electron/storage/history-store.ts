@@ -57,7 +57,9 @@ export class HistoryStore {
     return this.mutations.run(async () => {
       const changed = [...(await this.readJobs()).values()].filter((job) =>
         (job.status === "running" || job.status === "queued") && !(job.providerId === OFFICIAL_PROVIDER_ID && job.remoteJobId)
-      ).map((job) => ({ ...job, status: "failed" as const, completedAt, error: "应用在任务完成前重启，生成已中断，请重试。" }));
+      ).map((job): GenerationJob => job.status === "queued"
+        ? { ...job, status: "cancelled", completedAt, error: "应用在任务提交前重启，排队任务已取消，未发送到 Provider。" }
+        : { ...job, status: "unknown", completedAt, error: "应用在任务完成前重启，远端结果与费用状态待确认。请先检查 Provider 和历史，避免重复提交。" });
       await this.commit({ version: 1, upsert: changed });
       return changed.length;
     });

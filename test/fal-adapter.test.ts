@@ -284,11 +284,11 @@ describe("FalImageProvider", () => {
     expect(result.warnings?.[0]).toContain("仅发送了第一张参考图");
   });
 
-  it("tests credentials through a nonexistent queue request without submitting generation", async () => {
+  it("does not claim a nonexistent queue request verified credentials", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("not found", { status: 404 }));
     const provider = new FalImageProvider(fetchMock as typeof fetch);
 
-    await provider.testConnection(falConfig, "fal-key");
+    await expect(provider.testConnection(falConfig, "fal-key")).rejects.toMatchObject({ status: 404 });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toContain("/requests/iterlay-connection-test/status");

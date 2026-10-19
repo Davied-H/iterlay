@@ -259,7 +259,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
           {mode === "chat" && contextPrompt ? <span className="prompt-fusion-context-chip" title={contextPrompt}>{uiText("当前提示词")}<button type="button" disabled={props.busy} aria-label={uiText("移除提示词上下文")} onClick={() => { setContextPrompt(null); props.onPromptContextChange(null); }}><X /></button></span> : null}
         </div>
         {mode === "chat" ? <textarea
-          ref={inputRef} value={props.value} rows={2} aria-label={uiText("AI 对话输入")}
+          ref={inputRef} value={props.value} rows={2} aria-label={uiText("对话规划输入")}
           placeholder={uiText("说说你的想法，或告诉我哪里需要调整…")}
           disabled={props.inputDisabled}
           onChange={(event) => props.onValueChange(event.target.value)}
@@ -276,14 +276,14 @@ export function PromptFusionDock(props: Props): React.ReactElement {
           onKeyDown={(event) => { if (isSendEnter(event)) { event.preventDefault(); submit(); } }}
         /> : <div className="prompt-fusion-direct-editor" onInputCapture={nudge}>{props.directEditor}</div>}
         <div className="prompt-fusion-toolbar">
-          <button type="button" role="switch" aria-label={uiText("AI 对话模式")} aria-checked={mode === "chat"}
-            title={mode === "chat" ? uiText("切换到普通") : uiText("切换到 AI 对话")}
+          <button type="button" role="switch" aria-label={uiText("对话规划模式")} aria-checked={mode === "chat"}
+            title={mode === "chat" ? uiText("切换到直接生成") : uiText("切换到对话规划")}
             disabled={props.busy || props.inputDisabled}
             className={`prompt-mode-switch ${modeSwitching ? "prompt-mode-switching" : ""} ${mode === "generate" && props.directValue.trim() ? "ai-invitation" : ""} ${animate ? "ai-invitation-motion" : ""}`}
             onClick={() => switchMode(mode === "chat" ? "generate" : "chat")}>
             <span className="prompt-mode-thumb"><span className="prompt-mode-thumb-face" aria-hidden="true" /><span className="prompt-mode-star"><Sparkles /></span><span className="prompt-mode-arrow"><ArrowUp /></span></span>
-            <span className="prompt-mode-word prompt-mode-ai">AI</span>
-            <span className="prompt-mode-word prompt-mode-direct">{uiText("普通")}</span>
+            <span className="prompt-mode-word prompt-mode-ai">{uiText("对话规划")}</span>
+            <span className="prompt-mode-word prompt-mode-direct">{uiText("直接生成")}</span>
           </button>
           <fieldset disabled={props.busy} className="prompt-fusion-controls">{props.controls}</fieldset>
           <div className="prompt-fusion-action">{mode === "chat"

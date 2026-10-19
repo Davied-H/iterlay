@@ -1,0 +1,14 @@
+.field-chapter-navigation{position:absolute;top:58px;left:72px;z-index:15;width:min(360px,calc(100vw - 96px));padding:10px 12px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--card));color:hsl(var(--foreground));box-shadow:0 3px 12px #00000008;font-size:12px}
+.field-chapter-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.field-chapter-heading button{display:inline-flex;align-items:center;gap:8px;min-height:24px;padding:2px;color:hsl(var(--muted-foreground))}
+.field-chapter-heading strong{font-size:12px;font-weight:600;color:hsl(var(--foreground))}
+.field-chapter-heading svg{width:14px;height:14px;stroke-width:1.7}
+.field-chapter-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:9px 0 0}
+.field-chapter-tabs button{display:flex;align-items:center;gap:4px;min-height:30px;padding:4px 6px;border-radius:5px;color:hsl(var(--muted-foreground))}
+.field-chapter-tabs button span{font-size:10px;font-variant-numeric:tabular-nums}
+.field-chapter-tabs button[aria-current=step]{background:hsl(var(--muted));color:hsl(var(--foreground));font-weight:600}
+.field-chapter-navigation button:hover:not(:disabled){background:hsl(var(--accent));color:hsl(var(--foreground))}
+.field-chapter-navigation button:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.field-chapter-navigation button:disabled{opacity:.45;cursor:not-allowed}
+.field-chapter-navigation p{margin:8px 0 0;line-height:1.65;color:hsl(var(--muted-foreground))}
+.field-chapter-action{margin-top:7px;padding:4px 0;color:hsl(var(--foreground));text-decoration:underline;text-underline-offset:3px}

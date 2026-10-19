@@ -14,3 +14,13 @@ Iterlay 是开源 AI 创作桌面工作台，在无限画板中完成图片生�
 ## Feature discovery
 
 2026-10-17 用户要求首页多场景自动轮播及集成核心功能的 Wiki。官网通过 `/#/wiki` 的十类目录与子功能说明解释实际产品，默认自动巡览并支持暂停、搜索、参数直达。功能依据集中在 website/src/features.ts；界面图解为明确标注的非实时示意，不能据此承诺截图级一致或执行模型任务。
+
+## Coding Agent case and onboarding
+
+`/#/agents` 面向使用 Codex / Claude Code 的开发者，默认英文，`?lang=zh` 切换中文；该页导航、正文和页脚随语言切换。页面用同一真实 FIELD 案例连接成品静态网页、橙色产品原图、绿色修改版本、户外广告、海报和可导入 `.itb` 画板。素材生成记录见 `docs/assets/readme/examples/prompts.json`，虚构产品不冒充商业客户。
+
+首次使用明确为安装并打开 App、配置图片模型、安装对应 Agent Skill、检查准备、主动创作、检查画板与导出文件。可复制的分阶段任务来自 `shared/agent-starter.ts`，与 App 引导共享。网站只提供已有素材与任务文本，不调用模型、启动 App 或自动消费额度。软件采用 MIT 免费开源，远程模型由服务商计费，凭据保留在 App，Prompt 与所需参考图发送给所选服务。按 Agent 安装 Skill 不是权限、额度或工作区隔离。
+
+## Bilingual setup and storage boundaries
+
+2026-10-19 用户批准补齐英文官网闭环与保存边界。`lang=en` 覆盖产品、十类功能及全部子操作、下载、配置和排障；站内导航与功能深链接保留语言。英文产品页使用已有 FIELD 真实素材，保留原中文预制交互体验。公共示例不保存桌面画板，桌面本地数据与隔离开发工作区分别解释；失败和等待保存均不代表成功。发布说明保留原文，真实 issue 引用与同条 Release 安装包可核对，不将 main 上的修改或关闭 issue 冒充已发布修复。

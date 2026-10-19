@@ -52,7 +52,7 @@ import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
 import type { AssistantDockLayout } from "@/lib/assistant-panel-docking";
 import { BoardDetailCache } from "@/lib/board-detail-cache";
 import { createEmptyPromptSpec, resetBoardDraft } from "@/lib/board-draft";
-import { hydrateBoardNodeImageLayout, hydrateGeneratedImage } from "@/lib/board-node-image";
+import { hydrateBoardNodeImageLayout, hydrateGeneratedImage, serializeGeneratedImage } from "@/lib/board-node-image";
 import { createComicDramaMutationPlan } from "@/lib/comic-drama-assistant";
 import { DataUrlLruCache } from "@/lib/data-url-lru-cache";
 import { hasGalleryTourContent } from "@/lib/gallery-onboarding";
@@ -89,7 +89,15 @@ import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-noti
 import { promoteRecentlyUsedBoard, sortBoardsByRecentUse } from "@shared/board-order";
 import { isComicDramaNode } from "@shared/comic-drama";
 import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
+import type { AgentEditDraft } from "@shared/modification-requests";
+
+
+import { FieldChapterNavigation } from "@/components/workbench/FieldChapterNavigation";
+import type { FieldChapterTarget } from "@shared/field-chapters";
+import type { ImageDeliveryRecipe } from "@shared/image-delivery";
+import { hasDeliveryReferencesToMovedVersions } from "@shared/image-delivery-references";
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
+import { restoreGenerationHistoryJob, reuseGenerationHistoryPrompt } from "@shared/generation-history";
 import { pendingVideoJobId, reconcileVideoGenerationPlaceholder } from "@shared/video-generation-placeholder";
 
 import type {
@@ -98,6 +106,7 @@ import type {
   AssetReference,
   BoardComicDramaEntryNode,
   BoardConnection,
+  BoardData,
   BoardDetail,
   BoardEnterOrigin,
   BoardGenerationNode,
@@ -237,6 +246,8 @@ const CanvasShortcutHelpDialog = lazy(() =>
 const FeatureTour = lazy(() =>
   import("@/components/onboarding/FeatureTour").then((module) => ({ default: module.FeatureTour }))
 );
+const ModificationRequestsDialog = lazy(()=>import("@/components/workbench/ModificationRequestsDialog").then(module=>({default:module.ModificationRequestsDialog})));
+const ImageDeliveryDialog = lazy(()=>import("@/components/workbench/ImageDeliveryDialog").then(module=>({default:module.ImageDeliveryDialog})));
 const HistoryRail = lazy(() =>
   import("@/components/workbench/HistoryRail").then((module) => ({ default: module.HistoryRail }))
 );
@@ -935,6 +946,10 @@ export default function App(): React.ReactElement {
     textProviderReady
   );
   const editTarget = editTargetId ? (images.find((image) => image.id === editTargetId) ?? null) : null;
+  const [modificationRequestsOpen,setModificationRequestsOpen] = useState(false);
+  const [imageDeliveryOpen,setImageDeliveryOpen] = useState(false);
+  const [imageDeliveryBoard,setImageDeliveryBoard] = useState<BoardData|null>(null);
+  const [initialImageDeliveryRecipe,setInitialImageDeliveryRecipe] = useState<ImageDeliveryRecipe|null>(null);
   const imageDetailsTarget = imageDetailsTargetId
     ? (images.find((image) => image.id === imageDetailsTargetId) ?? null)
     : null;
@@ -1393,6 +1408,7 @@ export default function App(): React.ReactElement {
         const openedAt = new Date().toISOString();
         setBoards((current) => promoteRecentlyUsedBoard(current, detail.id, openedAt));
         const openedBoard: ActiveBoard = {
+          deliveryRecipes: detail.deliveryRecipes,
           id: detail.id,
           name: detail.name,
           kind: detail.kind,
@@ -2021,7 +2037,7 @@ export default function App(): React.ReactElement {
     if (bridgeError) return false;
     if (!setupComplete || !activeHasKey) return false;
     // 编辑模式只在编辑会话中出现，目标图由会话隐式提供。
-    if (input.workflowMode === "edit" && (!editTargetId || providerBlocksEditing)) return false;
+    if (input.workflowMode === "edit" && ((!editTargetId && !(input.editSource && input.referenceImages.some((reference) => reference.role === "edit-target"))) || providerBlocksEditing)) return false;
     if (providerBlocksGenerateReferences && input.workflowMode === "generate" && input.referenceImages.length > 0) {
       return false;
     }
@@ -2030,7 +2046,8 @@ export default function App(): React.ReactElement {
     bridgeError,
     editTargetId,
     activeHasKey,
-    input.referenceImages.length,
+    input.referenceImages,
+    input.editSource,
     input.workflowMode,
     providerBlocksEditing,
     providerBlocksGenerateReferences,
@@ -3347,6 +3364,8 @@ export default function App(): React.ReactElement {
     setInput((current) => ({
       ...current,
       workflowMode: "edit",
+      editSource: undefined,
+      historySourceJobId: undefined,
       creationMode: "general",
       useCase,
       sceneId: findSceneForMode(scenes, current.sceneId, "edit")?.id,
@@ -3364,6 +3383,8 @@ export default function App(): React.ReactElement {
     setInput((current) => ({
       ...current,
       workflowMode: "generate",
+      editSource: undefined,
+      historySourceJobId: undefined,
       useCase,
       sceneId: findSceneForMode(scenes, current.sceneId, "generate")?.id,
       quality: qualityEditedByUser ? current.quality : getDefaultQuality("generate", useCase)
@@ -3590,6 +3611,11 @@ export default function App(): React.ReactElement {
   ): void => {
     const source = imagesRef.current.find((image) => image.id === imageId);
     if (!source) return;
+    const movedVersion=versionIndex===undefined?undefined:(source.versions??[{path:source.path,jobId:source.jobId}])[versionIndex];
+    if (versionSeparationMode!=="copy" && hasDeliveryReferencesToMovedVersions(activeBoardRef.current?.deliveryRecipes,imageId,movedVersion?[{imagePath:movedVersion.path,jobId:movedVersion.jobId}]:undefined)) {
+      toast.warning(translateSourceText("该版本已用于交付配方，请使用复制分离，或先调整配方源版本。"));
+      return;
+    }
     if (versionSeparationMode === "copy") {
       const copies = versionIndex === undefined
         ? copyImageVersions(source, () => crypto.randomUUID(), placement)
@@ -4713,43 +4739,26 @@ export default function App(): React.ReactElement {
   }, []);
 
   async function reuseJob(job: GenerationJob): Promise<void> {
-    // 编辑参数只在编辑会话里有意义；不在会话中时按生成模式复用（模式切换已从输入框移除）。
-    const workflowMode = job.input.workflowMode === "edit" && !editTargetId ? "generate" : job.input.workflowMode || "generate";
-    setInput({
-      ...initialInput,
-      ...job.input,
-      workflowMode,
-      useCase: job.input.useCase || job.useCase || getDefaultUseCase(workflowMode),
-      promptSpec: job.input.promptSpec || initialPromptSpec,
-      referenceImages: []
-    });
-    setQualityEditedByUser(Boolean(job.input.quality));
-
-    // 复用历史里保存的参考图：按 referenceImagePaths 从本机读回并回填输入框。
-    const role: ReferenceImageRole = workflowMode === "edit" ? "edit-target" : "reference";
-    const paths = (job.referenceImagePaths ?? []).slice(0, 4);
-    const payloads: ReferenceImagePayload[] = [];
     const api = getWorkbenchApi();
-    if (api && paths.length > 0) {
-      for (const path of paths) {
-        try {
-          const dataUrl = await api.readAssetDataUrl(path);
-          const payload = dataUrlToReferencePayload(dataUrl, "参考图", role);
-          if (payload) payloads.push(payload);
-        } catch {
-          /* 单张参考图读取失败时跳过，不阻断整体复用 */
-        }
-      }
-    }
-
-    if (payloads.length > 0) {
-      setInput((current) => ({ ...current, referenceImages: payloads }));
-      setStatus("已复用提示词和参考图。");
-      toast("已复用提示词和参考图");
-    } else {
-      setStatus("已复用提示词。");
-      toast("已复用提示词");
-    }
+    if (!api) return;
+    const boardId = activeBoardRef.current?.id;
+    const boardSequence = boardOpenSequenceRef.current;
+    const currentDraft = inputRef.current;
+    try {
+      const restored = await restoreGenerationHistoryJob(job, (path) => api.readAssetDataUrl(path), providers);
+      if (activeBoardRef.current?.id !== boardId || boardOpenSequenceRef.current!==boardSequence || inputRef.current!==currentDraft) throw new Error("画板或草稿已改变，未覆盖当前内容。请重新还原任务。");
+      if (restored.providerId) setActiveProviderId(restored.providerId);
+      setEditTargetId(null);
+      setAdvancedEditOpen(false);
+      setInput({ ...initialInput, ...restored.input,
+        useCase: restored.input.useCase ?? getDefaultUseCase(restored.input.workflowMode),
+        promptSpec: restored.input.promptSpec ?? initialPromptSpec });
+      setQualityEditedByUser(Boolean(restored.input.quality));
+      setHistoryOpen(false);
+      setStatus("已还原任务为草稿，核对后再提交。不会自动生成。");
+      toast("已还原任务为草稿，核对后再提交");
+      restored.warnings.forEach((message) => toast.warning(message));
+    } catch (error) { reportWorkbenchError(error); }
   }
 
   function focusJob(job: GenerationJob): void {
@@ -5694,6 +5703,52 @@ export default function App(): React.ReactElement {
     [getWorkbenchApi, reportWorkbenchError, saveImagesAsZip, setStatus, sliceTargetId]
   );
 
+  async function saveAgentEditRequest(draft: AgentEditDraft): Promise<void> {
+    const api = getImageWorkbenchApi();
+    const boardId = activeBoardRef.current?.id;
+    const target = imagesRef.current.find(image=>image.id===editTargetId);
+    if (!boardId || !target) throw new Error("请先明确选中一张要修改的图片。");
+    const versions = target.versions?.length ? target.versions : [{path:target.path,jobId:target.jobId,dataUrl:target.dataUrl}];
+    const source = versions[draft.sourceVersionIndex];
+    if (!source?.path || !source.jobId) throw new Error("源版本不可用，请重新选择。");
+    await persistBoard();
+    const referencePaths: string[] = [];
+    for (const reference of draft.referenceImages??[]) referencePaths.push((await api.importUploadedImage(reference.dataUrl)).path);
+    const saved = await api.createModificationRequest({boardId,nodeId:target.id,sourcePath:source.path,sourceVersionId:source.jobId,
+      instruction:draft.instruction,regions:draft.regions,annotationDataUrl:draft.annotationDataUrl,maskDataUrl:draft.maskDataUrl,constraints:draft.constraints,referencePaths});
+    toast.success(saved.status==="ready" ? "修改意见已保存，等待 Agent 接手；未执行生成" : "标注已保存，请补充修改要求后再交给 Agent");
+    setAdvancedEditOpen(false);
+    setModificationRequestsOpen(true);
+  }
+
+  async function openImageDelivery(initialRecipe?:ImageDeliveryRecipe): Promise<void> {
+    const boardId=activeBoardRef.current?.id;
+    if (!boardId) return;
+    try {
+      await persistBoard();
+      const board=await getImageWorkbenchApi().getBoard(boardId);
+      if (!board || activeBoardRef.current?.id!==boardId) throw new Error("画板已切换，请重新打开项目交付。");
+      setInitialImageDeliveryRecipe(initialRecipe??null);setImageDeliveryBoard(board);setImageDeliveryOpen(true);
+    } catch(error) {reportWorkbenchError(error);}
+  }
+  function applyDeliveryBoard(board:BoardData):void {
+    setImageDeliveryBoard(board);boardDetailCacheRef.current.delete(board.id);
+    if (activeBoardRef.current?.id!==board.id) return;
+    const updatedBoard={...activeBoardRef.current,deliveryRecipes:board.deliveryRecipes};
+    activeBoardRef.current=updatedBoard;setActiveBoard(updatedBoard);
+    const nodes=new Map(board.nodes.filter(isBoardImageNode).map(node=>[node.id,node]));
+    const updated=imagesRef.current.map(image=>nodes.has(image.id)?{...image,finalVersion:nodes.get(image.id)?.finalVersion}:image);
+    imagesRef.current=updated;setImages(updated);
+    void refreshBoards();
+  }
+  function deliverFieldChapters(targets:FieldChapterTarget[]):void {
+    const roles=["hero","scene","campaign"];
+    if(targets.length!==3) return;
+    void openImageDelivery({id:crypto.randomUUID(),name:"FIELD 网站素材",updatedAt:new Date().toISOString(),items:targets.map((target,index)=>({
+      id:`field-${roles[index]}`,nodeId:target.nodeId,sourceVersion:{imagePath:target.imagePath,jobId:target.jobId},purpose:roles[index],relativePath:`assets/${roles[index]}.png`,format:"png"
+    }))});
+  }
+
   function getBlockedGenerateMessage(targetInput: GenerateImageInput = inputRef.current): string | null {
     if (bridgeError) return bridgeError;
     if (isOfficialProvider && creditLoading) return "正在读取官方 Provider 余额，请稍候。";
@@ -5702,7 +5757,7 @@ export default function App(): React.ReactElement {
     if (!isOfficialProvider && !activeHasKey) return "请先为当前 Provider 保存 API Key。";
     if (!targetInput.prompt.trim()) return "请先填写 Prompt。";
     if (targetInput.workflowMode === "edit" && providerBlocksEditing) return "当前 Provider 不支持参考图编辑，请切换 Provider。";
-    if (targetInput.workflowMode === "edit" && !editTargetId) return "请先打开要编辑的图片。";
+    if (targetInput.workflowMode === "edit" && !editTargetId && !(targetInput.editSource && targetInput.referenceImages.some((reference) => reference.role === "edit-target"))) return "请先打开要编辑的图片。";
     if (providerBlocksGenerateReferences && targetInput.workflowMode === "generate" && targetInput.referenceImages.length > 0) {
       return "当前 Provider 的生成模式不支持参考图，请移除参考图或切换 Provider。";
     }
@@ -6154,6 +6209,9 @@ export default function App(): React.ReactElement {
   function renderCanvasBoard(rightRailInset = effectiveRightRailCanvasInset): React.ReactElement {
     return (
       <>
+      {activeBoard ? <FieldChapterNavigation board={{id:activeBoard.id,name:activeBoard.name,nodes:[
+        ...images.filter(image=>!image.pending&&image.path).map(image=>serializeGeneratedImage(image,canvasStateRef.current.positions[image.id]??{x:0,y:0})),...workflowNodes
+      ]}} jobs={history} onLocate={target=>{switchImageVersion(target.nodeId,target.versionIndex);setFocusTarget(current=>({key:target.nodeId,nonce:(current?.nonce??0)+1}));}} onDeliver={deliverFieldChapters} /> : null}
       {activeBoard && activeBoard.kind !== "comic-drama" ? <PluginTools
         context={{ boardId: activeBoard.id, selectedNodeIds: selectedCanvasNodeIds, theme: effectiveTheme, locale }}
         beforeRequest={flushBoardSave}
@@ -6372,6 +6430,8 @@ export default function App(): React.ReactElement {
           onBatchDownload={() => {
             void saveImagesAsZip(imagesRef.current.filter((image) => !image.pending));
           }}
+          onOpenModificationRequests={()=>setModificationRequestsOpen(true)}
+          onOpenImageDelivery={()=>void openImageDelivery()}
           onExportBoard={() => {
             if (activeBoardRef.current) void exportBoardById(activeBoardRef.current.id);
           }}
@@ -6526,7 +6586,13 @@ export default function App(): React.ReactElement {
                 thumbnailFor={getImageThumbnail}
                 loadThumbnail={loadHistoryThumbnail}
                 onFocusJob={focusJob}
+                activeTasks={activeBoardGenerations.filter(task=>task.boardId===activeBoard?.id)}
                 onReuseJob={reuseJob}
+                onReusePrompt={(job) => {
+                  setInput((current) => reuseGenerationHistoryPrompt(current,job));
+                  setHistoryOpen(false);
+                  toast("已复用提示词，当前模型、参考图和编辑目标保持不变");
+                }}
                 onClear={clearCurrentBoardHistory}
                 totalHistoryCount={historyTotal}
                 hasMore={historyHasMore}
@@ -6581,11 +6647,19 @@ export default function App(): React.ReactElement {
               onInterpretRelaxFlow={(request, onDelta) => interpretRelaxFlow(request, undefined, onDelta)}
               onRefineRelaxFlow={(request, interpretation, instruction, onDelta) => interpretRelaxFlow(request, { interpretation, instruction }, onDelta)}
               onGenerateRelaxFlow={generateRelaxFlow}
+              onSaveAgentRequest={saveAgentEditRequest}
               onBack={() => setAdvancedEditOpen(false)}
               onClose={exitEditSession}
             />
           </Suspense>
         ) : null}
+        {modificationRequestsOpen ? <Suspense fallback={null}><ModificationRequestsDialog open={modificationRequestsOpen} onOpenChange={setModificationRequestsOpen} boardId={activeBoard?.id??""} onFocus={(nodeId)=>setFocusTarget(current=>({key:nodeId,nonce:(current?.nonce??0)+1}))} /></Suspense> : null}
+        {imageDeliveryBoard ? <Suspense fallback={null}><ImageDeliveryDialog open={imageDeliveryOpen} onOpenChange={setImageDeliveryOpen} board={imageDeliveryBoard} initialRecipe={initialImageDeliveryRecipe} onBoardChanged={applyDeliveryBoard} api={{
+          setFinalVersion:input=>getImageWorkbenchApi().setImageFinalVersion(input),
+          saveRecipe:input=>getImageWorkbenchApi().saveImageDeliveryRecipe(input),
+          removeRecipe:input=>getImageWorkbenchApi().removeImageDeliveryRecipe(input),
+          exportRecipe:input=>getImageWorkbenchApi().exportImageDeliveryRecipe(input)
+        }} /></Suspense> : null}
         {/* 隐藏时保留 Dock 实例，避免丢失草稿、助手会话和进行中的请求。 */}
         <div hidden={historyOpen} data-prompt-dock-container="">
         {!advancedEditOpen ? <Suspense fallback={null}><PromptDock
@@ -6899,6 +6973,8 @@ export default function App(): React.ReactElement {
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
             entryPoint={settingsEntryPoint}
+            onImportStarterBoard={() => void importBoardFromDialog()}
+            onOpenStarterBoards={() => openLibrary("boards")}
             providers={providers}
             activeProviderId={activeProviderId}
             textProviders={textProviders}

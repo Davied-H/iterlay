@@ -56,6 +56,14 @@ export interface PromptSpec {
 }
 
 export interface GenerateImageInput {
+  /** Identity of a claimed, prepared annotation brief; never reused by history restoration. */
+  modificationRequestId?: string;
+  /** 调用端可追踪的任务身份；用于取消尚未提交给 Provider 的排队任务。 */
+  clientTaskId?: string;
+  /** 还原历史草稿的来源，仅用于追溯；不复用原任务的计费或幂等身份。 */
+  historySourceJobId?: string;
+  /** 编辑发起时固定的源版本。参考图副本携带实际像素，不能随当前激活版本漂移。 */
+  editSource?: ImageEditSourceSnapshot;
   /** 漫剧帧生成使用的不可变上下文和幂等提交身份。 */
   comicDramaContextSnapshot?: ComicFrameContextSnapshot;
   inputFingerprint?: string;
@@ -119,6 +127,8 @@ export interface GenerationJob {
   /** Provider 实际使用的图片模型；旧记录回退到 input.model。 */
   model?: string;
   input: Omit<GenerateImageInput, "referenceImages">;
+  /** 可恢复的输入与受管参考图；旧记录缺省，不能凭空补造丢失的语义。 */
+  inputSnapshot?: ImageGenerationInputSnapshot;
   useCase?: GptImageUseCase;
   referenceImagePaths: string[];
   outputImagePaths: string[];
@@ -170,7 +180,14 @@ export interface ProviderImageResult {
   mimeType: string;
 }
 
-export type JobStatus = "queued" | "running" | "succeeded" | "failed";
+export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "unknown";
+
+export interface ImageGenerationCancelResult {
+  status: "cancelled" | "running" | "not-found";
+  remoteCancelled: false;
+  message: string;
+  jobId?: string;
+}
 
 export interface ReferenceImagePayload {
   id: string;
@@ -189,5 +206,20 @@ export interface StoredReferenceImage {
   name: string;
   mimeType: string;
   role?: ReferenceImageRole;
+  semanticRole?: UiMaterialRole;
+  sourceNodeId?: string;
   path: string;
+}
+
+export interface ImageEditSourceSnapshot {
+  nodeId?: string;
+  boardId?: string;
+  imagePath: string;
+  jobId?: string;
+}
+
+export interface ImageGenerationInputSnapshot {
+  version: 1;
+  input: Omit<GenerateImageInput, "referenceImages">;
+  references: StoredReferenceImage[];
 }

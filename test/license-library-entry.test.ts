@@ -2,7 +2,7 @@
 
 import { act,createElement,type ComponentProps,type ReactNode } from "react";
 import { createRoot,type Root } from "react-dom/client";
-import { afterEach,describe,expect,it,vi } from "vitest";
+import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import type { UpdateStateSnapshot } from "../shared/app-update";
 import type { LicenseStatusSnapshot } from "../shared/licensing";
 
@@ -61,11 +61,17 @@ vi.mock("@/components/workbench/LibraryNavCanvasIcon", () => ({
 
 import { LicenseContext } from "../src/components/licensing/license-context";
 import { UpdateContext } from "../src/components/update/update-context";
-import { LibraryShell } from "../src/components/workbench/LibraryShell";
+import { LibraryShell as LibraryShellComponent } from "../src/components/workbench/LibraryShell";
+import { I18nProvider } from "../src/i18n";
+
+function LibraryShell(props: ComponentProps<typeof LibraryShellComponent>): React.ReactElement {
+  return createElement(I18nProvider, null, createElement(LibraryShellComponent, props));
+}
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 
+beforeEach(() => window.localStorage.setItem("iterlay:language", "zh-CN"));
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = undefined;

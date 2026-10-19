@@ -34,6 +34,7 @@ import { getProviderModels } from "@shared/provider-models";
 import type {
   CodexAuthStatus,
   ProviderConfig,
+  ProviderTestResult,
   ProviderType,
   TextProviderConfig,
   VideoProviderConfig
@@ -158,7 +159,13 @@ type Props = Pick<
   embedded?: boolean;
 };
 type Draft = ModelService & { isNew: boolean; key: string; original: string };
-type TestResult = { ok: boolean; message: string; checkedAt?: number };
+type TestResult = ProviderTestResult & { checkedAt?: number };
+
+function diagnosticLabel(result: TestResult): string {
+  if (result.mode === "generation") return result.ok ? "文生图已验证" : "生成测试未确认成功";
+  if (!result.ok) return "检查未通过或未能确认";
+  return result.checks?.authentication.status === "unknown" ? "仅确认本地凭据" : "基础检查完成";
+}
 
 function serviceFingerprint(service: ModelService): string {
   return JSON.stringify(service);
@@ -188,7 +195,7 @@ function PlatformMark({ type, small = false }: { type: string; small?: boolean }
 }
 function Status({ state, result }: { state: ConnectionState; result?: TestResult }): React.ReactElement {
   const uiText = useUiText();
-  const good = state.ready && (result?.ok || state.reason === "account");
+  const good = state.ready && (result ? result.ok && result.checks?.authentication.status !== "unknown" : state.reason === "account");
   return (
     <span
       className={cn(
@@ -201,9 +208,7 @@ function Status({ state, result }: { state: ConnectionState; result?: TestResult
         !state.ready
           ? REASONS[state.reason]
           : result
-            ? result.ok
-              ? "验证成功"
-              : "验证失败"
+            ? diagnosticLabel(result)
             : REASONS[state.reason]
       )}
     </span>
@@ -506,7 +511,7 @@ export function AiModelsSettings({
     }
   }
 
-  async function testDraft(): Promise<void> {
+  async function testDraft(mode: "connection" | "generation" = "connection"): Promise<void> {
     if (!draft || locked) return;
     const invalid = validateDraft();
     if (invalid) {
@@ -522,7 +527,9 @@ export function AiModelsSettings({
       const override = draft.key.trim() || undefined;
       const result =
         draft.kind === "image"
-          ? await api.testProvider(draft.provider as ProviderConfig, override)
+          ? await api.testProvider(draft.provider as ProviderConfig, override, {
+              mode, ...(mode === "generation" ? { acknowledgeCharges: true } : {})
+            })
           : draft.kind === "text"
             ? await api.testTextProvider(draft.provider as TextProviderConfig, override)
             : await api.testVideoProvider(draft.provider as VideoProviderConfig, override);
@@ -1115,6 +1122,7 @@ export function AiModelsSettings({
                       configured={Boolean(draftConnectionState?.ready)}
                       disabled={locked}
                       onTest={() => void testDraft()}
+                      onGenerateTest={draft.kind === "image" ? () => void testDraft("generation") : undefined}
                     />
                   ) : null}
                 </div>
@@ -1639,19 +1647,24 @@ function ConnectionVerification({
   testing,
   configured,
   disabled,
-  onTest
+  onTest,
+  onGenerateTest
 }: {
   result: TestResult | null;
   testing: boolean;
   configured: boolean;
   disabled: boolean;
   onTest: () => void;
+  onGenerateTest?: () => void;
 }): React.ReactElement {
   const uiText = useUiText();
+  const [confirmGeneration, setConfirmGeneration] = useState(false);
+  const checkLabels = { network: "联网", authentication: "鉴权", model: "模型目录", capability: "实际能力", generation: "主动生成" } as const;
+  const statusLabels = { passed: "已确认", failed: "未通过", unknown: "未确认", "not-tested": "未测试" } as const;
   return (
     <div className={cn("model-connection-check", result?.ok === false && "model-connection-check--error")}>
       <div className="model-connection-check-copy" role="status">
-        <span className={cn("model-verification-label", result?.ok && "model-verification-label--success")}>
+        <span className={cn("model-verification-label", result?.ok && result.checks?.authentication.status !== "unknown" && "model-verification-label--success")}>
           {testing ? (
             <Loader2 className="animate-spin" />
           ) : result ? (
@@ -1662,12 +1675,12 @@ function ConnectionVerification({
             )
           ) : null}
           {uiText(
-            testing ? "正在验证连接…" : result ? (result.ok ? "连接已验证" : "验证未通过") : "尚未验证连接"
+            testing ? "正在检查…" : result ? diagnosticLabel(result) : "尚未检查连接"
           )}
         </span>
         {result ? (
           <p>
-            {result.message}
+            {uiText(result.message)}
             {result.checkedAt ? (
               <span className="model-check-time">
                 {uiText("检查于 {{ui:0}}", [
@@ -1679,13 +1692,37 @@ function ConnectionVerification({
               </span>
             ) : null}
           </p>
-        ) : !configured ? (
-          <p>{uiText("填写连接信息并选择模型后，可验证连接。")}</p>
+        ) : <p>{uiText(!configured ? "填写连接信息并选择模型后，可检查连接。" : "默认只检查只读接口，不提交生成请求，不验证模型实际能力。")}</p>}
+        {result?.checks ? (
+          <dl className="model-diagnostic-checks">
+            {Object.entries(result.checks).map(([name, check]) => (
+              <div key={name} data-check-status={check.status}>
+                <dt>{uiText(checkLabels[name as keyof typeof checkLabels])} · {uiText(statusLabels[check.status])}</dt>
+                <dd>{uiText(check.message)}</dd>
+              </div>
+            ))}
+          </dl>
         ) : null}
+        {result?.previewDataUrl ? <img className="model-test-preview" src={result.previewDataUrl} alt={uiText("本次生成的测试图片")} /> : null}
       </div>
-      <Button type="button" variant="outline" size="sm" disabled={disabled || !configured} onClick={onTest}>
-        {uiText(testing ? "验证中…" : "验证连接")}
-      </Button>
+      <div className="model-check-actions">
+        <Button type="button" variant="outline" size="sm" disabled={disabled || !configured} onClick={onTest}>
+          {uiText(testing ? "检查中…" : "检查连接（不生成）")}
+        </Button>
+        {onGenerateTest ? <Button type="button" variant="ghost" size="sm" disabled={disabled || !configured} onClick={() => setConfirmGeneration(true)}>
+          {uiText("生成测试图（可能收费）")}
+        </Button> : null}
+      </div>
+      <Dialog open={confirmGeneration} onOpenChange={setConfirmGeneration}>
+        <DialogContent>
+          <DialogTitle>{uiText("生成 1 张测试图片？")}</DialogTitle>
+          <DialogDescription>{uiText("这会向当前模型提交一次真实文生图请求，可能产生服务商费用或消耗账号额度。测试图仅在此显示，不加入画板。连接中断或超时也可能已计费，系统不会自动重试。")}</DialogDescription>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setConfirmGeneration(false)}>{uiText("取消")}</Button>
+            <Button disabled={disabled || !configured} onClick={() => { setConfirmGeneration(false); onGenerateTest?.(); }}>{uiText("确认并生成 1 张")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

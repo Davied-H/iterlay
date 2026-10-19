@@ -61,6 +61,8 @@ interface TopBarProps {
   canBatchDownload: boolean;
   onBatchDownload: () => void;
   onExportBoard: () => void;
+  onOpenModificationRequests?: () => void;
+  onOpenImageDelivery?: () => void;
   canUndo: boolean;
   canRedo: boolean;
   /** 撤销/重做回调携带画布节点的实时快照，供上层把当前状态压入对向历史栈。 */
@@ -94,6 +96,8 @@ export function TopBar({
   canBatchDownload,
   onBatchDownload,
   onExportBoard,
+  onOpenModificationRequests,
+  onOpenImageDelivery,
   canUndo,
   canRedo,
   onUndo,
@@ -398,6 +402,8 @@ export function TopBar({
             <TooltipContent>{uiText("历史记录")}</TooltipContent>
           </Tooltip>
 
+          {onOpenModificationRequests ? <Button variant="ghost" size="sm" onClick={onOpenModificationRequests}>{uiText("修改请求")}</Button> : null}
+          {onOpenImageDelivery ? <Button variant="ghost" size="sm" onClick={onOpenImageDelivery}>{uiText("项目交付")}</Button> : null}
           {galleryAvailable ? (
             <Tooltip>
               <TooltipTrigger asChild>

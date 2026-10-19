@@ -12,6 +12,14 @@ npm run build
 
 默认部署到 https://davied-h.github.io/iterlay/ 。使用 HashRouter，下载页为 `/#/download`，GitHub Pages 不需要服务器路由回退。
 
+## 中英文关键路径
+
+`/#/agents` 默认英文；`?lang=zh` 为中文。所有页面的导航、品牌返回、下载与帮助链接均保留当前 `lang`，页脚可切换语言，功能深链接的 `feature` / `sub` 同时保留。英文路径为 `/#/?lang=en`、`/#/wiki?lang=en`、`/#/download?lang=en` 与 `/#/help?lang=en`。英文产品页展示真实 FIELD 成品及十类功能目录；十类功能、全部子操作、图解和下载的加载/错误/缺包状态均提供英文。
+
+帮助页提供中英模型配置、CLI 准备、任务恢复、保存边界及修复版本核对。官网预制体验不保存桌面画板；桌面 App 本地保存与仓库的隔离网页开发工作区分别说明。保存失败或等待中不视为保存成功。
+
+版本标签、日期、安装包与原始发布说明仍来自真实 GitHub Releases。说明保留发布时语言，并明确标注；其中实际出现的 `#123` 与 GitHub URL 会转成链接，原始文本不改写。每条下载始终对应同条 Release，不能根据 issue 已关闭推断修复已进入安装包。开发文档锚点分别指向实际中英文 README 章节。
+
 下载列表从公开 GitHub Releases API 获取，支持 Apple 芯片 DMG、Intel DMG、Windows x64 EXE。安装包直接链接到 GitHub Release 附件；没有附件、网络失败或 API 限流时提供明确状态及 Releases 备用入口。稳定版作为主要下载，测试版出现在历史记录。
 
 发布安装包时，DMG 名称需包含 `arm64` 或 `x64`；Windows x64 使用 `.exe`，如 `Iterlay Setup 0.1.56.exe`。推荐在 GitHub Release 中同时写更新说明。站点没有凭据，也不上传安装包。

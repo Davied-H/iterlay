@@ -27,6 +27,7 @@ export function serializeGeneratedImage(
     height: image.height,
     displayWidth: layout.width,
     derivation: image.derivation,
+    finalVersion: image.finalVersion,
     versions: hasVersions ? image.versions?.map((version) => ({
       imagePath: version.path,
       jobId: version.jobId,
@@ -65,6 +66,7 @@ export function hydrateGeneratedImage(
     width: node.width,
     height: node.height,
     derivation: node.derivation,
+    finalVersion: node.finalVersion,
     versions: hasVersions ? versions : undefined,
     activeVersion: hasVersions ? activeVersion : undefined
   };

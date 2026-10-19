@@ -1,7 +1,12 @@
 import { imageDimensionsFromHeader } from "./media/image-metadata.js";
 import type { PsdLayerInput } from "./media/psd-worker.js";
 import { createImageGenerationCommand } from "./application/image-generation.js";
+import { registerModificationRequestIpc } from "./modification-request-ipc.js";
+import { registerImageDeliveryIpc } from "./image-delivery-ipc.js";
+import { remapGenerationHistorySnapshot } from "../shared/generation-history.js";
+import { remapFinalVersion, remapImageDeliveryMetadata } from "../shared/image-delivery.js";
 import { ImageProviderRegistry } from "./providers/image-registry.js";
+import { checkImageGeneration, checkProviderConnection, localCredentialCheck, newProviderTestResult } from "./providers/diagnostics.js";
 import { registerVideoIpc } from "./video/video-ipc.js";
 export { registerVideoIpc } from "./video/video-ipc.js";
 import { AssetCatalog } from "./application/asset-catalog.js";
@@ -64,6 +69,7 @@ import {
   ProviderConfig,
   ProviderModelOption,
   ProviderTestResult,
+  ProviderTestOptions,
   SaveWechatStickerPackageRequest,
   SaveWechatStickerPackageResult,
   SceneAssistantInteraction,
@@ -146,7 +152,7 @@ import {
 } from "./providers/text-assistant.js";
 
 import { MiniMaxVideoProvider } from "./providers/video-minimax.js";
-import { openRouterVideoApiRoot, OpenRouterVideoProvider } from "./providers/video-openrouter.js";
+import { OpenRouterVideoProvider } from "./providers/video-openrouter.js";
 
 import { ManagerPublicShareClient } from "./public-share-client.js";
 import { buildSceneArchive, parseSceneArchive } from "./scene-archive.js";
@@ -372,6 +378,7 @@ export function registerIpc({
   arkProvider,
   managerApiBaseUrl
 }: IpcDependencies): () => void {
+  const modifications = registerModificationRequestIpc(boards,assets,history);
   const assetCatalog = new AssetCatalog(loadAssetCatalog, async (items) => {
     const decorated = await mapWithConcurrency(items, 4, decorateAssetItem);
     const entries = decorated.flatMap((result) => result.newEntry ? [result.newEntry] : []);
@@ -379,6 +386,7 @@ export function registerIpc({
     return decorated.map((result) => result.item);
   });
   const imageTasks = new ImageTaskQueue();
+  registerImageDeliveryIpc({boards,assets,imageTasks});
   const mediaAbort = new AbortController();
   const imageWorker = new ImageWorkerClient();
   const paidMediaQuotes = new PaidMediaQuoteService(() => license.getDeviceId());
@@ -1071,6 +1079,11 @@ export function registerIpc({
       assistantConversations.list()
     ]);
     const referenced = new Set<string>();
+    for (const request of await modifications.list()) {
+      for (const item of [request.sourcePath,request.annotationPath,request.maskPath,...request.referencePaths,...(request.resultPaths??[])]) {
+        if (item) referenced.add(path.resolve(item));
+      }
+    }
     for (const conversation of allConversations) {
       for (const attachment of conversation.attachments ?? []) {
         if (attachment.path) referenced.add(path.resolve(attachment.path));
@@ -1079,6 +1092,7 @@ export function registerIpc({
     for (const board of allBoards) for (const node of board.nodes) {
       if (isBoardImageNode(node)) {
         referenced.add(path.resolve(node.imagePath));
+        if (node.finalVersion) referenced.add(path.resolve(node.finalVersion.imagePath));
         if (node.derivation?.sourceImagePath) referenced.add(path.resolve(node.derivation.sourceImagePath));
         for (const version of node.versions ?? []) referenced.add(path.resolve(version.imagePath));
       } else if (isBoardVideoNode(node)) {
@@ -1094,6 +1108,7 @@ export function registerIpc({
         for (const value of node.referenceAudioPaths ?? []) referenced.add(path.resolve(value));
       }
     }
+    for (const board of allBoards) for (const recipe of board.deliveryRecipes??[]) for (const item of recipe.items) referenced.add(path.resolve(item.sourceVersion.imagePath));
     for (const job of jobs) {
       for (const item of job.outputImagePaths) referenced.add(path.resolve(item));
       for (const item of job.referenceImagePaths) referenced.add(path.resolve(item));
@@ -1584,45 +1599,40 @@ export function registerIpc({
 
   ipcMain.handle(
     "provider:testConnection",
-    async (_event, config: ProviderConfig, apiKeyOverride?: string): Promise<ProviderTestResult> => {
-    try {
-      // 允许在保存前测试：优先用表单里输入的 key，回退到该 provider 已保存的 key。
-      const apiKey = apiKeyOverride?.trim() || settings.getApiKey(config.id);
-      await getProviderAdapter(config).testConnection(config, apiKey);
-      return { ok: true, message: "Provider 连接可用。" };
-    } catch (error) {
-      const normalized = normalizeProviderError(error);
-      return { ok: false, message: normalized.message };
+    async (_event, config: ProviderConfig, apiKeyOverride?: string, options?: ProviderTestOptions): Promise<ProviderTestResult> => {
+      try {
+        const apiKey = apiKeyOverride?.trim() || settings.getApiKey(config.id);
+        if (options?.mode === "generation") {
+          return await checkImageGeneration(config, options.acknowledgeCharges === true,
+            (input) => getProviderAdapter(config).generate(input, config, apiKey));
+        }
+        if (config.type === "codex-oauth") {
+          await codexAuth.getAccess(config.id);
+          return localCredentialCheck();
+        }
+        return checkProviderConnection(config, apiKey, "image", (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init));
+      } catch (error) {
+        const result = newProviderTestResult();
+        result.message = normalizeProviderError(error).message;
+        return result;
+      }
     }
-  });
+  );
 
   ipcMain.handle(
     "textProvider:testConnection",
     async (_event, config: TextProviderConfig, apiKeyOverride?: string): Promise<ProviderTestResult> => {
       try {
-
         if (config.type === "codex-oauth") {
-          await new CodexOAuthTextTransport(
-            codexAuth,
-            config.authProviderId || config.id,
-            config.model
-          ).testConnection();
-          return { ok: true, message: "Codex 文本模型可用；未探测 OpenAI Chat Completions Function Calling。", functionCalling: "unknown" };
+          await codexAuth.getAccess(config.authProviderId || config.id);
+          return localCredentialCheck();
         }
         const apiKey = apiKeyOverride?.trim() || settings.getApiKey(config.id);
-        const transport = new OpenAICompatibleTextTransport(config, apiKey);
-        await transport.testConnection();
-        const functionCalling = await transport.probeFunctionCalling();
-        return {
-          ok: true,
-          functionCalling,
-          message: functionCalling === "supported"
-            ? "文本 Provider 连接可用，原生 Function Calling 已验证。"
-            : "文本 Provider 连接可用，但未支持或未返回原生 Function Calling。"
-        };
+        return checkProviderConnection(config, apiKey, "text", (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init));
       } catch (error) {
-        const normalized = normalizeProviderError(error);
-        return { ok: false, message: normalized.message };
+        const result = newProviderTestResult();
+        result.message = normalizeProviderError(error).message;
+        return result;
       }
     }
   );
@@ -1633,35 +1643,11 @@ export function registerIpc({
       try {
         const connection = settings.resolveVideoProviderConnection(config);
         const apiKey = apiKeyOverride?.trim() || connection.apiKey;
-        const providerName = config.type === "fal" ? "fal.ai" : config.type === "openrouter" ? "OpenRouter" : config.type === "minimax" ? "MiniMax" : "火山方舟";
-        if (!apiKey) return { ok: false, message: `请填写 ${providerName} API Key。` };
-        const baseUrl = connection.baseUrl.replace(/\/+$/, "");
-        const response = config.type === "fal"
-          ? await net.fetch(`${baseUrl}/${config.model.replace(/^\/+|\/+$/g, "")}/requests/iterlay-connection-test/status`, {
-              headers: { Authorization: `Key ${apiKey}` }
-            })
-          : config.type === "openrouter"
-            ? await net.fetch(`${openRouterVideoApiRoot(baseUrl)}/videos/models`, {
-                headers: { Authorization: `Bearer ${apiKey}` }
-              })
-            : config.type === "minimax"
-              ? await net.fetch(`${baseUrl}/v1/models`, {
-                  headers: { Authorization: `Bearer ${apiKey}` }
-                })
-          : await net.fetch(`${baseUrl}/contents/generations/tasks/non-existent-iterlay-test`, {
-              headers: { Authorization: `Bearer ${apiKey}` }
-            });
-        if (response.status === 401 || response.status === 403) {
-          return { ok: false, message: `${providerName} API Key 无效或无权访问视频服务。` };
-        }
-        if (response.status >= 400 && config.type === "openrouter") {
-          return { ok: false, message: `${providerName} 视频模型服务不可用（HTTP ${response.status}）。` };
-        }
-        if (response.status >= 500) return { ok: false, message: `${providerName} 服务暂不可用（HTTP ${response.status}）。` };
-        return { ok: true, message: "视频 Provider 连接可用。" };
+        return checkProviderConnection({ ...config, baseUrl: connection.baseUrl }, apiKey, "video", (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init));
       } catch (error) {
-        const normalized = normalizeProviderError(error);
-        return { ok: false, message: normalized.message };
+        const result = newProviderTestResult();
+        result.message = normalizeProviderError(error).message;
+        return result;
       }
     }
   );
@@ -1771,6 +1757,7 @@ export function registerIpc({
     analytics
   });
   ipcMain.handle("image:generate", (_event, input: GenerateImageInput) => imageGeneration(input));
+  ipcMain.handle("image:cancel", (_event, clientTaskId: string) => imageGeneration.cancel(clientTaskId));
 
   ipcMain.handle("sceneMedia:list", async (): Promise<SceneMediaSummary[]> =>
     Promise.all((await sceneMedia.list()).map(async (media) => toSceneMediaSummary(media)))
@@ -2753,6 +2740,7 @@ export function registerIpc({
           ...node,
           id,
           imagePath: pathMap.get(node.imagePath)!,
+          finalVersion: remapFinalVersion(node.finalVersion,p=>pathMap.get(p)??`missing/${path.basename(p)}`,id=>jobIdMap.get(id)??id),
           jobId: jobIdMap.get(node.jobId) ?? node.jobId,
           derivation:
             node.derivation && pathMap.has(node.derivation.sourceImagePath)
@@ -2825,6 +2813,7 @@ export function registerIpc({
     const board = await boards.saveBoard({
       id: newBoardId,
       name: parsed.board.name || "导入画板",
+      deliveryRecipes: remapImageDeliveryMetadata(parsed.board.deliveryRecipes,p=>pathMap.get(p)??`missing/${path.basename(p)}`,id=>nodeIdMap.get(id)??id,id=>jobIdMap.get(id)??id),
       nodes,
       connections,
       groups: (parsed.board.groups ?? []).map((group) => ({
@@ -2856,6 +2845,8 @@ export function registerIpc({
         id: jobIdMap.get(job.id) ?? crypto.randomUUID(),
         boardId: newBoardId,
         outputImagePaths: job.outputImagePaths.map((p) => pathMap.get(p) ?? p),
+        inputSnapshot: remapGenerationHistorySnapshot(job.inputSnapshot,p=>pathMap.get(p)??p,{boardId:newBoardId,nodeIds:nodeIdMap,jobIds:jobIdMap}),
+        input: {...job.input,boardId:newBoardId,editSource:job.input.editSource ? {...job.input.editSource,boardId:newBoardId,imagePath:pathMap.get(job.input.editSource.imagePath)??job.input.editSource.imagePath,nodeId:job.input.editSource.nodeId?nodeIdMap.get(job.input.editSource.nodeId)??job.input.editSource.nodeId:undefined,jobId:job.input.editSource.jobId?jobIdMap.get(job.input.editSource.jobId)??job.input.editSource.jobId:undefined}:undefined},
         referenceImagePaths: job.referenceImagePaths.map((p) => pathMap.get(p) ?? p)
       }))
     );

@@ -73,6 +73,12 @@ export function useI18n(): I18nContextValue {
 
 export type { MessageKey };
 
+/** Locale-aware reusable settings surfaces also render outside the full App. */
+export function useUiLocale(): ResolvedAppLocale {
+  const context = useContext(I18nContext);
+  return context?.locale ?? (typeof document !== "undefined" && document.documentElement.lang.startsWith("en") ? "en-US" : "zh-CN");
+}
+
 /** Legacy literals are localized during React rendering, with no DOM observer. */
 export function useUiText(): (text: string, values?: unknown[]) => string {
   const context = useContext(I18nContext);

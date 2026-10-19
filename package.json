@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.61",
+  "version": "0.1.62",
   "private": true,
   "type": "module",
   "engines": {
@@ -172,6 +172,7 @@
         "to": "cli",
         "filter": [
           "dist/main.js",
+          "guard/**",
           "package.json",
           "skills/**"
         ]

@@ -96,48 +96,11 @@ export class Sub2ApiImageProvider {
       return;
     }
 
-    // Responses 路线不能带 image_generation 工具探测：那是一次真实生图，
-    // 服务器要等整张图生成完才返回（30 秒起步），15 秒限时必然误报超时。
-    // 改发 max_output_tokens 最小值的纯文本请求，几秒内即可验证 URL + Key + 模型。
-    const body = usesResponsesApi(config)
-      ? {
-          model: config.model,
-          input: "connection test",
-          max_output_tokens: 16
-        }
-      : {
-          prompt: "connection test",
-          model: config.model,
-          size: "1024x1024",
-          n: 1,
-          response_format: config.compatResponseFormat || undefined
-        };
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    let response: Response;
-    try {
-      response = await this.fetchImpl(joinUrl(config.baseUrl, config.generationEndpoint), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new ProviderError("TIMEOUT", "连接超时（15 秒无响应）。请检查 Base URL 与网络。");
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    if (!response.ok && response.status !== 400) {
-      await throwProviderError(response);
-    }
+    // 只读模型目录，不提交图片或文本生成。目录出现模型不代表实际能力已验证。
+    const response = await this.fetchWithTimeout(modelListUrl(config.baseUrl), {
+      headers: { Authorization: `Bearer ${apiKey}` }
+    }, 15_000);
+    if (!response.ok) await throwProviderError(response);
   }
 
   async listModels(config: ProviderConfig, apiKey: string): Promise<ProviderModelOption[]> {

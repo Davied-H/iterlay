@@ -12,7 +12,7 @@ import { BoardDetailCache } from "@/lib/board-detail-cache";
 
 import { createMissingGenerationOutputConnections } from "@/lib/generation-output-connections";
 import { centerGenerationOutputs, removeGeneratedPlaceholders, settleGeneratedPlaceholders } from "@/lib/generation-placeholders";
-import { GenerationQueue } from "@/lib/generation-queue";
+import { GenerationQueue, GenerationQueueCancelledError } from "@/lib/generation-queue";
 import { GENERATION_ESTIMATE_MS } from "@/lib/generation-timing";
 import { getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 
@@ -142,9 +142,12 @@ export function createImageGenerationController(dependencies: GenerationControll
     const isOriginBoardCurrent = (): boolean =>
       activeBoardRef.current?.id === originBoard.id
       && boardOpenSequenceRef.current === originBoardSequence;
+    const fixedEditSource = generationInput.workflowMode === "edit" ? generationInput.editSource : undefined;
+    const targetNodeId = fixedEditSource ? fixedEditSource.nodeId : editTargetId;
     const editTargetImage =
-      generationInput.workflowMode === "edit" && editTargetId
-        ? (imagesRef.current.find((image) => image.id === editTargetId) ?? null)
+      generationInput.workflowMode === "edit" && targetNodeId
+        && (!fixedEditSource?.boardId || fixedEditSource.boardId === originBoard.id)
+        ? (imagesRef.current.find((image) => image.id === targetNodeId) ?? null)
         : null;
     if (!providerSupportsTransparentBackground(activeProvider)) {
       generationInput = { ...generationInput, background: "auto", outputFormat: "png" };
@@ -156,19 +159,41 @@ export function createImageGenerationController(dependencies: GenerationControll
     const isEditSession = editTargetImage !== null && !options?.createDerivedEditNode;
     const requestedEditCount = Math.max(1, generationInput.n);
     let editReferencePayload: ReferenceImagePayload | null = null;
-    if (editTargetImage) {
+    if (fixedEditSource) {
+      // Restored edits already contain the exact submitted source. Do not replace it with
+      // whichever version is active now (or with an unrelated open edit session).
+      editReferencePayload = generationInput.referenceImages.find((reference) => reference.role === "edit-target") ?? null;
+      if (!editReferencePayload) {
+        try {
+          const source = await api.readAssetDataUrl(fixedEditSource.imagePath);
+          editReferencePayload = dataUrlToReferencePayload(source, "编辑源图", "edit-target");
+        } catch { editReferencePayload = null; }
+      }
+    } else if (editTargetImage) {
       try {
         const source = editTargetImage.dataUrl.startsWith("data:")
           ? editTargetImage.dataUrl
           : await api.readAssetDataUrl(editTargetImage.path);
         editReferencePayload = dataUrlToReferencePayload(source, "编辑目标", "edit-target");
+        if (editReferencePayload) editReferencePayload.sourceNodeId = editTargetImage.id;
       } catch {
         editReferencePayload = null;
       }
     }
-    if (editTargetImage && !editReferencePayload) {
+    if ((editTargetImage || fixedEditSource) && !editReferencePayload) {
       toast.error(translateSourceText("无法读取目标图片，请重试。"));
       return [];
+    }
+    if (editTargetImage && !fixedEditSource) {
+      generationInput = {
+        ...generationInput,
+        editSource: {
+          nodeId: editTargetImage.id,
+          boardId: originBoard.id,
+          imagePath: editTargetImage.path,
+          jobId: editTargetImage.jobId
+        }
+      };
     }
     // Reference reads can yield while the user switches boards.
     // Never insert placeholders or clear the composer in a different board.
@@ -293,6 +318,7 @@ export function createImageGenerationController(dependencies: GenerationControll
         prompt: submittedPrompt,
         requestedCount: Math.max(1, generationInput.n),
         startedAt: Date.now(),
+        cancelQueued: queueTicket.queued ? queueTicket.cancel : undefined,
         status: queueTicket.queued ? "queued" : "running"
       }
     ]);
@@ -301,12 +327,14 @@ export function createImageGenerationController(dependencies: GenerationControll
       : options?.createDerivedEditNode || generationInput.workflowMode !== "edit" ? "正在生成图片..." : "正在编辑图片...");
     let delayedNoticeId: string | number | undefined;
     let delayedNoticeTimer: number | null = null;
+    let acquiredRunningSlot = false;
     try {
       await queueTicket.ready;
+      acquiredRunningSlot = true;
       if (queueTicket.queued) {
         const startedAt = Date.now();
         setActiveBoardGenerations((current) => current.map((task) =>
-          task.id === activeGenerationId ? { ...task, status: "running", startedAt } : task
+          task.id === activeGenerationId ? { ...task, status: "running", startedAt, cancelQueued: undefined } : task
         ));
         if (isEditSession && activeBoardRef.current?.id === originBoard.id) {
           setImages((current) => current.map((image) => {
@@ -338,8 +366,9 @@ export function createImageGenerationController(dependencies: GenerationControll
           : generationInput.prompt;
       const payload: GenerateImageInput = {
         ...generationInput,
+        clientTaskId: activeGenerationId,
         prompt: finalPrompt,
-        model: options?.preserveModelOverride
+        model: options?.preserveModelOverride || (generationInput.historySourceJobId && generationInput.providerId === activeProviderId)
           ? generationInput.model
           : activeProvider.model || generationInput.model,
         size: parseGptImageSize(generationInput.size),
@@ -347,9 +376,9 @@ export function createImageGenerationController(dependencies: GenerationControll
         outputFormat: generationInput.outputFormat,
         boardId: originBoard.id,
         providerId: activeProviderId,
-        // 编辑任务始终把当前目标图（当前激活版本）作为首个参考图传给 Provider。
+        // 编辑源图在发起时固定；还原任务使用存档副本，不跟随当前激活版本。
         referenceImages: editReferencePayload
-          ? [editReferencePayload, ...generationInput.referenceImages]
+          ? [editReferencePayload, ...generationInput.referenceImages.filter((reference) => reference !== editReferencePayload)]
           : generationInput.referenceImages
       };
       const result: GenerateResponse = await api.generateImage(payload);
@@ -548,6 +577,7 @@ export function createImageGenerationController(dependencies: GenerationControll
       await refreshHistory();
       return completedImages;
     } catch (error) {
+      const cancelledBeforeSubmission = error instanceof GenerationQueueCancelledError;
       const message = getWorkbenchErrorMessage(error, "生成失败。");
       if (isEditSession && activeBoardRef.current?.id === originBoard.id) {
         setImages((current) =>
@@ -555,7 +585,8 @@ export function createImageGenerationController(dependencies: GenerationControll
             image.id === editTargetImage.id
               ? (() => {
                   const pendingEditCount = Math.max(0, getPendingEditCount(image) - requestedEditCount);
-                  const queuedEditCount = Math.min(pendingEditCount, image.queuedEditCount ?? 0);
+                  const queuedEditCount = Math.min(pendingEditCount, Math.max(0,
+                    (image.queuedEditCount ?? 0) - (acquiredRunningSlot ? 0 : requestedEditCount)));
                   return {
                     ...image,
                     editing: pendingEditCount > 0,
@@ -573,8 +604,10 @@ export function createImageGenerationController(dependencies: GenerationControll
         setImages(nextImages);
       }
       setStatus(message);
-      toast.error(message);
-      await refreshHistory();
+      if (!cancelledBeforeSubmission) {
+        toast.error(message);
+        await refreshHistory();
+      }
       return [];
     } finally {
       if (delayedNoticeTimer !== null) window.clearTimeout(delayedNoticeTimer);

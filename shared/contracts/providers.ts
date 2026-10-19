@@ -134,9 +134,26 @@ export interface VideoProviderModelOption extends ProviderModelOption {
   supportedResolutions?: string[];
 }
 
+export type ProviderCheckStatus = "passed" | "failed" | "unknown" | "not-tested";
+export type ProviderCheckName = "network" | "authentication" | "model" | "capability" | "generation";
+export interface ProviderCheck {
+  status: ProviderCheckStatus;
+  message: string;
+}
+export interface ProviderTestOptions {
+  mode: "connection" | "generation";
+  /** 只有用户明确确认可能产生服务商费用后，才可提交真实图片请求。 */
+  acknowledgeCharges?: boolean;
+}
 export interface ProviderTestResult {
   ok: boolean;
   message: string;
+  mode?: "connection" | "generation";
+  /** 目录中出现模型，只证明可见性，不证明生图、编辑或工具调用能力。 */
+  checks?: Record<ProviderCheckName, ProviderCheck>;
+  billing?: { generationSubmitted: boolean; mayHaveIncurredCharge: boolean };
+  /** 测试图仅供查看，不自动加入画板或历史。 */
+  previewDataUrl?: string;
   /** 原生 OpenAI Chat Completions tools/tool_calls 协议探测结果。 */
   functionCalling?: "supported" | "unsupported" | "unknown";
 }

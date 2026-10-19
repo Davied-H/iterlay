@@ -1,4 +1,6 @@
 import type { CodingAgentIntegrationStatus } from "./agent-integration.js";
+import type { CreateModificationRequest, FinishModificationRequest, ModificationRequest, PublicModificationRequest, PreparedModificationRequest } from "./modification-requests.js";
+import type { ImageDeliveryRecipe, ImageVersionIdentity, ImageDeliveryExportResult } from "./image-delivery.js";
 import { WORKBENCH_COMMANDS } from "./contracts/workbench-commands.js";
 import type { InstalledPlugin, PluginManifest, PluginPackage } from "./plugins.js";
 import {
@@ -61,6 +63,7 @@ import type {
   PaidMediaQuoteRequest,
   ProviderConfig,
   ProviderTestResult,
+  ProviderTestOptions,
   ProviderModelOption,
   VideoProviderModelOption,
   ReferralOverview,
@@ -135,6 +138,18 @@ export const VIDEO_SEQUENCE_MUTATIONS = [
 
 export function createWorkbenchClient(transport: WorkbenchTransport) {
   return {
+  setImageFinalVersion: (input:{boardId:string;nodeId:string;version:ImageVersionIdentity|null}) => transport.invoke("imageDelivery:setFinalVersion",input) as Promise<BoardData>,
+  saveImageDeliveryRecipe: (input:{boardId:string;recipe:ImageDeliveryRecipe}) => transport.invoke("imageDelivery:saveRecipe",input) as Promise<BoardData>,
+  removeImageDeliveryRecipe: (input:{boardId:string;recipeId:string}) => transport.invoke("imageDelivery:removeRecipe",input) as Promise<BoardData>,
+  exportImageDeliveryRecipe: (input:{boardId:string;recipeId:string}) => transport.invoke("imageDelivery:export",input) as Promise<ImageDeliveryExportResult>,
+  createModificationRequest: (input: CreateModificationRequest) => transport.invoke("modifications:create",input) as Promise<PublicModificationRequest>,
+  cancelImageGeneration: (clientTaskId:string) => transport.invoke("image:cancel",clientTaskId) as Promise<{status:"cancelled"|"running"|"not-found";remoteCancelled:false;message:string;jobId?:string}>,
+  listModificationRequests: (boardId?: string) => transport.invoke("modifications:list",boardId) as Promise<PublicModificationRequest[]>,
+  getModificationRequest: (id:string) => transport.invoke("modifications:get",id) as Promise<PublicModificationRequest>,
+  clarifyModificationRequest: (id:string,instruction:string) => transport.invoke("modifications:clarify",id,instruction) as Promise<PublicModificationRequest>,
+  prepareModificationRequest: (id:string,claimToken:string) => transport.invoke("modifications:prepare",id,claimToken) as Promise<PreparedModificationRequest>,
+  claimModificationRequest: (id:string,owner:string) => transport.invoke("modifications:claim",id,owner) as Promise<ModificationRequest>,
+  finishModificationRequest: (input:FinishModificationRequest) => transport.invoke("modifications:finish",input) as Promise<PublicModificationRequest>,
   listPlugins: () => transport.invoke("plugins:list") as Promise<InstalledPlugin[]>,
   listPluginCatalog: () => transport.invoke("plugins:catalog") as Promise<PluginManifest[]>,
   getPlugin: (id: string) => transport.invoke("plugins:get", id) as Promise<PluginPackage & InstalledPlugin>,
@@ -299,8 +314,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("appIcon:upload", request) as Promise<AppIconLibrary>,
   deleteAppIcon: (id: string) =>
     transport.invoke("appIcon:delete", id) as Promise<AppIconLibrary>,
-  testProvider: (config: ProviderConfig, apiKey?: string) =>
-    transport.invoke("provider:testConnection", config, apiKey) as Promise<ProviderTestResult>,
+  testProvider: (config: ProviderConfig, apiKey?: string, options?: ProviderTestOptions) =>
+    transport.invoke("provider:testConnection", config, apiKey, options) as Promise<ProviderTestResult>,
   testTextProvider: (config: TextProviderConfig, apiKey?: string) =>
     transport.invoke("textProvider:testConnection", config, apiKey) as Promise<ProviderTestResult>,
   testVideoProvider: (config: VideoProviderConfig, apiKey?: string) =>

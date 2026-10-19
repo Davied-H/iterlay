@@ -19,6 +19,7 @@ import type {
 import type { ImageSource, ImageDerivation } from "./media.js";
 import type { VideoGenerationJobStatus, VideoGenerationStatus, VideoSequence } from "./video.js";
 import type { GptImageUseCase } from "./generation.js";
+import type { ImageDeliveryRecipe, ImageVersionIdentity } from "../image-delivery.js";
 
 export type BoardTrashRetentionDays = 0 | 1 | 3 | 7 | 30 | 90;
 
@@ -67,6 +68,8 @@ export interface BoardNodeSnapshot extends BoardNodeBase {
   /** 编辑版本链（含原图）；无编辑历史时省略。 */
   versions?: BoardNodeVersion[];
   activeVersion?: number;
+  /** 用户选定的交付最终稿；独立于当前预览版本，失效时不得自动降级。 */
+  finalVersion?: ImageVersionIdentity;
   /** 切图派生关系；普通生成/上传节点省略。 */
   derivation?: ImageDerivation;
 }
@@ -348,6 +351,7 @@ export interface BoardData {
   thumbnailDataUrl?: string;
   /** 序列定义属于画板，但只能通过专用 sequence mutation 修改。 */
   videoSequences?: VideoSequence[];
+  deliveryRecipes?: ImageDeliveryRecipe[];
 }
 
 export interface BoardSummary {
@@ -415,6 +419,7 @@ export interface BoardSavePayload {
   connections?: BoardConnection[];
   groups?: BoardGroup[];
   videoSequences?: VideoSequence[];
+  deliveryRecipes?: ImageDeliveryRecipe[];
   viewport?: BoardViewport;
   thumbnailDataUrl?: string;
 }

@@ -1,4 +1,5 @@
 import type { CanvasNodeLayout } from "@/components/canvas/canvas-history";
+import type { ImageDeliveryRecipe } from "@shared/image-delivery";
 
 import type {
   BoardComicDramaEntryNode,
@@ -13,6 +14,7 @@ import type {
 } from "@shared/types";
 
 export interface ActiveBoard {
+  deliveryRecipes?: ImageDeliveryRecipe[];
   id: string;
   name: string;
   kind?: "standard" | "comic-drama";

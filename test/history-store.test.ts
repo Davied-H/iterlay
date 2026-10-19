@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { HistoryStore } from "../electron/storage/history-store.js";
+import { createGenerationInputSnapshot } from "../shared/generation-history.js";
 
 describe("HistoryStore", () => {
   let dir: string;
@@ -39,6 +40,24 @@ describe("HistoryStore", () => {
 
     const jobs = await store.listJobs();
     expect(jobs.map((job) => job.id)).toEqual(["newer", "older"]);
+  });
+
+  it("keeps a recoverable edit snapshot immutable across journal writes and reloads", async () => {
+    const store = new HistoryStore(dir);
+    const input = { workflowMode: "edit" as const, prompt: "改背景", model: "original-model", size: "1024x1024", n: 1,
+      providerId: "original-provider", referenceImages: [{ id: "source", name: "产品v1", role: "edit-target" as const,
+        mimeType: "image/png", dataBase64: "aW1hZ2U=" }] };
+    const snapshot = createGenerationInputSnapshot(input, [{ id: "source", name: "产品v1", role: "edit-target", mimeType: "image/png", path: "source-v1.png" }]);
+    const { referenceImages: _references, ...parameters } = input;
+    void _references;
+    await store.addJob({ id: "edit-snapshot", createdAt: "2026-10-19T00:00:00Z", status: "succeeded", prompt: input.prompt,
+      input: parameters, inputSnapshot: snapshot, referenceImagePaths: ["source-v1.png"], outputImagePaths: ["output.png"] });
+    snapshot.references[0].name = "外部改动";
+    const reloaded = new HistoryStore(dir);
+    expect((await reloaded.getJob("edit-snapshot"))?.inputSnapshot).toMatchObject({
+      version: 1, input: { workflowMode: "edit", model: "original-model", providerId: "original-provider" },
+      references: [{ name: "产品v1", role: "edit-target", path: "source-v1.png" }]
+    });
   });
 
   it("serializes concurrent mutations without losing jobs", async () => {
@@ -80,7 +99,7 @@ describe("HistoryStore", () => {
     expect(jobs.find((job) => job.id === "same")?.prompt).toBe("updated");
   });
 
-  it("marks jobs interrupted by an app restart as failed", async () => {
+  it("distinguishes unsubmitted queued cancellation from an unknown remote result after restart", async () => {
     const store = new HistoryStore(dir);
     const base = {
       createdAt: "2026-01-01T00:00:00.000Z",
@@ -99,11 +118,11 @@ describe("HistoryStore", () => {
     await expect(store.failInterruptedJobs(completedAt)).resolves.toBe(2);
     const jobs = await store.listJobs();
     expect(jobs.find((job) => job.id === "running")).toMatchObject({
-      status: "failed",
+      status: "unknown",
       completedAt,
-      error: "应用在任务完成前重启，生成已中断，请重试。"
+      error: "应用在任务完成前重启，远端结果与费用状态待确认。请先检查 Provider 和历史，避免重复提交。"
     });
-    expect(jobs.find((job) => job.id === "queued")?.status).toBe("failed");
+    expect(jobs.find((job) => job.id === "queued")?.status).toBe("cancelled");
     expect(jobs.find((job) => job.id === "done")?.status).toBe("succeeded");
   });
 

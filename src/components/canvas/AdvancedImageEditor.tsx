@@ -30,6 +30,7 @@ import {
   X
 } from "lucide-react";
 import type { ImageCropRect } from "@shared/types";
+import type { AgentEditDraft } from "@shared/modification-requests";
 import { Button } from "@/components/ui/button";
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +82,7 @@ interface AdvancedImageEditorProps {
     onDelta: (delta: string) => void
   ) => Promise<RelaxFlowInterpretation>;
   onGenerateRelaxFlow: (prompt: string) => Promise<GeneratedImage[]>;
+  onSaveAgentRequest?: (draft:AgentEditDraft) => Promise<void>;
   onBack: () => void;
   onClose: () => void;
 }
@@ -173,6 +175,7 @@ export function AdvancedImageEditor({
   onInterpretRelaxFlow,
   onRefineRelaxFlow,
   onGenerateRelaxFlow,
+  onSaveAgentRequest,
   onBack,
   onClose
 }: AdvancedImageEditorProps): React.ReactElement {
@@ -191,6 +194,7 @@ export function AdvancedImageEditor({
   const [hasMask, setHasMask] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [savingAgentRequest, setSavingAgentRequest] = useState(false);
   const [submissionStartedAt, setSubmissionStartedAt] = useState<number | undefined>();
   const [compareOriginal, setCompareOriginal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +212,7 @@ export function AdvancedImageEditor({
   const sourceWidth = image.width ?? versions[activeVersion]?.width ?? naturalSize.width;
   const sourceHeight = image.height ?? versions[activeVersion]?.height ?? naturalSize.height;
   const ratio = Math.max(0.01, sourceWidth / Math.max(1, sourceHeight));
-  const isApplying = submitting || Boolean(image.editing);
+  const isApplying = submitting || savingAgentRequest || Boolean(image.editing);
   const pendingEditCount = getPendingEditCount(image) || (submitting ? 1 : 0);
   const queuedEditCount = Math.min(pendingEditCount, image.queuedEditCount ?? 0);
   const allEditsQueued = queuedEditCount > 0 && queuedEditCount === pendingEditCount;
@@ -257,6 +261,7 @@ export function AdvancedImageEditor({
       if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         event.preventDefault();
+        if (savingAgentRequest) return;
         onBack();
         return;
       }
@@ -464,7 +469,7 @@ export function AdvancedImageEditor({
   }
 
   async function submit(): Promise<void> {
-    if (submitting || image.editing) return;
+    if (submitting || savingAgentRequest || image.editing) return;
     if (providerLimitation) {
       setError(providerLimitation);
       return;
@@ -531,6 +536,7 @@ export function AdvancedImageEditor({
         onInterpret={onInterpretRelaxFlow}
         onRefine={onRefineRelaxFlow}
         onGenerate={onGenerateRelaxFlow}
+        onSaveAgentRequest={onSaveAgentRequest}
         onSwitchVersion={(index) => onSwitchVersion(image.id, index)}
         onBack={() => setRelaxFlowOpen(false)}
         onClose={onClose}
@@ -547,6 +553,7 @@ export function AdvancedImageEditor({
             variant="ghost"
             size="sm"
             className="group h-8 gap-1.5 text-foreground [-webkit-app-region:no-drag]"
+            disabled={savingAgentRequest}
             onClick={onBack}
           >
             <ArrowLeft
@@ -556,6 +563,32 @@ export function AdvancedImageEditor({
             {uiText("返回普通编辑")}</Button>
           <strong className="text-sm font-semibold">{uiText("高级编辑")}</strong>
           <span className="min-w-0 truncate text-xs text-muted-foreground">v{activeVersion + 1} / {versions.length}</span>
+          {onSaveAgentRequest ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isApplying || detecting || addingReferences || !hasMask}
+              title={uiText("保存不会调用模型，图片与区域蒙版会固定到当前版本。")}
+              className="[-webkit-app-region:no-drag]"
+              onClick={() => {
+                if (isApplying || !hasMask) return;
+                const sourceVersionIndex = activeVersion;
+                const savedInstruction = instruction.trim() || method === "remove" ? buildAdvancedPrompt(method, instruction, keep) : "";
+                const referenceImages = references.map(({ name, dataUrl }) => ({ name, dataUrl }));
+                setSavingAgentRequest(true);
+                setError(null);
+                void (async () => {
+                  const maskDataUrl = createMaskDataUrl();
+                  if (!maskDataUrl) throw new Error("蒙版生成失败，请重新选择区域。");
+                  await onSaveAgentRequest({ sourceVersionIndex, instruction: savedInstruction, regions: [], maskDataUrl, referenceImages });
+                })().catch((caught) => setError(uiText(caught instanceof Error ? caught.message : "保存修改请求失败，图片和标注已保留，可重试。")))
+                  .finally(() => setSavingAgentRequest(false));
+              }}
+            >
+              {uiText(savingAgentRequest ? "正在保存修改请求…" : "保存给 Agent")}
+            </Button>
+          ) : null}
           <div className="flex-1" />
           <Button
             type="button"
@@ -568,7 +601,7 @@ export function AdvancedImageEditor({
           >
             {compareOriginal ? uiText("返回当前版本") : uiText("原图对比")}
           </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label={uiText("关闭编辑")} onClick={onClose}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label={uiText("关闭编辑")} disabled={savingAgentRequest} onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </header>
@@ -667,7 +700,7 @@ export function AdvancedImageEditor({
             {compareOriginal ? (
               <span className="absolute left-2 top-2 rounded-md bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm">{uiText("原图")}</span>
             ) : null}
-            {isApplying && !compareOriginal ? (
+            {isApplying && !savingAgentRequest && !compareOriginal ? (
               <div
                 data-editing-status
                 aria-live="polite"
@@ -731,7 +764,7 @@ export function AdvancedImageEditor({
           </div>
         </main>
 
-        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label={uiText("编辑设置")}>
+        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label={uiText("编辑设置")} inert={savingAgentRequest || undefined}>
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3.5">
             <strong className="text-sm font-semibold">{uiText("编辑设置")}</strong>
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -771,6 +804,7 @@ export function AdvancedImageEditor({
               <label htmlFor="advanced-edit-instruction" className="mb-2 block text-xs font-medium text-muted-foreground">{uiText("修改要求")}</label>
               <Textarea
                 id="advanced-edit-instruction"
+                disabled={savingAgentRequest}
                 value={instruction}
                 onChange={(event) => setInstruction(event.target.value)}
                 onKeyDown={(event) => {
@@ -887,7 +921,7 @@ export function AdvancedImageEditor({
               {allEditsQueued
                 ? <Clock3 className="h-4 w-4" />
                 : isApplying ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Check className="h-4 w-4" />}
-              {allEditsQueued ? uiText("排队中") : isApplying ? uiText("正在应用") : uiText("应用高级编辑")}
+              {allEditsQueued ? uiText("排队中") : savingAgentRequest ? uiText("正在保存修改请求…") : isApplying ? uiText("正在应用") : uiText("应用高级编辑")}
             </Button>
           </footer>
         </aside>

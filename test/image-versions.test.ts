@@ -67,6 +67,19 @@ describe("createDetachedVersionImage", () => {
 });
 
 describe("separateImageVersions", () => {
+  it("moves a final v1 marker to v1 instead of leaving it on the active v2 node", () => {
+    const finalVersion = { imagePath: "/images/v1.png", jobId: "job-v1" };
+    const separated = separateImageVersions({ ...source, finalVersion }, () => "final-node")!;
+    expect(separated[0]).toMatchObject({ id: "final-node", path: finalVersion.imagePath, finalVersion });
+    expect(separated[1].id).toBe(source.id);
+    expect(separated[1].finalVersion).toBeUndefined();
+  });
+  it("preserves an already invalid final marker on the original source node", () => {
+    const finalVersion = { imagePath: "/removed.png", jobId: "removed" };
+    const separated = separateImageVersions({ ...source, finalVersion }, () => "copy-node")!;
+    expect(separated.find((image) => image.id === source.id)?.finalVersion).toEqual(finalVersion);
+    expect(separated.filter((image) => image.finalVersion)).toHaveLength(1);
+  });
   it("turns the complete stack into standalone images and keeps the active node id", () => {
     let nextId = 0;
     const separated = separateImageVersions(source, () => `new-node-${nextId += 1}`);
@@ -123,6 +136,18 @@ describe("copyImageVersions", () => {
 });
 
 describe("extractImageVersion", () => {
+  it("transfers the final marker when extracting that exact path and job", () => {
+    const finalVersion = { imagePath: "/images/v1.png", jobId: "job-v1" };
+    const extracted = extractImageVersion({ ...source, finalVersion }, 0, "final-node")!;
+    expect(extracted[0].finalVersion).toBeUndefined();
+    expect(extracted[1]).toMatchObject({ id: "final-node", path: finalVersion.imagePath, finalVersion });
+  });
+  it("keeps the final marker on the source when another version is extracted", () => {
+    const finalVersion = { imagePath: "/images/v2.png", jobId: "job-v2" };
+    const extracted = extractImageVersion({ ...source, finalVersion }, 0, "other-node")!;
+    expect(extracted[0].finalVersion).toEqual(finalVersion);
+    expect(extracted[1].finalVersion).toBeUndefined();
+  });
   it("extracts one version and keeps the remaining stack on the source node", () => {
     const threeVersionSource: GeneratedImage = {
       ...source,

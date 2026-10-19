@@ -42,6 +42,26 @@
 .coding-agent-detail-content code { display:block; overflow-wrap:anywhere; margin:6px 0 10px; color:hsl(var(--muted-foreground)); font-size:11px; }
 .coding-agent-detail-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .coding-agent-settings button svg { width:14px; height:14px; flex-shrink:0; }
+.agent-starter-guide { display:flex; min-width:0; flex-direction:column; gap:16px; }
+.agent-starter-agent,.agent-starter-prompt-actions,.agent-starter-links { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.agent-starter-tasks { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-bottom:1px solid hsl(var(--border)); gap:16px; }
+.agent-starter-tasks>button { display:flex; min-width:0; flex-direction:column; gap:6px; padding:8px 0 12px; text-align:left; border-bottom:2px solid transparent; }
+.agent-starter-tasks>button[aria-pressed=true] { border-bottom-color:hsl(var(--settings-accent)); }
+.agent-starter-tasks strong,.agent-starter-handoff strong { font-size:12px; font-weight:500; color:hsl(var(--foreground)); }
+.agent-starter-tasks span { color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.7; }
+.agent-starter-tasks>button:focus-visible,.agent-starter-guide a:focus-visible,.agent-starter-prompt summary:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:3px; border-radius:3px; }
+.agent-starter-tasks>button:disabled { opacity:.6; cursor:wait; }
+.agent-starter-task>p,.agent-starter-import>p,.agent-starter-handoff p { margin:0 0 12px; font-size:12px; line-height:1.8; color:hsl(var(--muted-foreground)); }
+.agent-starter-links { margin-bottom:14px; }
+.agent-starter-links a,.agent-starter-case-link { display:inline-flex; align-items:center; gap:5px; width:fit-content; font-size:12px; color:hsl(var(--foreground)); text-decoration:underline; text-underline-offset:4px; }
+.agent-starter-guide a svg { width:13px; height:13px; flex-shrink:0; }
+.agent-starter-invocation { color:hsl(var(--muted-foreground)); font-family:ui-monospace,monospace; font-size:11px; }
+.agent-starter-prompt { margin-top:14px; }
+.agent-starter-prompt summary { width:fit-content; cursor:pointer; font-size:12px; color:hsl(var(--muted-foreground)); }
+.agent-starter-prompt pre { margin:12px 0 0; max-height:250px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; border-radius:5px; padding:12px; color:hsl(var(--foreground)); background:hsl(var(--muted) / .5); font-family:inherit; font-size:12px; line-height:1.8; }
+.agent-starter-handoff { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; padding-top:16px; border-top:1px solid hsl(var(--border)); }
+.agent-starter-handoff>div { min-width:0; flex:1 1 240px; }
+.agent-starter-handoff p { margin:5px 0 0; }
 @container (max-width:640px) {
   .coding-agent-body { padding:8px 22px 24px; gap:20px; }
   .coding-agent-steps ol { gap:10px; }
@@ -53,4 +73,7 @@
   .coding-agent-setup-row>button { margin-left:46px; }
   .coding-agent-provider { align-items:flex-start; flex-direction:column; }
   .coding-agent-step-footer { flex-wrap:wrap; }
+  .agent-starter-tasks { grid-template-columns:1fr; gap:0; }
+  .agent-starter-tasks>button { padding:10px 0; }
+  .agent-starter-tasks>button[aria-pressed=true] strong { color:hsl(var(--settings-accent-ink)); }
 }

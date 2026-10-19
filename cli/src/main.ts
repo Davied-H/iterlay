@@ -18,10 +18,11 @@ iterlay models list --provider <id>     服务已保存的模型
 iterlay image generate --prompt <text> [--reference <file>] [--out <file>]
 iterlay image edit --input <file> --prompt <text> [--out <file>]
 iterlay video generate --prompt <text> [--board <id>]
-iterlay tasks list|get|wait [task-id] [--kind video] [--out <file>]
+iterlay tasks list|get|wait|cancel [task-id] [--kind video] [--out <file>]
 iterlay boards list|create|show|open [id] [--name <name>]
 iterlay assets list|import|export [--input <file>] [--path <managed-path>] [--out <file>]
 iterlay tools list                      完整操作目录及 JSON schema
+iterlay guard descriptor                离线输出 Guard 命令描述（不会安装或启用 Guard）
 iterlay call <operation> --input '<JSON>'  调用任意工作台操作
 iterlay add [--agent codex|claude-code]  安装 CLI Skill，迁移旧集成
 iterlay remove --agent <id>             移除 Skill
@@ -90,6 +91,10 @@ async function main(): Promise<void> {
   const userDataPath = get("user-data-path") ?? process.env.ITERLAY_USER_DATA_PATH ?? defaultUserDataPath();
   const [group, action, id] = words;
   const output = (data: unknown) => process.stdout.write(JSON.stringify(flags.json ? { schemaVersion: 1, ok: true, data } : data, (key, value: unknown) => key === "previewImageDataUrls" ? undefined : value, 2) + "\n");
+  if (group === "guard" && action === "descriptor") {
+    output(JSON.parse(await readFile(path.resolve(moduleDir,"../guard/command.iterlay.json"),"utf8")));
+    return;
+  }
   if (group === "add" || group === "remove") {
     const agents = flags.agent as CodingAgentId[] | undefined;
     if (agents?.some((a) => a !== "codex" && a !== "claude-code")) throw new Error("未知的 Coding Agent。");
@@ -121,6 +126,11 @@ async function main(): Promise<void> {
     throw new Error("素材操作缺少参数。运行 iterlay help 查看用法。");
   }
   if (group === "tasks" && action === "list") { output(await call("list_tasks")); return; }
+  if (group === "tasks" && action === "cancel") {
+    if (!id) throw new Error("缺少任务 ID。");
+    if (video) throw new Error("视频远端取消不在此操作范围；仅停止等待不会停止远端任务。");
+    output(await call("cancel_generation",{generationId:id})); return;
+  }
   if (group === "tasks" && (action === "get" || action === "wait")) {
     if (!id) throw new Error("缺少任务 ID。");
     result = await call(video ? "get_video_generation_status" : "get_generation_status", video ? { videoGenerationId: id } : { generationId: id });
@@ -147,13 +157,13 @@ async function main(): Promise<void> {
   if (typeof taskId !== "string") throw new Error("任务不存在或未返回任务 ID。");
   process.stderr.write(`任务 ${taskId}；Ctrl+C 结束等待，可用 tasks wait ${taskId}${video ? " --kind video" : ""} 继续。\n`);
   const deadline = Date.now() + timeout * 1000;
-  while (!["succeeded", "completed", "failed", "cancelled", "interrupted"].includes(String(task.status))) {
+  while (!["succeeded", "completed", "failed", "cancelled", "interrupted", "unknown"].includes(String(task.status))) {
     if (Date.now() >= deadline) throw new Error(`等待超时，任务仍可查询：${taskId}`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
     task = record(await call(video ? "get_video_generation_status" : "get_generation_status", video ? { videoGenerationId: taskId } : { generationId: taskId }));
   }
   delete task.previewImageDataUrls;
-  if (["failed", "cancelled", "interrupted"].includes(String(task.status))) throw new Error(`任务 ${taskId}：${String(task.error ?? task.status)}`);
+  if (["failed", "cancelled", "interrupted", "unknown"].includes(String(task.status))) throw new Error(`任务 ${taskId}：${String(task.error ?? task.status)}`);
   if (get("out")) {
     const paths = video ? [String(record(task.video).path)] : (task.images as Array<{ path: string }> ?? []).map((image) => image.path);
     try { task.exportedPaths = await exportFiles(call, paths, get("out")!, Boolean(flags.overwrite)); }

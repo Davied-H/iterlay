@@ -17,6 +17,13 @@ colors:
   case-active: "#f0f4eb"
   result: "#eef4e8"
   result-ink: "#3e5f43"
+  agent-ink: "#202722"
+  agent-muted: "#626b61"
+  agent-link: "#40553c"
+  agent-action-hover: "#3e5341"
+  agent-secondary-hover: "#edf1e8"
+  agent-divider: "#e1e6dc"
+  agent-field-border: "#d9dfd2"
 typography:
   display:
     fontFamily: 'Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif'
@@ -38,6 +45,25 @@ typography:
   editor:
     fontSize: "13px"
     lineHeight: 1.7
+  agent-display:
+    fontSize: "clamp(36px, 4.2vw, 60px)"
+    fontWeight: 550
+    lineHeight: 1.16
+    letterSpacing: "-1.7px"
+  agent-headline:
+    fontSize: "clamp(28px, 3.2vw, 40px)"
+    fontWeight: 550
+    lineHeight: 1.3
+    letterSpacing: "-0.8px"
+  agent-intro:
+    fontSize: "16px"
+    lineHeight: 1.85
+  agent-body:
+    fontSize: "13px"
+    lineHeight: 1.85
+  agent-command:
+    fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace"
+    fontSize: "12px"
 rounded:
   control: "6px"
   chip: "7px"
@@ -48,12 +74,15 @@ rounded:
   frame: "20px"
   story: "28px"
   pill: "999px"
+  agent-media: "8px"
 spacing:
   compact: "4px"
   control-gap: "6px"
   group: "12px"
   story-gap: "24px"
   story-padding: "32px"
+  agent-column-gap: "80px"
+  agent-asset-gap: "22px"
 components:
   generate-button:
     backgroundColor: "{colors.workbench-ink}"
@@ -78,6 +107,20 @@ components:
     backgroundColor: "{colors.workbench-accent-muted}"
     textColor: "{colors.workbench-accent}"
     rounded: "{rounded.control}"
+  agent-primary:
+    backgroundColor: "{colors.agent-ink}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.pill}"
+    padding: "12px 21px"
+  agent-primary-hover:
+    backgroundColor: "{colors.agent-action-hover}"
+  agent-secondary:
+    backgroundColor: "transparent"
+    textColor: "{colors.agent-ink}"
+    rounded: "{rounded.pill}"
+    padding: "12px 21px"
+  agent-secondary-hover:
+    backgroundColor: "{colors.agent-secondary-hover}"
 ---
 
 # Design System: Iterlay Website
@@ -169,3 +212,53 @@ Wiki 是独立的 `/#/wiki` 页面，以浅灰绿底和白色三栏阅读工作�
 Wiki 使用独立 WikiFeatureVisual / wiki-feature-visual.css，不再沿用首页 FeaturePreview 的缩小 App 示意。十类图解都采用同一平面编辑语言：完整矩形照片、前后排列、海报阵列、素材接触表、清楚的文字规则、切图网格或真实命令示例。没有虚拟输入框或不能点击的伪工具。图解以「功能示意」标注，不冒充真实截图。
 
 所有正文灰度保持 #666 或更深，黑字为 #171717。插件图解以低饱和淡紫底作为内容色，界面导航仍黑白。自动巡览/搜索/子功能/分享链接的行为保留，不因换风格改变产品事实。
+
+## Agent workflow page (2026-10-18)
+
+以下为 `AgentPage.tsx` 和 `agent-page.css` 已完成实现的范围记录。frontmatter 中 `agent-*` 仅描述 Agent 页，不能替代首页、下载页、Wiki 或 App 设置的既有阶梯。
+
+### Overview
+
+`/#/agents` 延续主站白底、石墨文字、浅灰绿分区与圆润动作按钮。首屏为直接的工作流说明与 FIELD 成品网页真实截图，随后平铺橙色原图、鼠尾草绿修改版、户外图和发布海报。FIELD 为虚构品牌；图片为实际生成素材，来源记录可读，不冒充客户项目。成品网页、可导入画板与完整项目形成同一个案例。
+
+### Colors
+
+主文字和主按钮使用 `agent-ink`，正文为 `agent-muted`；`agent-link` 用于带下划线的文字行动。准备区和末尾行动区复用 `canvas` 浅灰绿背景。细分隔线与白底输入框分别使用 `agent-divider`、`agent-field-border`。按钮 hover 分为加深主色和淡绿次级底色，图片中的橙与绿属于案例素材，不升级为全站 UI 强调色。
+
+### Typography
+
+继承主站 Inter / 系统无衬线字体；只有安装命令使用等宽字体。桌面 hero、区标题、介绍、常规正文和命令分别使用 frontmatter 的 `agent-display`、`agent-headline`、`agent-intro`、`agent-body`、`agent-command`。步骤标题为 (23px / 550)，图片标题为 (19px / 550)，步骤正文为 (14px / 1.85)；说明与状态为 (10–12px)。
+
+宽度不超过 (1000px) 时 hero 标题为 (44px)，介绍为 (14px)；不超过 (760px) 时 hero 为 (40px / 1.2)，区标题为 (28px)，图片标题为 (21px)，正文为 (13px)，任务文本为 (12px)。不超过 (380px) 时 hero 为 (36px)。这些是该页的响应式覆写，不是全站新字号标准。
+
+### Layout
+
+内容上限 (1200px)，桌面左右留白至少 (40px)。hero 两列比例 (.95fr / 1fr)，常规双列等宽，复用 `agent-column-gap`；大于 (1500px) 时仅 hero 间距增至 (110px)。四张方形图片平铺，使用 `agent-asset-gap`，没有多层外卡或虚构工具栏。资料区、画板下载和三步骤用细线分隔。
+
+不超过 (1000px) 时左右留白 (30px)、主要列间距 (40px)；不超过 (760px) 时左右留白 (20px)，hero、图片、步骤和隐私区按自然顺序单列，正常滚动。任务按钮可换行；不超过 (380px) 时复制行转为纵向。窄屏导航按已有 CSS 收起次要项，保留品牌与下载。
+
+### Elevation & Depth
+
+Agent 内容不添加阴影或浮动窗口，依靠白底、浅灰绿分区、图片和细线建立层级；案例图作为内容呈现。
+
+### Shapes
+
+媒体使用 `agent-media` 轻圆角，动作按钮使用既有 `pill`；命令与长任务框圆角 (7px)，复制图标按钮圆角 (5px)，步骤序号为 (29px) 圆形细描边。
+
+### Components
+
+主次按钮最小高度 (46px)，复制任务按钮为 (40px)；文字行动带可辨认的下划线。Agent 与任务选择使用下划线和 `aria-pressed`，互不混合状态。安装命令为只读输入框；长任务为可选择、可纵向调整的只读文本框，桌面高 (290px)、手机高 (315px)，高度范围 (180–620px)。复制失败聚焦并选中文本，提示键盘复制；反馈通过 `role=status` 宣告。滚动到准备区尊重减少动态偏好，按钮 hover 为短背景过渡 (.18s)。
+
+### Do's and Don'ts
+
+- 保留正常文档滚动和三步阅读顺序：准备 Iterlay → 给 Agent 具体任务 → 检查并交付。默认英文，`/#/agents?lang=zh` 为中文；页头、正文、页脚与语言一致，英文下载进入 `/#/download?lang=en`，再选择真实 GitHub Releases 安装包。
+- 从 `shared/agent-starter.ts` 生成检查、创作、交付三类任务，与 App「开始使用」共享事实。已有 FIELD 画板可无 Provider 查看和导出；新创作才需要图片模型及费用确认。已保存配置不代表远端服务已实测健康。
+- 交付指向实际文件：橙色原图 → `hero.png`、户外图 → `scene.png`、海报 → `campaign.png`，写入 `./public/iterlay-starter/`，保留已有文件与橙→绿版本链；绿色为编辑变体。
+- 网站不调用模型或启动 App。CLI 准备检查可为建立连接启动 App；画板与素材保存在本机，Prompt 与所需参考图发送给所选服务，凭据留在 App。安装某 Agent 的 Skill 不产生独立工作区、额度或权限边界。
+- `examples/field/field-review.mp4` 是已有 FIELD 画板的真实版本检查与滑块回看实录，不是新生成或外部 Agent 执行录像；本轮没有承诺模型生成视频。
+
+完成证据：`.impeccable/review/agents/` 中的 `desktop.png`、`mobile.png`、`user-320.png`、`field-desktop.png`、`field-mobile.png`，以及 `.impeccable/review/agent-settings-desktop.png`。独立 finish review 为 `ship`，确认本轮表面无需继续修改 UI；运行验证与真实付费生成链路的边界以交付记录为准。
+
+### Bilingual product and help (2026-10-19)
+
+英文产品页沿用 Agent 页的白底、石墨文字、浅灰绿分隔与既有 FIELD 实图。功能目录采用平面文字行和细分隔线，桌面两列、手机一列。`HelpPage` 为正常滚动的阅读页，内容上限 (1000px)，桌面留白 (40px)、手机 (20px)，正文 (15px / 1.9)、手机 (14px)。目录在当前 HashRouter 页面内滚动，不破坏 `lang` 路由。下载页保留既有视觉与真实版本机制，翻译界面和状态，不伪造英文发布说明。手机导航收紧间距，确保英文下载按钮完整可见。

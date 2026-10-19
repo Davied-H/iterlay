@@ -1,7 +1,15 @@
 /** Stable channels shared by the preload adapter and local MCP transport. */
 export const WORKBENCH_COMMANDS = {
+  "createModificationRequest": "modifications:create",
+  "listModificationRequests": "modifications:list",
+  "getModificationRequest": "modifications:get",
+  "clarifyModificationRequest": "modifications:clarify",
+  "prepareModificationRequest": "modifications:prepare",
+  "claimModificationRequest": "modifications:claim",
+  "finishModificationRequest": "modifications:finish",
   "getSettings": "settings:get",
   "generateImage": "image:generate",
+  "cancelImageGeneration": "image:cancel",
   "listHistory": "history:list",
   "saveAssetsAsZip": "asset:saveBatch",
   "importUploadedImage": "asset:importUpload",

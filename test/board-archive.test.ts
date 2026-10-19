@@ -49,6 +49,21 @@ async function makeFixture(): Promise<{ board: BoardData; jobs: GenerationJob[] 
 }
 
 describe("board archive (.itb)", () => {
+  it("keeps historical edit sources and semantic reference snapshots portable", async () => {
+    const { board, jobs } = await makeFixture();
+    const source = board.nodes.filter(isBoardImageNode)[1].imagePath;
+    jobs[0].inputSnapshot = { version: 1, input: { ...jobs[0].input, workflowMode: "edit",
+      editSource: { nodeId: "n2", imagePath: source, boardId: board.id } },
+      references: [{ id: "source", name: "产品源图", mimeType: "image/png", role: "edit-target", semanticRole: "reference", sourceNodeId: "n2", path: source }] };
+    const parsed = await parseBoardArchive(await buildBoardArchive(board, jobs, "0.1.1"));
+    const snapshot = parsed.jobs[0].inputSnapshot!;
+    expect(snapshot.references[0]).toMatchObject({ name: "产品源图", role: "edit-target", semanticRole: "reference", sourceNodeId: "n2" });
+    expect(snapshot.references[0].path.startsWith("images/")).toBe(true);
+    expect(snapshot.input.editSource?.imagePath).toBe(snapshot.references[0].path);
+    expect(parsed.images.get(snapshot.references[0].path)?.toString()).toBe("png-b");
+    expect(JSON.stringify(snapshot)).not.toContain(path.dirname(source));
+  });
+
   it("round-trips board, history and images; drops nodes with missing files", async () => {
     const { board, jobs } = await makeFixture();
     const buffer = await buildBoardArchive(board, jobs, "0.1.1");

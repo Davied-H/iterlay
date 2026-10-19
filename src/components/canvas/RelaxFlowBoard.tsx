@@ -70,6 +70,7 @@ import {
 } from "./relax-flow-model";
 import type { GeneratedImage, ImageVersion } from "./ImageNode";
 import { resolveCanvasWheelInteraction } from "./canvas-viewport";
+import type { AgentEditDraft } from "@shared/modification-requests";
 
 export interface RelaxFlowRequest {
   boardDataUrl: string;
@@ -97,6 +98,7 @@ interface RelaxFlowBoardProps {
     onDelta: (delta: string) => void
   ) => Promise<RelaxFlowInterpretation>;
   onGenerate: (prompt: string) => Promise<GeneratedImage[]>;
+  onSaveAgentRequest?: (draft:AgentEditDraft) => Promise<void>;
   onSwitchVersion: (index: number) => void;
   onBack: () => void;
   onClose: () => void;
@@ -636,6 +638,7 @@ export function RelaxFlowBoard({
   onInterpret,
   onRefine,
   onGenerate,
+  onSaveAgentRequest,
   onSwitchVersion,
   onBack,
   onClose
@@ -664,6 +667,8 @@ export function RelaxFlowBoard({
   const [past, setPast] = useState<RelaxFlowElement[][]>([]);
   const [future, setFuture] = useState<RelaxFlowElement[][]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [savingAgentRequest, setSavingAgentRequest] = useState(false);
+  const [agentRequestError, setAgentRequestError] = useState<string | null>(null);
   const [activeOperation, setActiveOperation] = useState<"understanding" | "generating" | null>(null);
   const [workflowErrorStep, setWorkflowErrorStep] = useState<"intent" | "generate" | null>(null);
   const [interpretation, setInterpretation] = useState<RelaxFlowInterpretation | null>(null);
@@ -692,6 +697,7 @@ export function RelaxFlowBoard({
     };
   }
   const interpretationSignatureRef = useRef<string | null>(null);
+  const interpretationSourceRef = useRef<string | null>(null);
   const assistantRequestRef = useRef(0);
   const generationVersionNumberRef = useRef(versions.length + 1);
   const initialRatioRef = useRef(Math.max(0.25, Math.min(4, aspectRatio)));
@@ -759,6 +765,7 @@ export function RelaxFlowBoard({
 
   useEffect(() => {
     setGenerationComplete(false);
+    setAgentRequestError(null);
     setGeneratedPreview(null);
     setSourceVersionIndex(sessionInitialVersionRef.current.index);
     setElements([]);
@@ -779,6 +786,7 @@ export function RelaxFlowBoard({
     setWorkflowErrorStep(null);
     assistantRequestRef.current += 1;
     interpretationSignatureRef.current = null;
+    interpretationSourceRef.current = null;
   }, [sessionKey]);
 
   useEffect(() => {
@@ -1028,6 +1036,7 @@ export function RelaxFlowBoard({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
+      if (savingAgentRequest) return;
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
       const command = event.metaKey || event.ctrlKey;
@@ -1068,7 +1077,7 @@ export function RelaxFlowBoard({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deleteSelected, duplicateSelected, editingTextId, onBack, redo, selectedId, undo]);
+  }, [deleteSelected, duplicateSelected, editingTextId, onBack, redo, savingAgentRequest, selectedId, undo]);
 
   useEffect(() => {
     let frame = 0;
@@ -1173,6 +1182,7 @@ export function RelaxFlowBoard({
       };
       const result = await onInterpret(request, (delta) => setIntentResult((current) => current + delta));
       interpretationSignatureRef.current = JSON.stringify(elementsRef.current);
+      interpretationSourceRef.current = source;
       setActiveRequest(request);
       setInterpretation(result);
       setIntentStale(false);
@@ -1338,9 +1348,52 @@ export function RelaxFlowBoard({
           <WandSparkles className="h-4 w-4 text-[hsl(var(--ai-accent))]" />
           <strong className="text-sm font-semibold">Relax Flow</strong>
           <span className="text-xs tabular-nums text-muted-foreground">v{resolvedActiveVersion + 1} / {versions.length}</span>
+          {onSaveAgentRequest ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={submitting || assistantStreaming || visibleCount === 0}
+              title={uiText("保存不会调用模型；未填写修改要求的标注会等待补充。")}
+              className="[-webkit-app-region:no-drag]"
+              onClick={() => {
+                if (submitting || assistantStreaming || visibleCount === 0) return;
+                const visible = cloneRelaxElements(elementsRef.current.filter((element) => element.visible));
+                const regions = visible.map((element) => {
+                  const bounds = getRelaxElementBounds(element);
+                  return {
+                    kind: element.kind,
+                    x: (bounds.x - imageBounds.x) / imageBounds.width,
+                    y: (bounds.y - imageBounds.y) / imageBounds.height,
+                    width: bounds.width / imageBounds.width,
+                    height: bounds.height / imageBounds.height,
+                    text: element.kind === "text" ? element.text : undefined
+                  };
+                });
+                const instruction = interpretation && !intentStale && interpretationSourceRef.current === source
+                  ? interpretation.prompt
+                  : visible.flatMap((element) => element.kind === "text" && element.text.trim() ? [element.text.trim()] : []).join("\n");
+                const sourceVersionIndex = resolvedActiveVersion;
+                const sourceSnapshot = source;
+                const boundsSnapshot = { ...imageBounds };
+                setSubmitting(true);
+                setSavingAgentRequest(true);
+                setAgentRequestError(null);
+                void exportFlowBoard(sourceSnapshot, boundsSnapshot, visible)
+                  .then((annotationDataUrl) => onSaveAgentRequest({
+                    sourceVersionIndex, instruction, regions, annotationDataUrl,
+                    constraints: [buildRelaxFlowAnnotationSummary(visible, boundsSnapshot)]
+                  }))
+                  .catch((caught) => setAgentRequestError(uiText(caught instanceof Error ? caught.message : "保存修改请求失败，图片和标注已保留，可重试。")))
+                  .finally(() => { setSubmitting(false); setSavingAgentRequest(false); });
+              }}
+            >
+              {uiText(savingAgentRequest ? "正在保存修改请求…" : "保存给 Agent")}
+            </Button>
+          ) : null}
           <div className="flex-1" />
           <span className="text-[11px] text-muted-foreground">{visibleCount} {uiText("个元素")}</span>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label={uiText("关闭编辑")} onClick={onClose}><X className="h-4 w-4" /></Button>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [-webkit-app-region:no-drag]" aria-label={uiText("关闭编辑")} disabled={savingAgentRequest} onClick={onClose}><X className="h-4 w-4" /></Button>
         </header>
 
         <nav className="row-start-2 flex flex-col items-center gap-1 border-r border-border bg-background py-2.5" aria-label={uiText("Relax Flow 工具")}>
@@ -1358,7 +1411,7 @@ export function RelaxFlowBoard({
           <Tooltip><TooltipTrigger asChild><button type="button" aria-label={uiText("适应画板")} onClick={() => void flowRef.current?.fitView({ padding: 0.24, duration: 220, maxZoom: 1.15 })} className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><Focus className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="right">{uiText("适应画板")}</TooltipContent></Tooltip>
         </nav>
 
-        <main className="relative row-start-2 min-h-0 min-w-0 overflow-hidden bg-muted/35" aria-label={uiText("Relax Flow 画板")} aria-busy={submitting || undefined}>
+        <main className={cn("relative row-start-2 min-h-0 min-w-0 overflow-hidden bg-muted/35", savingAgentRequest && "pointer-events-none")} aria-label={uiText("Relax Flow 画板")} aria-busy={submitting || undefined}>
           <ReactFlow<Node<Record<string, unknown>>, never>
             nodes={[...imageNodes, ...generatedVersionNodes]}
             edges={[]}
@@ -1472,17 +1525,18 @@ export function RelaxFlowBoard({
             </div>
           ) : null}
           <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-md border border-border/80 bg-background/92 px-2 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">{TOOL_LABELS[tool]}</div>
+          {agentRequestError ? <p role="alert" className="absolute inset-x-3 top-3 z-30 rounded-md bg-background/95 px-3 py-2 text-sm text-destructive shadow-sm">{agentRequestError}</p> : null}
           {submitting ? (
             <div className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2" aria-live="polite">
               <div className="flex items-center gap-2 rounded-md bg-background/96 px-3 py-2 text-xs font-medium shadow-md">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-[hsl(var(--ai-accent))] motion-reduce:animate-none" />
-                {generationActive ? uiText("正在生成新版本") : uiText("正在理解 {{ui:0}} 个标注", [visibleCount])}
+                {savingAgentRequest ? uiText("正在保存修改请求…") : generationActive ? uiText("正在生成新版本") : uiText("正在理解 {{ui:0}} 个标注", [visibleCount])}
               </div>
             </div>
           ) : null}
         </main>
 
-        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label={uiText("Relax Flow 检查器")}>
+        <aside className="row-start-2 flex min-h-0 flex-col border-l border-border bg-background" aria-label={uiText("Relax Flow 检查器")} inert={savingAgentRequest || undefined}>
           {assistantOpen ? (
             <AiAssistant
               variant="docked"

@@ -82,6 +82,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AssistantAwarenessCanvas } from "@/components/workbench/AssistantAwarenessCanvas";
 import { InlinePromptEditor } from "@/components/workbench/InlinePromptEditor";
 import { PromptFusionDock } from "./PromptFusionDock";
+import { generationSettingsSummary, IMAGE_QUALITY_LABELS, providerUsesImageQuality } from "@/lib/generation-settings-summary";
 import { startPointerDragSession, type PointerDragSession } from "@/lib/pointer-drag-session";
 import { FusionPromptConfirmation } from "./FusionPromptConfirmation";
 import { mergeAssistantToolCall, settleAssistantToolCalls } from "@shared/assistant-display";
@@ -3431,10 +3432,11 @@ export function PromptDock({
           {providers.length ? <ProviderPicker providers={providers} activeProviderId={activeProviderId}
             creditStatus={creditStatus} creditLoading={creditLoading} requiredCredits={officialRequiredCredits}
             showLabel={false} reduceMotion={Boolean(reduceMotion)} onSelect={onSelectProvider} onManage={onOpenModelManagement} /> : null}
-          <GenerationSettingsPicker size={input.size} count={input.n} transparentBackground={input.background === "transparent"}
+          <GenerationSettingsPicker size={input.size} count={input.n} quality={input.quality} model={input.model} workflowMode={input.workflowMode} transparentBackground={input.background === "transparent"}
             maxCount={maxImageCount} provider={activeProvider} onSizeChange={(size) => onInputChange({ size })}
+            onQualityChange={(quality) => onInputChange({ quality })}
             onCountChange={(n) => onInputChange({ n })} onTransparentBackgroundChange={(enabled) => onInputChange({ background: enabled ? "transparent" : "auto", outputFormat: "png" })}
-            onOpenChange={setSizePickerOpen} showLabel={Boolean(assistantDockSide)} />
+            onOpenChange={setSizePickerOpen} />
           {!editTarget && input.workflowMode === "generate" ? <DropdownMenu>
             <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={uiText("创作模式")}><LayoutTemplate /></Button></DropdownMenuTrigger>
             <DropdownMenuContent side="top"><DropdownMenuRadioGroup value={creationMode} onValueChange={(value) => changeCreationMode(value as CreationMode)}>
@@ -3447,7 +3449,7 @@ export function PromptDock({
         directAction={<GenerateActionButton buttonStyle={generateButtonStyle} compact
           disabled={!canSubmit && !needsProviderSetup && !templateNeedsProviderSetup && !uiBriefNeedsProviderSetup}
           onClick={needsProviderSetup || templateNeedsProviderSetup || uiBriefNeedsProviderSetup ? onOpenSettings : () => void handleSubmit()}>
-          {needsProviderSetup ? uiText("去配置") : isUiDesignMode ? uiGenerateActionLabel : templateResolving ? uiText("正在生成预览") : activeScene && !templatePromptPreviewReady ? uiText("预览提示词") : editTarget ? uiText("应用编辑") : uiText("生成")}
+          {needsProviderSetup ? uiText("去配置") : isUiDesignMode ? uiGenerateActionLabel : templateResolving ? uiText("正在生成预览") : activeScene && !templatePromptPreviewReady ? uiText("预览提示词") : editTarget ? uiText("应用修改") : uiText("生成 {{ui:0}} 张", [input.n])}
         </GenerateActionButton>}
         assistant={<Suspense fallback={<div className="p-4 text-sm" role="status">{uiText("正在加载助手…")}</div>}>
           <AiAssistant appearance="fusion" hideComposer variant={assistantDockSide ? "docked" : "floating"} dockSide={assistantDockSide ?? undefined} compact
@@ -4553,11 +4555,15 @@ export function PromptDock({
               <GenerationSettingsPicker
                 size={input.size}
                 count={input.n}
+                quality={input.quality}
+                model={input.model}
+                workflowMode={input.workflowMode}
                 transparentBackground={input.background === "transparent"}
                 maxCount={maxImageCount}
                 provider={activeProvider}
                 onSizeChange={(size) => onInputChange({ size })}
                 onCountChange={(n) => onInputChange({ n })}
+                onQualityChange={(quality) => onInputChange({ quality })}
                 onTransparentBackgroundChange={(enabled) => onInputChange({
                   background: enabled ? "transparent" : "auto",
                   outputFormat: "png"
@@ -5323,25 +5329,31 @@ function ReferencePicker({
 function GenerationSettingsPicker({
   size,
   count,
+  quality,
+  model,
+  workflowMode,
   transparentBackground,
   maxCount,
   provider,
   onSizeChange,
   onCountChange,
+  onQualityChange,
   onTransparentBackgroundChange,
-  onOpenChange,
-  showLabel = false
+  onOpenChange
 }: {
   size: string;
   count: number;
+  quality: GenerateImageInput["quality"];
+  model: string;
+  workflowMode: GenerateImageInput["workflowMode"];
   transparentBackground: boolean;
   maxCount: number;
   provider?: ProviderConfig;
   onSizeChange: (size: string) => void;
   onCountChange: (count: number) => void;
+  onQualityChange: (quality: NonNullable<GenerateImageInput["quality"]>) => void;
   onTransparentBackgroundChange: (enabled: boolean) => void;
   onOpenChange?: (open: boolean) => void;
-  showLabel?: boolean;
 }): React.ReactElement {
   const uiText = useUiText();
 
@@ -5352,6 +5364,10 @@ function GenerationSettingsPicker({
   const availablePresets = getProviderImageSizeOptions(provider);
   const supportsCustomSize = providerSupportsCustomImageSize(provider);
   const supportsTransparentBackground = providerSupportsTransparentBackground(provider);
+  const supportsQuality = providerUsesImageQuality(provider);
+  const summary = generationSettingsSummary({ model, size, quality, n: count, workflowMode }, provider);
+  const parameterSummary = `${uiText(summary.size)} · ${uiText(summary.quality)} · ${uiText("{{ui:0}} 张", [summary.count])}`;
+  const summaryLabel = `${uiText(summary.model)} · ${parameterSummary}`;
   const validation = validateGptImageSize(Number(w), Number(h));
   const custom = `${w}x${h}`;
   const canApplyCustom = supportsCustomSize && validation.ok && custom !== size;
@@ -5373,22 +5389,24 @@ function GenerationSettingsPicker({
 
   return (
     <Popover open={open} onOpenChange={changeOpen}>
-      <ToolbarTooltip label={t("prompt.generationSettings")} disabled={open}>
+      <ToolbarTooltip label={`${t("prompt.generationSettings")} · ${summaryLabel}`} disabled={open}>
         <PopoverTrigger asChild>
           <Button
             type="button"
             variant="ghost"
-            size={showLabel ? "sm" : "icon"}
-            className={cn("shrink-0 text-muted-foreground", showLabel ? "prompt-fusion-settings h-8 gap-1 px-2" : "h-8 w-8")}
-            aria-label={t("prompt.generationSettings")}
+            size="sm"
+            className="prompt-fusion-settings h-8 min-w-0 max-w-full shrink gap-1.5 px-2 text-xs text-muted-foreground"
+            aria-label={`${t("prompt.generationSettings")}：${summaryLabel}`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            {showLabel ? <span>{uiText("设置")}</span> : null}
+            <span className="max-w-28 truncate" title={summary.model}>{uiText(summary.model)}</span>
+            <span className="min-w-0 truncate tabular-nums">· {parameterSummary}</span>
           </Button>
         </PopoverTrigger>
       </ToolbarTooltip>
       <PopoverContent side="top" align="end" sideOffset={10} className="w-64 p-2.5">
         <p className="mb-2.5 text-sm font-semibold text-foreground">{t("prompt.generationSettings")}</p>
+        <p className="mb-2.5 break-words px-2 text-xs text-muted-foreground">{uiText("当前模型：{{ui:0}}", [summary.model])}</p>
         <div>
           <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">{t("prompt.imageSize")}</p>
           <div className="flex flex-col gap-0.5">
@@ -5442,6 +5460,19 @@ function GenerationSettingsPicker({
           </form>
         ) : null}
         <Separator className="my-2" />
+        {supportsQuality ? <>
+          <fieldset className="px-0.5">
+            <legend className="mb-2 text-xs font-medium text-muted-foreground">{uiText("图片质量")}</legend>
+            <div className="grid grid-cols-2 gap-1">
+              {(Object.keys(IMAGE_QUALITY_LABELS) as Array<keyof typeof IMAGE_QUALITY_LABELS>).map((value) => <button
+                key={value} type="button" aria-pressed={(quality ?? "auto") === value}
+                onClick={() => onQualityChange(value)}
+                className={cn("min-h-8 rounded-md px-2 text-xs transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", (quality ?? "auto") === value && "bg-accent font-medium")}
+              >{uiText(IMAGE_QUALITY_LABELS[value])}</button>)}
+            </div>
+          </fieldset>
+          <Separator className="my-2" />
+        </> : <p className="mb-2 text-[11px] leading-5 text-muted-foreground">{uiText("此服务商由模型决定质量，不发送质量参数。")}</p>}
         {supportsTransparentBackground ? (
           <>
             <div className="flex items-center justify-between gap-3 px-0.5">

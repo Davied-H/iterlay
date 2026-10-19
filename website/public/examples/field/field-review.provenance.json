@@ -1,0 +1,71 @@
+{
+  "title": "FIELD — inspecting existing image versions",
+  "createdAt": "2026-10-18T12:19:11.647Z",
+  "sourceArchive": "website/public/examples/field/field-starter.itb",
+  "sourceRecording": "output/playwright/field-review-raw/page@be9ed9ce2c1f2ab6312b1ce982df67af.webm",
+  "captureScript": "output/playwright/record-field-review.mjs",
+  "captureMethod": "Headless Chrome recording of the real pnpm dev browser workbench in an isolated verification workspace. Existing original PNG images and their genuine imported version history; no new generation.",
+  "sequence": [
+    "Inspect the fully loaded imported FIELD board",
+    "Open the sage-green image",
+    "Switch to the original orange v1",
+    "Return to the sage-green v2",
+    "Open the actual version comparison and drag its slider",
+    "Return to the canvas"
+  ],
+  "preparation": "Existing onboarding tutorials were marked completed through the App API before recording. The visible CLI preparation reminder was dismissed with its real Close reminder button before the timed recording; no UI was hidden, drawn or substituted.",
+  "modelCalls": 0,
+  "generationHistoryBefore": 4,
+  "generationHistoryAfter": 4,
+  "providerCredentialsConfigured": false,
+  "processing": {
+    "startSeconds": 1.915,
+    "durationSeconds": 22.85,
+    "description": "Removed startup wait, scaled the authentic continuous capture to 1280 pixels wide and encoded H.264; no compositing, subtitles or substituted frames.",
+    "command": [
+      "ffmpeg",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-ss",
+      "1.915",
+      "-i",
+      "output/playwright/field-review-raw/page@be9ed9ce2c1f2ab6312b1ce982df67af.webm",
+      "-t",
+      "22.85",
+      "-vf",
+      "scale=1280:-2",
+      "-r",
+      "25",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "fast",
+      "-crf",
+      "24",
+      "-pix_fmt",
+      "yuv420p",
+      "-an",
+      "-movflags",
+      "+faststart",
+      "website/public/examples/field/field-review.mp4"
+    ]
+  },
+  "result": {
+    "path": "website/public/examples/field/field-review.mp4",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "format": {
+      "duration": "22.880000",
+      "size": "1166247"
+    }
+  }
+}

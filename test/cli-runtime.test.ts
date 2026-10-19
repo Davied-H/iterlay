@@ -21,7 +21,9 @@ const server = createServer(async (request, response) => {
     case 'resolve_generation_board': resolvedBoards++; result = { boardId: 'configured-default' }; break;
     case 'list_boards': result = [{ id: 'board', name: 'CLI 创作' }]; break;
     case 'generate_image': lastGenerationArgs = args; generated++; result = { generationId: 'task', status: 'running' }; break;
-    case 'get_generation_status': result = { generationId: 'task', status: 'succeeded', images: [{ path: '/managed/test.png' }] }; break;
+    case 'get_generation_status': result = args.generationId === 'unknown-task'
+      ? { generationId: 'unknown-task', status: 'unknown', error: '远端结果与费用状态待确认' }
+      : { generationId: 'task', status: 'succeeded', images: [{ path: '/managed/test.png' }] }; break;
     case 'read_asset': result = { dataUrl: 'data:image/png;base64,aW1hZ2U=' }; break;
     default: response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'unsupported operation' })); return;
   }
@@ -54,6 +56,12 @@ describe('CLI subprocess workflow', () => {
   });
   it('returns a structured business error without resubmitting the operation', async () => {
     await expect(exec(process.execPath, [script, 'providers', 'list', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('unsupported operation') });
+  });
+  it('stops waiting on an unknown remote outcome without exporting or resubmitting', async () => {
+    const before = generated;
+    await expect(exec(process.execPath, [script, 'tasks', 'wait', 'unknown-task', '--user-data-path', directory, '--json'], { timeout: 5000 }))
+      .rejects.toMatchObject({ stdout: expect.stringContaining('远端结果与费用状态待确认') });
+    expect(generated).toBe(before);
   });
   it('reports validation errors without exposing a local credential file', async () => {
     const run = await exec(process.execPath, [script, 'tools', 'list', '--json']);

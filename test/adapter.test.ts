@@ -30,6 +30,14 @@ function makeTransport(fetchMock: ReturnType<typeof vi.fn>): OpenAICompatibleTex
 }
 
 describe("OpenAICompatibleTextTransport function calling probe", () => {
+  it("uses a read-only model list for a default connection check without probing token-consuming tools", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: "gpt-4o-mini" }] })));
+    await makeTransport(fetchMock).testConnection();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("https://proxy.example.com/v1/models", expect.objectContaining({ headers: { Authorization: "Bearer sk-test" } }));
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
+  });
   it("recognizes an OpenAI-compatible native tool call", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{
@@ -1421,7 +1429,7 @@ describe("Sub2ApiImageProvider", () => {
     expect(result.images[0].bytes).toEqual(Buffer.from("streamed-image"));
   });
 
-  it("probes the Responses route with a lightweight text request instead of a real generation", async () => {
+  it("checks Responses configuration with a read-only model request without text or image usage", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({})
@@ -1442,15 +1450,13 @@ describe("Sub2ApiImageProvider", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://proxy.example.com/v1/responses",
+      "https://proxy.example.com/v1/models",
       expect.objectContaining({
-        method: "POST",
         headers: expect.objectContaining({ Authorization: "Bearer sk-test" })
       })
     );
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body).toMatchObject({ model: "gpt-5.4", input: "connection test", max_output_tokens: 16 });
-    expect(body).not.toHaveProperty("tools");
+    expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
   });
 
   it("loads, normalizes, and sorts models from an OpenAI-compatible provider", async () => {

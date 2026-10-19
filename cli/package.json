@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.61",
+  "version": "0.1.62",
   "description": "Use Iterlay App providers to generate images and videos, manage boards and assets, and install Coding Agent Skills.",
   "type": "module",
   "license": "MIT",
@@ -12,6 +12,7 @@
   },
   "files": [
     "dist/main.js",
+    "guard/**",
     "skills/**",
     "README.md"
   ],

@@ -9,6 +9,8 @@ export interface ActiveBoardGeneration {
   requestedCount: number;
   startedAt: number;
   status?: "queued" | "running";
+  /** Renderer-only action; never serialize callbacks into board/job storage. */
+  cancelQueued?: () => boolean;
 }
 
 export function groupActiveBoardGenerations(

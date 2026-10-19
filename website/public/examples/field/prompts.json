@@ -1,0 +1,87 @@
+{
+  "case": "FIELD portable speaker visual exploration",
+  "createdAt": "2026-10-16",
+  "method": "Iterlay CLI connected to the browser development workspace; screenshots from the real browser UI",
+  "providerType": "openai-compatible",
+  "model": "gpt-image-1",
+  "requestedSize": "1024x1024",
+  "assets": [
+    {
+      "file": "field-studio.webp",
+      "taskId": "readme-field-base-v2-20261016",
+      "jobId": "0006ba59-600f-4c34-8fcd-81d6173dda71",
+      "prompt": "Premium studio product photograph for fictional outdoor audio brand FIELD. A compact portable speaker, matte burnt orange rounded rectangular body, fine perforated orange metal grille, subtle FIELD wordmark centered low, pale cream woven fabric carry loop on right, two tactile top buttons. Three-quarter front view, centered with generous space, warm ivory seamless background, soft natural side light and realistic shadow, tactile materials, refined industrial design and editorial art direction. No other objects, no caption, no watermark. Square composition.",
+      "actualSize": [
+        1254,
+        1254
+      ],
+      "reference": null,
+      "operation": "generate_image",
+      "formatNote": "WebP copy of the generated PNG, unchanged pixel dimensions",
+      "role": "original-and-reference",
+      "originalArchivePath": "images/0006ba59-600f-4c34-8fcd-81d6173dda71-1.png",
+      "originalSha256": "264df422fab3257e96f5923190e9ec58455efc98f08c3277267ee49be87f0711",
+      "delivery": "hero.png"
+    },
+    {
+      "file": "field-sage.webp",
+      "taskId": "readme-field-sage-20261016",
+      "jobId": "8da5a0e1-44e2-4ba3-9e6e-572aa20a8573",
+      "prompt": "Change only the orange speaker body, orange grille and orange top buttons to a muted sage green color. Preserve the exact product shape, FIELD lettering, cream fabric loop, camera angle, framing, shadows and warm ivory studio background. Photorealistic product colorway exploration. No additional text.",
+      "actualSize": [
+        1254,
+        1254
+      ],
+      "reference": "field-studio.webp",
+      "operation": "edit_image",
+      "formatNote": "WebP copy of the generated PNG, unchanged pixel dimensions",
+      "role": "edit-variant",
+      "originalArchivePath": "images/8da5a0e1-44e2-4ba3-9e6e-572aa20a8573-1.png",
+      "originalSha256": "9bd1eacbd94095f70baeeabc6a84847c90f43eec60bc75e43d813e077ae14d84",
+      "delivery": "sage-variant.png"
+    },
+    {
+      "file": "field-outdoor.webp",
+      "taskId": "readme-field-outdoor-20261016",
+      "jobId": "7357fe2f-311c-488e-b33d-88812be74b0d",
+      "prompt": "Create a premium outdoor campaign photograph featuring exactly the same burnt orange FIELD speaker in the reference, preserving its product identity, front grille, FIELD logo, buttons and cream woven side loop. Speaker sits on a pale weathered boulder beside tranquil alpine water, distant hazy mountains and pine forest, warm late-afternoon sun, quiet luxury outdoor editorial, natural realistic materials and long shadows, muted sage and warm cream palette with orange accent. The speaker occupies about half the image, clear and prominent, with breathing room. No people, no extra products, no added text or watermark. Square image.",
+      "actualSize": [
+        1254,
+        1254
+      ],
+      "reference": "field-studio.webp",
+      "operation": "generate_image",
+      "formatNote": "WebP copy of the generated PNG, unchanged pixel dimensions",
+      "role": "reference-based-result",
+      "originalArchivePath": "images/7357fe2f-311c-488e-b33d-88812be74b0d-1.png",
+      "originalSha256": "a68db185e485c8a8dee5e7ee6d19753cacffc611c106d887128b7b03a6ed4014",
+      "delivery": "scene.png"
+    },
+    {
+      "file": "field-poster.webp",
+      "taskId": "readme-field-poster-20261016",
+      "jobId": "550d4b8d-b0c9-4451-8897-f5ad12d83cfd",
+      "prompt": "Design an exceptional minimal Swiss editorial square advertising poster for fictional portable audio brand FIELD using the exact orange speaker in the reference. Warm cream background, huge clean black sans serif title FIELD at upper left, short small subline Sound, outside. beneath it. Large photorealistic orange speaker occupying lower two thirds on warm ivory studio ground, refined shadow and generous margins. One tiny orange square at upper right, small bottom caption PORTABLE AUDIO / 01. Restrained premium art direction with flawless typography and asymmetrical whitespace. Preserve the reference speaker body, grille, cream woven loop and FIELD logo. No extra products, no watermark.",
+      "actualSize": [
+        1254,
+        1254
+      ],
+      "reference": "field-studio.webp",
+      "operation": "generate_image",
+      "formatNote": "WebP copy of the generated PNG, unchanged pixel dimensions",
+      "role": "reference-based-result",
+      "originalArchivePath": "images/550d4b8d-b0c9-4451-8897-f5ad12d83cfd-1.png",
+      "originalSha256": "232752ad7a454a0447363058877dd9a889560289be5ea8daf7afb0fe1b1a51e7",
+      "delivery": "campaign.png"
+    }
+  ],
+  "archive": {
+    "file": "field-starter.itb",
+    "source": "Original FIELD board and its four successful jobs, exported from the isolated browser development workspace.",
+    "originalLayout": true,
+    "originalVersionHistory": true,
+    "distribution": ".itb contains original generated PNG bytes; site images are the documented WebP copies with unchanged dimensions.",
+    "privacy": "Provider names/IDs, endpoints, credentials, accounts and local absolute paths are excluded.",
+    "differences": "Original request: gpt-image-1 via an OpenAI-compatible service, 1024x1024 requested, 1254x1254 actually returned. Saved request style was an empty string after a rejected initial request. Reusing prompts with another provider/model may change size, appearance, typography and reference fidelity."
+  }
+}

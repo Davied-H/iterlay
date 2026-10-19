@@ -732,22 +732,9 @@ export class OpenAICompatibleTextTransport implements TextTransport {
     return response;
   }
 
-  /** 用一次最小的补全请求验证 Base URL + Key + 模型。 */
+  /** 只读目录检查；不提交补全，不消耗文本或图片生成用量。 */
   async testConnection(): Promise<void> {
-    const { url, model } = this.ensureReady();
-    const response = await this.fetchGuarded(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: "connection test" }],
-        max_tokens: 16
-      })
-    }, 20_000, undefined);
-    if (!response.ok) await throwTextProviderError(response);
+    await this.listModels();
   }
 
   /**

@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { BoardLibrary } from "../src/components/workbench/BoardLibrary";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BoardLibrary as BoardLibraryComponent } from "../src/components/workbench/BoardLibrary";
+import { I18nProvider } from "../src/i18n";
 import type { BoardSummary } from "../shared/types";
+function BoardLibrary(props: ComponentProps<typeof BoardLibraryComponent>): React.ReactElement {
+  return createElement(I18nProvider, null, createElement(BoardLibraryComponent, props));
+}
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+beforeEach(() => window.localStorage.setItem("iterlay:language", "zh-CN"));
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); window.localStorage.removeItem("iterlay:language"); });
 describe("large board library interaction", () => {
   it("keeps a thousand boards reachable while rendering only the viewport", async () => {
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => setTimeout(() => callback(performance.now()), 0));

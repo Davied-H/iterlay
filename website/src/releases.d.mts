@@ -16,6 +16,7 @@ export interface GitHubRelease {
 export type InstallerVariant = "darwin-arm64" | "darwin-x64" | "win32-x64" | "win32-arm64";
 export const repository: string;
 export const releasesUrl: string;
+export function releaseNoteParts(body: string): { text: string; href?: string }[];
 export function installerVariant(name: string): InstallerVariant | null;
 export function releaseInstallers(releases: readonly GitHubRelease[], variant: InstallerVariant): { release: GitHubRelease; asset: GitHubReleaseAsset }[];
 export function loadReleases(signal?: AbortSignal): Promise<GitHubRelease[]>;

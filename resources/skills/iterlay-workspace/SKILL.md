@@ -31,6 +31,19 @@ Use the `iterlay` CLI through your shell tool. App configuration and credentials
 - Video completion requires a managed local output path. Provider URLs are temporary and are not deliverables. Stopping local polling does not cancel a remote job or its billing.
 - Export only requested results. Return task ID, board ID, managed and exported paths, warnings and validation limits; never expose tokens or provider credentials.
 
+## Saved annotation and mask requests
+
+- Use `iterlay call list_modification_requests --json` and `get_modification_request` to read a user's saved edit brief. Inspect its fixed source version and export the annotation/mask with `iterlay assets export --path <managed-path> --out <local-file>` for visual inspection. Never substitute the currently active canvas version.
+- A needs-input request must be clarified with the user before `clarify_modification_request`. Saving or clarifying does not call a model.
+- Atomically `claim_modification_request` using a unique agent-session owner. The claim token is returned only by this call. Do not print or share it. Lists and detail views intentionally omit it.
+- Execute `edit_image` with boardId, the request's sourcePath, reviewed prompt, modificationRequestId and claimToken. The App validates the claim, carries mask/reference inputs and binds one durable execution key. Do not use the convenience `image edit --input` for this path: it would re-import the fixed source.
+- Wait for the returned task. Pass its actual succeeded `job.id` and managed output paths to `finish_modification_request` with the same requestId and claimToken. Completion appends results once to the original node and notifies its real board. Record errors with the same finish operation; do not fabricate results or auto-retry an unknown paid outcome.
+- `iterlay tasks cancel <id>` cancels a task only before provider submission. A running reply explicitly means remote cancellation and billing were not stopped. Ctrl+C stops waiting only. Unknown is not success: inspect history and provider state before submitting again.
+
+## Optional command review metadata
+
+`iterlay guard descriptor` reads the bundled HOL Guard contribution source offline. It does not install Guard, enable protection, or grant permissions. Generation, editing, output writes, configuration installation and generic operation calls have different effects. Do not classify every `iterlay call` or `tasks wait --out` as read-only. Guard's global policy remains authoritative; a descriptor does not isolate provider budgets or replace the user's authorization.
+
 ## Validate delivery
 
 Generation success is distinct from delivery acceptance. For exact sizes, batches and editing work, read [references/visual-qa.md](references/visual-qa.md). Check actual file dimensions, original-resolution content and corresponding board metadata; a requested size is not proof of output size. `resize_image` affects canvas display width, not physical pixels. Layout checks find node overlaps, not clipped content. Use the bundled validation script when needed.

@@ -62,6 +62,7 @@ import { arrangeImageNodes, type ImageNodeLayoutMode } from "../../shared/image-
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "../../shared/generation-output-layout.js";
 import { reconcileVideoGenerationPlaceholder } from "../../shared/video-generation-placeholder.js";
 import { MutationQueue, writeJsonAtomic } from "./atomic-json.js";
+import { resolveImageVersion, resolveDeliverySource, validateImageDeliveryRecipe, type ImageVersionIdentity, type ImageDeliveryRecipe } from "../../shared/image-delivery.js";
 
 interface BoardsState {
   lastOpenedBoardId?: string;
@@ -563,6 +564,34 @@ export class BoardStore {
     });
   }
 
+  async setImageFinalVersion(id: string, nodeId: string, version: ImageVersionIdentity | null): Promise<BoardData> {
+    return this.mutations.run(async () => {
+      const current = await this.requireBoard(id);
+      const target = requireImageNode(current.nodes, nodeId);
+      if (version !== null) resolveImageVersion(target, version);
+      return this.saveBoardUnlocked({ id, nodes: current.nodes.map((node) => node.id === nodeId ? { ...target, finalVersion: version ?? undefined } : node) });
+    });
+  }
+
+  async saveImageDeliveryRecipe(id: string, value: ImageDeliveryRecipe): Promise<BoardData> {
+    const recipe = validateImageDeliveryRecipe(value);
+    return this.mutations.run(async () => {
+      const current = await this.requireBoard(id);
+      for (const item of recipe.items) resolveDeliverySource(current, item);
+      const recipes = current.deliveryRecipes ?? [];
+      const saved = { ...recipe, name: recipe.name.trim(), updatedAt: new Date().toISOString() };
+      return this.saveBoardUnlocked({ id, deliveryRecipes: recipes.some((item) => item.id === recipe.id)
+        ? recipes.map((item) => item.id === recipe.id ? saved : item) : [...recipes, saved] });
+    });
+  }
+
+  async removeImageDeliveryRecipe(id: string, recipeId: string): Promise<BoardData> {
+    return this.mutations.run(async () => {
+      const current = await this.requireBoard(id);
+      return this.saveBoardUnlocked({ id, deliveryRecipes: (current.deliveryRecipes ?? []).filter((recipe) => recipe.id !== recipeId) });
+    });
+  }
+
   private async saveBoardUnlocked(payload: BoardSavePayload): Promise<BoardData> {
     assertBoardSavePayload(payload);
     const current = await this.readBoardFile(this.boardFile(payload.id));
@@ -600,7 +629,8 @@ export class BoardStore {
         ? payload.groups.map(normalizeBoardGroup).filter((group): group is NonNullable<BoardData["groups"]>[number] => group !== null)
         : current?.groups ?? [],
       thumbnailDataUrl: payload.thumbnailDataUrl ?? current?.thumbnailDataUrl,
-      videoSequences: payload.videoSequences ?? current?.videoSequences ?? []
+      videoSequences: payload.videoSequences ?? current?.videoSequences ?? [],
+      deliveryRecipes: payload.deliveryRecipes?.map(validateImageDeliveryRecipe) ?? current?.deliveryRecipes ?? []
     };
     await this.writeBoard(board);
     return board;

@@ -69,6 +69,8 @@ export function ProviderSettingsDialog({
   open,
   onOpenChange,
   entryPoint = "default",
+  onImportStarterBoard,
+  onOpenStarterBoards,
   providers,
   activeProviderId,
   textProviders,
@@ -602,6 +604,8 @@ export function ProviderSettingsDialog({
                     disabled={Boolean(bridgeError)}
                     providerReady={Boolean(providerKeyStatus[activeProviderId])}
                     onOpenModels={() => requestSection("provider")}
+                    onImportBoard={onImportStarterBoard ? () => { onOpenChange(false); onImportStarterBoard(); } : undefined}
+                    onOpenBoards={onOpenStarterBoards ? () => { onOpenChange(false); onOpenStarterBoards(); } : undefined}
                   />
                   ) : section === "system" ? (
                   <>

@@ -11,3 +11,5 @@ for (const name of ["iterlay-workspace", "using-iterlay"]) {
   await cp(source, destination, { recursive: true, force: true });
   stdout.write(`已同步 Iterlay Skill 到 ${destination}\n`);
 }
+await cp(path.join(cliRoot,"..","resources","guard"),path.join(cliRoot,"guard"),{recursive:true,force:true});
+stdout.write("已同步 Iterlay Guard 命令描述（未安装或启用 Guard）\n");

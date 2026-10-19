@@ -14,6 +14,8 @@ iterlay tools list --json
 
 完整工作台操作使用 `iterlay call <operation> --input '<JSON>' --json`，操作与 schema 由 `tools list` 返回。
 
+`iterlay guard descriptor` 可离线输出随包携带的 HOL Guard 命令描述；它不会安装 Guard 或改变 Agent 权限。生成/编辑、文件导出、配置安装与通用调用按影响分类，最终决策仍受 Guard 全局策略控制。参见 [说明](../docs/guard.md)。
+
 Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `iterlay-workspace` 和 `using-iterlay` 两份 Skill，或运行 `npx iterlay add --agent codex` / `--agent claude-code`。`using-iterlay` 仅供手动调用：在 Claude Code 中输入 `/using-iterlay`，在 Codex 中输入 `$using-iterlay`。迁移会移除该 Agent 原来的 Iterlay MCP 条目，保留其他服务。此版本不再提供 MCP server。
 
 指定 `--user-data-path` 或 `ITERLAY_USER_DATA_PATH` 时只连接指定工作区，不自动启动另一个工作区。生成默认等待，`--async` 提交即返回；结束等待不会取消远端任务。导出失败后可重试导出，不必重新生成。

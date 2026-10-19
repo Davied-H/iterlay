@@ -1,4 +1,5 @@
 import type { ImageDerivation, ImageSource } from "@shared/types";
+import type { ImageVersionIdentity } from "@shared/image-delivery";
 
 /** 图片的一个编辑版本（索引 0 为原图）。 */
 export interface ImageVersion {
@@ -31,6 +32,7 @@ export interface GeneratedImage {
   height?: number;
   versions?: ImageVersion[];
   activeVersion?: number;
+  finalVersion?: ImageVersionIdentity;
   editing?: boolean;
   pendingEditCount?: number;
   queuedEditCount?: number;

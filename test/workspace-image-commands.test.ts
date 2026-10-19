@@ -61,11 +61,11 @@ describe("typed workspace image tasks", () => {
     expect(f.mocks.appendBoardNodes).not.toHaveBeenCalled();
     await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId })).toMatchObject({ status: "succeeded" }));
   });
-  it("records background failures and never reports them as succeeded", async () => {
+  it("keeps an unconfirmed provider result unknown rather than reporting failure or success", async () => {
     const f = workspaceFixture();
     f.mocks.generateImage.mockRejectedValue(new Error("provider unavailable"));
     const task = await f.commands.call("generate_image", { boardId: "board", prompt: "test" }) as { generationId: string };
-    await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId })).toMatchObject({ status: "failed", error: "provider unavailable" }));
+    await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId })).toMatchObject({ status: "unknown", error: "provider unavailable" }));
   });
   it("loads completed operation metadata after constructing a new runtime", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-mcp-task-"));

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   ImageIcon,
+  FileText,
   Video,
   LoaderCircle,
   LocateFixed,
@@ -19,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 const LIST_TIME_FORMATTER = new Intl.DateTimeFormat((document.documentElement.lang || "zh-CN"), {
@@ -58,7 +60,9 @@ const statusMeta: Record<JobStatus, {
   succeeded: { label: "成功", icon: CheckCircle2, className: "text-[hsl(var(--ai-accent))]" },
   failed: { label: "失败", icon: AlertCircle, className: "text-destructive" },
   running: { label: "进行中", icon: LoaderCircle, className: "text-foreground" },
-  queued: { label: "排队", icon: Clock3, className: "text-muted-foreground" }
+  queued: { label: "排队", icon: Clock3, className: "text-muted-foreground" },
+  cancelled: { label: "已取消", icon: X, className: "text-muted-foreground" },
+  unknown: { label: "状态待确认", icon: AlertCircle, className: "text-amber-600" }
 };
 
 interface HistoryRailProps {
@@ -69,6 +73,8 @@ interface HistoryRailProps {
   loadThumbnail: (path: string) => Promise<string | undefined>;
   onFocusJob: (job: GenerationJob) => void;
   onReuseJob: (job: GenerationJob) => void;
+  onReusePrompt?: (job: GenerationJob) => void;
+  activeTasks?: ActiveBoardGeneration[];
   totalHistoryCount?: number;
   hasMore?: boolean;
   loadingMore?: boolean;
@@ -88,6 +94,7 @@ interface HistoryItemProps {
   onCloseDetails: (jobId: string) => void;
   onFocusJob: (job: GenerationJob) => void;
   onReuseJob: (job: GenerationJob) => void;
+  onReusePrompt?: (job: GenerationJob) => void;
 }
 
 function formatDuration(job: GenerationJob): string | null {
@@ -134,7 +141,8 @@ function HistoryItem({
   onTogglePinned,
   onCloseDetails,
   onFocusJob,
-  onReuseJob
+  onReuseJob,
+  onReusePrompt
 }: HistoryItemProps): React.ReactElement {
   const uiText = useUiText();
 
@@ -209,7 +217,7 @@ function HistoryItem({
                   className={cn("h-3 w-3", job.status === "running" && "animate-spin motion-reduce:animate-none")}
                   aria-hidden
                 />
-                <span>{meta.label}</span>
+                <span>{uiText(meta.label)}</span>
               </span>
               <span aria-hidden>·</span>
               <time className="min-w-0 truncate tabular-nums" dateTime={job.createdAt} title={FULL_TIME_FORMATTER.format(new Date(job.createdAt))}>
@@ -242,7 +250,7 @@ function HistoryItem({
               className={cn("h-3.5 w-3.5", job.status === "running" && "animate-spin motion-reduce:animate-none")}
               aria-hidden
             />
-            {meta.label}
+            {uiText(meta.label)}
           </span>
           <time className="text-[11px] tabular-nums text-muted-foreground" dateTime={job.createdAt}>
             {FULL_TIME_FORMATTER.format(new Date(job.createdAt))}
@@ -254,7 +262,7 @@ function HistoryItem({
             {job.prompt || "无提示词"}
           </p>
 
-          {job.status === "failed" && job.error ? (
+          {(job.status === "failed" || job.status === "unknown" || job.status === "cancelled") && job.error ? (
             <div className="rounded-lg bg-destructive/8 px-2.5 py-2 text-xs leading-5 text-destructive">
               {job.error}
             </div>
@@ -278,20 +286,39 @@ function HistoryItem({
               </>
             ) : null}
           </dl>
+          {!job.inputSnapshot && job.referenceImagePaths.length > 0 ? (
+            <p className="text-xs leading-5 text-muted-foreground">{uiText("旧记录未保存参考图名称和职责，还原后请核对。")}</p>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-1.5 border-t border-border bg-muted/35 px-2.5 py-2">
+          {onReusePrompt ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7"
+              title={uiText("仅替换提示词，保留当前模型、参考图和编辑目标")}
+              onClick={() => {
+                onReusePrompt(job);
+                onCloseDetails(job.id);
+              }}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {uiText("复用提示词")}
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"
             className="h-7"
+            title={uiText("恢复原模型、参数、编辑源图和参考图为草稿，不会立即生成")}
             onClick={() => {
               onReuseJob(job);
               onCloseDetails(job.id);
             }}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            {uiText("复用参数")}</Button>
+            {uiText("还原任务")}</Button>
           {canFocus ? (
             <Button
               size="sm"
@@ -318,6 +345,8 @@ export function HistoryRail({
   loadThumbnail,
   onFocusJob,
   onReuseJob,
+  onReusePrompt,
+  activeTasks = [],
   onClear,
   onClose,
   totalHistoryCount,
@@ -424,7 +453,28 @@ export function HistoryRail({
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1.5 py-1.5">
-            {totalCount === 0 ? (
+            {activeTasks.length > 0 ? (
+              <section className="mb-2 border-b border-border pb-2" aria-label={uiText("本机在途任务")}>
+                {activeTasks.map((task) => (
+                  <div key={task.id} className="space-y-1.5 rounded-lg px-2 py-2">
+                    <div className="flex items-center gap-2 text-xs font-medium">
+                      {task.status === "queued" ? <Clock3 className="h-3.5 w-3.5" /> : <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+                      <span>{task.status === "queued" ? uiText("排队") : uiText("进行中")}</span>
+                      {task.status === "queued" && task.cancelQueued ? (
+                        <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => task.cancelQueued?.()}>
+                          {uiText("取消排队")}
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="line-clamp-2 break-words text-xs leading-5">{task.prompt}</p>
+                    <p className="text-[11px] leading-4 text-muted-foreground">
+                      {task.status === "queued" ? uiText("尚未发送到 Provider，可取消排队。") : uiText("已提交；远端取消和停费未确认。")}
+                    </p>
+                  </div>
+                ))}
+              </section>
+            ) : null}
+            {totalCount === 0 && activeTasks.length === 0 ? (
               <div className="flex h-full min-h-40 flex-col items-center justify-center px-6 text-center">
                 <Clock3 className="mb-2 h-5 w-5 text-muted-foreground/70" aria-hidden />
                 <p className="text-sm font-medium text-foreground">{uiText("暂无生成历史")}</p>
@@ -433,7 +483,7 @@ export function HistoryRail({
             ) : (
               <div className="flex flex-col">
                 {videoHistory.map((job) => <VideoHistoryItem key={job.id} job={job} />)}
-                {history.map((job) => {
+                {history.filter((job) => !job.input.clientTaskId || !activeTasks.some((task) => task.id === job.input.clientTaskId)).map((job) => {
                   const outputPath = job.outputImagePaths[0];
                   const thumbnail = outputPath ? thumbnailFor(outputPath) ?? loadedThumbnails[outputPath] : undefined;
                   return (
@@ -449,6 +499,7 @@ export function HistoryRail({
                       onCloseDetails={closeJobDetails}
                       onFocusJob={onFocusJob}
                       onReuseJob={onReuseJob}
+                      onReusePrompt={onReusePrompt}
                     />
                   );
                 })}

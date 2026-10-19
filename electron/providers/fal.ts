@@ -123,10 +123,10 @@ export class FalImageProvider {
   async testConnection(config: ProviderConfig, apiKey: string): Promise<void> {
     assertApiKey(apiKey);
     const model = normalizeModelId(config.model);
-    // 查询一个必然不存在的任务即可验证 Key；404/422 表示鉴权已通过，且不会触发生图计费。
+    // 只读查询不会提交生成；404/422 不能证明鉴权成功，必须作为未通过处理。
     const url = `${joinFalUrl(config.baseUrl, model)}/requests/iterlay-connection-test/status`;
     const response = await this.fetchWithDeadline(url, { headers: falHeaders(apiKey) }, Date.now() + 15_000);
-    if (response.status === 401 || response.status === 403 || response.status >= 500) {
+    if (!response.ok) {
       await throwFalError(response);
     }
   }

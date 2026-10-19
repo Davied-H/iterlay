@@ -6,6 +6,7 @@ import { demoCases, galleryAsset } from './demo-cases'
 import './home-gallery.css'
 import FeaturePreview from './FeaturePreview'
 import { useTour } from './useTour'
+import './agent-page.css'
 
 const heroScenes = [
   { id:'poster', label:'品牌海报', title:'从一张产品图，', emphasis:'做出上新海报。', description:'保留产品，换上新的背景与排版。\n从原图到发布封面，每个版本都留在画板里。', caseIndex:0, feature:'images' },
@@ -58,8 +59,9 @@ export default function HomePage() {
       <div className="showcase-case-grid">{demoCases.map((item, index) => <article className="showcase-case" key={item.id}>
         <div className="showcase-case-images"><figure><img src={galleryAsset(item.source)} alt={`${item.sourceName}，修改前`} loading="lazy" /><figcaption>原图</figcaption></figure><ArrowRight size={16} aria-hidden="true" /><figure><img src={galleryAsset(item.result)} alt={`${item.resultName}，预制效果`} loading="lazy" /><figcaption>{item.resultName}</figcaption></figure></div>
         <div className="showcase-case-copy"><h3>{item.title}</h3><p>{item.description}</p></div><button className="showcase-case-start" data-experience-key={`case-${index}`} onClick={() => startExperience(index, `case-${index}`)}>{item.action}<ArrowUpRight size={16} /></button>
-      </article>)}</div><p className="showcase-preset-note">以上为预制交互示例，不会调用模型。下载桌面版后，可连接自己的 AI 服务商处理你的图片。</p>
+      </article>)}</div><p className="showcase-preset-note">以上为预制交互示例，不会调用模型，也不会保存可编辑的桌面画板；刷新可能重置体验。请下载图片留存，或在桌面版连接自己的 AI 服务商继续创作。<Link to="/help?lang=zh">查看保存边界</Link></p>
     </section>
+    <section className="showcase-agent-link"><h2>你看画布，<br />Coding Agent 做执行。</h2><div><p>让 Codex、Claude Code 为项目生成素材、修改版本、整理画板，再导出到代码目录。从 FIELD 音箱案例开始，看一次完整的创作与交付。</p><Link to="/agents?lang=zh">查看 Agent 工作流<ArrowUpRight size={17}/></Link></div></section>
     <section className="showcase-wiki-link"><div><h2>不止改图，还有完整的创作工作流。</h2><p>AI 助手、模板、素材库、视频、Coding Agent……<br />进入功能 Wiki，跟随自动巡览，看懂每一项能力和操作。</p></div><Link to="/wiki">浏览全部功能<ArrowUpRight size={18}/></Link></section>
     <section className="showcase-close"><h2>把自己的图片，带进 Iterlay。</h2><p>生成、编辑、比较与整理，都在同一个工作空间。</p><Link className="showcase-primary" to="/download"><Download size={16} />下载 Iterlay<ArrowUpRight size={15} /></Link><span>免费开源 · macOS & Windows · AI 功能需自行配置服务商</span></section>
   </div>

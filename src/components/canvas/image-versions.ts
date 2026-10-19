@@ -63,6 +63,8 @@ export function separateImageVersions(
   const versions = source.versions;
   if (!versions || versions.length < 2) return null;
   const activeVersion = Math.max(0, Math.min(source.activeVersion ?? versions.length - 1, versions.length - 1));
+  const finalMatches = source.finalVersion ? versions.flatMap((version, index) => version.path === source.finalVersion!.imagePath && version.jobId === source.finalVersion!.jobId ? [index] : []) : [];
+  const finalIndex = finalMatches.length === 1 ? finalMatches[0] : -1;
 
   return withVersionRowPlacement(versions.map((version, index) => ({
     id: index === activeVersion ? source.id : createId(),
@@ -72,6 +74,8 @@ export function separateImageVersions(
     ...versionDimensions(source, version),
     source: source.source,
     derivation: source.derivation,
+    // 移动分离时最终稿随实际图像移动；已有失效/歧义标记保留在原节点，不静默丢弃。
+    finalVersion: index === finalIndex || finalIndex < 0 && index === activeVersion ? source.finalVersion : undefined,
     placementAnchorId: index === activeVersion ? undefined : source.id,
     selectOnCreate: index === activeVersion ? undefined : true
   })), placement);
@@ -115,6 +119,9 @@ export function extractImageVersion(
       ? Math.min(previousActive, remaining.length - 1)
       : previousActive;
   const active = remaining[nextActive];
+  const transfersFinal = Boolean(source.finalVersion) && extracted.path === source.finalVersion!.imagePath
+    && extracted.jobId === source.finalVersion!.jobId
+    && versions.filter((version) => version.path === source.finalVersion!.imagePath && version.jobId === source.finalVersion!.jobId).length === 1;
   const updatedSource: GeneratedImage = {
     ...source,
     path: active.path,
@@ -122,7 +129,8 @@ export function extractImageVersion(
     jobId: active.jobId,
     ...versionDimensions(source, active),
     versions: remaining.length > 1 ? remaining : undefined,
-    activeVersion: remaining.length > 1 ? nextActive : undefined
+    activeVersion: remaining.length > 1 ? nextActive : undefined,
+    finalVersion: transfersFinal ? undefined : source.finalVersion
   };
   const standalone: GeneratedImage = {
     id,
@@ -132,6 +140,7 @@ export function extractImageVersion(
     ...versionDimensions(source, extracted),
     source: source.source,
     derivation: source.derivation,
+    finalVersion: transfersFinal ? source.finalVersion : undefined,
     placementAnchorId: source.id,
     placementPosition,
     preserveViewportOnCreate: placementPosition ? true : undefined,

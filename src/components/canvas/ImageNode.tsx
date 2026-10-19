@@ -524,6 +524,14 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
         onSwitchVersion={onSwitchVersion}
         onSeparateVersions={onSeparateVersions}
       />
+      {showNodeChrome && image.finalVersion ? (
+        <span className="pointer-events-none absolute right-2 top-2 rounded-md border border-border bg-background/95 px-1.5 py-0.5 text-[10px] font-medium">
+          {(() => {
+            const finalIndex = (image.versions ?? [{ path: image.path, jobId: image.jobId }]).findIndex((version) => version.path === image.finalVersion!.imagePath && version.jobId === image.finalVersion!.jobId);
+            return finalIndex >= 0 ? uiText("最终稿 v{{ui:0}}", [finalIndex + 1]) : uiText("最终稿已失效");
+          })()}
+        </span>
+      ) : null}
 
       {image.editing ? (
         <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-background/95 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">

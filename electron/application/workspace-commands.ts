@@ -8,12 +8,13 @@ import type {
   ReferenceImagePayload,
   VideoGenerationInput
 } from "../../shared/types.js";
+import { isBoardImageNode } from "../../shared/types.js";
 import { writeJsonAtomic } from "../storage/atomic-json.js";
 import type { WorkspaceApi } from "./workbench-api.js";
 
 export interface WorkbenchEvent { type: string; [key: string]: unknown }
 export interface GenerationRecord {
-  requestHash?: string; generationId: string; status: "running" | "succeeded" | "failed"; boardId?: string;
+  requestHash?: string; generationId: string; status: "running" | "succeeded" | "failed" | "cancelled" | "unknown"; boardId?: string;
   prompt?: string; createdAt: string; completedAt?: string; error?: string;
   job?: GenerationJob; images?: GenerateResponse["images"]; warnings?: string[];
 }
@@ -83,6 +84,15 @@ export class WorkspaceCommands {
       }
       case "read_asset": return { dataUrl: await api.readAssetDataUrl(string(a.path)) };
       case "list_tasks": return api.listHistory();
+      case "cancel_generation": return api.cancelImageGeneration(string(a.generationId));
+      case "list_modification_requests": return api.listModificationRequests(boardId || undefined);
+      case "get_modification_request": return api.getModificationRequest(string(a.requestId));
+      case "claim_modification_request": return api.claimModificationRequest(string(a.requestId),string(a.owner));
+      case "clarify_modification_request": return api.clarifyModificationRequest(string(a.requestId),string(a.instruction));
+      case "finish_modification_request": {
+        const request=await api.getModificationRequest(string(a.requestId));
+        return mutate(()=>api.finishModificationRequest({id:request.id,claimToken:string(a.claimToken),resultJobId:string(a.resultJobId)||undefined,resultPaths:strings(a.resultPaths),error:string(a.error)||undefined}),{boardId:request.boardId});
+      }
       case "list_boards": return api.listBoards();
       case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId) };
       case "get_active_board": {
@@ -236,15 +246,18 @@ export class WorkspaceCommands {
     const { api, emit } = this.dependencies;
     const boardId = await this.resolveGenerationBoard(string(a.boardId));
     const sourcePath = string(a.sourcePath);
-    const references = edit ? [sourcePath] : strings(a.referencePaths, 4);
-    const prompt = string(a.prompt);
+    const prepared = a.modificationRequestId ? await api.prepareModificationRequest(string(a.modificationRequestId),string(a.claimToken)) : undefined;
+    if (prepared && (!edit || prepared.boardId!==boardId || prepared.sourcePath!==sourcePath)) throw new Error("修改请求的画板或固定源版本与执行参数不一致。");
+    const references = edit ? [sourcePath,...(prepared ? [prepared.maskPath,...prepared.referencePaths].filter((value):value is string=>Boolean(value)) : strings(a.referencePaths,3))] : strings(a.referencePaths,4);
+    if (references.length>4) throw new Error("修改请求的源图、蒙版和参考图片合计最多4张。");
+    const prompt = string(a.prompt,prepared?.instruction??"");
     if (!prompt.trim() || !boardId || (edit && !sourcePath)) throw new Error("生成缺少画板、提示词或编辑目标。");
     const settings = await api.getSettings();
     const provider = settings.providers.find((p) => p.id === (a.providerId || settings.activeProviderId));
     if (!provider || provider.type === "official") throw new Error("请配置自有图片 Provider。");
     const board = await api.getBoard(boardId);
     if (!board) throw new Error("画板不存在或已移入回收站。");
-    const target = edit ? board.nodes.find((n) => "imagePath" in n && (n.imagePath === sourcePath || n.versions?.some((v) => v.imagePath === sourcePath))) : undefined;
+    const target = edit ? board.nodes.filter(isBoardImageNode).find((n) => n.imagePath === sourcePath || n.versions?.some((v) => v.imagePath === sourcePath)) : undefined;
     if (edit && !target) throw new Error("编辑目标不在指定画板中。");
     await this.dependencies.flush();
     this.prune();
@@ -252,6 +265,10 @@ export class WorkspaceCommands {
     const count = number(a.n, 1);
     if (!Number.isInteger(count) || count < 1 || count > 4) throw new Error("图片数量必须是 1 到 4 的整数。");
     const input: GenerateImageInput = {
+      clientTaskId: requestId,
+      editSource: edit && target ? { nodeId: target.id, boardId, imagePath: sourcePath,
+        jobId: target.versions?.find((version) => version.imagePath === sourcePath)?.jobId ?? target.jobId } : undefined,
+      modificationRequestId: prepared?.id, idempotencyKey: prepared?.executionKey,
       workflowMode: edit ? "edit" : "generate", creationMode: "general", promptSpec: { primaryRequest: prompt },
       prompt, model: string(a.model, provider.model), size: string(a.size, "auto"),
       n: count, quality: choice(a.quality, ["auto", "low", "medium", "high"] as const, "high"),
@@ -261,24 +278,28 @@ export class WorkspaceCommands {
     const record: GenerationRecord = { requestHash, generationId: requestId, status: "running", boardId, prompt, createdAt: new Date().toISOString() };
     await this.remember(record);
     emit({ type: "generation-started", operationId: record.generationId, boardId, prompt, count: input.n, size: input.size, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
+    let submittedToBackend = false;
     void (async () => {
       const referenceImages: ReferenceImagePayload[] = await Promise.all(references.map(async (file) => {
         const url = await api.readAssetDataUrl(file);
         const match = /^data:([^;]+);base64,(.+)$/u.exec(url);
         if (!match) throw new Error("参考图数据无效。");
-        return { id: crypto.randomUUID(), name: path.basename(file), mimeType: match[1], dataBase64: match[2], role: edit ? "edit-target" : "reference" };
+        return { id: crypto.randomUUID(), name: path.basename(file), mimeType: match[1], dataBase64: match[2], role: edit && file===sourcePath ? "edit-target" : "reference" };
       }));
+      submittedToBackend = true;
       const result = await api.generateImage({ ...input, referenceImages });
       await this.dependencies.flush();
-      if (edit && target) await api.appendBoardNodeVersions(boardId, target.id, result.images.map((image) => ({ imagePath: image.path, jobId: result.job.id, width: "width" in target ? target.width : undefined, height: "height" in target ? target.height : undefined })));
-      else await api.appendBoardNodes(boardId, result.images.map((image) => ({ id: crypto.randomUUID(), imagePath: image.path, jobId: result.job.id, source: "generated" })));
+      if (edit && target && !prepared) await api.appendBoardNodeVersions(boardId, target.id, result.images.map((image) => ({ imagePath: image.path, jobId: result.job.id, width: "width" in target ? target.width : undefined, height: "height" in target ? target.height : undefined })));
+      else if (!prepared) await api.appendBoardNodes(boardId, result.images.map((image) => ({ id: crypto.randomUUID(), imagePath: image.path, jobId: result.job.id, source: "generated" })));
       await this.remember({ ...record, status: "succeeded", completedAt: new Date().toISOString(), job: result.job,
         images: result.images.map((image) => ({ ...image, dataUrl: "" })), warnings: result.warnings });
       emit({ type: "board-updated", boardId, operationId: record.generationId });
       emit({ type: "generation-finished", boardId, operationId: record.generationId, count: result.images.length, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
     })().catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
-      await this.remember({ ...record, status: "failed", completedAt: new Date().toISOString(), error: message }).catch(() => undefined);
+      const cancelled = error instanceof Error && error.name === "GenerationCancelledError" || message.includes("已取消排队任务");
+      const status = cancelled ? "cancelled" : submittedToBackend ? "unknown" : "failed";
+      await this.remember({ ...record, status, completedAt: new Date().toISOString(), error: message }).catch(() => undefined);
       emit({ type: "generation-finished", boardId, operationId: record.generationId, error: message, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
     });
     return record;
@@ -291,7 +312,19 @@ export class WorkspaceCommands {
       try { task = JSON.parse(await readFile(path.join(this.dependencies.taskDirectory, id + ".json"), "utf8")) as GenerationRecord; }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     }
-    if (task?.status === "running" && !this.tasks.has(id)) task = { ...task, status: "failed", error: "应用已重启，任务可能已提交至远端，请检查生成历史，勿直接重复提交。" };
+    if (task?.status === "running" && !this.tasks.has(id)) {
+      task = { ...task, status: "unknown", error: "应用已重启，远端结果与费用状态待确认。请检查 Provider 和生成历史，勿直接重复提交。" };
+      await this.remember(task);
+    }
+    if (task?.status === "unknown") {
+      const historical = (await this.dependencies.api.listHistory()).find((job) => job.input.clientTaskId === id);
+      if (historical && ["succeeded", "cancelled", "failed"].includes(historical.status)) {
+        task = { ...task, status: historical.status as "succeeded" | "cancelled" | "failed", job: historical,
+          error: historical.error, completedAt: historical.completedAt,
+          images: historical.outputImagePaths.map((file) => ({ path: file, dataUrl: "" })) };
+        await this.remember(task);
+      }
+    }
     if (!task) {
       const job = (await this.dependencies.api.listHistory()).find((j) => j.id === id);
       return job ? { generationId: job.id, status: job.status, job, images: job.outputImagePaths.map((file) => ({ path: file })) } : null;
@@ -307,11 +340,11 @@ export class WorkspaceCommands {
     return { ...task, previewImageDataUrls };
   }
   private async remember(record: GenerationRecord): Promise<void> {
-    this.tasks.set(record.generationId, record);
     if (this.dependencies.taskDirectory) {
       await mkdir(this.dependencies.taskDirectory, { recursive: true });
       await writeJsonAtomic(path.join(this.dependencies.taskDirectory, record.generationId + ".json"), record);
     }
+    this.tasks.set(record.generationId, record);
   }
   private prune(): void {
     for (const [id, task] of this.tasks) {
