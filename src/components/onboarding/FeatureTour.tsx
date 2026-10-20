@@ -409,8 +409,8 @@ export function FeatureTour({
       <WelcomeTourStep
         titleId={titleId}
         descriptionId={bodyId}
-        title={step.title}
-        description={step.body}
+        title={uiText(step.title)}
+        description={uiText(step.body)}
         reduceMotion={Boolean(reduceMotion)}
         creditBalance={welcomeCreditBalance}
         licenseState={welcomeLicenseState}
@@ -480,10 +480,10 @@ export function FeatureTour({
           key={step.id}
         >
           <p id={titleId} className="pr-6 text-sm font-semibold leading-5">
-            {step.title}
+            {uiText(step.title)}
           </p>
           <p id={bodyId} className="mt-1.5 text-[13px] leading-5 text-muted-foreground">
-            {step.body}
+            {uiText(step.body)}
           </p>
           <div className="mt-3.5 flex items-center justify-between gap-3">
             <span className="text-xs tabular-nums text-muted-foreground">
@@ -498,7 +498,7 @@ export function FeatureTour({
                     {uiText("上一步")}</Button>
                 ) : null}
                 <Button ref={primaryButtonRef} size="sm" onClick={goNext}>
-                  {isLast ? uiText("完成") : (step.nextLabel ?? "下一步")}
+                  {isLast ? uiText("完成") : uiText(step.nextLabel ?? "下一步")}
                 </Button>
               </div>
             )}

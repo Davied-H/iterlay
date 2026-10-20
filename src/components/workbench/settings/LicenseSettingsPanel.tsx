@@ -1,3 +1,4 @@
+import { getUiTextLocale } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import type { LicenseStatusSnapshot } from "@shared/licensing";
@@ -78,7 +79,7 @@ export function LicenseSettingsPanel({
 function formatLicenseDateTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(getUiTextLocale(), {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

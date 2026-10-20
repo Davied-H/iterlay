@@ -8,6 +8,7 @@ import path from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 import { fileURLToPath } from "node:url";
 import { signalDevChild, stopDevChild } from "./dev-process.mjs";
+import { assertBrowserBackendStopped } from "./dev-browser-state.mjs";
 
 const require = createRequire(import.meta.url);
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -39,6 +40,7 @@ let electronProcess;
 let restarting = false;
 let restartRequested = false;
 let ownsLock = false;
+let ownsBackendState = false;
 let backendRestartBlocked = false;
 let electronStopPromise;
 const outputHashes = new Map();
@@ -119,7 +121,7 @@ function shutdown(code) {
     compilerWatcher?.close();
     await Promise.all([...children].map((child) => stopDevChild(child, { log })));
     if (ownsLock) {
-      await rm(bridgeConfig, { force: true });
+      if (ownsBackendState) await rm(bridgeConfig, { force: true });
       await rm(lockPath, { force: true });
     }
     process.exitCode = code;
@@ -234,7 +236,9 @@ async function restartElectron() {
 try {
   await mkdir(userData, { recursive: true });
   await acquireLock();
+  await assertBrowserBackendStopped(userData);
   await assertPortAvailable();
+  ownsBackendState = true;
   await rm(bridgeConfig, { force: true });
   if (process.platform === "darwin") await runStep("Building native image services…", "bash", ["scripts/build-photo-layer-segmenter.sh"]);
   await rm(path.join(projectRoot, "dist-electron"), { recursive: true, force: true });

@@ -50,7 +50,7 @@ export function providerSupportsCustomImageSize(
 
 export function providerSupportsTransparentBackground(provider?: ProviderConfig): boolean {
   if (!provider) return false;
-  // The official backend currently rejects transparent output requests.
+  // The legacy built-in official Provider has been removed; it is not the OpenAI API.
   if (provider.type === "official") return false;
   if (provider.type === "codex-oauth") return true;
   if (provider.type !== "openai-compatible") return false;

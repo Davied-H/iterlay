@@ -51,8 +51,8 @@ export function CreateQuestionCard({
   return (
     <section className="ct-card ct-question" aria-labelledby={`${formId}-title`}>
       <header className="ct-card-heading">
-        <h3 id={`${formId}-title`}>{interaction.title}</h3>
-        {interaction.description ? <p>{interaction.description}</p> : null}
+        <h3 id={`${formId}-title`}>{uiText(interaction.title)}</h3>
+        {interaction.description ? <p>{uiText(interaction.description)}</p> : null}
       </header>
 
       <form onSubmit={(event) => {
@@ -65,7 +65,7 @@ export function CreateQuestionCard({
             const fieldId = `${formId}-field-${fieldIndex}`;
             const fieldLabel = (
               <>
-                {field.label}
+                {uiText(field.label)}
                 {!field.required ? <span className="ct-field-optional">{uiText("可选")}</span> : null}
               </>
             );
@@ -99,7 +99,7 @@ export function CreateQuestionCard({
                         <span className="ct-option-indicator" aria-hidden="true" data-multiple={field.multiple}>
                           {field.multiple ? <Check size={11} strokeWidth={2.5} /> : <span />}
                         </span>
-                        <span>{option.label}</span>
+                        <span>{uiText(option.label)}</span>
                       </label>
                     );
                   })}
@@ -114,7 +114,7 @@ export function CreateQuestionCard({
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                   required={field.required}
                   disabled={disabled}
-                  placeholder={field.placeholder}
+                  placeholder={field.placeholder ? uiText(field.placeholder) : undefined}
                   onChange={(event) => update(field.id, event.target.value)}
                 />
               </div>
@@ -124,10 +124,10 @@ export function CreateQuestionCard({
 
         <footer className="ct-card-actions">
           <button type="button" className="ct-button ct-button-quiet" disabled={disabled} onClick={onDismiss}>
-            {interaction.cancelLabel ?? uiText("用文字回答")}
+            {(interaction.cancelLabel ? uiText(interaction.cancelLabel) : undefined) ?? uiText("用文字回答")}
           </button>
           <button type="submit" className="ct-button ct-button-primary" disabled={disabled || !complete}>
-            {interaction.submitLabel ?? uiText("继续")}
+            {(interaction.submitLabel ? uiText(interaction.submitLabel) : undefined) ?? uiText("继续")}
             <ArrowRight size={15} aria-hidden="true" />
           </button>
         </footer>

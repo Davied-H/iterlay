@@ -16,14 +16,18 @@ export class ManagerProductAnalyticsClient {
     private readonly fetchImpl: typeof fetch = fetch
   ) {}
 
+  private readonly sessionAnonymousId = createHash("sha256").update(randomUUID()).digest("hex");
+
   async track(name: ProductAnalyticsEventName, properties: Record<string, string> = {}): Promise<void> {
+    if (!this.baseUrl.trim()) return;
     const payload = JSON.stringify({ events: [{ id: randomUUID(), name, occurredAt: new Date().toISOString(), properties }] });
     try {
       const status = this.license.getStatus();
-      if (status.state === "UNACTIVATED") {
-        const deviceId = await this.license.getDeviceId();
-        const anonymousId = createHash("sha256").update(`iterlay-analytics-v1\x00${deviceId}`).digest("hex");
-        await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, "")}/analytics/anonymous-events`, {
+      if (status.state === "UNACTIVATED" || status.reason === "free_open_source") {
+        const anonymousId = status.reason === "free_open_source"
+          ? this.sessionAnonymousId
+          : createHash("sha256").update(`iterlay-analytics-v1\x00${await this.license.getDeviceId()}`).digest("hex");
+        await this.fetchImpl(`${this.baseUrl.trim().replace(/\/+$/, "")}/analytics/anonymous-events`, {
           method: "POST",
           headers: { Accept: "application/json", "Content-Type": "application/json" },
           body: JSON.stringify({ anonymousId, appVersion: "desktop", events: JSON.parse(payload).events }),
@@ -32,7 +36,7 @@ export class ManagerProductAnalyticsClient {
         return;
       }
       const auth = await this.license.createSignedRequest("analytics.events", payload);
-      await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, "")}/analytics/events`, {
+      await this.fetchImpl(`${this.baseUrl.trim().replace(/\/+$/, "")}/analytics/events`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: `{"auth":${JSON.stringify(auth)},"payload":${payload}}`,

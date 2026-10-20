@@ -2,6 +2,7 @@ import { readUiSource as readFileSync } from "./helpers/ui-source";
 import { describe, expect, it } from "vitest";
 
 const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+const legacyGeneration = readFileSync(new URL("../src/features/plugins/legacy-character-generation.ts", import.meta.url), "utf8");
 const board = readFileSync(new URL("../src/components/canvas/CanvasBoard.tsx", import.meta.url), "utf8");
 const card = readFileSync(new URL("../src/components/canvas/ComicDramaNode.tsx", import.meta.url), "utf8");
 const projectCard = readFileSync(new URL("../src/components/canvas/ComicDramaEntryNode.tsx", import.meta.url), "utf8");
@@ -37,9 +38,9 @@ describe("comic drama board entry and paid confirmation", () => {
 
   it("keeps quoted submissions behind the unified confirmation", () => {
     expect(app).toContain("requestGenerationConfirmation");
-    expect(app).toContain("Quote expiry");
-    expect(app).toContain("Promise.allSettled");
-    expect(app).toContain('status: "failed", generationError: message');
+    expect(app).toContain("报价有效期");
+    expect(legacyGeneration).toContain("Promise.allSettled");
+    expect(legacyGeneration).toContain('status: "failed", generationError: message');
     expect(card).toContain("逐项重试");
     expect(app).not.toContain('window.confirm("确认并生成');
   });

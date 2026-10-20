@@ -134,6 +134,8 @@ export interface AppSettings {
   downloadDirectory?: string;
   /** CLI 未指定画板时的默认目标；空字符串表示使用「CLI 创作」。 */
   cliDefaultBoardId?: string;
+  /** 接收画板评论和修改上下文的 Coding Agent。 */
+  defaultCodingAgent?: import("../agent-integration.js").CodingAgentId;
   /** 版本分离默认保留原版本栈。 */
   versionSeparationMode?: VersionSeparationMode;
   /** 画板底部主生成按钮样式，默认 folded。 */

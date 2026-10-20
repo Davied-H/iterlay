@@ -1,3 +1,4 @@
+import { getUiTextLocale } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -53,7 +54,7 @@ function isPausedOrTerminal(phase: PiTemplateAgentPhase): boolean {
 }
 
 function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  return new Date(timestamp).toLocaleString(getUiTextLocale(), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function formatDuration(startedAt: number, updatedAt: number): string {
@@ -189,7 +190,7 @@ function TaskDetail({ task }: { task: PiTemplateAgentTask }): React.ReactElement
       <div className="flex items-start justify-between gap-5">
         <div className="min-w-0">
           <p className="text-[11px] font-medium text-muted-foreground">{uiText("任务详情")}</p>
-          <h3 className="mt-1 truncate text-base font-semibold">{task.templateName || "模板智能创建"}</h3>
+          <h3 className="mt-1 truncate text-base font-semibold">{task.templateName || uiText("模板智能创建")}</h3>
           <p className="mt-2 max-w-[62ch] text-xs leading-5 text-muted-foreground">{task.detail}</p>
         </div>
         <span className={cn("inline-flex h-6 shrink-0 items-center rounded-md border px-2 text-[11px] font-medium", status.className)}>

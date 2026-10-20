@@ -1224,7 +1224,7 @@ describe("Sub2ApiImageProvider", () => {
     }]);
   });
 
-  it("constructs an OpenAI-compatible generation request and parses base64 images", async () => {
+  it.each(["gpt-image-1", "gpt-image-2.5-sunburst", "gpt-image-2.5-flare"])("constructs a transparent PNG generation request for %s", async (model) => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1237,7 +1237,7 @@ describe("Sub2ApiImageProvider", () => {
       {
         workflowMode: "generate",
         prompt: "一只透明玻璃茶杯",
-        model: "gpt-image-1",
+        model,
         size: "1024x1024",
         n: 1,
         quality: "high",
@@ -1252,7 +1252,7 @@ describe("Sub2ApiImageProvider", () => {
         type: "openai-compatible",
         baseUrl: "https://proxy.example.com",
         generationEndpoint: "/v1/images/generations",
-        model: "gpt-image-1",
+        model,
         supportsReferenceImages: true
       },
       "sk-test"
@@ -1268,7 +1268,7 @@ describe("Sub2ApiImageProvider", () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body).toMatchObject({
       prompt: "一只透明玻璃茶杯",
-      model: "gpt-image-1",
+      model,
       size: "1024x1024",
       n: 1,
       quality: "high",
@@ -1609,7 +1609,12 @@ describe("Sub2ApiImageProvider", () => {
     ]);
   });
 
-  it.each(["generate", "edit"] as const)("sends %s-mode references to the Images edits endpoint as multipart data", async (workflowMode) => {
+  it.each([
+    { workflowMode: "generate", model: "gpt-image-2" },
+    { workflowMode: "edit", model: "gpt-image-2" },
+    { workflowMode: "edit", model: "gpt-image-2.5-sunburst" },
+    { workflowMode: "edit", model: "gpt-image-2.5-flare" }
+  ] as const)("sends $workflowMode references with transparent PNG parameters for $model", async ({ workflowMode, model }) => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1622,10 +1627,12 @@ describe("Sub2ApiImageProvider", () => {
       {
         workflowMode,
         prompt: "change only the cup lid; keep all else unchanged",
-        model: "gpt-image-2",
+        model,
         size: "1024x1024",
         n: 1,
         quality: "high",
+        background: "transparent",
+        outputFormat: "png",
         referenceImages: [
           {
             name: "cup.png",
@@ -1642,7 +1649,7 @@ describe("Sub2ApiImageProvider", () => {
         baseUrl: "https://proxy.example.com",
         generationEndpoint: "/v1/images/generations",
         referenceEndpoint: "/v1/images/edits",
-        model: "gpt-image-2",
+        model,
         supportsReferenceImages: true
       },
       "sk-test"
@@ -1656,6 +1663,10 @@ describe("Sub2ApiImageProvider", () => {
         body: expect.any(FormData)
       })
     );
+    const form = fetchMock.mock.calls[0][1].body as FormData;
+    expect(form.get("model")).toBe(model);
+    expect(form.get("background")).toBe("transparent");
+    expect(form.get("output_format")).toBe("png");
   });
 
   it("parses top-level result image payloads", async () => {

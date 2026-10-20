@@ -1,5 +1,15 @@
 export type CodingAgentId = "codex" | "claude-code";
 
+export interface CommentAgentHandoffInput {
+  boardId: string;
+  commentIds: string[];
+}
+export interface CommentAgentHandoffResult {
+  agent: CodingAgentId;
+  contextPath: string;
+  delivery: "draft" | "terminal";
+}
+
 export interface AgentSkillUpgradeDetail {
   client: CodingAgentId;
   skillPath: string;

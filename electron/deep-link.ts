@@ -19,8 +19,11 @@ export function registerDeepLinkIpc(): void {
   if (ipcRegistered) return;
   ipcRegistered = true;
   ipcMain.handle(ITERLAY_DEEP_LINK_READY_CHANNEL, (event) => {
-    readyWebContents.add(event.sender.id);
-    event.sender.once("destroyed", () => readyWebContents.delete(event.sender.id));
+    const sender = event.sender;
+    if (!readyWebContents.has(sender.id)) {
+      readyWebContents.add(sender.id);
+      sender.once("destroyed", () => readyWebContents.delete(sender.id));
+    }
     return pendingUrls.splice(0);
   });
 }

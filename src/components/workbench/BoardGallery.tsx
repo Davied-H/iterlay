@@ -544,7 +544,7 @@ function GallerySourceMenu({
               disabled={option.value !== "all" && counts[option.value] === 0}
               className="gap-3 text-xs text-white/72 focus:bg-white/[0.09] focus:text-white data-[disabled]:opacity-35"
             >
-              <span className="flex-1">{option.label}</span>
+              <span className="flex-1">{uiText(option.label)}</span>
               <span className="tabular-nums text-white/38">{counts[option.value]}</span>
             </DropdownMenuRadioItem>
           ))}

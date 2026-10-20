@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const electronMocks = vi.hoisted(() => ({
@@ -25,6 +26,8 @@ vi.mock("electron", () => ({
 
 describe("deep-link main-process dispatch", () => {
   beforeEach(() => {
+    vi.resetModules();
+    electronMocks.handle.mockClear();
     electronMocks.focusedWindow = undefined;
     electronMocks.getFocusedWindow.mockImplementation(() => electronMocks.focusedWindow);
     electronMocks.getAllWindows.mockReturnValue([]);
@@ -53,4 +56,35 @@ describe("deep-link main-process dispatch", () => {
     expect(electronMocks.focusedWindow.restore).toHaveBeenCalledOnce();
     expect(electronMocks.focusedWindow.focus).toHaveBeenCalledOnce();
   });
+
+  it("registers only one destruction listener across repeated renderer readiness and releases its entry", async () => {
+    const { dispatchDeepLink, registerDeepLinkIpc } = await import("../electron/deep-link.js");
+    registerDeepLinkIpc();
+    registerDeepLinkIpc();
+    expect(electronMocks.handle).toHaveBeenCalledOnce();
+    const readyHandler = electronMocks.handle.mock.calls[0][1] as (event: unknown) => string[];
+    const sender = Object.assign(new EventEmitter(), { id: 19 });
+    for (let attempt = 0; attempt < 20; attempt += 1) expect(readyHandler({ sender })).toEqual([]);
+    expect(sender.listenerCount("destroyed")).toBe(1);
+
+    const send = vi.fn();
+    electronMocks.focusedWindow = {
+      webContents: { id: sender.id, send }, isMinimized: vi.fn(() => false),
+      restore: vi.fn(), show: vi.fn(), focus: vi.fn()
+    };
+    dispatchDeepLink("iterlay://assets");
+    expect(send).toHaveBeenCalledOnce();
+    sender.emit("destroyed");
+    expect(sender.listenerCount("destroyed")).toBe(0);
+    dispatchDeepLink("iterlay://boards/after-destruction");
+    expect(send).toHaveBeenCalledOnce();
+
+    const replacement = Object.assign(new EventEmitter(), { id: sender.id });
+    expect(readyHandler({ sender: replacement })).toEqual(["iterlay://boards/after-destruction"]);
+    expect(replacement.listenerCount("destroyed")).toBe(1);
+    dispatchDeepLink("iterlay://assets");
+    expect(send).toHaveBeenCalledTimes(2);
+    replacement.emit("destroyed");
+  });
+
 });

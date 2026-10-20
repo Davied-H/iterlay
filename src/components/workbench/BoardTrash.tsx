@@ -81,7 +81,7 @@ export function BoardTrash({
 
   return (
     <div className="library-content flex h-full min-h-0 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border/80 px-4 [-webkit-app-region:drag]">
+      <header className="workbench-page-header flex h-12 shrink-0 items-center gap-3 px-4 [-webkit-app-region:drag]">
         <span className="text-sm font-semibold">{uiText("回收站")}</span>
         <span className="text-xs tabular-nums text-muted-foreground">{boards.length} {uiText("个画板")}</span>
         <div className="ml-auto flex items-center gap-2 [-webkit-app-region:no-drag]">

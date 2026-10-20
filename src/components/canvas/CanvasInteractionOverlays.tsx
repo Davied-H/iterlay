@@ -147,8 +147,8 @@ export function CanvasNodeCreateMenu({
               <Icon aria-hidden className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold text-foreground">{item.label}</span>
-              {item.description ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{item.description}</span> : null}
+              <span className="block truncate text-xs font-semibold text-foreground">{uiText(item.label)}</span>
+              {item.description ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{uiText(item.description)}</span> : null}
             </span>
             <Plus aria-hidden className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           </button>

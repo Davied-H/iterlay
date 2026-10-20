@@ -46,6 +46,9 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleHelp,
+  Image as ImageIcon,
+  MessageSquare,
+  Video,
   Loader2,
   LogIn,
   LogOut,
@@ -1442,18 +1445,6 @@ function DefaultModelRow({
   );
   return (
     <div className="model-default-row">
-      <div className="model-default-label">
-        <h4>{uiText(KIND_LABELS[kind])}</h4>
-        <p>
-          {uiText(
-            kind === "image"
-              ? "生成、编辑与参考图"
-              : kind === "text"
-                ? "对话、提示词与图片分析"
-                : "生成、续写与重混"
-          )}
-        </p>
-      </div>
       <Popover
         open={open}
         onOpenChange={(next) => {
@@ -1468,23 +1459,32 @@ function DefaultModelRow({
             disabled={disabled}
             aria-label={uiText("选择{{ui:0}}", [uiText(KIND_LABELS[kind])])}
           >
-            {current && currentState?.ready ? (
-              <>
-                <span>
-                  <strong title={current.model}>{current.model || uiText("平台默认模型")}</strong>
-                  <span>{current.provider.name}</span>
-                </span>
-              </>
-            ) : (
-              <span className="model-default-placeholder">
-                {uiText(currentState ? REASONS[currentState.reason] : "选择模型")}
+            <span className="model-default-card-heading">
+              <span className="model-default-card-icon" aria-hidden="true">
+                {kind === "image" ? <ImageIcon /> : kind === "text" ? <MessageSquare /> : <Video />}
               </span>
-            )}
-            {saving ? (
-              <Loader2 className="model-select-chevron animate-spin" />
-            ) : (
-              <ChevronDown className="model-select-chevron" />
-            )}
+              <span>{uiText(KIND_LABELS[kind])}</span>
+              {saving ? (
+                <Loader2 className="model-select-chevron animate-spin" />
+              ) : (
+                <ChevronDown className="model-select-chevron" />
+              )}
+            </span>
+            <span className="model-default-card-model">
+              <strong title={current?.model}>
+                {current ? current.model || uiText("平台默认模型") : uiText("选择模型")}
+              </strong>
+              <span title={current?.provider.name}>
+                {current ? current.provider.name : uiText(
+                  kind === "image" ? "生成、编辑与参考图" : kind === "text"
+                    ? "对话、提示词与图片分析" : "生成、续写与重混"
+                )}
+              </span>
+            </span>
+            <span className={cn("model-default-card-status", currentState?.ready && "model-default-card-status--ready")}>
+              <span className="model-status-dot" aria-hidden="true" />
+              {uiText(currentState ? REASONS[currentState.reason] : "选择模型")}
+            </span>
           </button>
         </PopoverTrigger>
         <PopoverContent

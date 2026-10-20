@@ -1,4 +1,7 @@
 export type CanvasShortcutAction =
+  | "create-image"
+  | "create-video"
+  | "create-text"
   | "select-all"
   | "undo"
   | "redo"
@@ -42,10 +45,15 @@ export function resolveCanvasShortcut(input: CanvasShortcutInput): CanvasShortcu
   }
 
   if (input.commandKey || input.altKey) return null;
-  if (input.shiftKey && key === "1") return "fit-canvas";
-  if (input.shiftKey && key === "2") return "fit-selection";
+  if (input.shiftKey && (key === "1" || key === "!")) return "fit-canvas";
+  if (input.shiftKey && (key === "2" || key === "@")) return "fit-selection";
   if (input.key === "?") return "show-shortcuts";
-  if (input.shiftKey) return null;
+  if (input.shiftKey) {
+    if (key === "i") return "create-image";
+    if (key === "v") return "create-video";
+    if (key === "t") return "create-text";
+    return null;
+  }
 
   if (key === "e") return "edit";
   if (key === "r") return "reference";

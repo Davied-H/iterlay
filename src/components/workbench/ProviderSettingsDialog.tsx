@@ -1,3 +1,4 @@
+import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 import { AiSettingsNavigation, isAiSettingsSection, type AiSettingsSection } from "./settings/AiSettingsNavigation";
 import "./settings/settings-navigation.css";
 import { SettingsPageHeader } from "./settings/SettingsPrimitives";
@@ -161,6 +162,8 @@ export function ProviderSettingsDialog({
   const assistantWidth = useAssistantWidth();
   const updateCenter = useUpdateCenter();
   const [section, setSection] = useState<Section>("board");
+  const boardPages = ["生成与输入", "画板工具", "图片操作", "画布显示与性能", "版本管理"] as const;
+  const [boardPage, setBoardPage] = useState<(typeof boardPages)[number]>("生成与输入");
   const [memoryStats, setMemoryStats] = useState<AssistantMemoryStats | null>(null);
   const [clearingMemory, setClearingMemory] = useState(false);
   const [memoryManagerOpen, setMemoryManagerOpen] = useState(false);
@@ -246,7 +249,7 @@ export function ProviderSettingsDialog({
 
 
   useEffect(() => {
-    if (!open || bridgeError || !boardAssistantAgentModeAvailable) return;
+    if (!open || bridgeError || section !== "pi-agent") return;
     let disposed = false;
     setPiAgentResourceError(null);
     void getImageWorkbenchApi().getPiAgentResources()
@@ -266,7 +269,7 @@ export function ProviderSettingsDialog({
     return () => {
       disposed = true;
     };
-  }, [boardAssistantAgentModeAvailable, bridgeError, open]);
+  }, [bridgeError, open, section]);
 
   async function openAssistantSkillEditor(id: string): Promise<void> {
     setAssistantSkillBusy(true);
@@ -517,10 +520,10 @@ export function ProviderSettingsDialog({
         className="workbench-settings-dialog max-w-none gap-0 overflow-hidden border p-0 outline-none data-[state=open]:duration-150 data-[state=open]:zoom-in-95"
         data-section={section}
       >
-        <DialogTitle className="sr-only">{section === "provider" ? uiText("AI 模型") : section === "ai" ? uiText("创作助手") : section === "pi-agent" ? uiText("工具与技能") : section === "agent" ? "Coding Agent" : section === "system" ? t("settings.system.title") : t("settings.board.title")}</DialogTitle>
+        <DialogTitle className="sr-only">{section === "provider" ? uiText("模型与服务") : section === "ai" ? uiText("创作助手") : section === "pi-agent" ? uiText("助手能力") : section === "agent" ? "Coding Agent" : section === "system" ? t("settings.system.title") : uiText(boardPage)}</DialogTitle>
         <DialogDescription className="sr-only">{t("settings.categories")}</DialogDescription>
         <div className="settings-frame">
-          {/* 左栏：只保留设置一级导航。 */}
+          {/* 左栏：一级分类与当前分类的二级配置页。 */}
           <aside className="settings-sidebar">
             <div className="settings-sidebar-heading">
               <Settings2 className="text-foreground" aria-label={t("settings.title")} />
@@ -528,7 +531,11 @@ export function ProviderSettingsDialog({
             </div>
             <nav className="settings-navigation" aria-label={t("settings.categories")}>
               <NavItem icon={LayoutDashboard} label={t("settings.board.title")} active={section === "board"} onClick={() => requestSection("board")} />
+              {section === "board" ? <div className="settings-subnavigation" role="group" aria-label={t("settings.board.title")}>
+                {boardPages.map((page) => <button key={page} type="button" aria-current={boardPage === page ? "page" : undefined} onClick={() => setBoardPage(page)}>{uiText(page)}</button>)}
+              </div> : null}
               <NavItem icon={Sparkles} label={uiText("AI 设置")} active={aiSection} onClick={() => requestSection(lastAiSectionRef.current)} />
+              {aiSection ? <AiSettingsNavigation value={section} panelId={aiPanelId} onChange={requestSection} /> : null}
               <NavItem icon={Plug} label={uiText("Coding Agent")} active={section === "agent"} onClick={() => requestSection("agent")} />
               <NavItem icon={Settings2} label={t("settings.system.title")} active={section === "system"} onClick={() => requestSection("system")} />
             </nav>
@@ -538,12 +545,11 @@ export function ProviderSettingsDialog({
 
           {/* 右栏：当前 Provider 配置或其他设置内容。 */}
           <section className="settings-workspace">
-            <div className="settings-content-panel" id={aiPanelId} role={aiSection ? "tabpanel" : undefined} aria-label={aiSection ? uiText(section === "provider" ? "模型与服务" : section === "ai" ? "创作助手" : "工具与技能") : undefined}>
+            <div className="settings-content-panel" id={aiPanelId} role="region" aria-label={aiSection ? uiText(section === "provider" ? "模型与服务" : section === "ai" ? "创作助手" : "助手能力") : section === "board" ? uiText(boardPage) : undefined}>
             {!contentReady ? null : section === "provider" ? (
               <AiModelsSettings
                 ref={modelSettingsRef}
                 embedded
-                navigation={<AiSettingsNavigation value="provider" panelId={aiPanelId} onChange={requestSection} />}
                 entryPoint={entryPoint}
                 providers={providers}
                 activeProviderId={activeProviderId}
@@ -559,18 +565,16 @@ export function ProviderSettingsDialog({
             ) : (
               <>
                 {section !== "pi-agent" && section !== "agent" ? <SettingsPageHeader
-                  title={section === "ai" ? uiText("创作助手") : section === "system" ? t("settings.system.title") : t("settings.board.title")}
-                  description={uiText(section === "ai" ? "管理助手的交互方式、编辑建议和本地记忆。" : section === "system" ? "管理外观、存储、通知和应用更新。" : "调整创作操作、图片处理和画布显示。")}
+                  title={section === "ai" ? uiText("创作助手") : section === "system" ? t("settings.system.title") : uiText(boardPage)}
+                  description={section === "board" ? undefined : uiText(section === "ai" ? "管理助手的交互方式、编辑建议和本地记忆。" : "管理外观、存储、通知和应用更新。")}
                 /> : null}
-                {section === "ai" ? <AiSettingsNavigation value="ai" panelId={aiPanelId} onChange={requestSection} /> : null}
-                <PageContainer key={section} className={cn("min-h-0 flex-1", (section === "pi-agent" || section === "agent") && "flex flex-col overflow-hidden")}>
+                <PageContainer key={section === "board" ? boardPage : section} className={cn("min-h-0 flex-1", (section === "pi-agent" || section === "agent") && "flex flex-col overflow-hidden")}>
                   <div className={cn(
                     "flex w-full flex-col",
-                    section === "pi-agent" || section === "agent" ? "min-h-0 flex-1" : "settings-page-body"
+                    section === "pi-agent" || section === "agent" ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "settings-page-body"
                   )}>
                   {section === "pi-agent" ? (
                   <PiAgentSettingsPanel
-                    navigation={<AiSettingsNavigation value="pi-agent" panelId={aiPanelId} onChange={requestSection} />}
                     available={boardAssistantAgentModeAvailable}
                     enabled={boardAssistantAgentModeEnabled}
                     model={boardAssistantAgentModeModel}
@@ -586,6 +590,7 @@ export function ProviderSettingsDialog({
                     maxTurns={piAgentMaxTurns}
                     webSearchMaxResults={piAgentWebSearchMaxResults}
                     onEnabledChange={onBoardAssistantAgentModeEnabledChange}
+                    onConfigureModel={() => requestSection("provider")}
                     onBuiltinToolsChange={onPiAgentBuiltinToolsChange}
                     onIterlayToolsChange={onPiAgentIterlayToolsChange}
                     onSkillPathsChange={onPiAgentSkillPathsChange}
@@ -594,8 +599,8 @@ export function ProviderSettingsDialog({
                     onCustomExtensionPathsChange={onPiAgentCustomExtensionPathsChange}
                     onMaxTurnsChange={onPiAgentMaxTurnsChange}
                     onWebSearchMaxResultsChange={onPiAgentWebSearchMaxResultsChange}
-                    onRefresh={() => void getImageWorkbenchApi().getPiAgentResources()
-                      .then(setPiAgentResources)
+                    onRefresh={() => void Promise.all([getImageWorkbenchApi().getPiAgentResources(), getImageWorkbenchApi().listAssistantSkills()])
+                      .then(([resources, skills]) => { setPiAgentResources(resources); setAssistantSkills(skills); setPiAgentResourceError(null); })
                       .catch((error) => setPiAgentResourceError(getWorkbenchErrorMessage(error, "无法刷新资源。")))}
                     onEditAssistantSkill={(id) => void openAssistantSkillEditor(id)}
                   />
@@ -789,7 +794,7 @@ export function ProviderSettingsDialog({
                     </SettingRow>
                   </SettingsGroup>
 
-                  <SettingsGroup title={uiText("在线分享")}>
+                  {ONLINE_SHARING_AVAILABLE ? <SettingsGroup title={uiText("在线分享")}>
                     <SettingRow
                       interactive
                       title={uiText("快速分享图片")}
@@ -801,7 +806,7 @@ export function ProviderSettingsDialog({
                         />
                       }
                     />
-                  </SettingsGroup>
+                  </SettingsGroup> : null}
 
                   <SettingsGroup title={uiText("通知")}>
                     <SettingRow
@@ -899,7 +904,7 @@ export function ProviderSettingsDialog({
                       <ChoiceGrid
                         columns={3}
                         disabled={!boardAssistantEnabled || !boardAssistantIntentSuggestionsEnabled}
-                        ariaLabel="推荐问题数量"
+                        ariaLabel={uiText("推荐问题数量")}
                         value={String(boardAssistantIntentSuggestionCount) as "3" | "4" | "5"}
                         onChange={(value) => {
                           onBoardAssistantIntentSuggestionCountChange(
@@ -907,9 +912,9 @@ export function ProviderSettingsDialog({
                           );
                         }}
                         options={[
-                          { value: "3", title: "3 条", description: "默认" },
-                          { value: "4", title: "4 条" },
-                          { value: "5", title: "5 条", description: "最多" }
+                          { value: "3", title: uiText("3 条"), description: uiText("默认") },
+                          { value: "4", title: uiText("4 条") },
+                          { value: "5", title: uiText("5 条"), description: uiText("最多") }
                         ]}
                       />
                     </SettingRow>
@@ -950,13 +955,13 @@ export function ProviderSettingsDialog({
                       <ChoiceGrid
                         columns={3}
                         disabled={!memoryEnabled}
-                        ariaLabel="记忆使用程度"
+                        ariaLabel={uiText("记忆使用程度")}
                         value={memoryUsageLevel}
                         onChange={onMemoryUsageLevelChange}
                         options={[
-                          { value: "cautious", title: "谨慎", description: "当前画板 · 近 7 天" },
-                          { value: "balanced", title: "平衡", description: "相关场景 · 近 90 天" },
-                          { value: "active", title: "积极", description: "更广范围 · 近 1 年" }
+                          { value: "cautious", title: uiText("谨慎"), description: uiText("当前画板 · 近 7 天") },
+                          { value: "balanced", title: uiText("平衡"), description: uiText("相关场景 · 近 90 天") },
+                          { value: "active", title: uiText("积极"), description: uiText("更广范围 · 近 1 年") }
                         ]}
                       />
                     </SettingRow>
@@ -994,7 +999,8 @@ export function ProviderSettingsDialog({
                   </>
                   ) : (
                   <>
-                  <SettingsGroup title={uiText("生成与输入")}>
+                  {boardPage === "生成与输入" ? (
+                  <SettingsGroup className="settings-group--subpage" title={uiText("生成与输入")}>
                     <SettingRow title={uiText("生成按钮样式")} description={uiText("选择画板底部主生成按钮的视觉效果。")}>
                       <div className="settings-generate-options" role="radiogroup" aria-label={uiText("生成按钮样式")}>
                         {(
@@ -1053,8 +1059,10 @@ export function ProviderSettingsDialog({
                       control={<Switch checked={boardSmartSuggestionsEnabled} onCheckedChange={onBoardSmartSuggestionsEnabledChange} />}
                     />
                   </SettingsGroup>
+                  ) : null}
 
-                  <SettingsGroup title={uiText("画板工具")}>
+                  {boardPage === "画板工具" ? (
+                  <SettingsGroup className="settings-group--subpage" title={uiText("画板工具")}>
                     <SettingRow
                       interactive
                       title={uiText("画板评论")}
@@ -1068,20 +1076,22 @@ export function ProviderSettingsDialog({
                       control={<Switch aria-label={uiText("画廊")} checked={boardGalleryEnabled} onCheckedChange={onBoardGalleryEnabledChange} />}
                     />
                   </SettingsGroup>
+                  ) : null}
 
-                  <SettingsGroup title={uiText("图片操作")}>
+                  {boardPage === "图片操作" ? (
+                  <SettingsGroup className="settings-group--subpage" title={uiText("图片操作")}>
                     <SettingRow
                       title={uiText("复制图片格式")}
                       description={uiText("设置“复制原图”和对应快捷键写入系统剪贴板的格式。")}
                     >
                       <ChoiceGrid
                         columns={2}
-                        ariaLabel="复制图片格式"
+                        ariaLabel={uiText("复制图片格式")}
                         value={copyImageFormat}
                         onChange={onCopyImageFormatChange}
                         options={[
-                          { value: "png", title: "PNG", description: "高清静态图，保留完整色彩" },
-                          { value: "gif", title: "GIF", description: "保留动图；静态图转为单帧 GIF" }
+                          { value: "png", title: "PNG", description: uiText("高清静态图，保留完整色彩") },
+                          { value: "gif", title: "GIF", description: uiText("保留动图；静态图转为单帧 GIF") }
                         ]}
                       />
                     </SettingRow>
@@ -1110,31 +1120,33 @@ export function ProviderSettingsDialog({
                     <SettingRow title={uiText("双击画板图片")} description={uiText("设置在画板中双击图片时触发的快捷操作。")}>
                       <ChoiceGrid
                         columns={3}
-                        ariaLabel="双击画板图片"
+                        ariaLabel={uiText("双击画板图片")}
                         value={imageDoubleClickAction}
                         onChange={onImageDoubleClickActionChange}
                         options={[
-                          { value: "edit", title: "进入编辑", description: "打开编辑模式" },
-                          { value: "reference", title: "添加到引用", description: "加入输入框参考图" },
-                          { value: "focus", title: "聚焦图片", description: "居中并放大（默认）" }
+                          { value: "edit", title: uiText("进入编辑"), description: uiText("打开编辑模式") },
+                          { value: "reference", title: uiText("添加到引用"), description: uiText("加入输入框参考图") },
+                          { value: "focus", title: uiText("聚焦图片"), description: uiText("居中并放大（默认）") }
                         ]}
                       />
                     </SettingRow>
                     <SettingRow title={uiText("编辑态查看图片信息")} description={uiText("编辑模式下点击图片，用哪种方式展示它的提示词与引用图。")}>
                       <ChoiceGrid
                         columns={2}
-                        ariaLabel="编辑态查看图片信息"
+                        ariaLabel={uiText("编辑态查看图片信息")}
                         value={editInfoMode}
                         onChange={onEditInfoModeChange}
                         options={[
-                          { value: "flip", title: "图片翻转", description: "点击图片翻到背面看提示词" },
-                          { value: "panel", title: "右侧面板", description: "右侧滑出，打字机展示提示词" }
+                          { value: "flip", title: uiText("图片翻转"), description: uiText("点击图片翻到背面看提示词") },
+                          { value: "panel", title: uiText("右侧面板"), description: uiText("右侧滑出，打字机展示提示词") }
                         ]}
                       />
                     </SettingRow>
                   </SettingsGroup>
+                  ) : null}
 
-                  <SettingsGroup title={uiText("画布显示与性能")}>
+                  {boardPage === "画布显示与性能" ? (
+                  <SettingsGroup className="settings-group--subpage" title={uiText("画布显示与性能")}>
                     <SettingRow
                       interactive
                       title={t("settings.canvasRelationshipHoverHighlight.title")}
@@ -1154,21 +1166,24 @@ export function ProviderSettingsDialog({
                       control={<Switch checked={canvasThumbnailPreview} onCheckedChange={onCanvasThumbnailPreviewChange} />}
                     />
                   </SettingsGroup>
+                  ) : null}
 
-                  <SettingsGroup title={uiText("版本管理")}>
+                  {boardPage === "版本管理" ? (
+                  <SettingsGroup className="settings-group--subpage" title={uiText("版本管理")}>
                     <SettingRow title={uiText("版本分离方式")} description={uiText("设置从版本栈分离单个版本或全部版本时，是否保留原版本栈。")}>
                       <ChoiceGrid
                         columns={2}
-                        ariaLabel="版本分离方式"
+                        ariaLabel={uiText("版本分离方式")}
                         value={versionSeparationMode}
                         onChange={onVersionSeparationModeChange}
                         options={[
-                          { value: "copy", title: "复制分离", description: "保留原版本栈（默认）" },
-                          { value: "extract", title: "直接分离", description: "从原版本栈移出" }
+                          { value: "copy", title: uiText("复制分离"), description: uiText("保留原版本栈（默认）") },
+                          { value: "extract", title: uiText("直接分离"), description: uiText("从原版本栈移出") }
                         ]}
                       />
                     </SettingRow>
                   </SettingsGroup>
+                  ) : null}
                   </>
                   )}
                   </div>
@@ -1190,7 +1205,7 @@ export function ProviderSettingsDialog({
       >
         <DialogContent className="settings-aux-dialog flex h-[min(760px,90vh)] max-w-3xl flex-col overflow-hidden p-0">
           <DialogHeader className="border-b px-5 py-4 pr-12">
-            <DialogTitle>{assistantSkillEditor?.id ?? "助手 Skill"}</DialogTitle>
+            <DialogTitle>{assistantSkillEditor?.id ?? uiText("助手 Skill")}</DialogTitle>
             <DialogDescription>
               {uiText("保存后创建用户覆盖副本，只影响新会话。name 必须保持不变。")}</DialogDescription>
           </DialogHeader>

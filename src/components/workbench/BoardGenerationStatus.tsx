@@ -39,7 +39,7 @@ export function BoardGenerationStatus({
   const allGenerating = tasks.every((task) => task.mode === "generate");
   const queuedCount = tasks.filter((task) => task.status === "queued").length;
   const allQueued = queuedCount === taskCount;
-  const statusLabel = allQueued ? "排队中" : allEditing ? "正在编辑" : allGenerating ? "正在生成" : "正在处理";
+  const statusLabel = uiText(allQueued ? "排队中" : allEditing ? "正在编辑" : allGenerating ? "正在生成" : "正在处理");
 
   useEffect(() => {
     if (!open) return;
@@ -71,10 +71,10 @@ export function BoardGenerationStatus({
   }
 
   const countLabel = taskCount > 1
-    ? `${taskCount} 个任务 · ${requestedCount} 张`
+    ? uiText("{{ui:0}} 个任务 · {{ui:1}} 张", [taskCount, requestedCount])
     : allEditing
-      ? `${requestedCount} 个版本`
-      : `${requestedCount} 张图片`;
+      ? uiText("{{ui:0}} 个版本", [requestedCount])
+      : uiText("{{ui:0}} 张图片", [requestedCount]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -110,7 +110,7 @@ export function BoardGenerationStatus({
             />
           )}
           {variant === "badge" ? (
-            <span>{allQueued ? statusLabel : statusLabel.replace("正在", "") + "中"}{taskCount > 1 ? ` · ${taskCount}` : ""}</span>
+            <span>{statusLabel}{taskCount > 1 ? ` · ${taskCount}` : ""}</span>
           ) : null}
         </button>
       </PopoverAnchor>
@@ -139,7 +139,7 @@ export function BoardGenerationStatus({
         <div className="mt-2.5 border-t border-border/80 pt-2.5">
           <p className="text-[10px] font-medium text-muted-foreground">{taskCount > 1 ? uiText("最近任务") : uiText("提示词")}</p>
           <p className="mt-1 line-clamp-3 break-words text-xs leading-5 text-foreground">
-            {latestTask.prompt || "未填写提示词"}
+            {latestTask.prompt || uiText("未填写提示词")}
           </p>
         </div>
       </PopoverContent>

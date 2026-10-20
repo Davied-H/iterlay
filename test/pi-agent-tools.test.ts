@@ -18,6 +18,20 @@ describe("Iterlay Pi Agent tools", () => {
     expect(tools.map((tool) => tool.name)).toContain("list_providers");
   });
 
+  it.each(["generate_image", "edit_image"])("exposes and forwards transparent PNG requests through %s", async (name) => {
+    const callBridge = vi.fn(async () => ({ generationId: "transparent-task" }));
+    const tool = createIterlayAgentTools("/tmp/iterlay", { boardId: "board-1" }, callBridge)
+      .find((candidate) => candidate.name === name)!;
+    expect(tool.parameters).toMatchObject({ properties: {
+      background: { type: "string", enum: ["auto", "opaque", "transparent"] }
+    } });
+    const args = { boardId: "board-1", prompt: "Isolate the subject", sourcePath: "/managed/source.png",
+      model: "gpt-image-2.5-sunburst", background: "transparent" };
+    await tool.execute("transparent-call", args);
+    expect(callBridge).toHaveBeenCalledWith("/tmp/iterlay", name, args);
+    expect(tool.description).not.toContain("falls back");
+  });
+
   it("routes tool calls through the local workspace service", async () => {
     const callBridge = vi.fn(async () => ({ boardId: "board-1", nodeCount: 2 }));
     const tool = createIterlayAgentTools("/tmp/iterlay", { boardId: "board-1" }, callBridge)

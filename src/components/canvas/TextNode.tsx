@@ -267,7 +267,7 @@ function NodeHandles({ nodeId, onConnectionHandlePointerDown }: NodeHandlesProps
             />
             <button
               type="button"
-              aria-label={uiText("从{{ui:0}}侧创建连接", [SIDE_LABELS[side]])}
+              aria-label={uiText("从{{ui:0}}侧创建连接", [uiText(SIDE_LABELS[side])])}
               className="nodrag nopan image-node-connection-trigger"
               onPointerDownCapture={(event) => {
                 event.preventDefault();

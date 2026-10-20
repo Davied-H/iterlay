@@ -390,7 +390,7 @@ export function AssetDetail({
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 [-webkit-app-region:drag]">
+      <header className="workbench-page-header flex h-12 shrink-0 items-center gap-3 px-4 [-webkit-app-region:drag]">
         <Button
           variant="ghost"
           size="sm"

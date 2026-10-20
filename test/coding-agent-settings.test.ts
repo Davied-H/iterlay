@@ -24,6 +24,18 @@ async function render(options: { providerReady?: boolean; state?: CodingAgentInt
   return { container, click, onOpenModels, onImportBoard, onOpenBoards, dispose };
 }
 describe("Coding Agent setup", () => {
+  it("persists the default Coding Agent and retains it on save failure", async () => {
+    const f = await render();
+    const select = f.container.querySelector<HTMLSelectElement>('select[aria-label="默认 Coding Agent"]')!;
+    expect(select.value).toBe("codex");
+    await act(async () => { select.value = "claude-code"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(mock.updateSettings).toHaveBeenCalledWith({ defaultCodingAgent: "claude-code" });
+    expect(select.value).toBe("claude-code");
+    mock.updateSettings.mockRejectedValue(new Error("磁盘不可写"));
+    await act(async () => { select.value = "codex"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(select.value).toBe("claude-code");
+    await f.dispose();
+  });
   it("migrates the selected Agent and reports installed Skill without claiming a verified session", async () => {
     const f = await render();
     mock.installAgentSkill.mockResolvedValue({ ...state, clients: [{ ...state.clients[0], skillInstalled: true, skillManaged: true, legacyConfigured: false }] });

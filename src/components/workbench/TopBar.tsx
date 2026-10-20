@@ -163,7 +163,7 @@ export function TopBar({
       {/* 仅中间空白区负责拖窗，避免首次导航后 Electron 的拖拽命中表吞掉操作按钮。 */}
       <header
         data-workspace-topbar=""
-        className="window-titlebar-overlay-safe window-titlebar-overlay-safe--compact sticky inset-x-0 top-0 z-20 flex h-12 items-center gap-3 border-b border-border/60 bg-background/95 px-3 max-[600px]:gap-1"
+        className="workbench-page-header window-titlebar-overlay-safe window-titlebar-overlay-safe--compact sticky inset-x-0 top-0 z-20 flex h-12 items-center gap-3 bg-background/95 px-4 max-[600px]:gap-1"
         data-window-platform={IS_MAC_PLATFORM ? "macos" : "windows"}
       >
         <div className="flex min-w-0 items-center gap-1 overflow-hidden [-webkit-app-region:no-drag]">
@@ -225,7 +225,7 @@ export function TopBar({
                   }}
                   className="flex h-7 min-w-0 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring/45 data-[state=open]:bg-accent disabled:pointer-events-none disabled:opacity-60 [-webkit-app-region:no-drag]"
                 >
-                  <span className="block max-w-[180px] truncate max-[720px]:max-w-[100px] max-[600px]:max-w-[72px] max-[480px]:max-w-[48px]">{boardName ?? "画板"}</span>
+                  <span className="block max-w-[180px] truncate max-[720px]:max-w-[100px] max-[600px]:max-w-[72px] max-[480px]:max-w-[48px]">{boardName ?? uiText("画板")}</span>
                   {openingBoardId ? (
                     <Loader2 aria-hidden className="h-3 w-3 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" />
                   ) : (

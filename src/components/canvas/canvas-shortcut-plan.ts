@@ -8,6 +8,7 @@ export interface CanvasShortcutSnapshot {
   commentMode: boolean;
   gestureActive: boolean;
   canAddReferences: boolean;
+  availableCreateTypes?: readonly CanvasCreateNodeType[];
   availableAssetActions: ReadonlySet<CanvasOptionalAssetShortcut>;
   nodes: readonly Node[];
   edges: readonly Edge[];
@@ -23,7 +24,10 @@ export type CanvasOptionalAssetShortcut =
   | "remove-background"
   | "switch-version";
 
+export type CanvasCreateNodeType = "generation" | "video-generation" | "text";
+
 export type CanvasShortcutCommand =
+  | { type: "create-node"; nodeType: CanvasCreateNodeType }
   | { type: "delete"; nodes: Node[]; connectionIds: string[] }
   | { type: "clear-selection" }
   | { type: "exit-canvas" }
@@ -211,6 +215,14 @@ export function planCanvasShortcut(
   const optionalAssetAction = optionalAssetShortcut(action);
   if (optionalAssetAction && !snapshot.availableAssetActions.has(optionalAssetAction)) {
     return { type: "ignore" };
+  }
+
+  if (action === "create-image" || action === "create-video" || action === "create-text") {
+    if (snapshot.gestureActive) return { type: "ignore" };
+    const nodeType = action === "create-image" ? "generation" : action === "create-video" ? "video-generation" : "text";
+    return snapshot.availableCreateTypes?.includes(nodeType)
+      ? command({ type: "create-node", nodeType })
+      : { type: "ignore" };
   }
 
   if (action === "select-all") return command({ type: "select-all" });

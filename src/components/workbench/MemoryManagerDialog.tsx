@@ -268,7 +268,7 @@ export function MemoryManagerDialog({
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", status.className)}>{status.label}</span>
+                          <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", status.className)}>{uiText(status.label)}</span>
                           <span className="shrink-0 text-[10px] text-muted-foreground">{formatDateTime(memory.lastReinforcedAt)}</span>
                         </div>
                         <p className="mt-2 line-clamp-2 break-words text-xs font-medium leading-5">{memory.content}</p>
@@ -290,7 +290,7 @@ export function MemoryManagerDialog({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                         <span className={cn("rounded px-1.5 py-0.5 font-medium", STATUS_META[selected.status].className)}>
-                          {STATUS_META[selected.status].label}
+                          {uiText(STATUS_META[selected.status].label)}
                         </span>
                         <span>{KIND_LABEL[selected.kind]}</span>
                         <span>·</span>

@@ -290,6 +290,8 @@ const legacyEnglish: Record<string, string> = {
   "当前模型不支持所选生成模式。": "This model does not support the selected generation mode.",
   "参考素材数量超出当前模型支持的上限。": "The number of references exceeds this model’s limit.",
   "当前模型需要视频描述，请填写后再生成。": "This model requires a video description. Enter one before generating.",
+  "先填写视频描述": "Add a video description",
+  "必填": "Required",
   "检查更新失败": "Could not check for updates",
   "正在检查更新": "Checking for updates",
   "更新未完成": "Update incomplete",
@@ -842,6 +844,30 @@ enToZh.set("Boards", "画板");
 enToZh.set("Assets", "素材");
 
 function localizeDynamicChinese(value: string): string | null {
+  // These patterns match app-owned confirmation copy only. Prompt values and
+  // user-authored content are never passed through this formatter.
+  const paidMedia = /^本次将消耗 ([\d.]+) (.+)。确认后 Agent 才会启动冻结的媒体任务。$/u.exec(value);
+  if (paidMedia) return `This will cost ${paidMedia[1]} ${zhToEn.get(paidMedia[2]) ?? paidMedia[2]}. The agent will start the prepared media task only after you confirm.`;
+  const images = (count: string): string => `${count} ${count === "1" ? "image" : "images"}`;
+  const directions = (count: string, total: string): string => `${count} directions (${images(total)} total)`;
+  let confirmation = /^(覆盖|应用)(提示词|编辑指令)并生成？$/u.exec(value);
+  if (confirmation) return `${confirmation[1] === "覆盖" ? "Replace" : "Apply"} ${confirmation[2] === "提示词" ? "prompt" : "edit instructions"} and generate?`;
+  confirmation = /^应用 AI 助手的(提示词|编辑指令)？$/u.exec(value);
+  if (confirmation) return `Apply the assistant's ${confirmation[1] === "提示词" ? "prompt" : "edit instructions"}?`;
+  confirmation = /^确认后才会更新当前(提示词|编辑指令)；应用后仍可撤销。$/u.exec(value);
+  if (confirmation) return `The current ${confirmation[1] === "提示词" ? "prompt" : "edit instructions"} will only be updated after you confirm. You can still undo afterward.`;
+  confirmation = /^生成 (\d+) (张图片|个方向)？$/u.exec(value);
+  if (confirmation) return `Generate ${confirmation[2] === "张图片" ? images(confirmation[1]) : `${confirmation[1]} directions`}?`;
+  confirmation = /^确认后会先(覆盖当前|应用 AI 助手提供的)(提示词|编辑指令)，再提交生成 (?:(\d+) 个方向（共 (\d+) 张图片）|(\d+) 张图片)。$/u.exec(value);
+  if (confirmation) return `After confirmation, ${confirmation[1] === "覆盖当前" ? "replace the current" : "apply the assistant's"} ${confirmation[2] === "提示词" ? "prompt" : "edit instructions"}, then generate ${confirmation[3] ? directions(confirmation[3], confirmation[4]) : images(confirmation[5])}.`;
+  confirmation = /^确认后才会提交生成 (?:(\d+) 个方向（共 (\d+) 张图片）|(\d+) 张图片)。$/u.exec(value);
+  if (confirmation) return `Generation of ${confirmation[1] ? directions(confirmation[1], confirmation[2]) : images(confirmation[3])} will only start after you confirm.`;
+  confirmation = /^确认并生成 (\d+) (张图片|个角色)$/u.exec(value);
+  if (confirmation) return `Confirm and generate ${confirmation[2] === "张图片" ? images(confirmation[1]) : `${confirmation[1]} characters`}`;
+  confirmation = /^生成 (\d+) 张角色图片$/u.exec(value);
+  if (confirmation) return `Generate ${confirmation[1]} character ${confirmation[1] === "1" ? "image" : "images"}`;
+  confirmation = /^(\d+)\s*金豆$/u.exec(value);
+  if (confirmation) return `${confirmation[1]} credits`;
   if (value === "auto") return "Auto";
   const responseStatus = /^服务已响应（HTTP (\d+)）。$/u.exec(value);
   if (responseStatus) return `Service responded (HTTP ${responseStatus[1]}).`;

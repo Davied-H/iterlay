@@ -294,7 +294,7 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
             <span className="video-node-toolbar-meta">{video.hasAudio === false ? uiText("无音频") : uiText("音频")}</span>
             {status === "failed" ? (
               <span className="video-node-toolbar-error" title={video.error}>
-                {video.error || "视频生成失败"}
+                {video.error || uiText("视频生成失败")}
               </span>
             ) : null}
             {status === "failed" && onRetry ? <IconButton label={uiText("重试视频生成")} onClick={() => onRetry(video)}><RotateCcw /></IconButton> : null}
@@ -421,7 +421,7 @@ function NodeHandles({ nodeId, onConnectionHandlePointerDown }: { nodeId: string
       <div key={side} className={`image-node-connection-point image-node-connection-point--${side}`}>
         <Handle type="target" position={position} id={`target-${side}`} isConnectableStart className="image-node-connection-handle image-node-connection-handle--target nodrag nopan" />
         <Handle type="source" position={position} id={`source-${side}`} isConnectableEnd className="image-node-connection-handle image-node-connection-handle--source nodrag nopan" />
-        <button type="button" aria-label={uiText("从{{ui:0}}侧创建连接", [SIDE_LABELS[side]])} className="nodrag nopan image-node-connection-trigger" onPointerDownCapture={(event) => {
+        <button type="button" aria-label={uiText("从{{ui:0}}侧创建连接", [uiText(SIDE_LABELS[side])])} className="nodrag nopan image-node-connection-trigger" onPointerDownCapture={(event) => {
           event.preventDefault(); event.stopPropagation();
           onConnectionHandlePointerDown?.(nodeId, side, event.clientX, event.clientY, event.pointerId);
         }}><Plus aria-hidden className="h-3.5 w-3.5" /></button>

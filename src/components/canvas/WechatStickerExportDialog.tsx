@@ -1,3 +1,4 @@
+import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -359,7 +360,7 @@ export function WechatStickerExportDialog({
               <DialogDescription className="mt-1">
                 {prepared
                   ? prepared.result
-                    ? uiText("素材已下载，可打开本地文件或发送到手机。")
+                    ? uiText("素材已下载，可打开本地文件夹。")
                     : uiText("检查导出结果，然后下载到本地。")
                   : uiText("调整表情效果和导出方式，下一步可预览结果。")}
               </DialogDescription>
@@ -665,7 +666,7 @@ function SettingsPanel(props: SettingsPanelProps): React.ReactElement {
               active={props.personalExportStyle === "separate"}
               onClick={() => props.onPersonalExportStyleChange("separate")}
               title={uiText("逐张导出")}
-              detail={`生成 ${props.imageCount} 个 GIF`}
+              detail={uiText("生成 {{ui:0}} 个 GIF", [props.imageCount])}
             />
           </div>
         </section>
@@ -954,11 +955,18 @@ function ExportPreviewView({
               </div>
               <h3 className="mt-4 text-base font-semibold text-foreground">{uiText("下载到本地")}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {uiText("保存到下载目录后，可打开文件夹或生成手机二维码。")}</p>
+                {uiText("保存到下载目录后，可打开文件夹。")}</p>
               <Button className="mt-5" onClick={onDownload} disabled={downloading}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}
                 {downloading ? uiText("正在下载") : uiText("下载到本地")}
               </Button>
+            </div>
+          ) : !ONLINE_SHARING_AVAILABLE ? (
+            <div className="flex w-full max-w-[272px] flex-col items-center">
+              <CheckCircle2 className="h-6 w-6 text-foreground" />
+              <h3 className="mt-4 text-base font-semibold text-foreground">{uiText("微信表情已下载")}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{uiText("打开本地文件夹，通过微信文件传输助手发送到手机。")}</p>
+              {result?.folderPath ? <Button variant="outline" className="mt-5" onClick={() => onOpenPath(result.folderPath as string)}>{uiText("打开文件夹")}</Button> : null}
             </div>
           ) : qrDataUrl ? (
             <div className="flex w-full max-w-[296px] flex-col items-center">

@@ -58,7 +58,7 @@ export function TimelineWheel({ buckets, selectedKey, onSelect }: TimelineWheelP
             draggable
             soundUrl={CLICK_SOUND_URL}
             soundVolume={0.5}
-            ariaLabel="选择回顾日期"
+            ariaLabel={uiText("选择回顾日期")}
             onChange={(index) => {
               const bucket = buckets[index];
               if (bucket && bucket.key !== selectedKey) onSelect(bucket.key);

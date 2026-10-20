@@ -20,6 +20,16 @@ const permissionByMethod: Record<string, string> = {
   "storage.get": "storage", "storage.set": "storage", "assistant.start": "assistant:comic-drama",
   "assistant.cancel": "assistant:comic-drama", "assistant.respond": "assistant:comic-drama"
 };
+export function validateAssistantFields(input: unknown): Array<{ label: string; value: string }> {
+  if (input === undefined) return [];
+  if (!Array.isArray(input) || input.length > 32) throw new Error("助手上下文无效。");
+  let size = 0;
+  return input.map(field => {
+    if (!field || typeof field !== "object" || typeof field.label !== "string" || typeof field.value !== "string"
+      || field.label.length > 200 || (size += field.value.length) > 2_000_000) throw new Error("助手上下文无效。");
+    return { label: field.label, value: field.value };
+  });
+}
 export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps & { plugin: InstalledPlugin; view?: "tool" | "settings" }) {
   const uiText = useUiText();
   const frame = useRef<HTMLIFrameElement>(null);
@@ -125,13 +135,16 @@ export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps
         starting = true;
         try {
           await host.beforeRequest();
-          const snapshot = await api.getComicDramaBoardSnapshot(host.context.boardId);
+          const currentFields = params.currentFields === undefined && plugin.manifest.id === SHORT_DRAMA_PLUGIN_ID
+            ? (await import("@/compat/plugins/legacy-assistant-context")).legacyAssistantFields(
+                await api.getComicDramaBoardSnapshot(host.context.boardId), host.context.selectedNodeIds)
+            : validateAssistantFields(params.currentFields);
           if (!live) return;
           const emit = (event: Record<string, unknown>) => post({ type: "assistant", event });
           const finish = (event: Record<string, unknown>) => { stream.current = null; emit(event); refresh(); };
           stream.current = startSceneCollaborationStream({
             instruction, locale: host.context.locale as "zh-CN" | "en-US", referenceImages: [],
-            currentFields: [{ label: "完整漫剧节点快照", value: JSON.stringify(snapshot.nodes) }, { label: "选中节点快照", value: JSON.stringify(snapshot.nodes.filter(n => host.context.selectedNodeIds.includes(n.id))) }, { label: "画板 revision", value: String(snapshot.revision) }, { label: "引用连接与分组摘要", value: JSON.stringify({ connections: snapshot.connections, groups: snapshot.groups }) }],
+            currentFields,
             conversation: Array.isArray(params.conversation) ? params.conversation.slice(-16) as Array<{ role: "user" | "assistant"; content: string }> : [],
             conversationId: typeof params.conversationId === "string" ? params.conversationId.slice(0, 100) : crypto.randomUUID(),
             recordInHistory: true, assistantSurface: "comic-drama", memoryQuery: { boardId: host.context.boardId }, workflowMode: "generate", agentMode: true
@@ -157,5 +170,5 @@ export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps
   }, [plugin.manifest.id, view]);
   if (error) return <div role="alert" className="plugin-message">{error}{props.onBack && <button onClick={props.onBack}>{uiText("返回主画板")}</button>}</div>;
   if (!html) return <div className="plugin-message">{uiText("正在加载工具…")}</div>;
-  return <iframe ref={frame} title={`${plugin.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(plugin.manifest.name) : plugin.manifest.name} ${view === "settings" ? uiText("设置") : ""}`} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" src={html} className="plugin-frame" onLoad={() => frame.current?.contentWindow?.postMessage({ source: "iterlay-host", type: "context", context: current.current.context, view }, "*")} />;
+  return <iframe ref={frame} title={`${plugin.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(plugin.manifest.name) : plugin.manifest.name} ${view === "settings" ? uiText("设置") : ""}`.trim()} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" src={html} className="plugin-frame" onLoad={() => frame.current?.contentWindow?.postMessage({ source: "iterlay-host", type: "context", context: current.current.context, view }, "*")} />;
 }

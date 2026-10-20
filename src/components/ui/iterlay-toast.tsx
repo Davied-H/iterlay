@@ -187,8 +187,8 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
           <motion.b {...itemMotion(0.14)}><Check /></motion.b>
         </span>
         <NoticeCopy
-          title={notice.title ?? (notice.count === 1 ? "已复制图片" : `已复制 ${notice.count ?? 1} 张图片`)}
-          detail={notice.detail ?? (notice.shortcut ? "粘贴到鼠标位置" : undefined)}
+          title={notice.title ?? (notice.count === 1 ? uiText("已复制图片") : uiText("已复制 {{ui:0}} 张图片", [notice.count ?? 1]))}
+          detail={notice.detail ?? (notice.shortcut ? uiText("粘贴到鼠标位置") : undefined)}
         />
         {notice.shortcut ? <kbd className="iterlay-notice__keycap">{notice.shortcut}</kbd> : null}
       </>
@@ -226,7 +226,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
           animate={reduceMotion ? undefined : { rotate: 360 }}
           transition={{ duration: 0.85, repeat: Infinity, ease: "linear" }}
         />
-        <NoticeCopy title={uiText("生成仍在继续")} detail="无需重复提交，完成后会自动显示" />
+        <NoticeCopy title={uiText("生成仍在继续")} detail={uiText("无需重复提交，完成后会自动显示")} />
         <span className="iterlay-notice__live"><i />{uiText("进行中")}</span>
       </>
     );
@@ -236,8 +236,8 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
       <>
         <PreviewStack previews={notice.previews} itemMotion={itemMotion} />
         <NoticeCopy
-          title={notice.title ?? `已生成 ${notice.count} 张图片`}
-          detail={notice.detail ?? (notice.boardName ? `已存入「${notice.boardName}」` : "已放入当前画板")}
+          title={notice.title ?? uiText("已生成 {{ui:0}} 张图片", [notice.count])}
+          detail={notice.detail ?? (notice.boardName ? uiText("已存入「{{ui:0}}」", [notice.boardName]) : uiText("已放入当前画板"))}
         />
         {navigate ? (
           <NoticeAction
@@ -273,7 +273,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
     content = (
       <>
         <span className="iterlay-notice__status iterlay-notice__status--warning">!</span>
-        <NoticeCopy title={uiText("已返回 {{ui:0}} / {{ui:1}} 张", [notice.actual, notice.expected])} detail="其余图片未生成" />
+        <NoticeCopy title={uiText("已返回 {{ui:0}} / {{ui:1}} 张", [notice.actual, notice.expected])} detail={uiText("其余图片未生成")} />
         <span className="iterlay-notice__output-slots" aria-hidden="true">
           {Array.from({ length: notice.expected }, (_, index) => (
             <motion.i className={index < notice.actual ? "is-done" : undefined} key={index} {...itemMotion(index * 0.035)}>
@@ -307,7 +307,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
         ) : (
           <span className="iterlay-notice__status iterlay-notice__status--success"><PanelTopOpen aria-hidden="true" /></span>
         )}
-        <NoticeCopy title={uiText("已导入「{{ui:0}}」", [notice.name])} detail={`${notice.imageCount} 张图片`} />
+        <NoticeCopy title={uiText("已导入「{{ui:0}}」", [notice.name])} detail={uiText("{{ui:0}} 张图片", [notice.imageCount])} />
         <NoticeAction
           kind="navigate"
           icon={<ArrowRight aria-hidden="true" />}
@@ -338,7 +338,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
           ))}
           {notice.previews.length === 0 ? <LayoutGrid /> : null}
         </span>
-        <NoticeCopy title={uiText("已切出 {{ui:0}} 张图片", [notice.count])} detail="已放到画布右侧并全部选中" />
+        <NoticeCopy title={uiText("已切出 {{ui:0}} 张图片", [notice.count])} detail={uiText("已放到画布右侧并全部选中")} />
         <NoticeAction
           kind="primary"
           icon={<Download aria-hidden="true" />}
@@ -354,7 +354,7 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
         <motion.span className="iterlay-notice__credit" {...itemMotion(0.04)}>
           <em>{uiText("当前")}</em> {notice.balance} <em>{uiText("/ 需要")}</em> {notice.required}
         </motion.span>
-        <NoticeCopy title={uiText("官方 Provider 余额不足")} detail="Prompt 已为你保留" />
+        <NoticeCopy title={uiText("官方 Provider 余额不足")} detail={uiText("Prompt 已为你保留")} />
         {activate ? (
           <NoticeAction
             kind="recovery"
@@ -369,13 +369,13 @@ function IterlayNotice({ notice, toastId }: { notice: IterlayNoticeProps; toastI
     content = (
       <>
         <motion.span className="iterlay-notice__version" {...itemMotion(0.04)}>{notice.badge ?? `v${notice.version}`}</motion.span>
-        <NoticeCopy title={notice.title ?? "发现新版本"} detail={notice.detail ?? "可稍后查看，不会中断当前工作"} />
+        <NoticeCopy title={notice.title ?? uiText("发现新版本")} detail={notice.detail ?? uiText("可稍后查看，不会中断当前工作")} />
         <NoticeAction
           kind="quiet"
           icon={<ChevronRight aria-hidden="true" />}
           onClick={() => runAction(notice.onOpen)}
         >
-          {notice.actionLabel ?? "查看"}
+          {notice.actionLabel ?? uiText("查看")}
         </NoticeAction>
       </>
     );

@@ -1,10 +1,16 @@
+import { createAssistantSessionService } from "./application/assistant-session.js";
+import { normalizeAssistantReferenceImage } from "./application/assistant-reference-image.js";
+import { normalizeTemplateExtractionScenario, normalizeMemoryQueryValue } from "./application/assistant-request.js";
+export { validateSceneCollaborationRequest } from "./application/assistant-request.js";
+import { createAssetMaintenance } from "./application/asset-maintenance.js";
+import { importBoardBuffer } from "./application/board-import.js";
+import { ONLINE_SHARING_AVAILABLE } from "../shared/sharing-availability.js";
+import { handoffBoardComments } from "./agent-comment-handoff.js";
 import { imageDimensionsFromHeader } from "./media/image-metadata.js";
 import type { PsdLayerInput } from "./media/psd-worker.js";
 import { createImageGenerationCommand } from "./application/image-generation.js";
 import { registerModificationRequestIpc } from "./modification-request-ipc.js";
 import { registerImageDeliveryIpc } from "./image-delivery-ipc.js";
-import { remapGenerationHistorySnapshot } from "../shared/generation-history.js";
-import { remapFinalVersion, remapImageDeliveryMetadata } from "../shared/image-delivery.js";
 import { ImageProviderRegistry } from "./providers/image-registry.js";
 import { checkImageGeneration, checkProviderConnection, localCredentialCheck, newProviderTestResult } from "./providers/diagnostics.js";
 import { registerVideoIpc } from "./video/video-ipc.js";
@@ -36,11 +42,9 @@ import {
   type StartSceneCollaborationPayload
 } from "../shared/assistant.js";
 import { isComicDramaNode } from "../shared/comic-drama.js";
-import type { FeedbackDetail, FeedbackHistoryPage, FeedbackSubmissionResult, FeedbackSubmitRequest } from "../shared/feedback.js";
 import type { MasterGoReconstructionRequest, PrepareMasterGoReconstructionRequest } from "../shared/mastergo-reconstruction.js";
 import { PI_AGENT_LOG_EVENT_CHANNEL } from "../shared/pi-agent-log.js";
 import { getProviderModels } from "../shared/provider-models.js";
-import { constrainReferenceImageDimensions, getAssistantReferenceByteBudget } from "../shared/reference-image-limits.js";
 import {
   AppIconPreference,
   AppSettings,
@@ -50,7 +54,6 @@ import {
   AssetReference,
   AssetVersion,
   AssistantConversationHistoryQuery,
-  AssistantConversationMessage,
   AssistantConversationRecord,
   CodexAuthStatus,
   CollaborateSceneRequest,
@@ -62,7 +65,6 @@ import {
   FalModelOption,
   GenerateImageInput,
   isBoardImageNode,
-  isBoardVideoGenerationNode,
   isBoardVideoNode,
   JobPromptInfo,
   OnlineShareImportData,
@@ -81,15 +83,12 @@ import {
   SuggestAssistantIntentsResult,
   SuggestImageEditsRequest,
   SuggestImageEditsResult,
-  TemplateExtractionScenario,
-  TemplateSubmissionResult,
   UploadAppIconRequest,
   VideoGenerationJob,
   VideoProviderModelOption,
   WriteClipboardImageRequest,
   type BoardConnection,
   type BoardData,
-  type BoardNode,
   type BoardVideoNode,
   type PaidMediaQuoteRequest,
   type TextProviderConfig,
@@ -108,7 +107,7 @@ import {
   saveAssistantSkillOverride
 } from "./assistant-skills.js";
 import { CodexOAuthService } from "./auth/codex-oauth.js";
-import { buildBoardArchive, parseBoardArchive } from "./board-archive.js";
+import { buildBoardArchive } from "./board-archive.js";
 import { registerBoardIpc } from "./board-ipc.js";
 import {
   COMIC_DRAMA_AGENT_TOOL_NAMES,
@@ -118,9 +117,8 @@ import {
 } from "./comic-drama-agent-tools.js";
 import { registerComicDramaIpc } from "./comic-drama-ipc.js";
 import { registerPluginIpc } from "./plugins/plugin-ipc.js";
-import { ManagerFeedbackClient } from "./feedback-client.js";
 import { ImageTaskQueue, ImageWorkerClient } from "./image-worker-client.js";
-import { ManagerInspirationClient } from "./inspiration-client.js";
+import { LocalInspirationClient } from "./inspiration-client.js";
 import type { LicenseService } from "./licensing/service.js";
 import { MasterGoBridge } from "./mastergo-bridge.js";
 import { callLocalApi } from "./local-api.js";
@@ -174,7 +172,6 @@ import { VideoSequenceStore } from "./storage/video-sequence-store.js";
 import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-store.js";
 import { VideoTaskStore } from "./storage/video-task-store.js";
 import { openSystemNotificationSettings, showTestSystemNotification } from "./system-notification.js";
-import { ManagerTemplateClient } from "./template-client.js";
 import type { ThumbHashResult } from "./thumbhash-encoder.js";
 import { VideoGenerationService } from "./video-generation-service.js";
 import { registerVideoSequenceIpc } from "./video/video-sequence-ipc.js";
@@ -186,75 +183,6 @@ function updateWindowChromeTheme(event: IpcMainInvokeEvent, theme: AppSettings["
   const window = BrowserWindow.fromWebContents(event.sender);
   if (!window || window.isDestroyed()) return;
   window.setTitleBarOverlay(resolveWindowsTitleBarOverlay(theme, nativeTheme.shouldUseDarkColors));
-}
-
-const MAX_FEEDBACK_SCREENSHOT_BYTES = 1_850_000;
-
-function validateFeedbackRequest(value: unknown): FeedbackSubmitRequest {
-  if (!value || typeof value !== "object") throw new Error("反馈内容无效。");
-  const request = value as Partial<FeedbackSubmitRequest>;
-  const content = typeof request.content === "string" ? request.content.trim() : "";
-  if (content.length < 3 || content.length > 2_000) throw new Error("反馈内容需为 3 到 2000 个字符。");
-  const kind = request.kind === "feature" || request.kind === "other" ? request.kind : "experience";
-	const context: Record<string, unknown> = request.pageContext && typeof request.pageContext === "object"
-		? request.pageContext as unknown as Record<string, unknown>
-		: {};
-  const clean = (input: unknown, max = 500): string => typeof input === "string" ? input.trim().slice(0, max) : "";
-  const width = Math.max(1, Math.round(windowContextNumber(context.viewport, "width") || 0));
-  const height = Math.max(1, Math.round(windowContextNumber(context.viewport, "height") || 0));
-  return {
-    kind,
-    content,
-    pageContext: {
-      view: clean(context.view, 64) || "workspace",
-      route: clean(context.route, 300) || "/",
-      ...(clean(context.boardId, 100) ? { boardId: clean(context.boardId, 100) } : {}),
-      ...(clean(context.boardName, 200) ? { boardName: clean(context.boardName, 200) } : {}),
-      viewport: width > 1 && height > 1 ? `${width}x${height}` : clean(context.viewport, 40) || "unknown",
-      locale: clean(context.locale, 32) || "zh-CN"
-    }
-  };
-}
-
-function windowContextNumber(value: unknown, key: "width" | "height"): number {
-  if (!value || typeof value !== "object") return 0;
-  const candidate = (value as Record<string, unknown>)[key];
-  return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : 0;
-}
-
-function compressFeedbackScreenshot(source: NativeImage): Buffer | undefined {
-  if (source.isEmpty()) return undefined;
-  const maxWidth = 1_440;
-  const maxHeight = 900;
-  const sourceSize = source.getSize();
-  const initialScale = Math.min(1, maxWidth / sourceSize.width, maxHeight / sourceSize.height);
-  let width = Math.max(1, Math.round(sourceSize.width * initialScale));
-  let height = Math.max(1, Math.round(sourceSize.height * initialScale));
-  let image = initialScale < 1 ? source.resize({ width, height, quality: "good" }) : source;
-  for (const quality of [74, 64, 54, 44, 36]) {
-    const bytes = image.toJPEG(quality);
-    if (bytes.length <= MAX_FEEDBACK_SCREENSHOT_BYTES) return bytes;
-    width = Math.max(640, Math.round(width * 0.84));
-    height = Math.max(400, Math.round(height * 0.84));
-    image = image.resize({ width, height, quality: "good" });
-  }
-  const fallback = image.toJPEG(30);
-  return fallback.length <= MAX_FEEDBACK_SCREENSHOT_BYTES ? fallback : undefined;
-}
-
-async function captureFeedbackScreenshot(event: IpcMainInvokeEvent): Promise<Buffer | undefined> {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  if (!win || win.isDestroyed()) return undefined;
-  let cssKey = "";
-  try {
-    cssKey = await event.sender.insertCSS(".feedback-overlay,[data-feedback]{display:none!important}");
-    await new Promise((resolve) => setTimeout(resolve, 32));
-    return compressFeedbackScreenshot(await event.sender.capturePage());
-  } catch {
-    return undefined;
-  } finally {
-    if (cssKey) await event.sender.removeInsertedCSS(cssKey).catch(() => undefined);
-  }
 }
 
 export function createVideoAssetLibraryItem(
@@ -416,11 +344,6 @@ export function registerIpc({
     managerApiBaseUrl,
     (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
   );
-  const templateClient = new ManagerTemplateClient(
-    license,
-    managerApiBaseUrl,
-    (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
-  );
   const analytics = new ManagerProductAnalyticsClient(
     license,
     managerApiBaseUrl,
@@ -436,15 +359,7 @@ export function registerIpc({
       void analytics.track("share.created", { surface });
     }
   });
-  const feedbackClient = new ManagerFeedbackClient(
-    license,
-    managerApiBaseUrl,
-    (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
-  );
-  const inspirationClient = new ManagerInspirationClient(
-    managerApiBaseUrl,
-    (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
-  );
+  const inspirationClient = new LocalInspirationClient();
   void analytics.track("app.opened");
   const imageProviders = new ImageProviderRegistry({
     "openai-compatible": provider, openrouter: provider, poe: provider,
@@ -452,99 +367,12 @@ export function registerIpc({
   });
   const getProviderAdapter = (config: ProviderConfig) => imageProviders.get(config);
 
-  const recordMemory = (input: MemoryEventInput): void => {
-    if (!settings.getSettings().memoryEnabled) return;
-    void memories.record(input).catch((error) => console.warn("记录助手记忆失败。", error));
-  };
-  const prepareMemoryRequest = async (request: CollaborateSceneRequest): Promise<CollaborateSceneRequest> => {
-    const currentSettings = settings.getSettings();
-    if (!currentSettings.memoryEnabled) return { ...request, memoryContext: [] };
-    const queryText = [request.instruction, ...request.currentFields.map((field) => field.value)]
-      .filter(Boolean)
-      .join("\n");
-    const memoryContext = await memories.retrieve(
-      request.memoryQuery,
-      currentSettings.memoryUsageLevel ?? "balanced",
-      queryText
-    );
-    const draft = request.currentFields.map((field) => field.value.trim()).filter(Boolean).join("\n");
-    if (draft) {
-      recordMemory({
-        type: "prompt_draft",
-        surface: request.assistantSurface ?? "scene-template",
-        content: draft,
-        boardId: request.memoryQuery?.boardId,
-        sceneId: request.memoryQuery?.sceneId,
-        assetPath: request.memoryQuery?.assetPath
-      });
-    }
-    return { ...request, memoryContext };
-  };
-  const prepareSceneCollaborationRequest = async (input: unknown): Promise<CollaborateSceneRequest> => {
-    const validated = validateSceneCollaborationRequest(input);
-    const perReferenceBudget = getAssistantReferenceByteBudget(validated.referenceImages.length);
-    const referenceImages = await Promise.all(
-      validated.referenceImages.map((reference, index) => imageTasks.run(
-        () => normalizeAssistantReferenceImage(reference, index, perReferenceBudget)
-      ))
-    );
-    return prepareMemoryRequest({ ...validated, referenceImages });
-  };
-  const recordAssistantResult = async (request: CollaborateSceneRequest, result: CollaborateSceneResult, toolCalls?: AssistantToolCall[], reasoningSummary?: string): Promise<void> => {
-    const generatedPrompt = getPrimaryAssistantPrompt(result);
-    const generated = [
-      ...result.fields.map((field) => `${field.label}：${field.value}`),
-      ...(result.detailedPrompt ? [result.detailedPrompt] : []),
-      ...(result.directions ?? []).map((direction) => `${direction.title}：${direction.prompt}`)
-    ].filter(Boolean).join("\n");
-    const surface = request.assistantSurface ?? "scene-template";
-    if (generated) {
-      recordMemory({
-        type: "assistant_generated",
-        surface,
-        content: generated,
-        boardId: request.memoryQuery?.boardId,
-        sceneId: request.memoryQuery?.sceneId,
-        assetPath: request.memoryQuery?.assetPath
-      });
-    }
-    if (request.recordInHistory === false) return;
-    const savedReferences = request.referenceImages.length ? await assets.saveReferenceImageBytes(
-      request.referenceImages.map((image) => ({
-        id: crypto.randomUUID(), name: image.name, mimeType: image.mimeType,
-        bytes: Buffer.from(image.dataBase64, "base64")
-      }))
-    ) : [];
-    const conversation = await assistantConversations.add({
-      surface,
-      instruction: request.instruction,
-      response: result.message,
-      reasoningSummary,
-      generatedPrompt,
-      attachments: savedReferences.map((image, index) => ({
-        id: image.id, src: "", path: image.path, name: image.name,
-        role: request.assistantSurface === "canvas-edit" && index === 0 ? "edit-target" : "reference"
-      })),
-      toolCalls,
-      conversationId: request.conversationId,
-      memoryQuery: request.memoryQuery
-    });
-    if (!conversation) return;
-    if (!settings.getSettings().memoryEnabled) return;
-    await memories.record({
-      type: "assistant_conversation",
-      surface,
-      content: [
-        conversation.instruction ? `用户：${conversation.instruction}` : "",
-        conversation.response ? `助手：${conversation.response}` : ""
-      ].filter(Boolean).join("\n"),
-      boardId: conversation.boardId,
-      sceneId: conversation.sceneId,
-      assetPath: conversation.assetPath,
-      sourceId: conversation.id,
-      occurredAt: conversation.occurredAt
-    });
-  };
+  const { recordMemory, prepareSceneCollaborationRequest, recordAssistantResult } = createAssistantSessionService({
+    settings, memories, assets, assistantConversations,
+    normalizeReference: (reference, index, maxBytes) => imageTasks.run(
+      () => normalizeAssistantReferenceImage(reference, index, maxBytes)
+    )
+  });
   /** 智能辅助统一走文本 Provider；官方类型由 Credit 与签名请求把关，其余需要本地授权与 API Key。 */
   const resolveTextProvider = (requestedId: string | undefined, capability: "generate" | "edit"): TextProviderConfig => {
     const currentSettings = settings.getSettings();
@@ -1067,117 +895,12 @@ export function registerIpc({
   }
 
   function invalidateAssetCatalog(): void { assetCatalog.invalidate(); }
-  async function referencedAssetPaths(): Promise<Set<string>> {
-    const [allBoards, jobs, videoJobs, scenes, allComments, allAssetMeta, trashedImagePaths, allConversations] = await Promise.all([
-      boards.listAllBoards(),
-      history.listJobs(),
-      videoTasks.listJobs(),
-      sceneMedia.list(),
-      comments.list(),
-      assetMeta.list(),
-      boardImageTrash.referencedAssetPaths(),
-      assistantConversations.list()
-    ]);
-    const referenced = new Set<string>();
-    for (const request of await modifications.list()) {
-      for (const item of [request.sourcePath,request.annotationPath,request.maskPath,...request.referencePaths,...(request.resultPaths??[])]) {
-        if (item) referenced.add(path.resolve(item));
-      }
-    }
-    for (const conversation of allConversations) {
-      for (const attachment of conversation.attachments ?? []) {
-        if (attachment.path) referenced.add(path.resolve(attachment.path));
-      }
-    }
-    for (const board of allBoards) for (const node of board.nodes) {
-      if (isBoardImageNode(node)) {
-        referenced.add(path.resolve(node.imagePath));
-        if (node.finalVersion) referenced.add(path.resolve(node.finalVersion.imagePath));
-        if (node.derivation?.sourceImagePath) referenced.add(path.resolve(node.derivation.sourceImagePath));
-        for (const version of node.versions ?? []) referenced.add(path.resolve(version.imagePath));
-      } else if (isBoardVideoNode(node)) {
-        referenced.add(path.resolve(node.videoPath));
-        if (node.posterPath) referenced.add(path.resolve(node.posterPath));
-        for (const version of node.versions ?? []) {
-          referenced.add(path.resolve(version.videoPath));
-          if (version.posterPath) referenced.add(path.resolve(version.posterPath));
-        }
-      } else if (isBoardVideoGenerationNode(node)) {
-        if (node.sourceVideoPath) referenced.add(path.resolve(node.sourceVideoPath));
-        for (const value of node.referenceVideoPaths ?? []) referenced.add(path.resolve(value));
-        for (const value of node.referenceAudioPaths ?? []) referenced.add(path.resolve(value));
-      }
-    }
-    for (const board of allBoards) for (const recipe of board.deliveryRecipes??[]) for (const item of recipe.items) referenced.add(path.resolve(item.sourceVersion.imagePath));
-    for (const job of jobs) {
-      for (const item of job.outputImagePaths) referenced.add(path.resolve(item));
-      for (const item of job.referenceImagePaths) referenced.add(path.resolve(item));
-    }
-    for (const job of videoJobs) {
-      const input = job.input;
-      for (const item of input.referenceImagePaths) referenced.add(path.resolve(item));
-      for (const item of input.referenceVideoPaths ?? []) referenced.add(path.resolve(item));
-      for (const item of input.referenceAudioPaths ?? []) referenced.add(path.resolve(item));
-      if (input.sourceVideoPath) referenced.add(path.resolve(input.sourceVideoPath));
-      if (input.firstFramePath) referenced.add(path.resolve(input.firstFramePath));
-      if (input.lastFramePath) referenced.add(path.resolve(input.lastFramePath));
-      if (job.outputVideoPath) referenced.add(path.resolve(job.outputVideoPath));
-      if (job.outputPosterPath) referenced.add(path.resolve(job.outputPosterPath));
-    }
-    for (const scene of scenes) {
-      for (const result of scene.results) referenced.add(path.resolve(result.path));
-      for (const cover of scene.covers) {
-        referenced.add(path.resolve(cover.path));
-        referenced.add(path.resolve(cover.sourcePath));
-      }
-    }
-    for (const comment of allComments) referenced.add(path.resolve(comment.imagePath));
-    for (const meta of allAssetMeta) {
-      if (meta.favorite || meta.tags.length > 0) referenced.add(path.resolve(meta.imagePath));
-    }
-    for (const imagePath of trashedImagePaths) referenced.add(imagePath);
-    return referenced;
-  }
-
-  async function collectAssetGarbage(): Promise<void> {
-    await assets.collectGarbage(await referencedAssetPaths());
-    await assets.pruneThumbnailCache();
-  }
-
-  function scheduleAssetGarbageCollection(delayMs = 1_000): void {
-    const timer = setTimeout(() => {
-      void collectAssetGarbage().catch((error) => console.warn("清理孤儿素材失败。", error));
-    }, delayMs);
-    timer.unref();
-  }
-
-  async function removeBoardAssociations(boardIds: string[]): Promise<void> {
-    for (const boardId of boardIds) {
-      await history.removeJobsByBoard(boardId);
-      await videoTasks.removeJobsByBoard(boardId);
-      await memories.removeScope("board", boardId);
-    }
-    if (boardIds.length > 0) {
-      invalidateAssetCatalog();
-      scheduleAssetGarbageCollection();
-    }
-  }
-
-  async function purgeExpiredBoardTrash(): Promise<number> {
-    const retentionDays = settings.getSettings().boardTrashRetentionDays ?? 3;
-    const purgedIds = await boards.purgeExpiredTrashedBoards(retentionDays);
-    const purgedImages = await boardImageTrash.purgeExpired(retentionDays);
-    await removeBoardAssociations(purgedIds);
-    if (purgedImages.length > 0) scheduleAssetGarbageCollection();
-    return purgedIds.length + purgedImages.length;
-  }
-
-  scheduleAssetGarbageCollection(30_000);
-  void purgeExpiredBoardTrash().catch((error) => console.warn("自动清理画板回收站失败。", error));
-  const boardTrashCleanupTimer = setInterval(() => {
-    void purgeExpiredBoardTrash().catch((error) => console.warn("自动清理画板回收站失败。", error));
-  }, 60 * 60 * 1_000);
-  boardTrashCleanupTimer.unref();
+  const assetMaintenance = createAssetMaintenance({
+    assets, boards, history, videoTasks, sceneMedia, comments, assetMeta,
+    boardImageTrash, assistantConversations, memories, settings, modifications,
+    onAssetsChanged: invalidateAssetCatalog
+  });
+  const { scheduleAssetGarbageCollection, removeBoardAssociations, purgeExpiredBoardTrash, referencedAssetPaths } = assetMaintenance;
 
   registerSettingsIpc({
     settings,
@@ -1246,6 +969,22 @@ export function registerIpc({
   let skillUpgradeConsumed = false;
   const readAgentStatus = async () => ({ ...await getAgentIntegrationStatus(integrationHome), cli: { ...await getCliInstallationStatus(integrationHome), error: cliError }, development: !app.isPackaged });
   ipcMain.handle("agent:status", async () => { await installation; await skillSync; return readAgentStatus(); });
+  ipcMain.handle("agent:comments:handoff", async (_event, input: unknown) => {
+    const request = input as { boardId?: unknown; commentIds?: unknown } | null;
+    if (!request || typeof request.boardId !== "string" || !request.boardId.trim() || !Array.isArray(request.commentIds)
+      || request.commentIds.some((id) => typeof id !== "string")) throw new Error("画板评论交接参数无效。");
+    const board = await boards.getBoard(request.boardId);
+    if (!board) throw new Error("画板不存在，请重新打开后再试。");
+    const agent = settings.getSettings().defaultCodingAgent ?? "codex";
+    const claudeExecutable = agent === "claude-code"
+      ? (await getAgentIntegrationStatus(app.getPath("home"))).clients.find((client) => client.id === agent)?.executablePath
+      : undefined;
+    return handoffBoardComments({
+      agent, board, comments: await comments.list(), commentIds: request.commentIds,
+      userDataPath: app.getPath("userData"), cliExecutable: process.execPath, cliScriptPath: cliOptions.scriptPath,
+      claudeExecutable, openExternal: (url) => shell.openExternal(url), openPath: (file) => shell.openPath(file)
+    });
+  });
   ipcMain.handle("agent:cli:install", async () => { const cli = await installAppCli(); return { ...await readAgentStatus(), cli }; });
   ipcMain.handle("agent:skill-upgrade:consume", async () => { const result = await skillSync; if (skillUpgradeConsumed) return []; skillUpgradeConsumed = true; return result?.skillUpgrades ?? []; });
   ipcMain.handle("pi-agent-log:list", () => piAgentLogs.getSnapshot());
@@ -1568,34 +1307,9 @@ export function registerIpc({
   ipcMain.handle("credits:listTransactions", () => []);
   ipcMain.handle("referrals:getOverview", () => { throw new Error("开源版无需邀请奖励。"); });
 
-  ipcMain.handle("feedback:submit", async (event, value: unknown): Promise<FeedbackSubmissionResult> => {
-    const request = validateFeedbackRequest(value);
-    const screenshot = await captureFeedbackScreenshot(event);
-    const win = BrowserWindow.fromWebContents(event.sender);
-    const bounds = win?.getContentBounds();
-    return feedbackClient.submit({
-      ...request,
-      pageContext: {
-        ...request.pageContext,
-        platform: process.platform,
-        ...(bounds ? { window: `${bounds.width}x${bounds.height}` } : {}),
-        screenshotCaptured: Boolean(screenshot),
-        capturedAt: new Date().toISOString()
-      },
-      ...(screenshot ? { screenshot: screenshot.toString("base64"), screenshotContentType: "image/jpeg" as const } : {})
-    });
-  });
-  ipcMain.handle("feedback:listHistory", (_event, limit?: unknown): Promise<FeedbackHistoryPage> =>
-    feedbackClient.listHistory(typeof limit === "number" ? limit : 50)
-  );
-  ipcMain.handle("feedback:getDetail", (_event, feedbackId: unknown): Promise<FeedbackDetail> => {
-    if (typeof feedbackId !== "string" || !feedbackId.trim()) throw new Error("反馈编号无效。");
-    return feedbackClient.getDetail(feedbackId);
-  });
-  ipcMain.handle("feedback:delete", (_event, feedbackId: unknown): Promise<void> => {
-    if (typeof feedbackId !== "string" || !feedbackId.trim()) throw new Error("反馈编号无效。");
-    return feedbackClient.delete(feedbackId);
-  });
+  for (const channel of ["feedback:submit", "feedback:listHistory", "feedback:getDetail", "feedback:delete"]) {
+    ipcMain.handle(channel, () => { throw new Error("请通过 GitHub Issues 提交和查看反馈。"); });
+  }
 
   ipcMain.handle(
     "provider:testConnection",
@@ -1846,36 +1560,10 @@ export function registerIpc({
     };
   });
 
-  ipcMain.handle(
-    "scenes:submitTemplate",
-    async (_event, scene: SceneTemplateData, authorName: string, exampleResultIds: string[]): Promise<TemplateSubmissionResult> => {
-      if (!isSceneTemplateData(scene) || scene.source !== "custom") {
-        throw new Error("只有自定义模板可以发布到模板广场。");
-      }
-      if (typeof authorName !== "string" || authorName.trim().length > 40) {
-        throw new Error("创作者名称不能超过 40 个字符。");
-      }
-      if (!Array.isArray(exampleResultIds) || exampleResultIds.length === 0) {
-        throw new Error("请至少选择一张公开示例图。");
-      }
-      const selectedResultIds = new Set(exampleResultIds);
-      const media = (await sceneMedia.list()).find((item) => item.sceneId === scene.id);
-      const selectedResults = media?.results.filter((result) => selectedResultIds.has(result.id)) ?? [];
-      if (selectedResults.length !== selectedResultIds.size) {
-        throw new Error("所选示例图已不存在，请刷新后重试。");
-      }
-      // 公开模板只携带用户明确选中的示例图；首张结果会由归档器作为封面。
-      const archive = await buildSceneArchive(scene, media ? { ...media, results: selectedResults, covers: [] } : undefined, app.getVersion());
-      const submission = await templateClient.submit(scene.id, authorName, archive);
-      void analytics.track("template.submitted");
-      return submission;
-    }
-  );
-  ipcMain.handle(
-    "scenes:getTemplateSubmission",
-    (_event, sourceTemplateId: string): Promise<TemplateSubmissionResult | null> =>
-      templateClient.getStatus(sourceTemplateId)
-  );
+  ipcMain.handle("scenes:submitTemplate", () => {
+    throw new Error("请导出模板文件，通过 GitHub Issues 投稿。");
+  });
+  ipcMain.handle("scenes:getTemplateSubmission", () => null);
 
   async function importSceneBuffer(buffer: Buffer): Promise<SceneTemplateImportResult> {
     const parsed = await parseSceneArchive(buffer);
@@ -2379,6 +2067,7 @@ export function registerIpc({
   );
 
   ipcMain.handle("sharing:readImport", async (_event, source: unknown): Promise<OnlineShareImportData> => {
+    if (!ONLINE_SHARING_AVAILABLE) throw new Error("在线分享暂未开放，请导入本地模板文件。");
     if (typeof source !== "string" || source.length > 8_192) throw new Error("分享链接无效。");
     let shareUrl: URL;
     try {
@@ -2659,237 +2348,10 @@ export function registerIpc({
     return { ok: true, path: result.filePath };
   });
 
-  async function importBoardBuffer(buffer: Buffer) {
-    const parsed = await parseBoardArchive(buffer);
-    const newBoardId = crypto.randomUUID();
-
-    // 包内图片复制进本机资产库，并建立 相对路径 -> 新绝对路径 的映射。
-    const pathMap = new Map<string, string>();
-    const importedMedia = [...parsed.media];
-    for (let offset = 0; offset < importedMedia.length; offset += 4) {
-      await Promise.all(
-        importedMedia.slice(offset, offset + 4).map(async ([relative, bytes]) => {
-          const saved = await assets.saveImportedImage(newBoardId, relative.replaceAll("/", "-"), bytes);
-          pathMap.set(relative, saved);
-        })
-      );
-    }
-
-    // 节点/历史 id 全部重新生成：同一个包可以反复导入而互不干扰。
-    const jobIdMap = new Map([...parsed.jobs, ...parsed.videoJobs].map((job) => [job.id, crypto.randomUUID()]));
-    const nodeIdMap = new Map(parsed.board.nodes.map((node) => [node.id, crypto.randomUUID()]));
-    const nodes = parsed.board.nodes.flatMap((node): BoardNode[] => {
-        const id = nodeIdMap.get(node.id)!;
-        if (isBoardVideoNode(node)) {
-          if (!pathMap.has(node.videoPath)) return [];
-          const versions = node.versions
-            ?.filter((version) => pathMap.has(version.videoPath))
-            .map((version) => ({
-              ...version,
-              videoPath: pathMap.get(version.videoPath)!,
-              posterPath: version.posterPath ? pathMap.get(version.posterPath) : undefined,
-              jobId: jobIdMap.get(version.jobId) ?? version.jobId
-            }));
-          const activeIndex = versions?.findIndex((version) => version.videoPath === pathMap.get(node.videoPath));
-          return [{
-            ...node,
-            id,
-            videoPath: pathMap.get(node.videoPath)!,
-            posterPath: node.posterPath ? pathMap.get(node.posterPath) : undefined,
-            jobId: jobIdMap.get(node.jobId) ?? node.jobId,
-            versions: versions && versions.length > 1 ? versions : undefined,
-            activeVersion: versions && versions.length > 1
-              ? (activeIndex !== undefined && activeIndex >= 0 ? activeIndex : versions.length - 1)
-              : undefined
-          }];
-        }
-        if (isBoardVideoGenerationNode(node)) {
-          return [{
-            ...node,
-            id,
-            sourceVideoPath: node.sourceVideoPath ? pathMap.get(node.sourceVideoPath) ?? node.sourceVideoPath : undefined,
-            referenceVideoPaths: (node.referenceVideoPaths ?? []).map((value) => pathMap.get(value) ?? value),
-            referenceAudioPaths: (node.referenceAudioPaths ?? []).map((value) => pathMap.get(value) ?? value),
-            targetVideoNodeId: node.targetVideoNodeId
-              ? nodeIdMap.get(node.targetVideoNodeId) ?? node.targetVideoNodeId
-              : undefined,
-            ...(node.lastGenerationId
-              ? { lastGenerationId: jobIdMap.get(node.lastGenerationId) ?? node.lastGenerationId }
-              : {})
-          }];
-        }
-        if (!isBoardImageNode(node)) {
-          return [{
-            ...node,
-            id,
-            ...(node.type === "generation" && node.lastGenerationId
-              ? { lastGenerationId: jobIdMap.get(node.lastGenerationId) ?? node.lastGenerationId }
-              : {})
-          }];
-        }
-        if (!pathMap.has(node.imagePath)) return [];
-        const versions = node.versions
-          ?.filter((version) => pathMap.has(version.imagePath))
-          .map((version) => ({
-            ...version,
-            imagePath: pathMap.get(version.imagePath)!,
-            jobId: jobIdMap.get(version.jobId) ?? version.jobId
-          }));
-        const activeIndex = versions?.findIndex((version) => version.imagePath === pathMap.get(node.imagePath));
-        return [{
-          ...node,
-          id,
-          imagePath: pathMap.get(node.imagePath)!,
-          finalVersion: remapFinalVersion(node.finalVersion,p=>pathMap.get(p)??`missing/${path.basename(p)}`,id=>jobIdMap.get(id)??id),
-          jobId: jobIdMap.get(node.jobId) ?? node.jobId,
-          derivation:
-            node.derivation && pathMap.has(node.derivation.sourceImagePath)
-              ? {
-                  ...node.derivation,
-                  sourceNodeId: nodeIdMap.get(node.derivation.sourceNodeId) ?? node.derivation.sourceNodeId,
-                  sourceImagePath: pathMap.get(node.derivation.sourceImagePath)!
-                }
-              : undefined,
-          versions: versions && versions.length > 1 ? versions : undefined,
-          activeVersion:
-            versions && versions.length > 1
-              ? activeIndex !== undefined && activeIndex >= 0
-                ? activeIndex
-                : versions.length - 1
-              : undefined
-        }];
-      });
-    const retainedNodeIds = new Set(nodes.map((node) => node.id));
-    const connections = (parsed.board.connections ?? []).flatMap((connection): BoardConnection[] => {
-      const source = nodeIdMap.get(connection.source);
-      const target = nodeIdMap.get(connection.target);
-      if (!source || !target || !retainedNodeIds.has(source) || !retainedNodeIds.has(target)) return [];
-      return [{ ...connection, id: crypto.randomUUID(), source, target }];
-    });
-
-    const remapFrozenSequenceImage = (source: import("../shared/types.js").FrozenImageSource) => ({
-      ...source,
-      nodeId: source.nodeId ? nodeIdMap.get(source.nodeId) ?? source.nodeId : undefined,
-      imagePath: pathMap.get(source.imagePath) ?? source.imagePath
-    });
-    const importedVideoSequences = parsed.videoSequences.map((sequence) => ({
-      ...sequence,
-      boardId: newBoardId,
-      keyframes: sequence.keyframes.map((keyframe) => ({ ...keyframe, source: remapFrozenSequenceImage(keyframe.source) })),
-      segments: sequence.segments.map((segment) => ({
-        ...segment,
-        sourceVideo: segment.sourceVideo ? {
-          ...segment.sourceVideo,
-          nodeId: nodeIdMap.get(segment.sourceVideo.nodeId) ?? segment.sourceVideo.nodeId,
-          videoPath: pathMap.get(segment.sourceVideo.videoPath) ?? segment.sourceVideo.videoPath,
-          posterPath: segment.sourceVideo.posterPath ? pathMap.get(segment.sourceVideo.posterPath) ?? segment.sourceVideo.posterPath : undefined
-        } : undefined,
-        versions: segment.versions.map((version) => ({
-          ...version,
-          inputSnapshot: "sourceVideo" in version.inputSnapshot ? {
-            ...version.inputSnapshot,
-            sourceVideo: {
-              ...version.inputSnapshot.sourceVideo,
-              nodeId: nodeIdMap.get(version.inputSnapshot.sourceVideo.nodeId) ?? version.inputSnapshot.sourceVideo.nodeId,
-              videoPath: pathMap.get(version.inputSnapshot.sourceVideo.videoPath) ?? version.inputSnapshot.sourceVideo.videoPath,
-              posterPath: version.inputSnapshot.sourceVideo.posterPath
-                ? pathMap.get(version.inputSnapshot.sourceVideo.posterPath) ?? version.inputSnapshot.sourceVideo.posterPath
-                : undefined
-            }
-          } : {
-            ...version.inputSnapshot,
-            firstFrame: remapFrozenSequenceImage(version.inputSnapshot.firstFrame),
-            lastFrame: remapFrozenSequenceImage(version.inputSnapshot.lastFrame)
-          },
-          videoPath: pathMap.get(version.videoPath) ?? version.videoPath,
-          posterPath: version.posterPath ? pathMap.get(version.posterPath) ?? version.posterPath : undefined
-        }))
-      })),
-      exportVersions: sequence.exportVersions.map((version) => ({
-        ...version, videoPath: pathMap.get(version.videoPath) ?? version.videoPath
-      }))
-    }));
-
-    const board = await boards.saveBoard({
-      id: newBoardId,
-      name: parsed.board.name || "导入画板",
-      deliveryRecipes: remapImageDeliveryMetadata(parsed.board.deliveryRecipes,p=>pathMap.get(p)??`missing/${path.basename(p)}`,id=>nodeIdMap.get(id)??id,id=>jobIdMap.get(id)??id),
-      nodes,
-      connections,
-      groups: (parsed.board.groups ?? []).map((group) => ({
-        ...group,
-        id: crypto.randomUUID(),
-        nodeIds: group.nodeIds.flatMap((nodeId) => nodeIdMap.get(nodeId) ?? [])
-      })).filter((group) => group.nodeIds.length > 0),
-      videoSequences: (parsed.board.videoSequences ?? []).map((sequence) => ({
-        ...sequence,
-        boardId: newBoardId,
-        keyframes: sequence.keyframes.map((keyframe) => ({
-          ...keyframe,
-          source: {
-            ...keyframe.source,
-            nodeId: keyframe.source.nodeId ? nodeIdMap.get(keyframe.source.nodeId) ?? keyframe.source.nodeId : undefined,
-            imagePath: pathMap.get(keyframe.source.imagePath) ?? keyframe.source.imagePath
-          }
-        }))
-      })),
-      viewport: parsed.board.viewport,
-      thumbnailDataUrl: parsed.board.thumbnailDataUrl
-    });
-
-    await videoSequences.importMany(importedVideoSequences);
-
-    await history.importMany(
-      parsed.jobs.map((job) => ({
-        ...job,
-        id: jobIdMap.get(job.id) ?? crypto.randomUUID(),
-        boardId: newBoardId,
-        outputImagePaths: job.outputImagePaths.map((p) => pathMap.get(p) ?? p),
-        inputSnapshot: remapGenerationHistorySnapshot(job.inputSnapshot,p=>pathMap.get(p)??p,{boardId:newBoardId,nodeIds:nodeIdMap,jobIds:jobIdMap}),
-        input: {...job.input,boardId:newBoardId,editSource:job.input.editSource ? {...job.input.editSource,boardId:newBoardId,imagePath:pathMap.get(job.input.editSource.imagePath)??job.input.editSource.imagePath,nodeId:job.input.editSource.nodeId?nodeIdMap.get(job.input.editSource.nodeId)??job.input.editSource.nodeId:undefined,jobId:job.input.editSource.jobId?jobIdMap.get(job.input.editSource.jobId)??job.input.editSource.jobId:undefined}:undefined},
-        referenceImagePaths: job.referenceImagePaths.map((p) => pathMap.get(p) ?? p)
-      }))
-    );
-    await videoTasks.importMany(parsed.videoJobs.map((job) => ({
-      ...job,
-      id: jobIdMap.get(job.id) ?? crypto.randomUUID(),
-      input: {
-        ...job.input,
-        boardId: newBoardId,
-        generationNodeId: job.input.generationNodeId
-          ? nodeIdMap.get(job.input.generationNodeId) ?? job.input.generationNodeId
-          : undefined,
-        referenceImagePaths: job.input.referenceImagePaths.map((value) => pathMap.get(value) ?? value),
-        firstFramePath: job.input.firstFramePath ? pathMap.get(job.input.firstFramePath) ?? job.input.firstFramePath : undefined,
-        lastFramePath: job.input.lastFramePath ? pathMap.get(job.input.lastFramePath) ?? job.input.lastFramePath : undefined,
-        sourceVideoPath: job.input.sourceVideoPath
-          ? pathMap.get(job.input.sourceVideoPath) ?? job.input.sourceVideoPath
-          : undefined,
-        referenceVideoPaths: (job.input.referenceVideoPaths ?? [])
-          .map((value) => pathMap.get(value) ?? value),
-        referenceAudioPaths: (job.input.referenceAudioPaths ?? [])
-          .map((value) => pathMap.get(value) ?? value),
-        targetVideoNodeId: job.input.targetVideoNodeId
-          ? nodeIdMap.get(job.input.targetVideoNodeId) ?? job.input.targetVideoNodeId
-          : undefined
-      },
-      outputVideoPath: job.outputVideoPath ? pathMap.get(job.outputVideoPath) ?? job.outputVideoPath : undefined,
-      outputPosterPath: job.outputPosterPath ? pathMap.get(job.outputPosterPath) ?? job.outputPosterPath : undefined
-    })));
-
-    // 评论 / 收藏标签：imagePath 从包内相对路径映射到本机新路径后落库。
-    const importedComments = parsed.comments
-      .filter((comment) => pathMap.has(comment.imagePath))
-      .map((comment) => ({ ...comment, imagePath: pathMap.get(comment.imagePath)! }));
-    await comments.importMany(importedComments);
-    const importedMeta = parsed.assetMeta
-      .filter((meta) => pathMap.has(meta.imagePath))
-      .map((meta) => ({ ...meta, imagePath: pathMap.get(meta.imagePath)! }));
-    await assetMeta.importMany(importedMeta);
-
-    invalidateAssetCatalog();
-    return boards.summarize(board);
-  }
+  const importBoard = (buffer: Buffer) => importBoardBuffer(buffer, {
+    assets, boards, history, videoTasks, videoSequences, comments, assetMeta,
+    onImported: invalidateAssetCatalog
+  });
 
   ipcMain.handle("boards:import", async () => {
     const result = await dialog.showOpenDialog({
@@ -2897,11 +2359,12 @@ export function registerIpc({
       filters: [{ name: "Iterlay 画板", extensions: ["itb", "irb", "zip"] }]
     });
     if (result.canceled || result.filePaths.length === 0) return null;
-    return importBoardBuffer(await readFile(result.filePaths[0]));
+    return importBoard(await readFile(result.filePaths[0]));
   });
 
-  ipcMain.handle("boards:importData", async (_event, data: ArrayBuffer) => importBoardBuffer(Buffer.from(data)));
+  ipcMain.handle("boards:importData", async (_event, data: ArrayBuffer) => importBoard(Buffer.from(data)));
   return () => {
+    assetMaintenance.dispose();
     mediaAbort.abort();
     imageWorker.dispose();
     videoIpc.dispose();
@@ -2911,223 +2374,6 @@ export function registerIpc({
     unsubscribePiAgentLogs();
     sharingIpc.dispose();
   };
-}
-
-const MAX_SCENE_REFERENCE_COUNT = 4;
-const MAX_SCENE_REFERENCE_BYTES = MAX_MANAGED_IMAGE_BYTES;
-const MAX_SCENE_CONVERSATION_MESSAGES = 20;
-const MAX_SCENE_CONVERSATION_MESSAGE_LENGTH = 12_000;
-const SCENE_REFERENCE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-
-function normalizeTemplateExtractionScenario(value: unknown): TemplateExtractionScenario | undefined {
-  return value === "design-language" || value === "layout-skeleton" || value === "series-template" || value === "replica"
-    ? value
-    : undefined;
-}
-
-function validateSceneCollaborationRequest(input: unknown): CollaborateSceneRequest {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new ProviderError("INVALID_REQUEST", "图片场景大师请求格式无效。");
-  }
-  const request = input as Record<string, unknown>;
-  if (typeof request.instruction !== "string") {
-    throw new ProviderError("INVALID_REQUEST", "图片场景大师缺少有效的创作要求。");
-  }
-  if (request.workflowMode !== "generate" && request.workflowMode !== "edit") {
-    throw new ProviderError("INVALID_REQUEST", "图片场景大师收到不支持的工作流模式。");
-  }
-  if (!Array.isArray(request.referenceImages) || !Array.isArray(request.currentFields)) {
-    throw new ProviderError("INVALID_REQUEST", "图片场景大师请求中的图片或场景字段格式无效。");
-  }
-  if (request.referenceImages.length > MAX_SCENE_REFERENCE_COUNT) {
-    throw new ProviderError("TOO_MANY_REFERENCES", `图片场景大师一次最多分析 ${MAX_SCENE_REFERENCE_COUNT} 张参考图。`);
-  }
-  if (request.currentFields.length > 16) {
-    throw new ProviderError("INVALID_REQUEST", "图片场景大师一次最多接收 16 个当前场景字段。");
-  }
-  if (request.textProviderId !== undefined && typeof request.textProviderId !== "string") {
-    throw new ProviderError("INVALID_REQUEST", "图片场景大师收到无效的 Provider ID。");
-  }
-  if (request.agentMode !== undefined && typeof request.agentMode !== "boolean") {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的 Agent 模式设置。");
-  }
-  if (
-    request.assistantSurface !== undefined &&
-    request.assistantSurface !== "scene-template" &&
-    request.assistantSurface !== "canvas-prompt" &&
-    request.assistantSurface !== "canvas-edit" &&
-    request.assistantSurface !== "gallery-review" &&
-    request.assistantSurface !== "comic-drama" &&
-    request.assistantSurface !== "video"
-  ) {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的使用场景。");
-  }
-  if (
-    request.assistantScenario !== undefined &&
-    request.assistantScenario !== "ui-design" &&
-    request.assistantScenario !== "video"
-  ) {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的 Skill 场景。");
-  }
-  if (
-    request.templateWorkflow !== undefined &&
-    request.templateWorkflow !== "create" &&
-    request.templateWorkflow !== "use"
-  ) {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的模板工作流。");
-  }
-  if (request.conversation !== undefined && !Array.isArray(request.conversation)) {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的对话记录。");
-  }
-  if (request.conversationId !== undefined && typeof request.conversationId !== "string") {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的会话 ID。");
-  }
-  if (request.recordInHistory !== undefined && typeof request.recordInHistory !== "boolean") {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的历史记录设置。");
-  }
-  let memoryQuery: CollaborateSceneRequest["memoryQuery"];
-  if (request.memoryQuery !== undefined) {
-    if (!request.memoryQuery || typeof request.memoryQuery !== "object" || Array.isArray(request.memoryQuery)) {
-      throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的记忆范围。");
-    }
-    const rawQuery = request.memoryQuery as Record<string, unknown>;
-    const boardId = normalizeMemoryQueryValue(rawQuery.boardId);
-    const sceneId = normalizeMemoryQueryValue(rawQuery.sceneId);
-    const assetPath = normalizeMemoryQueryValue(rawQuery.assetPath);
-    memoryQuery = {
-      ...(boardId ? { boardId } : {}),
-      ...(sceneId ? { sceneId } : {}),
-      ...(assetPath ? { assetPath } : {})
-    };
-  }
-  let generationSettings: CollaborateSceneRequest["generationSettings"];
-  if (request.generationSettings !== undefined) {
-    if (!request.generationSettings || typeof request.generationSettings !== "object" || Array.isArray(request.generationSettings)) {
-      throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的生成数量设置。");
-    }
-    const settings = request.generationSettings as Record<string, unknown>;
-    if (!Number.isInteger(settings.count) || !Number.isInteger(settings.maxCount)) {
-      throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的生成数量设置。");
-    }
-    const count = settings.count as number;
-    const maxCount = settings.maxCount as number;
-    if (count < 1 || maxCount < 1 || count > maxCount || maxCount > 99) {
-      throw new ProviderError("INVALID_REQUEST", "AI 助手收到超出范围的生成数量设置。");
-    }
-    generationSettings = { count, maxCount };
-  }
-  const clarificationRounds = Number.isInteger(request.clarificationRounds)
-    ? Math.min(10, Math.max(0, request.clarificationRounds as number))
-    : 0;
-
-  const currentFields = request.currentFields.map((item, index) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 个场景字段格式无效。`);
-    }
-    const field = item as Record<string, unknown>;
-    const label = typeof field.label === "string" ? field.label.trim() : "";
-    const value = typeof field.value === "string" ? field.value.trim() : "";
-    const allowsEmptyTemplateValue = request.assistantSurface === "scene-template";
-    if (!label || (!value && !allowsEmptyTemplateValue)) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 个场景字段的名称和内容不能为空。`);
-    }
-    return { label, value };
-  });
-
-  const referenceImages = request.referenceImages.map((item, index) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 张参考图格式无效。`);
-    }
-    const image = item as Record<string, unknown>;
-    const name = typeof image.name === "string" ? image.name.trim() : "";
-    const mimeType = typeof image.mimeType === "string" ? image.mimeType.trim().toLowerCase() : "";
-    const dataBase64 = typeof image.dataBase64 === "string" ? image.dataBase64.trim() : "";
-    if (!name) throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 张参考图缺少文件名。`);
-    if (!SCENE_REFERENCE_MIME_TYPES.has(mimeType)) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 张参考图格式不受支持，请使用 JPEG、PNG、WebP 或 GIF。`);
-    }
-    assertSceneReferenceBase64(dataBase64, index);
-    return { name, mimeType, dataBase64 };
-  });
-
-  const instruction = request.instruction.trim();
-  const templateScenario = normalizeTemplateExtractionScenario(request.templateScenario);
-  const conversation = (request.conversation ?? []).map((item, index) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 条对话记录格式无效。`);
-    }
-    const message = item as Record<string, unknown>;
-    const role: AssistantConversationMessage["role"] | null =
-      message.role === "user" || message.role === "assistant" ? message.role : null;
-    const content = typeof message.content === "string" ? message.content.trim() : "";
-    if (!role || !content) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 条对话记录内容无效。`);
-    }
-    if (content.length > MAX_SCENE_CONVERSATION_MESSAGE_LENGTH) {
-      throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 条对话记录过长。`);
-    }
-    return { role, content };
-  });
-  if (conversation.length > MAX_SCENE_CONVERSATION_MESSAGES) {
-    throw new ProviderError(
-      "INVALID_REQUEST",
-      `AI 助手最多保留最近 ${MAX_SCENE_CONVERSATION_MESSAGES} 条对话记录。`
-    );
-  }
-  if (!instruction && referenceImages.length === 0 && currentFields.length === 0) {
-    throw new ProviderError("INVALID_REQUEST", "请输入创作要求、上传参考图，或先填写场景字段。");
-  }
-  return {
-    instruction,
-    referenceImages,
-    currentFields,
-    ...(request.templateWorkflow === "create" || request.templateWorkflow === "use"
-      ? { templateWorkflow: request.templateWorkflow }
-      : {}),
-    ...(templateScenario ? { templateScenario } : {}),
-    ...(generationSettings ? { generationSettings } : {}),
-    ...(clarificationRounds > 0 ? { clarificationRounds } : {}),
-    ...(conversation.length > 0 ? { conversation } : {}),
-    ...(typeof request.conversationId === "string" && request.conversationId.trim()
-      ? { conversationId: request.conversationId.trim().slice(0, 128) }
-      : {}),
-    ...(request.recordInHistory === false ? { recordInHistory: false } : {}),
-    ...(memoryQuery && Object.keys(memoryQuery).length > 0 ? { memoryQuery } : {}),
-    ...(
-      request.assistantSurface === "scene-template" ||
-      request.assistantSurface === "canvas-prompt" ||
-      request.assistantSurface === "canvas-edit" ||
-      request.assistantSurface === "gallery-review" ||
-      request.assistantSurface === "comic-drama" ||
-      request.assistantSurface === "video"
-      ? { assistantSurface: request.assistantSurface }
-      : {}),
-    ...(request.assistantScenario === "ui-design" || request.assistantScenario === "video"
-      ? { assistantScenario: request.assistantScenario }
-      : {}),
-    workflowMode: request.workflowMode,
-    ...(typeof request.useCase === "string" ? { useCase: request.useCase as CollaborateSceneRequest["useCase"] } : {}),
-    ...(typeof request.textProviderId === "string" && request.textProviderId.trim()
-      ? { textProviderId: request.textProviderId.trim() }
-      : {}),
-    ...(request.agentMode === true ? { agentMode: true } : {})
-  };
-}
-
-function getPrimaryAssistantPrompt(result: CollaborateSceneResult): string {
-  if (result.intent === "chat") return "";
-  const fields = result.fields
-    .map((field) => ({ label: field.label.trim(), value: field.value.trim() }))
-    .filter((field) => field.label && field.value);
-  if (fields.length === 1 && /^(?:完整)?提示词|prompt$/i.test(fields[0].label)) {
-    return fields[0].value;
-  }
-  if (fields.length > 0) {
-    return fields.map((field) => `${field.label}：${field.value}`).join("\n");
-  }
-  const detailedPrompt = result.detailedPrompt?.trim();
-  if (detailedPrompt) return detailedPrompt;
-  return result.directions?.length === 1 ? result.directions[0].prompt.trim() : "";
 }
 
 function isSceneTemplateData(value: unknown): value is SceneTemplateData {
@@ -3148,71 +2394,6 @@ function isSceneTemplateData(value: unknown): value is SceneTemplateData {
 
 function safeArchiveBaseName(value: string): string {
   return value.trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 120) || "未命名模板";
-}
-
-function normalizeAssistantReferenceImage(
-  reference: CollaborateSceneRequest["referenceImages"][number],
-  index: number,
-  maxBytes: number
-): CollaborateSceneRequest["referenceImages"][number] {
-  const bytes = Buffer.from(reference.dataBase64, "base64");
-  const source = nativeImage.createFromBuffer(bytes);
-  if (source.isEmpty()) {
-    throw new ProviderError("INVALID_REFERENCE_IMAGE", `第 ${index + 1} 张参考图无法解析，请更换图片后重试。`);
-  }
-  const sourceSize = source.getSize();
-  const targetSize = constrainReferenceImageDimensions(sourceSize.width, sourceSize.height);
-  const needsResize = targetSize.width !== sourceSize.width || targetSize.height !== sourceSize.height;
-  if (!needsResize && bytes.length <= maxBytes) return reference;
-
-  let normalized = needsResize
-    ? source.resize({ ...targetSize, quality: "good" })
-    : source;
-  let encoded = encodeAssistantReference(normalized, reference.mimeType);
-  for (let attempt = 0; encoded.bytes.length > maxBytes && attempt < 5; attempt += 1) {
-    const size = normalized.getSize();
-    const scale = Math.min(0.9, Math.sqrt(maxBytes / encoded.bytes.length) * 0.9);
-    const nextSize = {
-      width: Math.max(1, Math.floor(size.width * scale)),
-      height: Math.max(1, Math.floor(size.height * scale))
-    };
-    if (nextSize.width === size.width && nextSize.height === size.height) break;
-    normalized = normalized.resize({ ...nextSize, quality: "good" });
-    encoded = encodeAssistantReference(normalized, reference.mimeType);
-  }
-  if (encoded.bytes.length > maxBytes) {
-    throw new ProviderError(
-      "REFERENCE_TOO_LARGE",
-      `第 ${index + 1} 张参考图处理后仍然过大，请缩小尺寸或切分图片后重试。`
-    );
-  }
-  return {
-    name: reference.name,
-    mimeType: encoded.mimeType,
-    dataBase64: encoded.bytes.toString("base64")
-  };
-}
-
-function encodeAssistantReference(
-  image: NativeImage,
-  sourceMimeType: string
-): { bytes: Buffer; mimeType: "image/jpeg" | "image/png" } {
-  if (sourceMimeType === "image/jpeg") {
-    return { bytes: image.toJPEG(84), mimeType: "image/jpeg" };
-  }
-  return { bytes: image.toPNG({ scaleFactor: 1 }), mimeType: "image/png" };
-}
-
-function normalizeMemoryQueryValue(value: unknown): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的记忆范围标识。");
-  }
-  const normalized = value.trim();
-  if (normalized.length > 2_048) {
-    throw new ProviderError("INVALID_REQUEST", "AI 助手收到过长的记忆范围标识。");
-  }
-  return normalized || undefined;
 }
 
 async function fingerprintAgentMediaOperation(value: unknown): Promise<string> {
@@ -3259,27 +2440,6 @@ function toWechatPackageBytes(value: unknown): Uint8Array {
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
   throw new Error("微信表情素材包含无法识别的二进制数据。");
-}
-
-function assertSceneReferenceBase64(value: string, index: number): void {
-  const number = index + 1;
-  const maxEncodedLength = Math.ceil(MAX_SCENE_REFERENCE_BYTES / 3) * 4;
-  if (!value || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) {
-    throw new ProviderError("INVALID_REQUEST", `第 ${number} 张参考图包含无效的 base64 数据。`);
-  }
-  if (value.length > maxEncodedLength) {
-    throw new ProviderError("REFERENCE_TOO_LARGE", `第 ${number} 张参考图超过 25MB，请缩小尺寸或切分图片后重试。`);
-  }
-  if (value.length % 4 === 1 || (value.includes("=") && value.length % 4 !== 0)) {
-    throw new ProviderError("INVALID_REQUEST", `第 ${number} 张参考图包含无效的 base64 数据。`);
-  }
-  const bytes = Buffer.from(value, "base64");
-  if (bytes.length === 0 || bytes.toString("base64").replace(/=+$/, "") !== value.replace(/=+$/, "")) {
-    throw new ProviderError("INVALID_REQUEST", `第 ${number} 张参考图包含无效的 base64 数据。`);
-  }
-  if (bytes.length > MAX_SCENE_REFERENCE_BYTES) {
-    throw new ProviderError("REFERENCE_TOO_LARGE", `第 ${number} 张参考图超过 25MB，请缩小尺寸或切分图片后重试。`);
-  }
 }
 
 async function mapWithConcurrency<T, R>(

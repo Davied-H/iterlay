@@ -68,7 +68,7 @@ export function PromptWorkbench({
                     onClick={() => copyToClipboard(chip.value)}
                     className="group inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-[11px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="font-medium text-muted-foreground">{chip.label}</span>
+                    <span className="font-medium text-muted-foreground">{uiText(chip.label)}</span>
                     <span className="max-w-[140px] truncate text-foreground">{chip.value}</span>
                     <Copy className="ml-0.5 h-3 w-3 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>

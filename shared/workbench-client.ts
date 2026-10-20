@@ -234,6 +234,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("settings:save", settings) as Promise<{ ok: boolean }>,
   updateSettings: (patch: AppSettingsPatch) => transport.invoke("settings:update", patch) as Promise<{ ok: boolean }>,
   getCodingAgentStatus: () => transport.invoke("agent:status") as Promise<CodingAgentIntegrationStatus>,
+  handoffCommentsToAgent: (input: import("./agent-integration.js").CommentAgentHandoffInput) =>
+    transport.invoke("agent:comments:handoff", input) as Promise<import("./agent-integration.js").CommentAgentHandoffResult>,
   installCli: () => transport.invoke("agent:cli:install") as Promise<CodingAgentIntegrationStatus>,
   consumeAgentSkillUpgrades: () => transport.invoke("agent:skill-upgrade:consume") as Promise<AgentSkillUpgradeDetail[]>,
   getPiAgentLogs: () =>

@@ -136,7 +136,12 @@ export function WelcomeTourStep({
   const demoPlayerRef = useRef<WelcomeDemoPlayerHandle>(null);
   const continueButtonRef = useRef<HTMLButtonElement>(null);
   const narrationList = DEMO_NARRATIONS[demoMode];
-  const narration = narrationList[demoScene] ?? CORE_DEMO_NARRATION[0];
+  const sourceNarration = narrationList[demoScene] ?? CORE_DEMO_NARRATION[0];
+  const narration = {
+    ...sourceNarration,
+    title: uiText(sourceNarration.title),
+    points: sourceNarration.points.map((point) => ({ label: uiText(point.label), detail: uiText(point.detail) }))
+  };
 
   useEffect(() => {
     // Radix menus restore focus to their trigger after closing. Wait for that
@@ -407,7 +412,7 @@ export function WelcomeTourStep({
                 <h1 id={titleId} className="welcome-tour__choice-title">
                   <span>{uiText("现在，")}</span>
                   <RotatingText
-                    texts={["选择怎么开始生成。", "连接你常用的服务。", "准备第一次创作。", "选择怎么开始生成。"]}
+                    texts={[uiText("选择怎么开始生成。"), uiText("连接你常用的服务。"), uiText("准备第一次创作。"), uiText("选择怎么开始生成。")]}
                     auto={!reduceMotion}
                     loop={false}
                     rotationInterval={1900}
@@ -451,12 +456,12 @@ export function WelcomeTourStep({
                 exit={reduceMotion ? undefined : { opacity: 0, y: -8, filter: "blur(4px)" }}
                 transition={{ duration: reduceMotion ? 0 : 0.5, delay: reduceMotion ? 0 : 0.16, ease: EASE_OUT }}
               >
-                <h1 id={titleId} className="welcome-tour__title welcome-tour__title--opening" aria-label={title}>
+                <h1 id={titleId} className="welcome-tour__title welcome-tour__title--opening" aria-label={uiText(title)}>
                   {reduceMotion ? (
-                    OPENING_LINES[OPENING_LINES.length - 1]
+                    uiText(OPENING_LINES[OPENING_LINES.length - 1])
                   ) : (
                     <TextType
-                      text={OPENING_LINES}
+                      text={OPENING_LINES.map((line) => uiText(line))}
                       typingSpeed={62}
                       variableSpeed={{ min: 42, max: 76 }}
                       initialDelay={380}
@@ -469,7 +474,7 @@ export function WelcomeTourStep({
                     />
                   )}
                 </h1>
-                <p id={descriptionId} className="welcome-tour__description">{description}</p>
+                <p id={descriptionId} className="welcome-tour__description">{uiText(description)}</p>
               </motion.div>
             )}
           </AnimatePresence>

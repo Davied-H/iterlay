@@ -91,6 +91,40 @@ try {
   await tool.getByRole("button", { name: "保存更改" }).click();
   await tool.getByText("林雨", { exact: true }).waitFor();
   console.log("[plugins] character saved");
+  // Exercise the installed package's sandbox capability path, without importing
+  // plugin policy into the host or submitting any media/model request.
+  const callsBeforeCapabilities = providerCalls;
+  const capabilities = await page.evaluate(async ({ id, boardId }) => {
+    const { requestPluginCapability } = await import("/src/features/plugins/request-plugin-capability.ts");
+    const before = await window.imageWorkbench.getComicDramaBoardSnapshot(boardId);
+    const character = before.nodes.find(node => node.type === "comic-character");
+    const recipe = await requestPluginCapability(id, "character.prepareGeneration", character);
+    const context = await requestPluginCapability(id, "comic.context", { snapshot: before, selectedNodeIds: [character.id] });
+    const guide = await requestPluginCapability(id, "comic.guide", { snapshot: before, selectedNodeIds: [character.id] });
+    const initialPlan = await requestPluginCapability(id, "project.initialize", {
+      snapshot: { boardId, revision: before.revision, nodes: [], connections: [], groups: [] },
+      instruction: "离线初始化能力检查"
+    });
+    const cancelled = new window.AbortController();
+    cancelled.abort();
+    let cancellationRejected = false;
+    try { await requestPluginCapability(id, "character.prepareGeneration", character, { signal: cancelled.signal }); }
+    catch { cancellationRejected = true; }
+    const after = await window.imageWorkbench.getComicDramaBoardSnapshot(boardId);
+    return { recipe, context, guide, initialPlan, before, after, cancellationRejected,
+      hiddenFrames: document.querySelectorAll('iframe[hidden]').length };
+  }, { id, boardId });
+  assert(capabilities.recipe.prompt.includes("林雨") && capabilities.recipe.prompt.includes("灰色风衣"));
+  assert.equal(capabilities.recipe.size, "1024x1792");
+  assert(capabilities.context.includes("林雨"));
+  assert.equal(typeof capabilities.guide.message, "string");
+  assert.equal(capabilities.initialPlan.boardId, boardId);
+  assert.equal(capabilities.initialPlan.additions.nodes[0].type, "comic-setting");
+  assert.equal(capabilities.cancellationRejected, true);
+  assert.equal(capabilities.hiddenFrames, 0, "Sandbox capability frames must be removed after success or cancellation");
+  assert.deepEqual(capabilities.after, capabilities.before, "Preparing plugin plans must not mutate the board");
+  assert.equal(providerCalls, callsBeforeCapabilities, "Pure plugin capabilities must not call a model");
+  console.log("[plugins] installed sandbox capabilities, cancellation and cleanup verified");
   await chooseStage("03 分镜");
   await tool.getByRole("button", { name: "添加分镜", exact: true }).first().click();
   await tool.getByLabel("标题", { exact: true }).fill("来自明天的信");
@@ -228,12 +262,12 @@ try {
   console.log("[plugins] native Agent form, mutation, final result and cancellation verified", providerCalls);
   await openProjectMenu();
   await tool.getByRole("button", { name: "插件市场", exact: true }).click();
-  await page.getByRole("button", { name: "停用短剧助手" }).click();
+  await page.getByRole("button", { name: /^停用\s*短剧助手$/ }).click();
   await page.getByRole("button", { name: "关闭插件市场" }).click();
   await page.getByRole("heading", { name: "安装短剧助手" }).waitFor();
   await page.getByRole("button", { name: "打开插件市场", exact: true }).click();
-  await page.getByRole("button", { name: "启用短剧助手" }).click();
-  await page.getByRole("button", { name: "卸载短剧助手" }).click();
+  await page.getByRole("button", { name: /^启用\s*短剧助手$/ }).click();
+  await page.getByRole("button", { name: /^卸载\s*短剧助手$/ }).click();
   // Input upload exercises the actual browser binary transport, not a backend-only install.
   await page.locator('input[type="file"][accept=".iterlay-plugin"]').setInputFiles({ name: `${id}.iterlay-plugin`, mimeType: "application/zip", buffer: await readFile(`resources/plugins/${id}.iterlay-plugin`) });
   await page.getByRole("button", { name: "确认安装", exact: true }).click();

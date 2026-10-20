@@ -36,19 +36,19 @@
 .create-chat button:disabled { cursor: default; }
 .create-chat-header {
   display: flex;
-  height: 64px;
+  height: 48px;
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 26px;
+  gap: 12px;
+  padding: 0 16px;
   -webkit-app-region: drag;
 }
 .create-chat-header h1 {
   min-width: 0;
   overflow: hidden;
   color: var(--chat-secondary);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -132,13 +132,13 @@
 .create-chat-composer textarea { display: block; width: 100%; min-height: 52px; max-height: 200px; resize: none; border: 0; padding: 9px 12px 7px; outline: none; background: transparent; caret-color: var(--chat-ink); font-size: 15px; line-height: 26px; scrollbar-width: thin; }
 .create-chat-composer textarea::placeholder { color: var(--chat-secondary); }
 .create-chat-composer textarea:disabled { cursor: wait; }
-.create-chat-composer-toolbar { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 12px; }
+.create-chat-composer-toolbar { display: flex; min-height: 36px; flex-wrap: wrap; align-items: center; gap: 8px; }
 .create-chat-target { display: inline-flex; min-width: 0; max-width: calc(100% - 54px); height: 36px; align-items: center; gap: 7px; padding: 0 11px; border-radius: 20px; color: var(--chat-secondary); font-size: 12px; transition: background-color .15s; }
 .create-chat-target > svg { flex-shrink: 0; }
 .create-chat-target > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .create-chat-target:hover:not(:disabled) { background: var(--chat-subtle); color: var(--chat-ink); }
 .create-chat-target:disabled { opacity: .55; }
-.create-chat-send { display: grid; width: 36px; height: 36px; flex-shrink: 0; place-items: center; border-radius: 50%; background: var(--chat-ink); color: var(--chat-surface); transition: background-color .15s, transform .15s; }
+.create-chat-send { margin-left: 0; display: grid; width: 36px; height: 36px; flex-shrink: 0; place-items: center; border-radius: 50%; background: var(--chat-ink); color: var(--chat-surface); transition: background-color .15s, transform .15s; }
 .create-chat-send:hover:not(:disabled) { opacity: .8; }
 .create-chat-send:active:not(:disabled) { transform: scale(.94); }
 .create-chat-send:disabled { background: var(--chat-subtle); color: var(--chat-secondary); }
@@ -160,7 +160,7 @@
 .create-chat-refresh:hover:not(:disabled) { background: var(--chat-subtle); }
 .create-chat-refresh:disabled { opacity: .5; }
 @media (max-width: 760px) {
-  .create-chat-header { height: 56px; padding-inline: 18px; }
+  .create-chat-header { height: 48px; padding-inline: 16px; }
   .create-chat-thread, .create-chat-compose-area { width: calc(100% - 32px); }
   .create-chat-thread { gap: 24px; padding-top: 22px; }
   .create-chat-user > p { max-width: 90%; padding-inline: 16px; }
@@ -193,3 +193,14 @@
 .create-chat .ct-button-primary { color: var(--chat-surface); }
 .create-chat-result-images[data-single="true"] > button { justify-self: start; max-width: 100%; }
 .create-chat-result-images img { width: auto; max-width: 100%; height: auto; }
+
+/* The model and send controls form the quiet, right-aligned composer action group. */
+.create-chat-model { display:inline-flex; align-items:center; gap:5px; height:32px; max-width:min(220px,calc(100% - 52px)); margin-left:auto; padding:0 8px; border:0; border-radius:7px; background:transparent; color:var(--chat-secondary); font-size:12px; font-weight:500; transition:background-color 150ms ease,color 150ms ease; }
+.create-chat-model>span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.create-chat-model>svg { flex:none; opacity:.7; }
+.create-chat-model:hover:not(:disabled),.create-chat-model[data-state="open"] { background:var(--chat-subtle); color:var(--chat-ink); }
+.create-chat-model:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
+.create-chat-model:disabled { opacity:.55; }
+.create-chat-model-menu { border-radius:12px; padding:6px; box-shadow:0 8px 24px hsl(var(--foreground) / .1),0 1px 3px hsl(var(--foreground) / .05); }
+.create-chat-model-menu [role="menuitem"] { min-height:32px; font-size:12px; }
+@media (prefers-reduced-motion: reduce) { .create-chat-model { transition:none; } }

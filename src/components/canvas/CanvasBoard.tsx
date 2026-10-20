@@ -1,3 +1,4 @@
+import { CanvasToolHint, CanvasToolHintProvider, CANVAS_TOOL_HINTS } from "./CanvasToolHint";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1388,16 +1389,49 @@ export function CanvasBoard({
     onSwitchVersion,
     onViewImageDetails
   ]);
+  const createWorkflowNode = useCallback((type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script"): void => {
+    const rect = canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    recordCanvasChange();
+    const viewportCenter = screenToFlowPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2
+    });
+    const comicNodeCount = nodesRef.current.filter((node) => (
+      node.type === "comicSettingNode"
+      || node.type === "comicCharacterNode"
+      || node.type === "comicSegmentNode"
+    )).length;
+    const comicOffset = {
+      x: (comicNodeCount % 4) * 28,
+      y: (comicNodeCount % 4) * 24
+    };
+    const position = type === "video-generation"
+      ? centerNodeAtDrop(
+          viewportCenter,
+          VIDEO_GENERATION_NODE_WIDTH,
+          VIDEO_GENERATION_NODE_WIDTH,
+          VIDEO_GENERATION_NODE_HEIGHT
+        )
+      : type === "comic-setting" || type === "comic-character" || type === "comic-segment-script"
+        ? { x: viewportCenter.x + comicOffset.x, y: viewportCenter.y + comicOffset.y }
+      : viewportCenter;
+    onCreateWorkflowNode?.(type, position, { focusOnCreate: true });
+  }, [onCreateWorkflowNode, recordCanvasChange, screenToFlowPosition]);
+
   const getShortcutSnapshot = useCallback((): CanvasShortcutSnapshot => ({
     enabled: clipboardEnabled,
     commentMode: Boolean(commentMode),
     gestureActive: hasActiveConnectionTransaction(),
     canAddReferences,
     availableAssetActions: availableShortcutAssetActions,
+    availableCreateTypes: onCreateWorkflowNode ? (comicDramaBoard ? ["video-generation"] : ["generation", "video-generation", "text"]) : [],
     nodes: nodesRef.current,
     edges: edgesRef.current
   }), [
     availableShortcutAssetActions,
+    onCreateWorkflowNode,
+    comicDramaBoard,
     canAddReferences,
     clipboardEnabled,
     commentMode,
@@ -1414,6 +1448,7 @@ export function CanvasBoard({
     toast(message);
   }, []);
   const shortcutCommandApi = useCanvasCommandApi({
+    createNode: createWorkflowNode,
     selection: {
       updateNodes: updateSelectionNodes,
       updateEdges: updateSelectionEdges,
@@ -1524,35 +1559,6 @@ export function CanvasBoard({
     onDropImages({ files, imageUrls: [] });
   }, [onDropImages, recordCanvasChange]);
 
-  const createWorkflowNode = useCallback((type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script"): void => {
-    const rect = canvasContainerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    recordCanvasChange();
-    const viewportCenter = screenToFlowPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    });
-    const comicNodeCount = nodesRef.current.filter((node) => (
-      node.type === "comicSettingNode"
-      || node.type === "comicCharacterNode"
-      || node.type === "comicSegmentNode"
-    )).length;
-    const comicOffset = {
-      x: (comicNodeCount % 4) * 28,
-      y: (comicNodeCount % 4) * 24
-    };
-    const position = type === "video-generation"
-      ? centerNodeAtDrop(
-          viewportCenter,
-          VIDEO_GENERATION_NODE_WIDTH,
-          VIDEO_GENERATION_NODE_WIDTH,
-          VIDEO_GENERATION_NODE_HEIGHT
-        )
-      : type === "comic-setting" || type === "comic-character" || type === "comic-segment-script"
-        ? { x: viewportCenter.x + comicOffset.x, y: viewportCenter.y + comicOffset.y }
-      : viewportCenter;
-    onCreateWorkflowNode?.(type, position, { focusOnCreate: true });
-  }, [onCreateWorkflowNode, recordCanvasChange, screenToFlowPosition]);
 
   const startComicDrama = useCallback((): void => {
     const rect = canvasContainerRef.current?.getBoundingClientRect();
@@ -1582,17 +1588,20 @@ export function CanvasBoard({
       onPointerDownCapture={relationshipController.onCanvasPointerDownCapture}
       onMouseDownCapture={preventMiddleMouseAutoScroll}
     >
+      <CanvasToolHintProvider delayDuration={400} skipDelayDuration={100}>
       <div className="canvas-mode-toolbar" data-canvas-create-toolbar="" role="toolbar" aria-label={uiText("画布工具")}>
-        <button type="button" title={uiText("选择 (V)")} aria-label={uiText("选择 (V)")} aria-pressed={canvasToolMode === "select"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("select")}><MousePointer2 /></button>
-        <button type="button" title={uiText("平移 (H)")} aria-label={uiText("平移 (H)")} aria-pressed={canvasToolMode === "pan"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("pan")}><Hand /></button>
+        <CanvasToolHint kind="select"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.select.aria} aria-label={uiText("选择 (V)")} aria-pressed={canvasToolMode === "select"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("select")}><MousePointer2 /></button></CanvasToolHint>
+        <CanvasToolHint kind="pan"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.pan.aria} aria-label={uiText("平移 (H)")} aria-pressed={canvasToolMode === "pan"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("pan")}><Hand /></button></CanvasToolHint>
         {!comicDramaBoard ? <span className="canvas-tool-divider" /> : null}
-        {onCreateWorkflowNode && !comicDramaBoard ? <>
-          <button type="button" title={uiText("生成图片")} aria-label={uiText("生成图片")} onClick={() => createWorkflowNode("generation")}><ImagePlus /></button>
-          <button type="button" title={uiText("添加文本")} aria-label={uiText("添加文本")} onClick={() => createWorkflowNode("text")}><Type /></button>
-        </> : null}
-        <button type="button" title={uiText("适应画布")} aria-label={uiText("适应画布")} onClick={viewportController.fitAll}><Maximize /></button>
-        {onCreateWorkflowNode ? <details><summary aria-label={uiText("更多画布工具")} title={uiText("更多画布工具")}><MoreHorizontal /></summary><div>
-          <button type="button" onClick={() => createWorkflowNode("video-generation")}><Video />{uiText("生成视频")}</button>
+        {onCreateWorkflowNode && !comicDramaBoard ?
+          <CanvasToolHint kind="image"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.image.aria} aria-label={uiText("生成图片")} onClick={() => createWorkflowNode("generation")}><ImagePlus /></button></CanvasToolHint>
+        : null}
+        {onCreateWorkflowNode ? <CanvasToolHint kind="video"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.video.aria} aria-label={uiText("生成视频")} onClick={() => createWorkflowNode("video-generation")}><Video /></button></CanvasToolHint> : null}
+        {onCreateWorkflowNode && !comicDramaBoard ?
+          <CanvasToolHint kind="text"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.text.aria} aria-label={uiText("添加文本")} onClick={() => createWorkflowNode("text")}><Type /></button></CanvasToolHint>
+        : null}
+        <CanvasToolHint kind="fit"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.fit.aria} aria-label={uiText("适应画布")} onClick={viewportController.fitAll}><Maximize /></button></CanvasToolHint>
+        {onCreateWorkflowNode && onStartComicDrama ? <details><CanvasToolHint kind="more"><summary aria-label={uiText("更多画布工具")}><MoreHorizontal /></summary></CanvasToolHint><div>
           <button type="button" onClick={startComicDrama}><Clapperboard />{comicDramaBoard ? uiText("打开漫剧设定") : uiText("新建漫剧项目")}</button>
           {comicDramaBoard ? <>
             <button type="button" onClick={() => createWorkflowNode("comic-character")}><ImagePlus />{uiText("添加角色卡")}</button>
@@ -1600,6 +1609,7 @@ export function CanvasBoard({
           </> : null}
         </div></details> : null}
       </div>
+      </CanvasToolHintProvider>
       <CanvasSurface
         flowProps={{
           nodes: renderedNodes,

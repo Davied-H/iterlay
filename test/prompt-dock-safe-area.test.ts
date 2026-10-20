@@ -13,12 +13,9 @@ describe("prompt dock canvas safe area", () => {
     expect(appSource).toContain('data-canvas-visible-area=""');
     expect(appSource).toContain('className="absolute inset-y-0 left-0 max-[700px]:!right-0"');
     expect(appSource).not.toContain("promptDockVisibleHeight");
-    expect(promptDockSource).toContain(
-      '"prompt-dock-layer pointer-events-none absolute inset-x-0 bottom-5 z-20 flex flex-col items-center gap-2"'
-    );
-    expect(promptDockSource).toContain('rightRailOpen ? "pr-[352px]" : "pr-4"');
-    expect(promptDockSource).toContain('data-edit-dock=""');
-    expect(promptDockSource).toContain('isExpanded ? "max-w-2xl" : "max-w-lg"');
+    expect(promptDockSource).toContain("<PromptFusionDock");
+    expect(promptDockSource).toContain("rightRailOpen={rightRailOpen}");
+    expect(promptDockSource).not.toContain("prompt-dock-layer");
     expect(promptDockSource).not.toContain("onVisibleHeightChange");
   });
 

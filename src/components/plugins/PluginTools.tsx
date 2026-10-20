@@ -7,7 +7,7 @@ import { PluginFrame, type PluginHostProps } from "./PluginFrame";
 import "./plugins.css";
 
 const permissionLabels: Record<string, string> = { "board:read": "读取当前画板", "board:write": "修改当前画板", storage: "保存独立配置与项目数据", "assistant:comic-drama": "调用短剧助手及媒体模型（可能产生费用）" };
-export function PluginTools({ workspace = false, onLaunchShortDrama, ...host }: PluginHostProps & { workspace?: boolean; onLaunchShortDrama?: () => void }) {
+export function PluginTools({ workspace = false, onLaunchShortDrama, onShortDramaAvailabilityChange, ...host }: PluginHostProps & { workspace?: boolean; onLaunchShortDrama?: () => void; onShortDramaAvailabilityChange?: (available: boolean) => void }) {
   const uiText = useUiText();
   const [plugins, setPlugins] = useState<InstalledPlugin[]>([]);
   const [catalog, setCatalog] = useState<PluginManifest[]>([]);
@@ -24,9 +24,15 @@ export function PluginTools({ workspace = false, onLaunchShortDrama, ...host }: 
     const api = getImageWorkbenchApi();
     const [installed, available] = await Promise.all([api.listPlugins(), api.listPluginCatalog()]);
     setPlugins(installed); setCatalog(available);
-  }, []);
+    onShortDramaAvailabilityChange?.(installed.some(p => p.manifest.id === SHORT_DRAMA_PLUGIN_ID && p.enabled));
+  }, [onShortDramaAvailabilityChange]);
   useEffect(() => { void refresh().catch(reason => setError(getWorkbenchErrorMessage(reason))); }, [refresh]);
   useEffect(() => { if (manager) dialog.current?.showModal(); else dialog.current?.close(); }, [manager]);
+  useEffect(() => {
+    const openManager = () => setManager(true);
+    window.addEventListener("iterlay:manage-plugins", openManager);
+    return () => window.removeEventListener("iterlay:manage-plugins", openManager);
+  }, []);
   const selected = plugins.find(p => p.manifest.id === selectedId && p.enabled);
   const context = useMemo(() => host.context, [host.context]);
   async function action(operation: () => Promise<unknown>) {

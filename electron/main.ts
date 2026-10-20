@@ -189,6 +189,7 @@ let guardWindowClose: ((window: BrowserWindow) => void) | undefined;
 }
 const hasSingleInstanceLock = process.env.ITERLAY_PLAYWRIGHT === "1" ? true : app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
+  console.error(`Iterlay 工作区已被另一个实例占用：${app.getPath("userData")}${isBrowserDev ? "。请先停止该目录的旧开发后端，再运行 pnpm dev。" : ""}`);
   app.quit();
 } else {
   registerDeepLinkIpc();
@@ -466,7 +467,7 @@ app.whenReady().then(async () => {
   const thumbHashes = new ThumbHashStore(dataDir);
   const sceneMedia = new SceneMediaStore(dataDir);
   const license = new LicenseService();
-  const manageApiBaseUrl = process.env.ITERLAY_LICENSE_API_URL ?? "https://iterlay.daived.com:31243/api/v1";
+  const manageApiBaseUrl = process.env.ITERLAY_LICENSE_API_URL?.trim() ?? "";
   const videoService = new VideoGenerationService(
     defaultVideoProviders(),
     createVideoSubmitInputNormalizer((bytes) => nativeImage.createFromBuffer(bytes))

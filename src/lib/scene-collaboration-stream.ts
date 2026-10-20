@@ -1,3 +1,4 @@
+import { getUiTextLocale } from "@/i18n/ui-text";
 import type {
   CollaborateSceneRequest,
   CollaborateSceneResult,
@@ -74,7 +75,7 @@ export function startSceneCollaborationStream(
     else handlers.onCancelled?.();
   });
 
-  api.startSceneCollaboration(requestId, request);
+  api.startSceneCollaboration(requestId, { ...request, locale: request.locale ?? getUiTextLocale() });
 
   return {
     cancel: () => {

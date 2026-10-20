@@ -15,6 +15,7 @@ const cleanups: (() => void | Promise<void>)[] = [];
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
+  vi.useRealTimers();
 });
 
 async function fixture(options: { sessionLeaseMs?: number; requestQuit?: () => void } = {}) {
@@ -141,6 +142,9 @@ describe("development browser server", () => {
   });
 
   it("keeps a disconnected editor's claim during its reconnect lease and expires it afterwards", async () => {
+    // Drive the lease explicitly: parallel suites must not consume its 120 ms
+    // budget while these real HTTP requests are waiting for the event loop.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const f = await fixture({ sessionLeaseMs: 120 });
     const { body } = await f.session();
     const stream = await f.connect(body.sessionId);
@@ -149,9 +153,8 @@ describe("development browser server", () => {
     expect((await f.session()).response.status).toBe(409);
     const resumed = await f.session(body.sessionId);
     expect(resumed.body.sessionId).toBe(body.sessionId);
-    await vi.waitFor(async () => {
-      expect((await f.session()).response.status).toBe(200);
-    }, { timeout: 1_000, interval: 30 });
+    await vi.advanceTimersByTimeAsync(121);
+    expect((await f.session()).response.status).toBe(200);
   });
 
   it("enforces the public IPC allowlists and returns backend errors to the browser", async () => {

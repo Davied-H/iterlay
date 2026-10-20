@@ -464,8 +464,8 @@ function PreviewInspector({
       <h2 className="sr-only">{title} {uiText("图片信息")}</h2>
       <dl className="space-y-6">
         {details.map((detail) => (
-          <div key={detail.label}>
-            <dt className="text-xs text-white/48">{detail.label}</dt>
+          <div key={uiText(detail.label)}>
+            <dt className="text-xs text-white/48">{uiText(detail.label)}</dt>
             <dd className="mt-1 break-words text-sm font-medium leading-5 text-white/92">{detail.value}</dd>
           </div>
         ))}
@@ -510,8 +510,8 @@ function AnimateMobileInspector({
       </div>
       <dl className="grid grid-cols-2 gap-x-5 gap-y-4">
         {details.map((detail) => (
-          <div key={detail.label} className="min-w-0">
-            <dt className="text-[11px] text-white/45">{detail.label}</dt>
+          <div key={uiText(detail.label)} className="min-w-0">
+            <dt className="text-[11px] text-white/45">{uiText(detail.label)}</dt>
             <dd className="mt-1 break-words text-xs font-medium leading-4 text-white/88">{detail.value}</dd>
           </div>
         ))}

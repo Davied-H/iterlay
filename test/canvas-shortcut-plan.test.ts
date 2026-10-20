@@ -263,3 +263,21 @@ describe("canvas shortcut planning", () => {
     });
   });
 });
+
+describe("toolbar creation shortcuts", () => {
+  const availableCreateTypes = ["generation", "video-generation", "text"] as const;
+  it.each([["I", "generation"], ["V", "video-generation"], ["T", "text"]] as const)("creates a %s card through the command pipeline", (key, nodeType) => {
+    expect(plan({ key, shiftKey: true }, { availableCreateTypes })).toMatchObject({ type: "command", command: { type: "create-node", nodeType } });
+  });
+  it.each([
+    { editableTarget: true }, { isComposing: true }, { repeat: true }, { defaultPrevented: true }
+  ])("does not create while typing or repeating: %j", input => {
+    expect(plan({ key: "I", shiftKey: true, ...input }, { availableCreateTypes })).toEqual({ type: "ignore" });
+  });
+  it("respects disabled tools, comments, gestures and inactive boards", () => {
+    for (const state of [{ availableCreateTypes: [] }, { commentMode: true }, { gestureActive: true }, { enabled: false }]) {
+      expect(plan({ key: "I", shiftKey: true }, { availableCreateTypes, ...state })).toEqual({ type: "ignore" });
+    }
+    expect(plan({ key: "I", shiftKey: true }, { availableCreateTypes: ["video-generation"] })).toEqual({ type: "ignore" });
+  });
+});

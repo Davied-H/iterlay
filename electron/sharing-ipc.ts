@@ -1,3 +1,4 @@
+import { ONLINE_SHARING_AVAILABLE } from "../shared/sharing-availability.js";
 import { ipcMain, nativeImage } from "electron";
 import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
@@ -34,6 +35,7 @@ export function registerSharingIpc({
   let activeOnlineShare: OnlineShareSession | null = null;
 
   ipcMain.handle("downloads:sharePath", async (_event, input: unknown) => {
+    if (!ONLINE_SHARING_AVAILABLE) throw new Error("在线分享暂未开放，请使用本地导出。");
     if (typeof input !== "string" || !path.isAbsolute(input)) throw new Error("分享文件路径无效。");
     const directory = settings.getSettings().downloadDirectory?.trim();
     if (!directory) throw new Error("请先完成一次下载后再发送到手机。");
@@ -85,6 +87,7 @@ export function registerSharingIpc({
   });
 
   ipcMain.handle("sharing:startImage", async (_event, input: unknown) => {
+    if (!ONLINE_SHARING_AVAILABLE) throw new Error("在线分享暂未开放，请使用本地导出。");
     if (!settings.getSettings().onlineImageSharingEnabled) {
       throw new Error("请先在设置中开启“快速分享图片”。");
     }
@@ -340,6 +343,7 @@ export function registerSharingIpc({
   });
 
   ipcMain.handle("downloads:shareWechatPackage", async (_event, input: unknown) => {
+    if (!ONLINE_SHARING_AVAILABLE) throw new Error("在线分享暂未开放，请使用本地导出。");
     if (!input || typeof input !== "object") throw new Error("微信表情分享参数无效。");
     const folderPath = (input as { folderPath?: unknown }).folderPath;
     const zipPath = (input as { zipPath?: unknown }).zipPath;

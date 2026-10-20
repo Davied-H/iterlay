@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 const ACCENT_CLASS = "text-muted-foreground";
 
-/** 来源由 Manage 下发；在本地筛选以避免每次输入都产生网络请求。 */
+/** 来源及图标随应用内置；仅主动打开站点时访问外部网站。 */
 export function InspirationSources(): React.ReactElement {
   const uiText = useUiText();
 
@@ -40,13 +40,13 @@ export function InspirationSources(): React.ReactElement {
   }
 
   return <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[oklch(var(--workspace-surface))]">
-    <header className="window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-4 border-b border-border bg-background px-4 [-webkit-app-region:drag]">
+    <header className="workbench-page-header window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-3 bg-background px-4 [-webkit-app-region:drag]">
       <div className="flex shrink-0 items-center gap-2">
         <Compass className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
         <span className="text-sm font-semibold tracking-tight">{uiText("灵感来源")}</span>
         <span className="text-xs tabular-nums text-muted-foreground">{loading ? uiText("正在读取") : uiText("{{ui:0}}{{ui:1}} 个来源", [visibleSources.length, query.trim() ? ` / ${sources.length}` : ""])}</span>
       </div>
-      <label className="ml-auto flex h-8 w-full max-w-md items-center gap-2 rounded-md border border-input bg-muted/55 px-2.5 text-muted-foreground transition-colors focus-within:border-ring focus-within:bg-background [-webkit-app-region:no-drag]">
+      <label className="ml-auto flex h-8 w-full max-w-md items-center gap-2 rounded-md border border-transparent bg-transparent px-2.5 text-muted-foreground transition-[background-color,border-color] duration-200 ease-out hover:border-input hover:bg-muted/55 focus-within:border-ring focus-within:bg-muted/55 motion-reduce:transition-none [-webkit-app-region:no-drag]">
         <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span className="sr-only">{uiText("搜索灵感来源")}</span>
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={uiText("搜索名称、分类或网站")} className="h-auto min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0" aria-label={uiText("搜索灵感来源")} />

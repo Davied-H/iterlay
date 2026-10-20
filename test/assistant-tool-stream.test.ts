@@ -1,20 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setUiTextLocale } from "../src/i18n/ui-text";
 import type { CollaborateSceneStreamEvent } from "../shared/types";
 import { startSceneCollaborationStream } from "../src/lib/scene-collaboration-stream";
 
 const mock = vi.hoisted(() => ({
   listener: null as null | ((event: CollaborateSceneStreamEvent) => void),
-  requestId: "", unsubscribe: vi.fn(), cancel: vi.fn()
+  start: vi.fn(), requestId: "", unsubscribe: vi.fn(), cancel: vi.fn()
 }));
 vi.mock("../src/lib/image-workbench-api", () => ({
   getImageWorkbenchApi: () => ({
     onSceneCollaborationEvent: (listener: (event: CollaborateSceneStreamEvent) => void) => { mock.listener = listener; return mock.unsubscribe; },
-    startSceneCollaboration: (id: string) => { mock.requestId = id; },
+    startSceneCollaboration: (id: string, request: unknown) => { mock.requestId = id; mock.start(request); },
     cancelSceneCollaboration: mock.cancel
   })
 }));
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); setUiTextLocale("zh-CN"); });
 describe("tool stream dispatch", () => {
+  it("sends the active locale while respecting an explicitly requested language", () => {
+    setUiTextLocale("en-US");
+    const request = { instruction: "hello", workflowMode: "generate" as const, currentFields: [], referenceImages: [] };
+    const handlers = { onDelta: vi.fn(), onResult: vi.fn(), onError: vi.fn() };
+    const first = startSceneCollaborationStream(request, handlers);
+    expect(mock.start).toHaveBeenLastCalledWith({ ...request, locale: "en-US" });
+    first.dispose();
+    const second = startSceneCollaborationStream({ ...request, locale: "zh-CN" }, handlers);
+    expect(mock.start).toHaveBeenLastCalledWith({ ...request, locale: "zh-CN" });
+    second.dispose();
+    setUiTextLocale("zh-CN");
+  });
   it("keeps reasoning summaries out of answer deltas and ignores foreign or disposed summaries", () => {
     const onReasoningSummary = vi.fn(), onDelta = vi.fn();
     const handle = startSceneCollaborationStream(

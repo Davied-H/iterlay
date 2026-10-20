@@ -17,6 +17,18 @@ describe("typed workspace image tasks", () => {
     expect(f.mocks.generateImage).toHaveBeenCalledWith(expect.objectContaining({ providerId: "custom", n: 1, background: "auto" }));
     expect(f.flush).toHaveBeenCalledTimes(2);
   });
+  it.each(["generate_image", "edit_image"])("preserves transparent PNG parameters for %s", async (name) => {
+    const f = workspaceFixture();
+    const task = await f.commands.call(name, { boardId: "board", sourcePath: "/managed/source.png",
+      prompt: "Isolate the subject", model: "gpt-image-2.5-flare", background: "transparent" }) as { generationId: string };
+    await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId }))
+      .toMatchObject({ status: "succeeded" }));
+    expect(f.mocks.generateImage).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: name === "edit_image" ? "edit" : "generate",
+      model: "gpt-image-2.5-flare", background: "transparent", outputFormat: "png"
+    }));
+  });
+
   it("uses the configured default for raw generation calls and persists the images there", async () => {
     const f = workspaceFixture();
     f.mocks.getSettings.mockResolvedValue({ cliDefaultBoardId: "configured", activeProviderId: "custom", providers: [{ id: "custom", type: "openai-compatible", model: "fixture" }] });

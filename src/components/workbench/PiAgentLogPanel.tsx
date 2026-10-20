@@ -152,7 +152,7 @@ export function PiAgentLogPanel(): React.ReactElement {
 
       <div className="flex min-w-0 items-center justify-between gap-4 px-0.5">
         <p className="truncate text-[11px] text-muted-foreground" title={logPath}>
-          {logPath || "日志保存在本机应用日志目录"}
+          {logPath || uiText("日志保存在本机应用日志目录")}
         </p>
         <p className="shrink-0 text-[11px] text-muted-foreground">{uiText("敏感凭据、图片数据和完整 HTML 不会写入日志")}</p>
       </div>

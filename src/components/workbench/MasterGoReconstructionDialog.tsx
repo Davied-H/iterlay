@@ -631,8 +631,8 @@ export function MasterGoReconstructionTaskState({
           <div className="flex items-center gap-2 font-medium text-emerald-700">
             <CircleCheck className="h-4 w-4" />
             {uiText("已写入 MasterGo")}</div>
-          <ResultLine icon={<PanelTop className="h-3.5 w-3.5" />} label={uiText("目标")} value={task.result?.targetName || "当前 MasterGo 页面"} />
-          <ResultLine icon={<Square className="h-3.5 w-3.5" />} label={uiText("名称")} value={task.result?.frameName || "可编辑设计稿"} />
+          <ResultLine icon={<PanelTop className="h-3.5 w-3.5" />} label={uiText("目标")} value={task.result?.targetName || uiText("当前 MasterGo 页面")} />
+          <ResultLine icon={<Square className="h-3.5 w-3.5" />} label={uiText("名称")} value={task.result?.frameName || uiText("可编辑设计稿")} />
         </motion.div>
       ) : null}
 

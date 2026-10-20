@@ -512,6 +512,7 @@ function VectorElement({
   onTextChange: (id: string, text: string) => void;
   onTextBlur: () => void;
 }): React.ReactElement | null {
+  const uiText = useUiText();
   if (!element.visible) return null;
   const bounds = getRelaxElementBounds(element);
   const pointerClass = erasing ? "cursor-cell" : interactive ? "cursor-move" : "pointer-events-none";
@@ -592,7 +593,7 @@ function VectorElement({
       onPointerDown={(event) => onPointerDown(event, element)}
       onDoubleClick={() => onDoubleClick(element)}
     >
-      {element.text || "文字"}
+      {element.text || uiText("文字")}
     </div>
   );
 }
@@ -1542,12 +1543,12 @@ export function RelaxFlowBoard({
               variant="docked"
               title={uiText("Relax Flow AI 助手")}
               subtitle={understandingActive
-                ? "正在分析标注与图片的关系"
+                ? uiText("正在分析标注与图片的关系")
                 : generationActive
-                  ? "正在应用确认后的编辑方案"
+                  ? uiText("正在应用确认后的编辑方案")
                   : intentReady
-                    ? "编辑方案可通过对话继续修改"
-                    : "理解画板并生成编辑方案"}
+                    ? uiText("编辑方案可通过对话继续修改")
+                    : uiText("理解画板并生成编辑方案")}
               messages={assistantMessages}
               value={assistantValue}
               placeholder={intentReady ? uiText("继续描述你想怎样调整…") : uiText("完成 AI 理解后可继续对话修改")}

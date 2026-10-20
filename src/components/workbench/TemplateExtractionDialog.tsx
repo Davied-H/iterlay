@@ -359,7 +359,7 @@ export function TemplateExtractionDialog({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.min(88, 16 + extractionElapsedSeconds * 4)}
-                    aria-valuetext={`已处理 ${extractionElapsedSeconds} 秒`}
+                    aria-valuetext={uiText("已处理 {{ui:0}} 秒", [extractionElapsedSeconds])}
                   >
                     <div
                       className="h-full rounded-full bg-foreground transition-[width] duration-700 ease-out motion-reduce:transition-none"

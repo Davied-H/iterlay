@@ -19,7 +19,7 @@ delete env.VITE_DEV_SERVER_URL;
 delete env.ITERLAY_BROWSER_DEV;
 
 async function cli(...args) {
-  const { stdout } = await exec(process.execPath, [path.join(root, "cli/dist/main.js"), ...args, "--user-data-path", directory, "--json"], { cwd: root, timeout: 30_000 });
+  const { stdout } = await exec(process.execPath, [path.join(root, "cli/dist/main.js"), ...args, "--user-data-path", directory, "--no-launch", "--json"], { cwd: root, timeout: 30_000 });
   const result = JSON.parse(stdout);
   assert.equal(result.ok, true, stdout);
   return result.data;
@@ -27,12 +27,16 @@ async function cli(...args) {
 
 async function start() {
   const application = await _electron.launch({ executablePath: require("electron"), args: [root, "--iterlay-background"], cwd: root, env, timeout: 30_000 });
+  const startupLogs = [];
+  application.process().stderr?.on("data", chunk => startupLogs.push(String(chunk)));
+  application.process().stdout?.on("data", chunk => startupLogs.push(String(chunk)));
   try {
     let ready = false;
+    let readinessError;
     for (let attempt = 0; attempt < 120; attempt++) {
-      try { await cli("status"); ready = true; break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); }
+      try { await cli("status"); ready = true; break; } catch (error) { readinessError = error; await new Promise((resolve) => setTimeout(resolve, 250)); }
     }
-    assert(ready, "Background local API did not become ready");
+    assert(ready, `Background local API did not become ready: ${String(readinessError)}\n${startupLogs.join("")}`);
     return application;
   } catch (error) {
     await application.close();

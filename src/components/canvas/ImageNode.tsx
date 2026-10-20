@@ -326,7 +326,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
                     <div key={`${reference.name}:${index}`} className="h-12 w-12 overflow-hidden rounded-md border border-white/20 bg-white/10">
                       <img
                         src={reference.dataUrl}
-                        alt={reference.name || `引用图片 ${index + 1}`}
+                        alt={reference.name || uiText("引用图片 {{ui:0}}", [index + 1])}
                         className="h-full w-full object-cover"
                         draggable={false}
                       />
@@ -385,7 +385,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
             />
             <button
               type="button"
-              aria-label={uiText("从{{ui:0}}侧创建连接", [({ top: "上", right: "右", bottom: "下", left: "左" } as const)[side]])}
+              aria-label={uiText("从{{ui:0}}侧创建连接", [uiText(({ top: "上", right: "右", bottom: "下", left: "左" } as const)[side])])}
               className="nodrag nopan image-node-connection-trigger"
               onPointerDownCapture={(event) => {
                 event.preventDefault();

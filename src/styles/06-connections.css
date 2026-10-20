@@ -711,8 +711,3 @@
   will-change: opacity;
   animation: pending-shimmer-pulse 1.8s ease-in-out infinite;
 }
-
-.prompt-dock-card {
-  container: prompt-dock / inline-size;
-}
-

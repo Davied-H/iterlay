@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 import { useUiText } from "@/i18n";
-import type { CodingAgentIntegrationStatus } from "@shared/agent-integration";
-import { SettingsPageHeader } from "./SettingsPrimitives";
+import type { CodingAgentId, CodingAgentIntegrationStatus } from "@shared/agent-integration";
+import { SettingsGroup, SettingsPageHeader, SettingsRow } from "./SettingsPrimitives";
 import { CliDefaultBoardSettings } from "./CliDefaultBoardSettings";
 import { AgentStarterGuide } from "./AgentStarterGuide";
 import "./coding-agent-settings.css";
@@ -33,15 +33,32 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [defaultAgent, setDefaultAgent] = useState<CodingAgentId | null>(null);
 
   useEffect(() => {
     if (disabled) return;
     let disposed = false;
-    void getImageWorkbenchApi().getCodingAgentStatus()
-      .then((result) => { if (!disposed) setStatus(result); })
+    const api = getImageWorkbenchApi();
+    void Promise.all([api.getCodingAgentStatus(), api.getSettings()])
+      .then(([result, settings]) => { if (!disposed) {
+        setStatus(result);
+        setDefaultAgent(settings.defaultCodingAgent ?? result.clients.find((agent) => agent.skillInstalled)?.id ?? "codex");
+      } })
       .catch((e) => { if (!disposed) setError(getWorkbenchErrorMessage(e, "无法检测 Coding Agent，请重试。")); });
     return () => { disposed = true; };
   }, [disabled]);
+
+  async function changeDefaultAgent(agent: CodingAgentId): Promise<void> {
+    setBusy("default-agent");
+    setError(null);
+    setNotice(null);
+    try {
+      await getImageWorkbenchApi().updateSettings({ defaultCodingAgent: agent });
+      setDefaultAgent(agent);
+      setNotice(uiText("默认 Coding Agent 已保存"));
+    } catch (cause) { setError(getWorkbenchErrorMessage(cause, uiText("无法保存默认 Coding Agent，请重试。"))); }
+    finally { setBusy(null); }
+  }
 
   async function perform(key: string, action: () => Promise<CodingAgentIntegrationStatus>): Promise<void> {
     setBusy(key);
@@ -83,6 +100,25 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
   return <div className="coding-agent-settings" data-testid="coding-agent-settings">
     <SettingsPageHeader title="Coding Agent" description={uiText("在你习惯的编程工具里使用 Iterlay。")}/>
     <div className="coding-agent-body">
+    <SettingsGroup title={uiText("默认 Coding Agent")}>
+      <SettingsRow title={uiText("接收修改建议")}
+        description={uiText("评论面板的 AI 按钮会打开此 Agent，并带入评论建议、图片版本和画板上下文。")}
+        stackControlOnNarrow control={<select
+          aria-label={uiText("默认 Coding Agent")}
+          value={defaultAgent ?? "codex"}
+          disabled={locked || defaultAgent === null}
+          onChange={(event) => {
+            const agent = event.target.value;
+            if (agent === "codex" || agent === "claude-code") void changeDefaultAgent(agent);
+          }}
+          className="h-9 w-44 max-w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        >
+          <option value="codex">Codex</option>
+          <option value="claude-code">Claude Code</option>
+        </select>}
+      />
+      <p className="coding-agent-note">{uiText("Codex 会预填新对话草稿；Claude Code 会在 macOS 终端中打开，先与你确认修改方案。")}</p>
+    </SettingsGroup>
     <nav className="coding-agent-steps" aria-label={uiText("配置步骤")}>
       <ol>
         {STEPS.map((step, index) => <li key={step.title} data-active={activeStep === index} data-complete={completed[index]}>
@@ -138,7 +174,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
         <div className="coding-agent-panel-heading"><h3>{uiText("从准备检查，到第一份交付")}</h3><p>{uiText("新开 Agent 会话，选择一项任务。安装 Skill 不代表该会话已加载它。")}</p><p>{uiText("Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。")}</p></div>
         {installedAgents.length ? <div className="coding-agent-ready"><CheckCircle2 className="size-4" aria-hidden="true" /><span>{installedAgents.map((agent) => agent.id === "codex" ? "Codex" : "Claude Code").join(" / ")} · {uiText("Skill 已安装")}</span></div> : <p className="coding-agent-guidance">{uiText("先完成 Skill 安装，再在新会话中尝试。")}</p>}
         {!providerReady ? <div className="coding-agent-provider"><p>{uiText("还没有可用的图片服务。配置后即可开始生成。")}</p><Button variant="outline" size="sm" disabled={locked} onClick={onOpenModels}>{uiText("配置图片服务")}</Button></div> : null}
-        <AgentStarterGuide disabled={locked} defaultAgent={installedAgents[0]?.id ?? "codex"} onCopy={copy} copied={copied} onImportBoard={onImportBoard} onOpenBoards={onOpenBoards} />
+        <AgentStarterGuide disabled={locked} defaultAgent={defaultAgent ?? installedAgents[0]?.id ?? "codex"} onCopy={copy} copied={copied} onImportBoard={onImportBoard} onOpenBoards={onOpenBoards} />
         <p className="coding-agent-command-label">{uiText("也可以直接在终端运行")}</p>
         <div className="coding-agent-command"><code>iterlay providers list --json</code><Button variant="ghost" size="icon" aria-label={uiText("复制终端命令")} onClick={() => void copy("iterlay providers list --json", "command")}>{copied === "command" ? <Check /> : <Copy />}</Button></div>
       </>}

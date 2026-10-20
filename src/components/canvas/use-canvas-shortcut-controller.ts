@@ -27,6 +27,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
       || element.tagName === "TEXTAREA"
       || element.tagName === "SELECT"
       || element.isContentEditable
+      || element.closest('[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="dialog"],[role="menu"]')
     )
   );
 }

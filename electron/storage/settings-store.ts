@@ -83,6 +83,7 @@ interface SettingsSchema {
   imageDoubleClickAction?: ImageDoubleClickAction;
   downloadDirectory?: string;
   cliDefaultBoardId?: string;
+  defaultCodingAgent?: import("../../shared/agent-integration.js").CodingAgentId;
   versionSeparationMode?: VersionSeparationMode;
   generateButtonStyle?: GenerateButtonStyle;
   appIcon?: AppIconPreference;
@@ -220,7 +221,7 @@ export class SettingsStore {
       canvasImageToolbarOnHover: current.canvasImageToolbarOnHover ?? false,
       canvasRelationshipHoverHighlight: current.canvasRelationshipHoverHighlight ?? false,
       wechatStickerExportEnabled: current.wechatStickerExportEnabled ?? false,
-      onlineImageSharingEnabled: current.onlineImageSharingEnabled ?? true,
+      onlineImageSharingEnabled: current.onlineImageSharingEnabled ?? false,
       copyImageFormat: normalizeCopyImageFormat(current.copyImageFormat),
       boardSmartSuggestionsEnabled: current.boardSmartSuggestionsEnabled ?? false,
       boardAssistantEnabled: current.boardAssistantEnabled ?? true,
@@ -249,6 +250,7 @@ export class SettingsStore {
       imageDoubleClickAction: current.imageDoubleClickAction ?? "edit",
       downloadDirectory: current.downloadDirectory ?? "",
       cliDefaultBoardId: current.cliDefaultBoardId ?? "",
+      defaultCodingAgent: current.defaultCodingAgent ?? "codex",
       versionSeparationMode: current.versionSeparationMode ?? "copy",
       generateButtonStyle: current.generateButtonStyle ?? "folded",
       appIcon: normalizeStoredAppIcon(current.appIcon, current.customAppIcons),
@@ -355,7 +357,7 @@ export class SettingsStore {
       wechatStickerExportEnabled:
         settings.wechatStickerExportEnabled ?? current.wechatStickerExportEnabled ?? false,
       onlineImageSharingEnabled:
-        settings.onlineImageSharingEnabled ?? current.onlineImageSharingEnabled ?? true,
+        settings.onlineImageSharingEnabled ?? current.onlineImageSharingEnabled ?? false,
       copyImageFormat: normalizeCopyImageFormat(settings.copyImageFormat ?? current.copyImageFormat),
       boardSmartSuggestionsEnabled: settings.boardSmartSuggestionsEnabled ?? current.boardSmartSuggestionsEnabled ?? false,
       boardAssistantEnabled: settings.boardAssistantEnabled ?? current.boardAssistantEnabled ?? true,
@@ -391,6 +393,7 @@ export class SettingsStore {
       imageDoubleClickAction: settings.imageDoubleClickAction ?? current.imageDoubleClickAction ?? "edit",
       downloadDirectory: settings.downloadDirectory ?? current.downloadDirectory ?? "",
       cliDefaultBoardId: typeof settings.cliDefaultBoardId === "string" ? settings.cliDefaultBoardId.trim() : current.cliDefaultBoardId ?? "",
+      defaultCodingAgent: settings.defaultCodingAgent === "codex" || settings.defaultCodingAgent === "claude-code" ? settings.defaultCodingAgent : current.defaultCodingAgent ?? "codex",
       versionSeparationMode: settings.versionSeparationMode ?? current.versionSeparationMode ?? "copy",
       generateButtonStyle: settings.generateButtonStyle ?? current.generateButtonStyle ?? "folded",
       appIcon: normalizeStoredAppIcon(
@@ -685,7 +688,7 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     canvasImageToolbarOnHover: parsed.canvasImageToolbarOnHover,
     canvasRelationshipHoverHighlight: parsed.canvasRelationshipHoverHighlight,
     wechatStickerExportEnabled: parsed.wechatStickerExportEnabled ?? false,
-    onlineImageSharingEnabled: parsed.onlineImageSharingEnabled ?? true,
+    onlineImageSharingEnabled: parsed.onlineImageSharingEnabled ?? false,
     copyImageFormat: normalizeCopyImageFormat(parsed.copyImageFormat),
     boardSmartSuggestionsEnabled: parsed.boardSmartSuggestionsEnabled,
     boardAssistantEnabled: parsed.boardAssistantEnabled ?? true,
@@ -714,6 +717,7 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     imageDoubleClickAction: parsed.imageDoubleClickAction,
     downloadDirectory: parsed.downloadDirectory,
     cliDefaultBoardId: typeof parsed.cliDefaultBoardId === "string" ? parsed.cliDefaultBoardId.trim() : "",
+    defaultCodingAgent: parsed.defaultCodingAgent === "claude-code" ? "claude-code" : "codex",
     versionSeparationMode: parsed.versionSeparationMode === "extract" ? "extract" : "copy",
     generateButtonStyle:
       parsed.generateButtonStyle === "glow" ||

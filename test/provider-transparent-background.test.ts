@@ -23,6 +23,10 @@ describe("transparent background provider capability", () => {
     expect(providerSupportsTransparentBackground(provider({ apiMode: "responses", model: "gpt-5.6" }))).toBe(true);
   });
 
+  it.each(["gpt-image-2.5-sunburst", "gpt-image-2.5-flare"])("supports transparent PNG for %s", (model) => {
+    expect(providerSupportsTransparentBackground(provider({ model }))).toBe(true);
+  });
+
   it("does not advertise transparency for unrelated image providers", () => {
     expect(providerSupportsTransparentBackground(provider({ type: "fal" }))).toBe(false);
     expect(providerSupportsTransparentBackground(provider({ type: "bailian" }))).toBe(false);

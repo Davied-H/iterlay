@@ -1341,7 +1341,7 @@ export function SceneCreator({
           event.currentTarget.value = "";
         }}
       />
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 [-webkit-app-region:drag]">
+      <header className="workbench-page-header flex h-12 shrink-0 items-center gap-3 px-4 [-webkit-app-region:drag]">
         <Button
           variant="ghost"
           size="icon"
@@ -1671,7 +1671,7 @@ export function SceneCreator({
                   {uiText("已用 ")}<time className="tabular-nums">{exampleGenerationTiming.elapsedLabel}</time>
                   <span aria-hidden> · </span>
                   {exampleGenerationTiming.overdue ? (
-                    "比预计久一点，任务仍在处理中"
+                    uiText("比预计久一点，任务仍在处理中")
                   ) : (
                     <>{uiText("预计剩余 ")}<time className="tabular-nums">{exampleGenerationTiming.remainingLabel}</time></>
                   )}
@@ -1764,7 +1764,7 @@ export function SceneCreator({
                 title={uiText("模板共创助手")}
                 subtitle={draft.extractionScenario
                   ? getTemplateExtractionScenarioTemplateLabel(draft.extractionScenario)
-                  : "基于当前模板"}
+                  : uiText("基于当前模板")}
                 messages={assistantMessages}
                 value={assistantPrompt}
                 placeholder={assistantReferenceCount > 0

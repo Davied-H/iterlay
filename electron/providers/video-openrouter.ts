@@ -14,6 +14,7 @@ import type {
   VideoSubmitInput
 } from "./video-types.js";
 import { normalizeVideoProviderModelOption } from "../../shared/video-provider-models.js";
+import { parseOpenRouterVideoPricing } from "../../shared/model-pricing.js";
 import { ProviderError } from "./errors.js";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api";
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -124,6 +125,7 @@ export class OpenRouterVideoProvider implements VideoProvider {
             const option = normalizeVideoProviderModelOption({
                 id,
                 ownedBy: id.split("/")[0] || undefined,
+                pricing: parseOpenRouterVideoPricing(value.pricing_skus),
                 requiresPrompt: typeof value.prompt_required === "boolean" ? value.prompt_required : undefined,
                 supportsGeneratedAudio: typeof value.generate_audio === "boolean" ? value.generate_audio : undefined,
                 supportedFrameImages: value.supported_frame_images,

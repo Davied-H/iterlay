@@ -43,8 +43,7 @@ import type {
   GenerationJob,
   GptImageUseCase,
   ImageWorkflowMode,
-  SceneMediaSummary,
-  TemplateSubmissionResult
+  SceneMediaSummary
 } from "@shared/types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -118,8 +117,6 @@ interface SceneLibraryPageProps {
   onUpdate: (scene: SceneDefinition, input: NewSceneInput) => SceneDefinition;
   onDelete: (id: string) => void;
   onExport: (scene: SceneDefinition) => void;
-  onSubmit: (scene: SceneDefinition, authorName: string, exampleResultIds: string[]) => Promise<TemplateSubmissionResult>;
-  onGetSubmission: (scene: SceneDefinition) => Promise<TemplateSubmissionResult | null>;
   onImport: () => Promise<SceneDefinition | null>;
   onImportFiles: (files: File[]) => Promise<SceneDefinition[]>;
   onOptimize: (scene: SceneDefinition, prompt: string, templatePrompt?: string) => Promise<string>;
@@ -229,8 +226,6 @@ export function SceneLibraryPage({
   onUpdate,
   onDelete,
   onExport,
-  onSubmit,
-  onGetSubmission,
   onImport,
   onImportFiles,
   onOptimize,
@@ -421,8 +416,6 @@ export function SceneLibraryPage({
         onToggleFavorite={onToggleFavorite}
         onEdit={() => setEditorScene(selectedScene)}
         onExport={onExport}
-        onSubmit={onSubmit}
-        onGetSubmission={onGetSubmission}
         onCollaborate={onCollaborate}
         onCopyText={onCopyText}
         onLocateHistory={onLocateHistory}
@@ -836,7 +829,7 @@ function SceneBrowser({
     <LibraryFilterTabs
       value={filter}
       options={filterOptions}
-      ariaLabel="模版范围"
+      ariaLabel={uiText("模版范围")}
       className={compact ? "order-3 max-w-full min-[790px]:order-none" : undefined}
       countClassName={!compact ? "max-[1180px]:hidden" : undefined}
       onValueChange={setFilter}
@@ -846,7 +839,7 @@ function SceneBrowser({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {!compact ? (
-        <header className="window-titlebar-overlay-safe flex min-h-12 shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2 [-webkit-app-region:drag]">
+        <header className="workbench-page-header window-titlebar-overlay-safe flex min-h-12 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 [-webkit-app-region:drag]">
           <div className="flex shrink-0 items-baseline gap-2">
             <span className="text-sm font-semibold tracking-tight">{uiText("探索模版")}</span>
             <span className="text-xs tabular-nums text-muted-foreground">{scenes.length} {uiText("个模板")}</span>

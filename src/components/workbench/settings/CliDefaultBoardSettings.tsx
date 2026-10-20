@@ -60,7 +60,7 @@ export function CliDefaultBoardSettings({ disabled }: { disabled: boolean }): Re
     } />
     <p className="coding-agent-note">{uiText("自动模式会复用或创建「CLI 创作」画板。使用 --board 可为单次生成指定其他画板。")}</p>
     {missing ? <p className="coding-agent-error" role="alert">{uiText("默认画板已不可用，请重新选择后再通过 CLI 生成。")}</p> : null}
-    {error ? <div className="coding-agent-error" role="alert"><p>{error}</p>{!boards ? <Button variant="outline" size="sm" disabled={disabled} onClick={() => setLoadAttempt((current) => current + 1)}>{uiText("重新加载")}</Button> : null}</div> : null}
+    {error ? <div className="coding-agent-error" role="alert"><p>{uiText(error)}</p>{!boards ? <Button variant="outline" size="sm" disabled={disabled} onClick={() => setLoadAttempt((current) => current + 1)}>{uiText("重新加载")}</Button> : null}</div> : null}
     <span className="coding-agent-note" role="status">{saving ? uiText("正在保存…") : saved ? uiText("默认画板已保存") : ""}</span>
   </SettingsGroup>;
 }

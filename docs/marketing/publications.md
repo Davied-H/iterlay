@@ -197,6 +197,15 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 
 ## App 版本发布
 
+### APP-002 · Iterlay v0.1.64
+
+- 发布入口（正式发布后生效）：https://github.com/Davied-H/iterlay/releases/tag/v0.1.64 。
+- 内容：画板评论交给 Coding Agent、生成与画布交互、助手历史恢复、短剧插件 1.3.2、模型设置与工作台职责拆分。
+- 日期 / 时区：2026-10-20 / Asia/Shanghai。
+- 状态：准备发布；尚未公开安装包，不能视为已发布。
+- 验证：正在执行本地完整检查，随后运行固定提交的完整 CI、隔离网页冒烟和四平台安装包构建审计；实际结果及链接在发布后补记。
+- 指标及采集日期：未采集。
+
 ### APP-001 · Iterlay v0.1.63
 
 - 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.63 。

@@ -12,7 +12,7 @@ export interface OnlineImageDetailSharePageInput {
 }
 
 export const ITERLAY_OFFICIAL_WEBSITE = "https://iterlay.app";
-export const ITERLAY_SHARE_WEBSITE = "https://iterlay.daived.com:31243/";
+export const ITERLAY_SHARE_WEBSITE = "https://iterlay.app/";
 
 export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): string {
   const imageCount = Math.max(1, Math.min(24, Math.floor(input.imageCount ?? 1)));
@@ -128,7 +128,7 @@ export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): str
           <span>由 Iterlay 创作</span>
           <div class="image-actions">
             ${useInIterlay}
-            <a class="original-link" href="${ITERLAY_SHARE_WEBSITE}" target="_blank" rel="noopener">iterlay.daived.com:31243</a>
+            <a class="original-link" href="${ITERLAY_SHARE_WEBSITE}" target="_blank" rel="noopener">iterlay.app</a>
           </div>
         </div>
       </div>${promptPanel}

@@ -1,3 +1,4 @@
+import { getUiTextLocale } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { CheckCircle2, FilePenLine, FilePlus2, FileX2, RefreshCw } from "lucide-react";
 import type { AgentSkillUpgradeDetail } from "@shared/agent-integration";
@@ -101,5 +102,5 @@ function FileChangeList({
 function formatUpgradeTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "刚刚";
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat(getUiTextLocale(), { hour: "2-digit", minute: "2-digit" }).format(date);
 }

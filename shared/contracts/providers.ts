@@ -109,6 +109,14 @@ export const DEFAULT_VIDEO_PROVIDER_CONFIG: VideoProviderConfig = {
 export interface ProviderModelOption {
   id: string;
   ownedBy?: string;
+  pricing?: ModelPriceRange[];
+}
+
+/** USD catalog unit rates, never an estimate for the whole generation. */
+export interface ModelPriceRange {
+  unit: "second" | "million-video-tokens" | "megapixel-second";
+  minUsd: number;
+  maxUsd: number;
 }
 
 export type VideoProviderMode =

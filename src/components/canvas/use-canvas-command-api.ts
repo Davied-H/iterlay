@@ -4,6 +4,7 @@ import type { CopyImageFormat } from "@shared/types";
 import { canvasSelectionSnapshot, type CanvasSelectionSnapshot } from "./canvas-history";
 import type { GeneratedImage } from "./image-node-model";
 import type {
+  CanvasCreateNodeType,
   CanvasShortcutCommand,
   CanvasShortcutSnapshot
 } from "./canvas-shortcut-plan";
@@ -54,6 +55,7 @@ export interface CanvasCommandShellCapabilities {
 }
 
 export interface CanvasCommandApiOptions {
+  createNode?: (type: CanvasCreateNodeType) => void;
   selection: CanvasCommandSelectionCapabilities;
   history: CanvasCommandHistoryCapabilities;
   viewport: CanvasCommandViewportCapabilities;
@@ -98,6 +100,9 @@ function executeCanvasCommand(
   options: CanvasCommandApiOptions
 ): void {
   switch (command.type) {
+    case "create-node":
+      options.createNode?.(command.nodeType);
+      return;
     case "delete":
       void options.selection.deleteTargets(command.nodes, command.connectionIds);
       return;

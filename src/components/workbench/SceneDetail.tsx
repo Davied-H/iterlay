@@ -1,3 +1,5 @@
+import { buildGithubTemplateIssue } from "@/lib/github-template";
+import { getUiTextLocale } from "@/i18n/ui-text";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import {
@@ -17,7 +19,6 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
-  CircleX,
   Clock3,
   Copy,
   CopyPlus,
@@ -32,7 +33,6 @@ import {
   Loader2,
   Pencil,
   PanelRight,
-  RefreshCw,
   RotateCcw,
   SlidersHorizontal,
   Sparkles,
@@ -51,15 +51,12 @@ import type {
   ImageQuality,
   ReferenceImagePayload,
   SceneMediaResult,
-  SceneMediaSummary,
-  TemplateSubmissionResult,
-  TemplateSubmissionStatus
+  SceneMediaSummary
 } from "@shared/types";
 import { constrainReferenceImageDimensions } from "@shared/reference-image-limits";
 import { Button } from "@/components/ui/button";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { SegmentedControlIndicator } from "@/components/ui/segmented-control-indicator";
@@ -94,8 +91,6 @@ interface SceneDetailProps {
   onToggleFavorite: (id: string) => void;
   onEdit: () => void;
   onExport: (scene: SceneDefinition) => void;
-  onSubmit: (scene: SceneDefinition, authorName: string, exampleResultIds: string[]) => Promise<TemplateSubmissionResult>;
-  onGetSubmission: (scene: SceneDefinition) => Promise<TemplateSubmissionResult | null>;
   onCollaborate: (
     request: Omit<CollaborateSceneRequest, "textProviderId">
   ) => Promise<CollaborateSceneResult>;
@@ -156,13 +151,7 @@ const CREATION_PROMPT_MIN_HEIGHT = 56;
 const CREATION_PROMPT_MAX_HEIGHT = 360;
 const CREATION_PROMPT_VIEWPORT_RESERVED_HEIGHT = 500;
 const EMPTY_SCENE_MEDIA_RESULTS: SceneMediaResult[] = [];
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat((document.documentElement.lang || "zh-CN"), {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit"
-});
+
 const QUALITY_LABELS = {
   auto: "自动",
   low: "低",
@@ -176,49 +165,6 @@ const QUALITY_OPTIONS: Array<{ value: ImageQuality; label: string }> = [
   { value: "high", label: "高" }
 ];
 
-const TEMPLATE_SUBMISSION_STATUS_META: Record<TemplateSubmissionStatus, {
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  iconClassName: string;
-  iconSurfaceClassName: string;
-}> = {
-  pending: {
-    label: "待审核",
-    description: "Manager 正在审核这份模板，审核通过后会出现在模板广场。",
-    icon: Clock3,
-    iconClassName: "text-amber-700 dark:text-amber-300",
-    iconSurfaceClassName: "bg-amber-500/10"
-  },
-  published: {
-    label: "已发布",
-    description: "这份模板已通过审核并发布到模板广场。",
-    icon: Check,
-    iconClassName: "text-emerald-700 dark:text-emerald-300",
-    iconSurfaceClassName: "bg-emerald-500/10"
-  },
-  rejected: {
-    label: "被拒绝",
-    description: "这份模板未通过审核，请根据拒绝原因修改后重新提交。",
-    icon: CircleX,
-    iconClassName: "text-destructive",
-    iconSurfaceClassName: "bg-destructive/10"
-  },
-  taken_down: {
-    label: "已下架",
-    description: "这份模板已从模板广场下架，可修改后重新提交审核。",
-    icon: CircleAlert,
-    iconClassName: "text-amber-700 dark:text-amber-300",
-    iconSurfaceClassName: "bg-amber-500/10"
-  },
-  withdrawn: {
-    label: "已撤回",
-    description: "这份模板的发布申请已撤回，可重新提交审核。",
-    icon: RotateCcw,
-    iconClassName: "text-muted-foreground",
-    iconSurfaceClassName: "bg-muted"
-  }
-};
 const SIZE_OPTIONS = [
   { value: "auto", label: "自动", description: "由模型决定" },
   { value: "1024x1024", label: "1024 x 1024", description: "1:1 方形" },
@@ -245,7 +191,14 @@ function useSceneGenerationTiming(startedAt: number | null): GenerationTiming | 
 }
 
 function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
+  const formatter = new Intl.DateTimeFormat(getUiTextLocale(), {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  return formatter.format(new Date(value));
 }
 
 function clampCreationPromptHeight(value: number, maxHeight: number): number {
@@ -348,8 +301,6 @@ export function SceneDetail({
   onToggleFavorite,
   onEdit,
   onExport,
-  onSubmit,
-  onGetSubmission,
   onCollaborate,
   onCopyText,
   onLocateHistory,
@@ -390,13 +341,7 @@ export function SceneDetail({
   const [deleteResultTarget, setDeleteResultTarget] = useState<SceneMediaResult | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
   const [submissionOpen, setSubmissionOpen] = useState(false);
-  const [submissionAuthor, setSubmissionAuthor] = useState("");
-  const [submissionExampleIds, setSubmissionExampleIds] = useState<string[]>([]);
-  const [submissionConsent, setSubmissionConsent] = useState(false);
-  const [submissionPhase, setSubmissionPhase] = useState<"idle" | "loading" | "submitting">("idle");
-  const [submission, setSubmission] = useState<TemplateSubmissionResult | null>(null);
-  const [submissionError, setSubmissionError] = useState("");
-  const [submissionLoadError, setSubmissionLoadError] = useState("");
+
   const [workspaceView, setWorkspaceView] = useState<MediaStageView>("preview");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -418,7 +363,6 @@ export function SceneDetail({
   const creationPromptDragFrameRef = useRef<number | null>(null);
   const creationPromptManualHeightRef = useRef(false);
   const assistantExitFocusRef = useRef<"trigger" | "creation" | null>(null);
-  const submissionRequestRef = useRef(0);
   const inspectorTriggerRef = useRef<HTMLButtonElement>(null);
   const inspectorTitleRef = useRef<HTMLHeadingElement>(null);
   const activeSceneGeneration = useActiveSceneGeneration(activeScene.id);
@@ -453,12 +397,7 @@ export function SceneDetail({
     setReferenceImages([]);
     setDeleteResultTarget(null);
     setPromptCopied(false);
-    submissionRequestRef.current += 1;
     setSubmissionOpen(false);
-    setSubmission(null);
-    setSubmissionPhase("idle");
-    setSubmissionError("");
-    setSubmissionLoadError("");
     setWorkspaceView("preview");
     setInspectorOpen(false);
     setAssistantOpen(false);
@@ -1233,80 +1172,12 @@ export function SceneDetail({
     submitQuickTemplateRequest();
   }
 
-  async function refreshSubmission(): Promise<void> {
-    const requestVersion = ++submissionRequestRef.current;
-    setSubmissionPhase("loading");
-    setSubmissionLoadError("");
-    try {
-      const nextSubmission = await onGetSubmission(activeScene);
-      if (submissionRequestRef.current !== requestVersion) return;
-      setSubmission(nextSubmission);
-      if (nextSubmission?.authorName) setSubmissionAuthor(nextSubmission.authorName);
-    } catch (error) {
-      if (submissionRequestRef.current !== requestVersion) return;
-      setSubmissionLoadError(getWorkbenchErrorMessage(error, "暂时无法获取模板审核状态。"));
-    } finally {
-      if (submissionRequestRef.current === requestVersion) setSubmissionPhase("idle");
-    }
-  }
-
-  function openSubmission(): void {
-    setSubmissionError("");
-    setSubmissionLoadError("");
-    setSubmission(null);
-    setSubmissionExampleIds(media?.results.map((result) => result.id) ?? []);
-    setSubmissionOpen(true);
-    void refreshSubmission();
-  }
-
-  function changeSubmissionOpen(open: boolean): void {
-    if (submissionPhase === "submitting") return;
-    setSubmissionOpen(open);
-    if (!open) {
-      submissionRequestRef.current += 1;
-      setSubmissionAuthor("");
-      setSubmissionExampleIds([]);
-      setSubmissionConsent(false);
-      setSubmission(null);
-      setSubmissionError("");
-      setSubmissionLoadError("");
-      setSubmissionPhase("idle");
-    }
-  }
-
-  async function submitTemplate(): Promise<void> {
-    if (!submissionConsent || submissionPhase === "submitting" || submissionExampleIds.length === 0) return;
-    setSubmissionError("");
-    setSubmissionPhase("submitting");
-    try {
-      const nextSubmission = await onSubmit(activeScene, submissionAuthor.trim(), submissionExampleIds);
-      setSubmission(nextSubmission);
-      setSubmissionAuthor(nextSubmission.authorName);
-      setSubmissionConsent(false);
-    } catch (error) {
-      setSubmissionError(getWorkbenchErrorMessage(error, "模板发布失败，请稍后重试。"));
-    } finally {
-      setSubmissionPhase("idle");
-    }
-  }
-
-  function prepareSubmissionRetry(): void {
-    setSubmission(null);
-    setSubmissionConsent(false);
-    setSubmissionError("");
-    setSubmissionLoadError("");
-  }
-
-  const submissionMeta = submission ? TEMPLATE_SUBMISSION_STATUS_META[submission.status] : null;
-  const SubmissionStatusIcon = submissionMeta?.icon;
-  const canRetrySubmission = submission?.status === "rejected" ||
-    submission?.status === "taken_down" ||
-    submission?.status === "withdrawn";
+  const templateIssueUrl = buildGithubTemplateIssue(activeScene.name);
 
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 [-webkit-app-region:drag]">
+        <header className="workbench-page-header flex h-12 shrink-0 items-center gap-3 px-4 [-webkit-app-region:drag]">
           <Button
             type="button"
             variant="ghost"
@@ -1327,14 +1198,14 @@ export function SceneDetail({
               options={[
                 {
                   value: "preview",
-                  label: "示例",
+                  label: uiText("示例"),
                   count: (media?.results.length ?? 0) + Math.min(activeScene.previewImages?.length ?? 0, 3),
                   id: "scene-examples-tab",
                   controls: "scene-examples-panel"
                 },
                 {
                   value: "history",
-                  label: "历史",
+                  label: uiText("历史"),
                   count: historyItems.length,
                   id: "scene-history-tab",
                   controls: "scene-history-panel"
@@ -1394,12 +1265,12 @@ export function SceneDetail({
                 variant="ghost"
                 size="sm"
                 className="gap-1.5 px-2 text-muted-foreground min-[1100px]:px-3"
-                aria-label={uiText("发布到模板广场")}
-                title={uiText("发布到模板广场")}
-                onClick={openSubmission}
+                aria-label={uiText("通过 GitHub 投稿模板")}
+                title={uiText("通过 GitHub 投稿模板")}
+                onClick={() => setSubmissionOpen(true)}
               >
                 <Upload className="h-3.5 w-3.5" />
-                <span className="hidden min-[1100px]:inline">{uiText("发布")}</span>
+                <span className="hidden min-[1100px]:inline">{uiText("投稿")}</span>
               </Button>
             ) : null}
             <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground min-[900px]:px-3" aria-label={uiText("在画板使用")} title={uiText("在画板使用")} onClick={() => onApply(activeScene)}>
@@ -1619,7 +1490,7 @@ export function SceneDetail({
                           </PopoverTrigger>
                           <PopoverContent side="top" align="start" className="w-80 rounded-lg p-4 shadow-md">
                             <div className="flex items-center justify-between gap-3">
-                              <div><p className="text-sm font-semibold">{uiText("生成设置")}</p><p className="mt-1 max-w-56 truncate text-xs text-muted-foreground" title={generationDefaults.model}>{generationDefaults.providerName} · {generationDefaults.model || "未选择模型"}</p></div>
+                              <div><p className="text-sm font-semibold">{uiText("生成设置")}</p><p className="mt-1 max-w-56 truncate text-xs text-muted-foreground" title={generationDefaults.model}>{generationDefaults.providerName} · {generationDefaults.model || uiText("未选择模型")}</p></div>
                               {!canGenerateInDetail ? <Button variant="ghost" size="sm" onClick={onOpenSettings}>{uiText("配置")}</Button> : null}
                             </div>
                             <div className="mt-4 grid gap-3">
@@ -1772,7 +1643,7 @@ export function SceneDetail({
                   </section>
                   <section className="mt-5 border-t border-border pt-4">
                     <div className="flex items-center gap-2"><h3 className="text-xs font-semibold">{uiText("生成方案")}</h3><Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={() => { if (!wideWorkspace) closeInspector(); openTemplateAssistant(); }}>{generatedPrompt ? uiText("调整方案") : uiText("开始整理")}</Button></div>
-                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{generatedPrompt ? (promptOutdated ? "需求已修改，方案需要重新整理。" : `已准备 ${generatedVariations.length || generationCount} 张图片的生成方案。`) : uiText("尚未整理本次生成方案。")}</p>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{generatedPrompt ? (promptOutdated ? uiText("需求已修改，方案需要重新整理。") : uiText("已准备 {{ui:0}} 张图片的生成方案。", [generatedVariations.length || generationCount])) : uiText("尚未整理本次生成方案。")}</p>
                   </section>
                 </div>
               </motion.aside>
@@ -1795,201 +1666,21 @@ export function SceneDetail({
           </DialogContent>
         </Dialog>
 
-        <Dialog open={submissionOpen} onOpenChange={changeSubmissionOpen}>
-          <DialogContent className="max-w-md" onKeyDownCapture={(event) => event.stopPropagation()}>
-            {submissionPhase === "loading" ? (
-              <>
-                <DialogHeader>
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  </div>
-                  <DialogTitle>{uiText("正在刷新审核状态")}</DialogTitle>
-                  <DialogDescription>{uiText("正在从 Manager 获取「")}{activeScene.source === "preset" ? uiText(activeScene.name) : activeScene.name}{uiText("」的最新发布信息。")}</DialogDescription>
-                </DialogHeader>
-              </>
-            ) : submission && submissionMeta && SubmissionStatusIcon ? (
-              <>
-                <DialogHeader>
-                  <div className={cn(
-                    "mb-2 flex h-10 w-10 items-center justify-center rounded-full",
-                    submissionMeta.iconSurfaceClassName,
-                    submissionMeta.iconClassName
-                  )}>
-                    <SubmissionStatusIcon className="h-5 w-5" />
-                  </div>
-                  <DialogTitle>{submissionMeta.label}</DialogTitle>
-                  <DialogDescription>{submissionMeta.description}</DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  <dl className="grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-                    <dt className="text-muted-foreground">{uiText("模板")}</dt>
-                    <dd className="min-w-0 break-words font-medium">{submission.name}</dd>
-                    <dt className="text-muted-foreground">{uiText("创作者")}</dt>
-                    <dd className="min-w-0 break-words">{submission.authorName || "Iterlay 创作者"}</dd>
-                    <dt className="text-muted-foreground">{uiText("提交时间")}</dt>
-                    <dd className="tabular-nums">{formatDateTime(submission.submittedAt)}</dd>
-                    {submission.reviewedAt ? (
-                      <>
-                        <dt className="text-muted-foreground">{uiText("审核时间")}</dt>
-                        <dd className="tabular-nums">{formatDateTime(submission.reviewedAt)}</dd>
-                      </>
-                    ) : null}
-                  </dl>
-
-                  {submission.reviewNote || submission.status === "rejected" ? (
-                    <div className={cn(
-                      "rounded-md border px-3 py-2.5 text-sm leading-6",
-                      submission.status === "rejected"
-                        ? "border-destructive/20 bg-destructive/5 text-destructive"
-                        : "border-border bg-muted/50 text-foreground"
-                    )}>
-                      <p className="text-xs font-medium">
-                        {submission.status === "rejected" ? uiText("拒绝原因") : uiText("Manager 说明")}
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words">
-                        {submission.reviewNote?.trim() || "Manager 未提供拒绝原因，请联系支持人员。"}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {submissionLoadError ? (
-                    <p role="alert" className="text-sm text-destructive">{submissionLoadError}</p>
-                  ) : null}
-                </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => void refreshSubmission()}>
-                    <RefreshCw className="h-4 w-4" />
-                    {uiText("刷新状态")}</Button>
-                  {canRetrySubmission ? (
-                    <Button variant="outline" onClick={prepareSubmissionRetry}>{uiText("重新提交")}</Button>
-                  ) : null}
-                  <Button onClick={() => changeSubmissionOpen(false)}>{uiText("完成")}</Button>
-                </DialogFooter>
-              </>
-            ) : submissionLoadError ? (
-              <>
-                <DialogHeader>
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                    <CircleAlert className="h-5 w-5" />
-                  </div>
-                  <DialogTitle>{uiText("暂时无法获取审核状态")}</DialogTitle>
-                  <DialogDescription>{submissionLoadError}</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => changeSubmissionOpen(false)}>{uiText("取消")}</Button>
-                  <Button onClick={() => void refreshSubmission()}>
-                    <RefreshCw className="h-4 w-4" />
-                    {uiText("重新获取")}</Button>
-                </DialogFooter>
-              </>
-            ) : (
-              <>
-                <DialogHeader>
-                  <DialogTitle>{uiText("发布到模板广场")}</DialogTitle>
-                  <DialogDescription>
-                    {uiText("审核通过后，其他用户可以在 Iterlay 官网发现并下载这个模板。")}</DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  <label className="grid gap-2 text-sm" htmlFor="template-submission-author">
-                    <span className="font-medium">{uiText("创作者名称")}</span>
-                    <Input
-                      id="template-submission-author"
-                      value={submissionAuthor}
-                      onChange={(event) => setSubmissionAuthor(event.target.value)}
-                      placeholder={uiText("留空将显示为 Iterlay 创作者")}
-                      maxLength={40}
-                      disabled={submissionPhase === "submitting"}
-                    />
-                  </label>
-
-                  <div className="rounded-md bg-muted/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                    {uiText("模板名称、说明、提示词和下方选中的示例图将公开展示或提供下载。首张选中图片会作为模板封面。")}</div>
-
-                  <fieldset className="space-y-2.5" disabled={submissionPhase === "submitting"}>
-                    <div className="flex items-center justify-between gap-3">
-                      <legend className="text-sm font-medium">{uiText("公开示例图")}</legend>
-                      <span className="text-xs text-muted-foreground">{uiText("已选择 ")}{submissionExampleIds.length} {uiText("张")}</span>
-                    </div>
-                    {media?.results.length ? (
-                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                        {media.results.map((result, index) => {
-                          const checked = submissionExampleIds.includes(result.id);
-                          return (
-                            <label
-                              key={result.id}
-                              className={cn(
-                                "group relative aspect-square cursor-pointer overflow-hidden rounded-md border bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-                                checked ? "border-primary" : "border-border opacity-70 hover:opacity-100"
-                              )}
-                            >
-                              <img src={result.imageUrl} alt={uiText("公开示例图 {{ui:0}}", [index + 1])} className="h-full w-full object-cover" />
-                              <input
-                                type="checkbox"
-                                className="sr-only"
-                                checked={checked}
-                                onChange={() => setSubmissionExampleIds((current) => (
-                                  checked ? current.filter((id) => id !== result.id) : [...current, result.id]
-                                ))}
-                              />
-                              <span className={cn(
-                                "absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-sm border text-background",
-                                checked ? "border-primary bg-primary" : "border-background/80 bg-background/70 text-transparent"
-                              )}>
-                                <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                              </span>
-                              {checked && media.results.find((item) => submissionExampleIds.includes(item.id))?.id === result.id ? (
-                                <span className="absolute bottom-0 inset-x-0 bg-foreground/80 px-1.5 py-1 text-center text-[10px] font-medium text-background">{uiText("封面")}</span>
-                              ) : null}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="rounded-md border border-dashed border-border px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                        {uiText("请先在模板中添加至少一张示例图，再提交发布。")}</p>
-                    )}
-                  </fieldset>
-
-                  <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-5">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                      checked={submissionConsent}
-                      onChange={(event) => setSubmissionConsent(event.target.checked)}
-                      disabled={submissionPhase === "submitting"}
-                    />
-                    <span>{uiText("我确认拥有公开这些内容的权利，并同意将模板提交审核。")}</span>
-                  </label>
-
-                  {submissionError ? (
-                    <p role="alert" className="text-sm text-destructive">{submissionError}</p>
-                  ) : null}
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    variant="ghost"
-                    disabled={submissionPhase === "submitting"}
-                    onClick={() => changeSubmissionOpen(false)}
-                  >
-                    {uiText("取消")}</Button>
-                  <Button
-                    disabled={!submissionConsent || submissionExampleIds.length === 0 || submissionPhase === "submitting"}
-                    onClick={() => void submitTemplate()}
-                  >
-                    {submissionPhase === "submitting" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    {submissionPhase === "submitting" ? uiText("正在提交") : uiText("发布")}
-                  </Button>
-                </DialogFooter>
-              </>
-            )}
+        <Dialog open={submissionOpen} onOpenChange={setSubmissionOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{uiText("通过 GitHub 投稿模板")}</DialogTitle>
+              <DialogDescription>{uiText("先导出模板，再到 GitHub Issues 上传文件并确认提交。")}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 text-sm leading-6 text-muted-foreground">
+              <p>{uiText("导出的模板包含提示词和示例图，请先检查其中是否有不希望公开的内容。")}</p>
+              <p>{uiText("GitHub 不支持直接上传 .itt 文件，请将导出的文件压缩为 ZIP，再拖入 Issue 正文。")}</p>
+              <p>{uiText("投稿内容会公开，需登录 GitHub；后续讨论和处理进度均在 Issue 中查看。")}</p>
+            </div>
+            <DialogFooter className="flex-wrap gap-2">
+              <Button variant="outline" onClick={() => onExport(activeScene)}><Download className="h-4 w-4" />{uiText("导出模板")}</Button>
+              <Button asChild><a href={templateIssueUrl} target="_blank" rel="noopener noreferrer">{uiText("前往 GitHub 投稿")}</a></Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

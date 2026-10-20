@@ -1327,14 +1327,14 @@ export function ImageSliceDialog({
                           : localStatus === "ready"
                             ? uiText("已识别 {{ui:0}} / {{ui:1}}", [localDetections.length, grid.crops.length])
                             : localStatus === "error"
-                              ? analysisError || "本地识别失败"
+                              ? analysisError || uiText("本地识别失败")
                               : uiText("等待图片")
                         : aiStatus === "analyzing"
                           ? uiText("正在 AI 识别")
                           : aiStatus === "ready"
                             ? `AI ${aiDetections.length} / ${grid.crops.length}`
                             : aiStatus === "error"
-                              ? analysisError || "AI 识别失败"
+                              ? analysisError || uiText("AI 识别失败")
                               : aiAvailable
                                 ? aiProviderName
                                 : uiText("Provider 未就绪")}

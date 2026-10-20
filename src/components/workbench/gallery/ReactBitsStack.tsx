@@ -1,4 +1,4 @@
-import { motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
+import { motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./ReactBitsStack.css";
 

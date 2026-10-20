@@ -195,7 +195,7 @@ function GiftActivationContent({
         <KeyRound className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
         <p className="mt-3 text-sm font-medium">{uiText("当前授权不参与本次活动")}</p>
         <p className="mt-1.5 max-w-sm text-xs leading-5 text-muted-foreground">
-          {overview.eligibilityReason || "好友激活礼仅面向符合活动条件的付费授权。"}
+          {overview.eligibilityReason || uiText("好友激活礼仅面向符合活动条件的付费授权。")}
         </p>
       </div>
     );
@@ -374,7 +374,7 @@ function ErrorState({ title, message, onRetry }: { title: string; message: strin
   return (
     <div className="flex min-h-52 flex-col items-center justify-center px-6 text-center">
       <p className="text-sm font-medium">{title}</p>
-      <p className="mt-1.5 max-w-sm text-xs leading-5 text-muted-foreground">{message || "请稍后重试。"}</p>
+      <p className="mt-1.5 max-w-sm text-xs leading-5 text-muted-foreground">{message || uiText("请稍后重试。")}</p>
       <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
         <RefreshCw className="h-3.5 w-3.5" />{uiText("重新加载")}</Button>
     </div>
@@ -395,7 +395,7 @@ function ReferralMetric({ label, value, suffix }: { label: string; value: string
 function buildGiftShareText(overview: GiftActivationOverview, code: GiftActivationCode): string {
   const lines = [
     overview.campaign.shareMessage.trim(),
-    "下载 Iterlay：https://iterlay.daived.com:31243/download",
+    "下载 Iterlay：https://iterlay.app/download",
     `好友激活码：${code.code}`,
     overview.campaign.redemptionEndsAt ? `兑换截止：${formatDate(overview.campaign.redemptionEndsAt)}` : ""
   ];

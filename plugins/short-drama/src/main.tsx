@@ -1,11 +1,20 @@
+import { comicDramaAssistantGuide, comicDramaAssistantContext, createComicDramaMutationPlan, createComicCharactersMutationPlan } from "./assistant-planner";
+import { prepareCharacterGeneration, assistantCurrentFields, initializeProject } from "./production";
 import { useUiText } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, Download, FileText, Film, Image as ImageIcon, LayoutGrid, List, MessageSquare, Mic, Monitor, MoreHorizontal, Plus, Search, Settings2, Sparkles, Square, UserRound, Users, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
-import { iterlay, usePluginContext } from "../../../packages/plugin-sdk/src";
+import { iterlay, registerCapability, usePluginContext } from "../../../packages/plugin-sdk/src";
 import type { ComicDramaBoardNode, ComicDramaBoardSnapshot } from "../../../shared/comic-drama";
 import type { SceneAssistantInteraction } from "../../../shared/contracts/assistant";
 import { createNode, fields, savePlan, stages, type Stage } from "./model";
+
+registerCapability("character.prepareGeneration", prepareCharacterGeneration);
+registerCapability("project.initialize", initializeProject);
+registerCapability("comic.plan", createComicDramaMutationPlan);
+registerCapability("comic.charactersPlan", createComicCharactersMutationPlan);
+registerCapability("comic.guide", (input: { snapshot: ComicDramaBoardSnapshot; selectedNodeIds: string[] }) => comicDramaAssistantGuide(input.snapshot, input.selectedNodeIds));
+registerCapability("comic.context", (input: { snapshot: ComicDramaBoardSnapshot; selectedNodeIds: string[] }) => comicDramaAssistantContext(input.snapshot, input.selectedNodeIds));
 
 const DEFAULT_DIRECTOR_NOTES = "保持角色外观一致；每次只推进当前制作阶段。";
 
@@ -178,7 +187,7 @@ function App() {
     const conversation = messages.filter(m => m.content && !m.error).slice(-16).map(({ role, content }) => ({ role, content }));
     setMessages(m => [...m, { role: "user", content: instruction }, { role: "assistant", content: "" }]);
     setDraft("");
-    try { await iterlay.assistant.start(uiText("{{ui:0}}\n\n当前制作阶段：{{ui:1}}。除非用户明确要求跨阶段，否则只推进当前阶段。\n导演约定：{{ui:2}}", [instruction, stages.find(s => s.id === stage)?.label, settings.directorNotes]), conversation, conversationId); }
+    try { await iterlay.assistant.start(uiText("{{ui:0}}\n\n当前制作阶段：{{ui:1}}。除非用户明确要求跨阶段，否则只推进当前阶段。\n导演约定：{{ui:2}}", [instruction, stages.find(s => s.id === stage)?.label, settings.directorNotes]), conversation, conversationId, { currentFields: assistantCurrentFields(await iterlay.board.snapshot<ComicDramaBoardSnapshot>(), context?.selectedNodeIds ?? []) }); }
     catch (reason) { setRunning(false); setActivity(""); setMessages(m => m.map((item, i) => i === m.length - 1 ? { ...item, content: String(reason), error: true } : item)); }
   }
   async function startEdit(node: ComicDramaBoardNode) {
@@ -254,4 +263,4 @@ function App() {
     </div>
   </main>;
 }
-createRoot(document.getElementById("root")!).render(<App />);
+if (window.location.hash !== "#capability") createRoot(document.getElementById("root")!).render(<App />);

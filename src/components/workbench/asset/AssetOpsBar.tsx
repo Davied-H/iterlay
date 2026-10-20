@@ -1,3 +1,4 @@
+import { useUiText } from "@/i18n";
 import {
   Copy,
   Download,
@@ -48,6 +49,7 @@ export function AssetOpsBar({
   onDelete,
   onShareCard
 }: AssetOpsBarProps): React.ReactElement {
+  const uiText = useUiText();
   const ops: OpDef[] = [
     { key: "download", label: "下载", icon: <Download className="h-4 w-4" />, onClick: onDownload },
     { key: "copy", label: "复制图片", icon: <Copy className="h-4 w-4" />, onClick: onCopyImage },
@@ -101,12 +103,12 @@ export function AssetOpsBar({
                     op.destructive && "text-destructive hover:bg-destructive/10 hover:text-destructive"
                   )}
                   onClick={op.onClick}
-                  aria-label={op.label}
+                  aria-label={uiText(op.label)}
                 >
                   {op.icon}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{op.label}</TooltipContent>
+              <TooltipContent>{uiText(op.label)}</TooltipContent>
             </Tooltip>
           ))}
       </div>

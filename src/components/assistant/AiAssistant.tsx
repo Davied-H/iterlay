@@ -381,6 +381,7 @@ export function AssistantImageContext({ images }: { images: AiAssistantContextIm
 
 function AssistantWorkflow({ workflow }: { workflow: AiAssistantWorkflow }): React.ReactElement {
   const { t } = useI18n();
+  const uiText = useUiText();
   const reduceMotion = Boolean(useReducedMotion());
   const currentStepId = workflow.steps.find((step) => step.status === "active")?.id
     ?? [...workflow.steps].reverse().find((step) => step.status === "complete")?.id;
@@ -569,7 +570,7 @@ function AssistantWorkflow({ workflow }: { workflow: AiAssistantWorkflow }): Rea
                   className="flex items-center gap-1.5"
                 >
                   {action.loading ? <Loader2 className={cn("h-3.5 w-3.5", !reduceMotion && "animate-spin")} /> : null}
-                  {action.label}
+                  {uiText(action.label)}
                 </motion.span>
               </AnimatePresence>
               {action.loading ? (
@@ -821,7 +822,7 @@ function AssistantComicDramaPlan({ value }: { value: AiAssistantComicDramaPlan }
         {value.readiness ? <div><dt className="font-semibold">{uiText("首尾帧 readiness")}</dt><dd className="mt-0.5 break-words text-[#686865] dark:text-muted-foreground">{value.readiness}</dd></div> : null}
       </dl>
       {value.status === "conflict" ? <p className="border-t border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] text-destructive" role="alert">{uiText("预览后画板内容发生了变化。请基于最新内容重新预览后再应用。")}</p> : null}
-      {value.status === "error" ? <p className="border-t border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] text-destructive" role="alert">{value.error || "添加失败，未添加任何节点。"}</p> : null}
+      {value.status === "error" ? <p className="border-t border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] text-destructive" role="alert">{value.error || uiText("添加失败，未添加任何节点。")}</p> : null}
       {value.status === "applied" ? <p className="border-t border-emerald-600/20 bg-emerald-600/5 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-400" role="status">{updatedNodeCount ? uiText("文本新版本已保存，未自动推进阶段或调用媒体模型。") : characterDrafts.length ? uiText("角色卡及完整设定已添加。下一步请在画板中逐个点击“生成形象”并采用满意版本。") : uiText("节点已添加到普通画板，未调用媒体模型。")}</p> : null}
       <div className="flex items-center justify-end gap-1.5 border-t border-[#e4e4e0] px-2 py-2 dark:border-border">
         <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={value.onRefine}>{value.status === "conflict" ? uiText("保留到输入框") : uiText("继续修改")}</Button>
@@ -855,6 +856,7 @@ const AssistantMessage = memo(function AssistantMessage({
   onApplyGeneratedPrompt?: (prompt: string) => void;
 }): React.ReactElement {
   const { t } = useI18n();
+  const uiText = useUiText();
   const isUser = message.role === "user";
   const errorActions = message.receipt?.actions ?? [];
 
@@ -899,7 +901,7 @@ const AssistantMessage = memo(function AssistantMessage({
                     className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-[#d9b7b3] bg-white px-2.5 text-xs font-semibold text-[#7b2424] transition-colors hover:bg-[#fff8f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2e6ad1] motion-reduce:transition-none dark:border-destructive/40 dark:bg-card dark:text-destructive-foreground dark:hover:bg-destructive/10"
                   >
                     <Pencil className="h-3.5 w-3.5" aria-hidden />
-                    {action.label}
+                    {uiText(action.label)}
                   </button>
                 ))}
                 <span className="text-[11px] text-[#766765] dark:text-muted-foreground">{t("assistant.retry.noAutoSend")}</span>
@@ -1036,7 +1038,7 @@ const AssistantMessage = memo(function AssistantMessage({
             <span className="flex h-4 w-4 items-center justify-center rounded-full border border-current" aria-hidden>
               <span className="h-1.5 w-1.5 rounded-full bg-current" />
             </span>
-            <span className="min-w-0 flex-1 truncate">{message.receipt.label}</span>
+            <span className="min-w-0 flex-1 truncate">{uiText(message.receipt.label)}</span>
             {(message.receipt.actions ?? []).map((action) => (
               <button
                 key={action.label}
@@ -1046,7 +1048,7 @@ const AssistantMessage = memo(function AssistantMessage({
               >
                 {action.kind === "undo" ? <RotateCcw className="h-3 w-3" /> : null}
                 {action.kind === "toggle" ? <ArrowLeftRight className="h-3 w-3" /> : null}
-                {action.label}
+                {uiText(action.label)}
               </button>
             ))}
           </div>
@@ -1057,6 +1059,7 @@ const AssistantMessage = memo(function AssistantMessage({
 });
 
 function AssistantActivity({ label, reduceMotion }: { label: string; reduceMotion: boolean }): React.ReactElement {
+  const uiText = useUiText();
   return (
     <div className="flex w-full justify-start" role="status" aria-live="polite">
       <div
@@ -1064,7 +1067,7 @@ function AssistantActivity({ label, reduceMotion }: { label: string; reduceMotio
         className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-lg bg-[#f0f0ed] px-2.5 py-1.5 text-xs font-medium text-[#686865] dark:bg-accent dark:text-muted-foreground"
       >
         <Loader2 className={cn("h-3.5 w-3.5 shrink-0", !reduceMotion && "animate-spin")} />
-        <span className="min-w-0 leading-5">{label}</span>
+        <span className="min-w-0 leading-5">{uiText(label)}</span>
       </div>
     </div>
   );
@@ -1183,6 +1186,7 @@ function AssistantInteractionPanel({
   onGenerate?: () => void;
 }): React.ReactElement {
   const { t } = useI18n();
+  const uiText = useUiText();
   const { interaction } = state;
   const [values, setValues] = useState<AiAssistantInteractionValues>({});
   const [expandedInputs, setExpandedInputs] = useState<Record<string, boolean>>({});
@@ -1229,17 +1233,17 @@ function AssistantInteractionPanel({
         : "max-h-[min(380px,calc(100%_-_68px))]"
     )}>
       <section
-        aria-label={interaction.title}
+        aria-label={uiText(interaction.title)}
         className="flex min-h-0 flex-col"
       >
         <div className={cn("min-h-0 overflow-y-auto", compact ? "p-2.5" : "p-3")}>
           <div className="min-w-0">
             <h3 className="text-[13px] font-semibold leading-5 text-[#242422] dark:text-popover-foreground">
-              {interaction.title}
+              {uiText(interaction.title)}
             </h3>
             {interaction.description ? (
               <p className="mt-0.5 text-xs leading-[1.5] text-[#686865] dark:text-muted-foreground">
-                {interaction.description}
+                {uiText(interaction.description)}
               </p>
             ) : null}
           </div>
@@ -1256,7 +1260,7 @@ function AssistantInteractionPanel({
                 return (
                   <fieldset key={field.id} className="min-w-0 space-y-1.5">
                     <legend className="flex w-full items-center gap-2 text-xs font-medium leading-5 text-[#3f3f3c] dark:text-foreground/90">
-                      <span className="min-w-0 flex-1">{field.label}</span>
+                      <span className="min-w-0 flex-1">{uiText(field.label)}</span>
                       {!field.required ? (
                         <span className="shrink-0 font-normal text-[#777772] dark:text-muted-foreground">
                           {t("assistant.interaction.optional")}
@@ -1300,7 +1304,7 @@ function AssistantInteractionPanel({
                                     : "border-[#dededa] bg-[#f8f8f6] text-[#4b4b47] hover:border-[#c8c8c2] hover:bg-[#f0f0ed] dark:border-border dark:bg-secondary dark:text-secondary-foreground dark:hover:border-input dark:hover:bg-accent"
                                 )}
                               >
-                                <span className="min-w-0 break-words">{option.label}</span>
+                                <span className="min-w-0 break-words">{uiText(option.label)}</span>
                                 {optionSelected ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
                               </button>
                             );
@@ -1348,7 +1352,7 @@ function AssistantInteractionPanel({
                         value={typeof value === "string" ? value : ""}
                         disabled={disabled}
                         aria-required={field.required}
-                        placeholder={field.placeholder}
+                        placeholder={field.placeholder ? uiText(field.placeholder) : undefined}
                         onChange={(event) => updateValue(field.id, event.target.value)}
                         onKeyDown={(event) => {
                           if (!isSendEnter(event)) return;
@@ -1378,14 +1382,14 @@ function AssistantInteractionPanel({
               compact ? "mt-2.5 pt-2.5" : "mt-3 pt-3"
             )}>
               <p className="text-[11px] font-medium leading-4 text-[#686865] dark:text-muted-foreground">
-                {state.confirmationPreview.title}
+                {uiText(state.confirmationPreview.title)}
               </p>
               <div className="mt-2 space-y-2.5">
                 {state.confirmationPreview.items.map((item, index) => (
                   <div key={`${item.label ?? "content"}:${index}`} className="min-w-0">
                     {item.label ? (
                       <p className="text-[11px] leading-4 text-[#777772] dark:text-muted-foreground">
-                        {item.label}
+                        {uiText(item.label)}
                       </p>
                     ) : null}
                     <p className={cn(
@@ -1448,7 +1452,7 @@ function AssistantInteractionPanel({
             disabled={disabled}
             onClick={onDismiss}
           >
-            {interaction.cancelLabel ?? t(interaction.type === "confirm"
+            {(interaction.cancelLabel ? uiText(interaction.cancelLabel) : undefined) ?? t(interaction.type === "confirm"
               ? "assistant.interaction.keepRefining"
               : "assistant.interaction.skip")}
           </Button>
@@ -1466,8 +1470,8 @@ function AssistantInteractionPanel({
             onClick={() => onSubmit?.(values)}
           >
             {interaction.type === "confirm"
-              ? interaction.confirmLabel ?? t("assistant.interaction.confirm")
-              : interaction.submitLabel ?? t("assistant.interaction.continue")}
+              ? (interaction.confirmLabel ? uiText(interaction.confirmLabel) : undefined) ?? t("assistant.interaction.confirm")
+              : (interaction.submitLabel ? uiText(interaction.submitLabel) : undefined) ?? t("assistant.interaction.continue")}
           </Button>
           {canGenerateImmediately ? (
             <Button
@@ -1501,6 +1505,7 @@ function AssistantHistoryList({
   onSelect: (conversation: AssistantHistoryConversation) => void;
 }): React.ReactElement {
   const { locale, t } = useI18n();
+  const uiText = useUiText();
   if (loading) {
     return (
       <div className="space-y-1 px-3 py-2" aria-busy="true" aria-label={t("assistant.history.loading")}>
@@ -1544,9 +1549,9 @@ function AssistantHistoryList({
   return (
     <div className="px-2 pb-3">
       {groups.map((group) => (
-        <section key={group.label} aria-label={group.label}>
+        <section key={group.label} aria-label={uiText(group.label)}>
           <h3 className="sticky top-0 z-10 bg-[#fbfbf9]/95 px-2 pb-1 pt-3 text-[11px] font-medium text-[#686865] backdrop-blur-sm dark:bg-background/95 dark:text-muted-foreground">
-            {group.label}
+            {uiText(group.label)}
           </h3>
           <div className="divide-y divide-[#e8e8e4] dark:divide-border">
             {group.items.map((conversation) => {
@@ -1668,9 +1673,8 @@ export function AiAssistant({
   onNewConversation,
   onApplyGeneratedPrompt
 }: AiAssistantProps): React.ReactElement {
-  const uiText = useUiText();
-
   const { t } = useI18n();
+  const uiText = useUiText();
   const segmentedControlId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);

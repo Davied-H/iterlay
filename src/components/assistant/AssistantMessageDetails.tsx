@@ -32,7 +32,7 @@ export function AssistantToolGroup({ calls }: { calls: AssistantToolCall[] }): R
       <span className={failed ? "text-destructive" : ""}>{running ? uiText("运行中") : failed ? uiText("部分失败") : cancelled ? uiText("已停止") : uiText("已完成")}</span><ChevronDown />
     </summary>
     <div className="assistant-tool-list">{calls.map((call) => <details key={call.id} className="assistant-tool">
-      <summary><Wrench /><span className="min-w-0 flex-1 break-all font-mono">{call.name}</span><span className={call.status === "error" ? "text-destructive" : "text-muted-foreground"}>{labels[call.status]}</span><ChevronDown /></summary>
+      <summary><Wrench /><span className="min-w-0 flex-1 break-all font-mono">{call.name}</span><span className={call.status === "error" ? "text-destructive" : "text-muted-foreground"}>{uiText(labels[call.status])}</span><ChevronDown /></summary>
       <div className="assistant-tool-content">
         {call.input ? <><h4>{uiText("输入参数")}</h4><pre>{call.input}</pre></> : null}
         {call.output ? <><h4>{call.status === "error" ? uiText("错误详情") : uiText("输出结果")}</h4><pre>{call.output}</pre></> : null}

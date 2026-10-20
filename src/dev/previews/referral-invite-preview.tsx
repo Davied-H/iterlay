@@ -37,7 +37,7 @@ const previewApi = {
   recordGiftActivationShare: async () => undefined,
   getReferralOverview: async () => ({
     invitationCode: "HEYU2026",
-    invitationLink: "https://iterlay.daived.com:31243/download?ref=HEYU2026",
+    invitationLink: "https://iterlay.app/download?ref=HEYU2026",
     rewardCredits: 200,
     totalInvited: 3,
     successfulCount: 2,

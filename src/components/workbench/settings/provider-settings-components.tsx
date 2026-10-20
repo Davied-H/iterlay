@@ -1,4 +1,4 @@
-import { useUiText } from "@/i18n";
+import { useUiLocale, useUiText } from "@/i18n";
 
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-work
 
 import { cn } from "@/lib/utils";
 import { getProviderModels } from "@shared/provider-models";
+import { formatModelPricing } from "@shared/model-pricing";
 import type {
   AppSettings,
   AssistantIntentSuggestionCount,
@@ -656,9 +657,9 @@ export function TextProviderSetupWizard({
                 <p className="mt-1 text-xs text-muted-foreground">{uiText("检查连接后保存，即可用于所有 AI 文本辅助。")}</p>
               </div>
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                <SummaryRow label={uiText("服务")} value={provider.name || "未命名"} />
-                <SummaryRow label={uiText("文本模型")} value={provider.model || "未选择"} mono />
-                <SummaryRow label={uiText("鉴权方式")} value={codex ? "Codex / ChatGPT 账号" : "API Key"} />
+                <SummaryRow label={uiText("服务")} value={provider.name || uiText("未命名")} />
+                <SummaryRow label={uiText("文本模型")} value={provider.model || uiText("未选择")} mono />
+                <SummaryRow label={uiText("鉴权方式")} value={codex ? uiText("Codex / ChatGPT 账号") : "API Key"} />
               </div>
               {testResult ? (
                 <p className={cn("text-xs", testResult.ok ? "text-[hsl(var(--success))]" : "text-destructive")}>{testResult.message}</p>
@@ -1352,6 +1353,8 @@ export function ProviderModelCombobox({
   onChange: (value: string) => void;
 }): React.ReactElement {
   const uiText = useUiText();
+  const locale = useUiLocale();
+  const showOpenRouterPricing = videoProvider?.type === "openrouter";
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -1508,6 +1511,7 @@ export function ProviderModelCombobox({
           {!error
             ? visibleOptions.map((model) => {
                 const selected = model.id === value;
+                const price = showOpenRouterPricing ? formatModelPricing(model.pricing, locale) : undefined;
                 return (
                   <button
                     key={model.id}
@@ -1522,6 +1526,12 @@ export function ProviderModelCombobox({
                       <span className="block truncate font-mono text-xs font-medium text-foreground">{model.id}</span>
                       {model.ownedBy ? (
                         <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{model.ownedBy}</span>
+                      ) : null}
+                      {showOpenRouterPricing ? (
+                        <span className="mt-1 block text-xs leading-5 tabular-nums text-muted-foreground">
+                          <span className="block break-words">{price?.usd ?? (locale === "zh-CN" ? "价格未提供" : "Price unavailable")}</span>
+                          {price?.cny ? <span className="block break-words">{price.cny}</span> : null}
+                        </span>
                       ) : null}
                     </span>
                     {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
@@ -1541,6 +1551,13 @@ export function ProviderModelCombobox({
             </button>
           ) : null}
         </div>
+        {showOpenRouterPricing ? (
+          <p className="border-t border-border px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+            {locale === "zh-CN"
+              ? "OpenRouter 目录单价；区间随清晰度、音频等变化。参考素材及最低消费可能另计。人民币按 US$1 = ¥7 估算。"
+              : "OpenRouter catalog rates vary by resolution, audio and other options. Reference inputs and minimum charges may apply."}
+          </p>
+        ) : null}
       </PopoverContent>
     </Popover>
   );
@@ -2198,8 +2215,8 @@ export function AiRouteRow({
                 aria-label={uiText("选择{{ui:0}}", [title])}
                 className="flex h-11 w-full min-w-0 items-center gap-3 rounded-md border border-input bg-background px-3 text-left transition-colors hover:border-foreground/25 hover:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
               >
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{current?.model || "选择模型"}</span>
-                <span className="max-w-[40%] truncate text-[11px] text-muted-foreground">{current?.name || "尚未连接服务"}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{current?.model || uiText("选择模型")}</span>
+                <span className="max-w-[40%] truncate text-[11px] text-muted-foreground">{current?.name || uiText("尚未连接服务")}</span>
                 {saving ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" /> : <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
               </button>
             </PopoverTrigger>

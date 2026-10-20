@@ -209,7 +209,7 @@ function HistoryItem({
           </span>
           <span className="min-w-0 self-center">
             <span className="block truncate text-[13px] font-medium leading-5 text-foreground">
-              {job.prompt || "无提示词"}
+              {job.prompt || uiText("无提示词")}
             </span>
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
               <span className={cn("inline-flex shrink-0 items-center gap-1", meta.className)}>
@@ -259,7 +259,7 @@ function HistoryItem({
 
         <div className="space-y-3 px-3.5 py-3">
           <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-5 text-foreground">
-            {job.prompt || "无提示词"}
+            {job.prompt || uiText("无提示词")}
           </p>
 
           {(job.status === "failed" || job.status === "unknown" || job.status === "cancelled") && job.error ? (
@@ -535,6 +535,7 @@ export function HistoryRail({
 }
 
 function VideoHistoryItem({ job }: { job: VideoGenerationJob }): React.ReactElement {
+  const uiText = useUiText();
   const running = ["submitting", "queued", "generating", "post_processing", "recovering"].includes(job.status);
   const failed = job.status === "failed";
   const label = job.status === "completed" ? "成功" : failed ? "失败" : job.status === "cancelled" ? "已取消" : "进行中";
@@ -545,13 +546,13 @@ function VideoHistoryItem({ job }: { job: VideoGenerationJob }): React.ReactElem
         <Video className="h-4 w-4" aria-hidden />
       </span>
       <span className="min-w-0 self-center">
-        <span className="block truncate text-[13px] font-medium leading-5 text-foreground">{job.input.prompt || "视频生成"}</span>
+        <span className="block truncate text-[13px] font-medium leading-5 text-foreground">{job.input.prompt || uiText("视频生成")}</span>
         <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
           <span className={cn("inline-flex shrink-0 items-center gap-1", failed && "text-destructive")}>
-            <Icon className={cn("h-3 w-3", running && "animate-spin motion-reduce:animate-none")} aria-hidden />{label}
+            <Icon className={cn("h-3 w-3", running && "animate-spin motion-reduce:animate-none")} aria-hidden />{uiText(label)}
           </span>
           <span aria-hidden>·</span><time>{formatListTime(job.createdAt)}</time>
-          <span aria-hidden>·</span><span className="min-w-0 truncate">{job.providerName || "视频"}</span>
+          <span aria-hidden>·</span><span className="min-w-0 truncate">{job.providerName || uiText("视频")}</span>
         </span>
         <span className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground" title={job.model}>{job.model}</span>
         {job.error ? <span className="mt-1 block truncate text-[11px] text-destructive" title={job.error}>{job.error}</span> : null}

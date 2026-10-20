@@ -1,3 +1,4 @@
+import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useI18n, useUiText } from "@/i18n";
 import appIconDefault from "@/assets/app-icon-default.png";
@@ -46,12 +47,10 @@ import type {
   GptImageUseCase,
   ImageWorkflowMode,
   PromptSpec,
-  TemplateSubmissionResult,
   TrashedBoardSummary
 } from "@shared/types";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  ChevronDown,
   ChevronRight,
   Copy,
   Download,
@@ -74,6 +73,10 @@ import { toast } from "sonner";
 export type LibraryTab = "create" | "boards" | "assets" | "scenes" | "inspiration" | "trash";
 
 interface LibraryShellProps {
+  imageProviders?: import("@shared/types").ProviderConfig[];
+  activeImageProviderId?: string;
+  activeImageModel?: string;
+  onSelectImageModel?: (providerId: string, model: string) => void;
   boards: BoardSummary[];
   activeBoardGenerations?: ActiveBoardGeneration[];
   activeBoardId?: string;
@@ -115,8 +118,6 @@ interface LibraryShellProps {
   onUpdateScene: (scene: SceneDefinition, input: NewSceneInput) => SceneDefinition;
   onDeleteScene: (id: string) => void;
   onExportScene: (scene: SceneDefinition) => void;
-  onSubmitScene: (scene: SceneDefinition, authorName: string, exampleResultIds: string[]) => Promise<TemplateSubmissionResult>;
-  onGetSceneSubmission: (scene: SceneDefinition) => Promise<TemplateSubmissionResult | null>;
   onImportScene: () => Promise<SceneDefinition | null>;
   onImportSceneFiles: (files: File[]) => Promise<SceneDefinition[]>;
   sceneHistory: GenerationJob[];
@@ -213,6 +214,11 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
   const sidebarResizeRef = useRef<LibrarySidebarResizeSession | null>(null);
   const sidebarResizeHandleRef = useRef<HTMLButtonElement>(null);
   const sidebarElementRef = useRef<HTMLElement>(null);
+  const sidebarMotionRef = useRef<{ version: number; animations: Animation[] }>({ version: 0, animations: [] });
+  useEffect(() => () => {
+    sidebarMotionRef.current.version += 1;
+    sidebarMotionRef.current.animations.forEach((animation) => animation.cancel());
+  }, []);
 
   const refreshTrash = useCallback(async (): Promise<void> => {
     try {
@@ -377,8 +383,58 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
     writeLibrarySidebarSize(normalized);
   }
 
+  async function toggleSidebar(): Promise<void> {
+    const motion = sidebarMotionRef.current;
+    const version = ++motion.version;
+    motion.animations.forEach((animation) => animation.cancel());
+    motion.animations = [];
+    const target = sidebarSizeRef.current.mode === "small"
+      ? DEFAULT_LIBRARY_SIDEBAR_SIZE
+      : createLibrarySidebarPreference(LIBRARY_SIDEBAR_MIN_WIDTH);
+    // Track intent immediately so another click reverses an unfinished exit.
+    sidebarSizeRef.current = target;
+    const sidebar = sidebarElementRef.current;
+    if (!sidebar || reduceMotion || !sidebar.animate) {
+      applySidebarSize(target);
+      return;
+    }
+    const content = () => Array.from(sidebar.querySelectorAll<HTMLElement>(
+      ".library-sidebar-label, .library-sidebar-recents-full, .library-sidebar-create, .library-sidebar-expanded-only"
+    )).filter((element) => element.getClientRects().length > 0);
+    const anchors = Array.from(sidebar.querySelectorAll<HTMLElement>(
+      ".library-sidebar-brand img, [data-sidebar-toggle]"
+    )).map((element) => ({ element, rect: element.getBoundingClientRect() }));
+    const leaving = content().map((element) => element.animate(
+      [{ opacity: 1, transform: "translateX(0)" }, { opacity: 0, transform: "translateX(-6px)" }],
+      { duration: 90, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }
+    ));
+    motion.animations = leaving;
+    await Promise.allSettled(leaving.map((animation) => animation.finished));
+    if (version !== motion.version || !sidebar.isConnected) return;
+    applySidebarSize(target);
+    requestAnimationFrame(() => {
+      if (version !== motion.version || !sidebar.isConnected) return;
+      leaving.forEach((animation) => animation.cancel());
+      const repositioning = anchors.map(({ element, rect }) => {
+        const next = element.getBoundingClientRect();
+        return element.animate(
+          [{ transform: `translate(${rect.left - next.left}px, ${rect.top - next.top}px)` },
+            { transform: "translate(0, 0)" }],
+          { duration: 340, easing: "cubic-bezier(.22,1,.36,1)" }
+        );
+      });
+      motion.animations = [...repositioning, ...content().map((element) => element.animate(
+        [{ opacity: 0, transform: "translateX(8px)", clipPath: "inset(0 12px 0 0)" },
+          { opacity: 1, transform: "translateX(0)", clipPath: "inset(0 0 0 0)" }],
+        { duration: 220, delay: 55, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" }
+      ))];
+    });
+  }
+
   function startSidebarResize(event: React.PointerEvent<HTMLButtonElement>): void {
     if (event.button !== 0) return;
+    sidebarMotionRef.current.version += 1;
+    sidebarMotionRef.current.animations.forEach((animation) => animation.cancel());
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -473,10 +529,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
         data-compact={sidebarSize.mode === "small" ? "true" : "false"}
         data-size-mode={sidebarSize.mode}
         data-active-tab={tab}
-        className={cn(
-          "library-sidebar flex shrink-0 flex-col border-r",
-          !isSidebarResizing && !reduceMotion && "transition-[width] duration-150 ease-out"
-        )}
+        className="library-sidebar flex shrink-0 flex-col border-r"
         style={{ width: sidebarSize.width }}
       >
         {/* 红绿灯占据顶部拖拽区；品牌行同时承载显式的展开 / 收起控制。 */}
@@ -496,11 +549,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
               type="button"
               data-sidebar-toggle
               aria-label={sidebarSize.mode === "small" ? uiText("展开侧边栏") : uiText("收起侧边栏")}
-              onClick={() => applySidebarSize(
-                sidebarSize.mode === "small"
-                  ? DEFAULT_LIBRARY_SIDEBAR_SIZE
-                  : createLibrarySidebarPreference(LIBRARY_SIDEBAR_MIN_WIDTH)
-              )}
+              onClick={() => void toggleSidebar()}
               className="library-sidebar-toggle mt-9 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [-webkit-app-region:no-drag]"
             >
               {sidebarSize.mode === "small"
@@ -576,11 +625,6 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           <span>{uiText("新建创作")}</span>
         </button>
 
-        <div className="library-sidebar-section-label library-sidebar-expanded-only flex h-7 shrink-0 items-center justify-between px-5 text-[11px] font-semibold text-muted-foreground">
-          <span>{uiText("工作台")}</span>
-          <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
-        </div>
-
         <nav
           data-tour="library-nav"
           aria-label={uiText("库导航")}
@@ -632,7 +676,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
 
         <div className="library-sidebar-recents-full library-sidebar-recents-full--surface flex min-h-0 flex-1 flex-col border-t border-border/70 px-3 pb-3 pt-2 [-webkit-app-region:no-drag]">
           <div className="flex h-7 shrink-0 items-center justify-between px-2 text-[11px] font-semibold text-muted-foreground">
-            <span>{uiText("我的画板")}</span>
+            <span>{uiText("最近画板")}</span>
             <span className="text-[10px] font-medium tabular-nums opacity-70">{boards.length}</span>
           </div>
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
@@ -753,14 +797,14 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
               })
             )}
           </div>
-          <button
+          {tab !== "boards" ? <button
             type="button"
             onClick={() => setTab("boards")}
             className="library-sidebar-recents-all flex shrink-0 items-center justify-between rounded-md px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             <span>{uiText("查看全部画板")}</span>
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
+          </button> : null}
         </div>
 
         <CompactRecentBoards
@@ -778,7 +822,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           data-tour="library-settings"
           className="library-sidebar-footer library-sidebar-footer--graphite flex shrink-0 flex-col gap-1 border-t border-border px-2 py-2 [-webkit-app-region:no-drag]"
         >
-          <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={uiText("在线分享管理")}>
+          {ONLINE_SHARING_AVAILABLE ? <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={uiText("在线分享管理")}>
             <button
               type="button"
               data-sidebar-utility
@@ -792,7 +836,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
               <RadioTower className="h-4 w-4 shrink-0" />
               <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("在线分享管理")}</span>
             </button>
-          </CompactSidebarTooltip>
+          </CompactSidebarTooltip> : null}
           <SidebarUtilityEntries
             compact={sidebarSize.mode === "small"}
             trashedBoardCount={trashedBoards.length}
@@ -800,19 +844,6 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             onOpenTrash={() => setTab("trash")}
             onOpenSettings={onOpenSettings}
           />
-          <CompactSidebarTooltip compact={true} label={uiText("展开侧边栏")}>
-            <button
-              type="button"
-              data-sidebar-utility
-              data-sidebar-footer-toggle
-              aria-label={uiText("展开侧边栏")}
-              onClick={() => applySidebarSize(DEFAULT_LIBRARY_SIDEBAR_SIZE)}
-              className={cn(SIDEBAR_UTILITY_ENTRY_CLASS, SIDEBAR_UTILITY_ENTRY_IDLE_CLASS)}
-            >
-              <PanelLeftOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("展开侧边栏")}</span>
-            </button>
-          </CompactSidebarTooltip>
         </div>
       </aside>
 
@@ -857,6 +888,10 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           >
             {tab === "create" ? (
               <CreateChatPage
+                imageProviders={props.imageProviders}
+                activeImageProviderId={props.activeImageProviderId}
+                activeImageModel={props.activeImageModel}
+                onSelectImageModel={props.onSelectImageModel}
                 boards={boards}
                 activeBoardId={activeBoardId}
                 canUseAgent={props.canCollaborateScene}
@@ -906,8 +941,6 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                 onUpdate={props.onUpdateScene}
                 onDelete={props.onDeleteScene}
                 onExport={props.onExportScene}
-                onSubmit={props.onSubmitScene}
-                onGetSubmission={props.onGetSceneSubmission}
                 onImport={props.onImportScene}
                 onImportFiles={props.onImportSceneFiles}
                 onOptimize={props.onOptimizeScene}
@@ -963,14 +996,14 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <OnlineShareManagerDialog
+      {ONLINE_SHARING_AVAILABLE ? <OnlineShareManagerDialog
         open={onlineShareManagerOpen}
         onOpenChange={setOnlineShareManagerOpen}
         onLocate={(origin) => {
           setOnlineShareManagerOpen(false);
           props.onLocateOnlineShare(origin.boardId, origin.nodeIds);
         }}
-      />
+      /> : null}
       </motion.div>
     </TooltipProvider>
   );

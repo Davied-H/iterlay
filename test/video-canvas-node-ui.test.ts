@@ -88,6 +88,12 @@ describe("video canvas node UI", () => {
     expect(run.disabled).toBe(true);
     expect(prompt.getAttribute("aria-required")).toBe("true");
     expect(document.body.textContent).toContain("当前模型需要视频描述");
+    expect(prompt.getAttribute("aria-invalid")).toBeNull();
+    const hint = document.getElementById(prompt.getAttribute("aria-describedby")!);
+    expect(hint?.closest("footer")).not.toBeNull();
+    expect(hint?.textContent).toContain("先填写视频描述");
+    expect(hint?.getAttribute("role")).not.toBe("alert");
+    expect(document.querySelector(".video-generation-prompt-section [role='alert']")).toBeNull();
     await act(async () => {
       run.click();
       prompt.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
@@ -99,6 +105,7 @@ describe("video canvas node UI", () => {
       prompt.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(run.disabled).toBe(false);
+    expect(document.querySelector(".video-generation-prompt-hint")).toBeNull();
     await act(async () => run.click());
     expect(status === "failed" ? onRetry : onRun).toHaveBeenCalledWith("generator", expect.objectContaining({ prompt: "镜头缓慢推进" }));
   });

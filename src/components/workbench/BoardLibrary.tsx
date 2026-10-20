@@ -4,6 +4,9 @@ import { useBoardLibraryWindow } from "@/features/boards/use-board-library-windo
 import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import {
   ArrowDownUp,
+  ArrowDownAZ,
+  CalendarDays,
+  Clock3,
   Check,
   ChevronDown,
   Copy,
@@ -27,7 +30,7 @@ import { toast } from "sonner";
 import type { BoardEnterOrigin, BoardSummary } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { partitionBoardImportFiles } from "@/components/workbench/board-import";
 import { LibraryFilterTabs } from "@/components/workbench/LibraryFilterTabs";
@@ -397,7 +400,7 @@ export function BoardLibrary({
                   </button>
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] tabular-nums text-muted-foreground">
-                  {board.imageCount} {uiText("张图片 · ")}{uiText(formatRelativeTime(board.updatedAt, locale))}
+                  {uiText("{{ui:0}} 张图片", [board.imageCount])}{" · "}{uiText(formatRelativeTime(board.updatedAt, locale))}
                 </span>
               </>
             )}
@@ -421,7 +424,7 @@ export function BoardLibrary({
       {/* 顶栏保持窗口拖拽能力；搜索与操作区必须显式退出拖拽区域。 */}
       <header
         inert={isFileDragActive || isImporting ? true : undefined}
-        className="window-titlebar-overlay-safe flex h-11 shrink-0 items-center gap-2 border-b border-border/80 px-4 [-webkit-app-region:drag]"
+        className="workbench-page-header window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-3 px-4 [-webkit-app-region:drag]"
       >
         <span className="text-sm font-semibold">{uiText("画板库")}</span>
         <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
@@ -456,19 +459,14 @@ export function BoardLibrary({
                 <LibraryFilterTabs
                   value={filter}
                   options={[
-                    { value: "all", label: "全部", count: boardCounts.all },
-                    { value: "empty", label: "空画板", count: boardCounts.empty }
+                    { value: "all", label: uiText("全部"), count: boardCounts.all },
+                    { value: "empty", label: uiText("空画板"), count: boardCounts.empty }
                   ]}
-                  ariaLabel="画板筛选"
+                  ariaLabel={uiText("画板筛选")}
                   disabled={interactionLocked}
                   onValueChange={setFilter}
                 />
                 <div className="board-library-tools flex items-center gap-3">
-                {hasCustomizedView ? <Button
-                  variant="ghost" size="icon" className="h-8 w-8 shrink-0"
-                  aria-label={uiText("重置筛选与排序")} title={uiText("重置筛选与排序")} disabled={interactionLocked}
-                  onClick={() => { setQuery(""); setFilter("all"); setSort("updated"); }}
-                ><RotateCcw className="h-3.5 w-3.5" /></Button> : null}
                 <div className="board-library-search flex h-8 min-w-0 items-center gap-2 rounded-md border border-input px-2.5 text-muted-foreground focus-within:ring-2 focus-within:ring-ring">
                   <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <input
@@ -495,7 +493,12 @@ export function BoardLibrary({
                     <kbd className="hidden rounded border border-border bg-background px-1 py-0.5 text-[10px] leading-none text-muted-foreground shadow-sm min-[900px]:inline">{SEARCH_SHORTCUT_LABEL}</kbd>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                {hasCustomizedView ? <Button
+                  variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                  aria-label={uiText("重置筛选与排序")} title={uiText("重置筛选与排序")} disabled={interactionLocked}
+                  onClick={() => { setQuery(""); setFilter("all"); setSort("updated"); }}
+                ><RotateCcw className="h-3.5 w-3.5" /></Button> : null}
+                <div className="board-library-display-controls flex shrink-0 items-center gap-2">
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -511,17 +514,21 @@ export function BoardLibrary({
                         <ChevronDown className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {([
-                        ["updated", "最近更新"],
-                        ["created", "创建时间"],
-                        ["name", "名称"]
-                      ] as const).map(([value, label]) => (
-                        <DropdownMenuItem key={value} onSelect={() => setSort(value)}>
-                          <Check className={cn("h-4 w-4", sort !== value && "opacity-0")} />
-                          {uiText(label)}
-                        </DropdownMenuItem>
-                      ))}
+                    <DropdownMenuContent align="end" sideOffset={5} className="board-sort-menu">
+                      <DropdownMenuRadioGroup value={sort} onValueChange={(value) => {
+                        if (value === "updated" || value === "created" || value === "name") setSort(value);
+                      }}>
+                        {([
+                          ["updated", "最近更新", Clock3],
+                          ["created", "创建时间", CalendarDays],
+                          ["name", "名称", ArrowDownAZ]
+                        ] as const).map(([value, label, Icon]) => (
+                          <DropdownMenuRadioItem key={value} value={value} className="board-sort-option">
+                            <Icon className="board-sort-icon" aria-hidden="true" />
+                            <span>{uiText(label)}</span>
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 <div className="flex rounded-md border border-border bg-background p-0.5" role="group" aria-label={uiText("画板视图")}>
@@ -624,7 +631,7 @@ export function BoardLibrary({
                               ) : null}
                             </span>
                             <span className="mt-1 block truncate text-[10px] tabular-nums text-muted-foreground min-[900px]:hidden">
-                              {board.imageCount} {uiText("张图片 · ")}{uiText(formatRelativeTime(board.updatedAt, locale))}{uiText("更新")}</span>
+                              {uiText("{{ui:0}} 张图片", [board.imageCount])}{" · "}{uiText("更新于 {{ui:0}}", [formatRelativeTime(board.updatedAt, locale)])}</span>
                           </>
                         )}
                       </span>

@@ -1,3 +1,4 @@
+import { getUiTextLocale } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -24,11 +25,14 @@ import type {
   BoardSummary,
   CollaborateSceneRequest,
   CollaborateSceneResult,
-  SceneAssistantInteraction
+  SceneAssistantInteraction,
+  ProviderConfig
 } from "@shared/types";
+import { getProviderModels } from "@shared/provider-models";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -72,6 +76,10 @@ interface CreateChatPageProps {
   boards: BoardSummary[];
   activeBoardId?: string;
   canUseAgent?: boolean;
+  imageProviders?: ProviderConfig[];
+  activeImageProviderId?: string;
+  activeImageModel?: string;
+  onSelectImageModel?: (providerId: string, model: string) => void;
   onInterpret: (request: CollaborateSceneRequest) => Promise<CollaborateSceneResult>;
   onCreate: (plan: CreateChatGenerationPlan) => Promise<CreateChatResult>;
   onOpenBoard: (boardId: string) => void;
@@ -109,6 +117,10 @@ export function CreateChatPage({
   boards,
   activeBoardId,
   canUseAgent = true,
+  imageProviders = [],
+  activeImageProviderId,
+  activeImageModel,
+  onSelectImageModel,
   onInterpret,
   onCreate,
   onOpenBoard,
@@ -504,7 +516,7 @@ export function CreateChatPage({
 
   return (
     <section className="create-chat" data-empty={isEmpty} aria-label={uiText("AI 创作")}>
-      <header className="create-chat-header window-titlebar-overlay-safe" inert={historyOpen}>
+      <header className="workbench-page-header create-chat-header window-titlebar-overlay-safe" inert={historyOpen}>
         <h1>{uiText("新对话")}</h1>
         <div className="create-chat-header-actions">
           <button type="button" onClick={() => void openHistory()} aria-label={uiText("查看会话历史")} title={uiText("会话历史")} className="create-chat-icon-button">
@@ -696,6 +708,27 @@ export function CreateChatPage({
                   {boards.length === 0 ? <DropdownMenuItem onSelect={onOpenSettings}>{uiText("生成后可在画板库中继续整理")}</DropdownMenuItem> : null}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" disabled={busy} className="create-chat-model" aria-label={uiText("选择图片模型")}>
+                    <span>{activeImageModel || imageProviders.find((provider) => provider.id === activeImageProviderId)?.model || uiText("选择图片模型")}</span>
+                    <ChevronDown size={13} aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" sideOffset={10} className="create-chat-model-menu w-64 max-h-72 overflow-y-auto">
+                  <DropdownMenuLabel>{uiText("图片模型")}</DropdownMenuLabel>
+                  {imageProviders.map((provider) => <DropdownMenuGroup key={provider.id}>
+                    <DropdownMenuLabel>{provider.name}</DropdownMenuLabel>
+                    {getProviderModels(provider).map((model) => <DropdownMenuItem key={model}
+                      onSelect={() => onSelectImageModel?.(provider.id, model)}>
+                      <span className="min-w-0 flex-1 truncate">{model}</span>
+                      {provider.id === activeImageProviderId && model === (activeImageModel || provider.model) ? <Check className="size-3.5" aria-hidden="true" /> : null}
+                    </DropdownMenuItem>)}
+                  </DropdownMenuGroup>)}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup><DropdownMenuItem onSelect={onOpenSettings}>{uiText("管理模型")}</DropdownMenuItem></DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <button type="button" onClick={() => void submit()} disabled={!value.trim() || busy} aria-label={uiText("发送给 Pi Agent")} title={uiText("发送消息")} className="create-chat-send">
                 {busy ? <Loader2 size={19} className="animate-spin motion-reduce:animate-none" /> : <ArrowUp size={21} strokeWidth={2} />}
               </button>
@@ -843,7 +876,7 @@ function formatHistoryTime(value: string): string {
   const sameDay = date.getFullYear() === now.getFullYear()
     && date.getMonth() === now.getMonth()
     && date.getDate() === now.getDate();
-  return new Intl.DateTimeFormat("zh-CN", sameDay
+  return new Intl.DateTimeFormat(getUiTextLocale(), sameDay
     ? { hour: "2-digit", minute: "2-digit", hour12: false }
     : { month: "numeric", day: "numeric" }
   ).format(date);

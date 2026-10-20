@@ -533,7 +533,7 @@ export function AssetLibrary({
   return (
     <div className="relative flex h-full flex-col">
       <div className="library-content flex h-full min-h-0 flex-col" inert={selected ? true : undefined}>
-      <header className="window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-4 border-b border-border px-4 [-webkit-app-region:drag]">
+      <header className="workbench-page-header window-titlebar-overlay-safe flex h-12 shrink-0 items-center gap-3 px-4 [-webkit-app-region:drag]">
         <div className="flex shrink-0 items-baseline gap-2">
           <span className="text-sm font-semibold tracking-tight">{uiText("素材库")}</span>
           <span className="relative grid text-xs tabular-nums text-muted-foreground">
@@ -550,7 +550,7 @@ export function AssetLibrary({
             <LibraryFilterTabs
               value={mediaFilter}
               options={MEDIA_OPTIONS}
-              ariaLabel="素材类型"
+              ariaLabel={uiText("素材类型")}
               onValueChange={setMediaFilter}
             />
             <span className="h-4 w-px shrink-0 bg-border" />
@@ -559,7 +559,7 @@ export function AssetLibrary({
               <LibraryFilterTabs
                 value={sourceFilter}
                 options={SOURCE_OPTIONS}
-                ariaLabel="素材来源"
+                ariaLabel={uiText("素材来源")}
                 onValueChange={setSourceFilter}
               />
             )}

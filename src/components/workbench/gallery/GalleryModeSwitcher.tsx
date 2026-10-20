@@ -40,7 +40,7 @@ export function GalleryModeSwitcher({ value, onChange }: GalleryModeSwitcherProp
                 type="button"
                 role="tab"
                 aria-selected={active}
-                aria-label={mode.label}
+                aria-label={uiText(mode.label)}
                 onClick={() => onChange(mode.value)}
                 className={cn(
                   "relative isolate flex h-7 w-9 items-center justify-center rounded-[5px] text-white/42 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/55 motion-reduce:transition-none",
@@ -56,7 +56,7 @@ export function GalleryModeSwitcher({ value, onChange }: GalleryModeSwitcherProp
                 <Icon className="relative z-10 h-3.5 w-3.5" strokeWidth={1.8} />
               </button>
             </TooltipTrigger>
-            <TooltipContent>{mode.label}</TooltipContent>
+            <TooltipContent>{uiText(mode.label)}</TooltipContent>
           </Tooltip>
         );
       })}

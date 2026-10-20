@@ -1,11 +1,11 @@
 /* Local presentation only: shared library navigation and tokens remain unchanged. */
 .board-library.library-content { container-type: inline-size; background: hsl(var(--background)); }
-.board-library > header { height: 64px; padding-inline: 28px; gap: 12px; }
-.board-library > header > span:first-child { font-size: 16px; }
 .board-library section { background: transparent; }
 .board-library [data-board-controls] { padding: 20px 28px 24px; }
-.board-library-tools { margin-left: auto; }
-.board-library-search { width: 220px; height: 34px; }
+.board-library-tools { flex: 1; min-width: 0; margin-left: 0; }
+.board-library-search { flex: 0 1 220px; min-width: 80px; width: 220px; height: 34px; }
+.board-library-display-controls { margin-left: auto; }
+.board-library [data-board-controls] > [role="group"] { flex-shrink: 0; }
 .board-library [data-board-controls] [role="group"][aria-label="画板筛选"] { flex-shrink: 0; }
 .board-library [aria-label="画板筛选"] { border: 0; background: transparent; padding: 0; gap: 4px; }
 .board-library [aria-label="画板筛选"] button { height: 34px; font-weight: 500; }
@@ -32,17 +32,58 @@
 .board-library [data-board-card-item]:focus-within button { opacity: 1; }
 .board-library [data-board-list-header] { margin-inline: 28px; padding-inline: 8px; background: transparent; font-size: 12px; }
 .board-library [data-board-row]:not([data-board-card-item]) { min-height: 82px; border-radius: 0; border-bottom: 1px solid hsl(var(--border)); margin: 0; }
-.board-library [data-board-drop-overlay] { top: 64px; }
+.board-library [data-board-drop-overlay] { top: 48px; }
 @container (max-width: 920px) {
-  .board-library > header { padding-inline: 20px; }
-  .board-library [data-board-controls] { flex-direction: column; align-items: stretch; padding: 16px 20px 20px; gap: 14px; }
-  .board-library [data-board-controls] > [role="group"] { align-self: flex-start; }
-  .board-library-tools { width: 100%; margin: 0; }
-  .board-library-search { flex: 1; width: auto; }
+  .board-library [data-board-controls] { padding: 16px 20px 20px; gap: 12px; }
   .board-library section > .overflow-y-auto { padding-inline: 20px; }
   .board-library [data-board-list-header] { margin-inline: 20px; }
   .board-library [data-board-card-grid] { gap: 24px 18px; }
 }
+@container (max-width: 560px) {
+  .board-library [data-board-controls] { flex-direction: column; align-items: stretch; }
+  .board-library [data-board-controls] > [role="group"] { align-self: flex-start; }
+  .board-library-tools { width: 100%; margin: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .board-library [data-board-card-item] > button { transition: none; }
+}
+
+/* Portaled sorting menu: compact rows, stable icons and a reveal from its trigger. */
+.board-sort-menu {
+  --board-sort-clip-start: inset(0 0 100% 70% round 8px);
+  min-width: 0;
+  width: 144px;
+  padding: 4px;
+  border-radius: 9px;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  box-shadow: 0 6px 20px hsl(var(--foreground) / .1), 0 1px 3px hsl(var(--foreground) / .06);
+}
+.board-sort-menu[data-side="top"] { --board-sort-clip-start: inset(100% 0 0 70% round 8px); }
+.board-sort-menu[data-state="open"] { animation: board-sort-reveal 180ms cubic-bezier(.22,1,.36,1) both; }
+.board-sort-menu[data-state="closed"] { animation: board-sort-hide 120ms ease-in both; }
+.board-sort-menu .board-sort-option {
+  min-height: 30px;
+  gap: 8px;
+  padding: 5px 26px 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 20px;
+}
+.board-sort-option > span:first-child { left: auto; right: 6px; }
+.board-sort-option > span:first-child svg { width: 12px; height: 12px; }
+.board-sort-option[data-state="checked"] { background: hsl(var(--accent) / .65); font-weight: 500; }
+.board-sort-icon { flex: none; width: 14px; height: 14px; color: hsl(var(--muted-foreground)); stroke-width: 1.7; }
+.board-sort-option[data-highlighted] .board-sort-icon { color: inherit; }
+@keyframes board-sort-reveal {
+  from { opacity: 0; clip-path: var(--board-sort-clip-start); }
+  to { opacity: 1; clip-path: inset(0 round 8px); }
+}
+@keyframes board-sort-hide {
+  from { opacity: 1; clip-path: inset(0 round 8px); }
+  to { opacity: 0; clip-path: var(--board-sort-clip-start); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-sort-menu[data-state] { animation: board-sort-fade 80ms ease-out both; }
+  .board-sort-menu[data-state="closed"] { animation-direction: reverse; }
+  @keyframes board-sort-fade { from { opacity: 0; } to { opacity: 1; } }
 }

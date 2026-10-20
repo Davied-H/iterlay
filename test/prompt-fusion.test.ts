@@ -10,6 +10,41 @@ import { ASSISTANT_WIDTH_KEY, ASSISTANT_WIDTHS, readAssistantWidth, setAssistant
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("production prompt fusion", () => {
+  it("keeps the direct composer and draft when disabling planning, without a mode switch or assistant", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const generate = vi.fn();
+    const props = {
+      open: true, busy: false, inputDisabled: false,
+      assistant: createElement("p", null, "对话内容"), value: "对话草稿", directValue: "图片草稿",
+      contextImages: [{ id: "ref", src: "reference.png", alt: "参考图片", role: "reference" as const }],
+      controls: createElement("button", null, "生成设置"),
+      directEditor: createElement("textarea", { defaultValue: "图片草稿", "aria-label": "图片提示词" }),
+      directAction: createElement("button", { onClick: generate }, "生成图片"),
+      onOpenChange: vi.fn(), onValueChange: vi.fn(), onDirectValueChange: vi.fn(),
+      onPromptContextChange: vi.fn(), onSubmit: vi.fn(), onStop: vi.fn(),
+      onPasteImages: vi.fn(), onPasteCanvasReferences: vi.fn()
+    };
+    try {
+      await act(async () => root.render(createElement(PromptFusionDock, props)));
+      expect(container.querySelector('[role="switch"]')).not.toBeNull();
+      await act(async () => root.render(createElement(PromptFusionDock, { ...props, assistantEnabled: false })));
+      expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-mode")).toBe("generate");
+      expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-expanded")).toBe("false");
+      expect(container.querySelector('[role="switch"]')).toBeNull();
+      expect(container.querySelector(".prompt-fusion-conversation")).toBeNull();
+      expect(container.querySelector(".prompt-fusion-expand-handle")).toBeNull();
+      expect(container.querySelector<HTMLTextAreaElement>('[aria-label="图片提示词"]')?.value).toBe("图片草稿");
+      expect(container.querySelector('.prompt-fusion-context img')?.getAttribute("src")).toBe("reference.png");
+      await act(async () => container.querySelector<HTMLButtonElement>(".prompt-fusion-action button")!.click());
+      expect(generate).toHaveBeenCalledOnce();
+      expect(props.onSubmit).not.toHaveBeenCalled();
+      await act(async () => root.render(createElement(PromptFusionDock, props)));
+      expect(container.querySelector('[role="switch"]')).not.toBeNull();
+      expect(container.querySelector<HTMLTextAreaElement>('[aria-label="对话规划输入"]')?.value).toBe("对话草稿");
+    } finally { await act(async () => root.unmount()); }
+  });
+
   it("uses the same centered button to expand and collapse the conversation", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);

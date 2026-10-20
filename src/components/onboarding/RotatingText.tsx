@@ -8,7 +8,7 @@ import {
   type VariantLabels,
   type Target,
   type TargetAndTransition
-} from 'motion/react';
+} from 'framer-motion';
 
 import './RotatingText.css';
 

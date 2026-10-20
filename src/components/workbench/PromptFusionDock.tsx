@@ -29,6 +29,7 @@ interface DockResizePointerHandlers {
 }
 
 interface Props {
+  assistantEnabled?: boolean;
   panelRef?: RefObject<HTMLDivElement | null>;
   panelStyle?: CSSProperties;
   dockSide?: "left" | "right" | null;
@@ -67,7 +68,9 @@ export function PromptFusionDock(props: Props): React.ReactElement {
   const uiText = useUiText();
 
   const width = useAssistantWidth();
-  const [mode, setMode] = useState<"chat" | "generate">("chat");
+  const assistantEnabled = props.assistantEnabled ?? true;
+  const [selectedMode, setMode] = useState<"chat" | "generate">("chat");
+  const mode = assistantEnabled ? selectedMode : "generate";
   const [dirty, setDirty] = useState(false);
   const [contextPrompt, setContextPrompt] = useState<string | null>(null);
   const [preview, setPreview] = useState<AiAssistantContextImage | null>(null);
@@ -85,9 +88,9 @@ export function PromptFusionDock(props: Props): React.ReactElement {
   const composerHeight = useRef<number | null>(null);
   const composerAnimation = useRef<Animation | null>(null);
   const restoreComposerFocus = useRef(false);
-  const hasConfirmation = Boolean(props.confirmation);
+  const hasConfirmation = assistantEnabled && Boolean(props.confirmation);
   const previousConfirmation = useRef(hasConfirmation);
-  const conversationOpen = props.open || Boolean(props.dockSide);
+  const conversationOpen = assistantEnabled && (props.open || Boolean(props.dockSide));
   useLayoutEffect(() => {
     const composer = composerRef.current;
     if (!composer) return;
@@ -153,7 +156,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [open, dockSide, collapsed, dragging, onOpenChange, dockRef]);
   const submit = (): void => {
-    if (props.busy || props.inputDisabled || !props.value.trim()) return;
+    if (!assistantEnabled || props.busy || props.inputDisabled || !props.value.trim()) return;
     if (!conversationOpen) {
       previousHeight.current = dockRef.current?.getBoundingClientRect().height ?? previousHeight.current;
       props.onOpenChange(true);
@@ -225,7 +228,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
     onPointerCancel={props.headerPointerHandlers?.onPointerCancel}
     data-assistant-dock-side={props.dockSide ?? "floating"} data-assistant-dock-collapsed={props.collapsed || undefined}
     data-assistant-dragging={props.dragging ? "" : undefined} inert={props.collapsed} aria-hidden={props.collapsed || undefined}
-    data-assistant-width={width} data-edit-dock="" data-right-rail-open={props.rightRailOpen || undefined} data-fusion-mode={mode} data-fusion-expanded={conversationOpen} data-tour="prompt-card" aria-label={uiText("融合创作助手")}>
+    data-assistant-width={width} data-edit-dock="" data-right-rail-open={props.rightRailOpen || undefined} data-fusion-mode={mode} data-assistant-enabled={assistantEnabled} data-fusion-expanded={conversationOpen} data-tour="prompt-card" aria-label={uiText("融合创作助手")}>
     {!props.dockSide && (mode === "chat" || conversationOpen) ? <>
       <button type="button" className="prompt-fusion-expand-handle" aria-label={uiText(conversationOpen ? "收起创作助手" : "展开创作助手")}
         title={uiText(conversationOpen ? "收起创作助手" : "展开创作助手")} aria-expanded={conversationOpen} data-expanded={conversationOpen}
@@ -236,7 +239,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
         </svg>
       </button>
     </> : null}
-    <div className="prompt-fusion-conversation" hidden={!conversationOpen}>{props.assistant}</div>
+    {assistantEnabled ? <div className="prompt-fusion-conversation" hidden={!conversationOpen}>{props.assistant}</div> : null}
     {!conversationOpen && mode === "chat" ? <div className="prompt-fusion-collapsed" data-assistant-drag-handle="" onPointerDown={props.headerPointerHandlers?.onPointerDown}>
       <img src={companionAvatar} alt="" draggable={false} aria-hidden="true" />
       <span className="prompt-fusion-collapsed-label">{uiText("创作助手")}</span>
@@ -276,7 +279,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
           onKeyDown={(event) => { if (isSendEnter(event)) { event.preventDefault(); submit(); } }}
         /> : <div className="prompt-fusion-direct-editor" onInputCapture={nudge}>{props.directEditor}</div>}
         <div className="prompt-fusion-toolbar">
-          <button type="button" role="switch" aria-label={uiText("对话规划模式")} aria-checked={mode === "chat"}
+          {assistantEnabled ? <button type="button" role="switch" aria-label={uiText("对话规划模式")} aria-checked={mode === "chat"}
             title={mode === "chat" ? uiText("切换到直接生成") : uiText("切换到对话规划")}
             disabled={props.busy || props.inputDisabled}
             className={`prompt-mode-switch ${modeSwitching ? "prompt-mode-switching" : ""} ${mode === "generate" && props.directValue.trim() ? "ai-invitation" : ""} ${animate ? "ai-invitation-motion" : ""}`}
@@ -284,14 +287,14 @@ export function PromptFusionDock(props: Props): React.ReactElement {
             <span className="prompt-mode-thumb"><span className="prompt-mode-thumb-face" aria-hidden="true" /><span className="prompt-mode-star"><Sparkles /></span><span className="prompt-mode-arrow"><ArrowUp /></span></span>
             <span className="prompt-mode-word prompt-mode-ai">{uiText("对话规划")}</span>
             <span className="prompt-mode-word prompt-mode-direct">{uiText("直接生成")}</span>
-          </button>
+          </button> : null}
           <fieldset disabled={props.busy} className="prompt-fusion-controls">{props.controls}</fieldset>
           <div className="prompt-fusion-action">{mode === "chat"
             ? <button type="button" className="prompt-fusion-send" aria-label={props.busy ? uiText("停止") : uiText("发送")} disabled={!props.busy && (props.inputDisabled || !props.value.trim())} onClick={props.busy ? props.onStop : submit}><span className="prompt-fusion-send-label">{props.busy ? uiText("停止") : uiText("发送")}</span>{props.busy ? <Square /> : <ArrowUp />}</button>
             : props.directAction}
           </div>
         </div>
-        {mode === "generate" && dirty && props.latestPrompt && props.latestPrompt !== props.directValue ? <button type="button" className="prompt-fusion-update" onClick={() => { props.onDirectValueChange(props.latestPrompt!); setDirty(false); }}>{uiText("使用 AI 最新提示词（替换当前草稿）")}</button> : null}
+        {assistantEnabled && mode === "generate" && dirty && props.latestPrompt && props.latestPrompt !== props.directValue ? <button type="button" className="prompt-fusion-update" onClick={() => { props.onDirectValueChange(props.latestPrompt!); setDirty(false); }}>{uiText("使用 AI 最新提示词（替换当前草稿）")}</button> : null}
       </div>
       </div>
       </div>

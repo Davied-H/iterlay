@@ -154,7 +154,7 @@ function SettingSummary({ fields }: { fields: ComicSettingFields }): React.React
 
   return <>
     <span className="comic-drama-node__section-label">{uiText("故事简介")}</span>
-    <p className="comic-drama-node__synopsis">{fields.synopsis || "还没有填写故事内容，点击“编辑设定”补充。"}</p>
+    <p className="comic-drama-node__synopsis">{fields.synopsis || uiText("还没有填写故事内容，点击“编辑设定”补充。")}</p>
     <div className="comic-drama-node__chips">{[fields.genre, fields.tone].filter(Boolean).map((value) => <span key={value}>{value}</span>)}</div>
   </>;
 }
@@ -169,11 +169,11 @@ function CharacterSummary({ fields, status, generationError }: {
   return <>
     <div className="comic-drama-node__character-empty" role="status" data-error={status === "failed" ? "true" : undefined}>
       <span>{status === "generating" ? uiText("角色形象生成中") : status === "review" ? uiText("角色形象待采用") : status === "adopted" ? uiText("角色形象已采用") : status === "failed" ? uiText("角色形象生成失败") : uiText("尚未采用角色形象")}</span>
-      {status === "failed" ? <small title={generationError}>{generationError || "未返回具体原因，请逐项重试。"}</small> : null}
+      {status === "failed" ? <small title={generationError}>{generationError || uiText("未返回具体原因，请逐项重试。")}</small> : null}
     </div>
     <div className="comic-drama-node__details">
-      <p className="comic-drama-node__role">{fields.role || "待确定角色定位"}</p>
-      <p className="comic-drama-node__anchors">{fields.appearanceAnchors.slice(0, 2).join(" · ") || "尚未设置外观锚点"}</p>
+      <p className="comic-drama-node__role">{fields.role || uiText("待确定角色定位")}</p>
+      <p className="comic-drama-node__anchors">{fields.appearanceAnchors.slice(0, 2).join(" · ") || uiText("尚未设置外观锚点")}</p>
     </div>
   </>;
 }
@@ -183,9 +183,9 @@ function SegmentSummary({ fields }: { fields: ComicSegmentScriptFields }): React
 
   return <>
     <span className="comic-drama-node__section-label">{uiText("片段内容")}</span>
-    <p className="comic-drama-node__purpose">{fields.purpose || "尚未填写剧情目的"}</p>
-    <p className="comic-drama-node__script">{fields.action || "尚未填写动作"}{fields.dialogue ? `\n“${fields.dialogue}”` : ""}</p>
-    <p className="comic-drama-node__meta"><Lock aria-label={uiText("结构化脚本字段")} /> {fields.emotion || "情绪待定"}</p>
+    <p className="comic-drama-node__purpose">{fields.purpose || uiText("尚未填写剧情目的")}</p>
+    <p className="comic-drama-node__script">{fields.action || uiText("尚未填写动作")}{fields.dialogue ? `\n“${fields.dialogue}”` : ""}</p>
+    <p className="comic-drama-node__meta"><Lock aria-label={uiText("结构化脚本字段")} /> {fields.emotion || uiText("情绪待定")}</p>
   </>;
 }
 

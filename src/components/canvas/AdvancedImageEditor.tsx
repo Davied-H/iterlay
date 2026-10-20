@@ -532,7 +532,7 @@ export function AdvancedImageEditor({
         aspectRatio={ratio}
         providerName={providerName}
         providerLimitation={providerLimitation}
-        interpretationLimitation={canInterpretBoard ? undefined : "请先配置可识图的文本 Provider，再使用 Relax Flow。"}
+        interpretationLimitation={canInterpretBoard ? undefined : uiText("请先配置可识图的文本 Provider，再使用 Relax Flow。")}
         onInterpret={onInterpretRelaxFlow}
         onRefine={onRefineRelaxFlow}
         onGenerate={onGenerateRelaxFlow}
@@ -752,8 +752,8 @@ export function AdvancedImageEditor({
               <div
                 key={`pending-edit-${index}`}
                 aria-label={index >= pendingEditCount - queuedEditCount
-                  ? (pendingEditCount > 1 ? `新版本 ${index + 1} 排队中` : "新版本排队中")
-                  : (pendingEditCount > 1 ? `新版本 ${index + 1} 正在生成` : "新版本正在生成")}
+                  ? (pendingEditCount > 1 ? uiText("新版本 {{ui:0}} 排队中", [index + 1]) : uiText("新版本排队中"))
+                  : (pendingEditCount > 1 ? uiText("新版本 {{ui:0}} 正在生成", [index + 1]) : uiText("新版本正在生成"))}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted/40"
               >
                 {index >= pendingEditCount - queuedEditCount

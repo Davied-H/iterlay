@@ -1,7 +1,7 @@
 import { PiAgentLogPanel } from "@/components/workbench/PiAgentLogPanel";
 import { useUiText } from "@/i18n";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, ChevronDown, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import type {
   AssistantSkillSummary,
   PiAgentBuiltinToolName,
@@ -50,6 +50,7 @@ export function PiAgentSettingsPanel({
   maxTurns,
   webSearchMaxResults,
   onEnabledChange,
+  onConfigureModel,
   onBuiltinToolsChange,
   onIterlayToolsChange,
   onSkillPathsChange,
@@ -78,6 +79,7 @@ export function PiAgentSettingsPanel({
   maxTurns: number;
   webSearchMaxResults: number;
   onEnabledChange: (value: boolean) => void;
+  onConfigureModel?: () => void;
   onBuiltinToolsChange: (value: PiAgentBuiltinToolName[]) => void;
   onIterlayToolsChange: (value: string[]) => void;
   onSkillPathsChange: (value: string[]) => void;
@@ -90,6 +92,7 @@ export function PiAgentSettingsPanel({
   onEditAssistantSkill: (id: string) => void;
 }): React.ReactElement {
   const uiText = useUiText();
+  const modeId = useId();
 
   const [tab, setTab] = useState<PiAgentPanelTab>("overview");
   const [query, setQuery] = useState("");
@@ -261,26 +264,42 @@ export function PiAgentSettingsPanel({
   return (
     <div className="pi-agent-settings">
       <SettingsPageHeader
-        title={uiText("工具与技能")}
-        description={uiText("配置助手可调用的工具、场景技能和本地扩展。")}
+        title={uiText("助手能力")}
+        description={uiText("让助手不只提供建议，还能按你的要求查找素材、生成图片和整理画板。")}
         actions={<>
-          <Button type="button" size="sm" variant="outline" title={uiText("刷新资源")} onClick={onRefresh}>
-            <RefreshCw className="h-3.5 w-3.5" />{uiText("刷新资源")}
+          <Button type="button" size="sm" variant="outline" title={uiText("刷新列表")} onClick={onRefresh}>
+            <RefreshCw className="h-3.5 w-3.5" />{uiText("刷新列表")}
           </Button>
-          <Switch checked={enabled && available} disabled={!available} onCheckedChange={onEnabledChange} aria-label={uiText("启用助手工具调用")} />
         </>}
       />
       {navigation}
+      <section className="pi-agent-mode" aria-labelledby={`${modeId}-title`}>
+        <div className="pi-agent-mode-row">
+          <div className="pi-agent-mode-copy">
+            <label id={`${modeId}-title`} htmlFor={modeId}>{uiText("允许助手执行操作")}</label>
+            <p id={`${modeId}-description`}>{uiText("关闭时只进行对话；开启后，助手可以使用你允许的操作完成任务。")}</p>
+          </div>
+          <span className="pi-agent-mode-status">{uiText(!available ? "待配置" : enabled ? "已开启" : "仅对话")}</span>
+          <Switch id={modeId} checked={enabled} disabled={!available} onCheckedChange={onEnabledChange}
+            aria-labelledby={`${modeId}-title`} aria-describedby={`${modeId}-description ${modeId}-readiness`} />
+        </div>
+        <div id={`${modeId}-readiness`} className="pi-agent-mode-readiness" role="status">
+          <span>{!available ? uiText("对话模型尚未就绪，请先完成模型连接设置。")
+            : enabled ? uiText("已允许的操作会按需使用，生成和重要修改仍需确认。")
+            : uiText("操作清单会保留，开启后才会使用。")}</span>
+          {!available && onConfigureModel ? <Button type="button" variant="outline" size="sm" onClick={onConfigureModel}>{uiText("配置对话模型")}</Button> : null}
+        </div>
+      </section>
       {resourceError ? <p className="border-b border-border/70 px-6 py-2 text-xs text-destructive">{resourceError}</p> : null}
       <div className="flex min-h-0 flex-1 flex-col">
         <nav className="pi-resource-tabs" aria-label={uiText("助手能力分类")}>
           {([
-            ["overview", "总览", ""],
-            ["tools", "可用工具", inventory ? String(inventory.builtinTools.length + inventory.iterlayTools.length) : "—"],
-            ["assistant-skills", "场景技能", String(assistantSkills.length)],
-            ["skills", "更多技能", inventory ? String(inventory.skills.length) : "—"],
-            ["extensions", "本地扩展", inventory ? String(inventory.extensions.length) : "—"],
-            ["logs", "运行记录", ""]
+            ["overview", "使用说明", ""],
+            ["tools", "可执行操作", inventory ? String(inventory.builtinTools.length + inventory.iterlayTools.length) : "—"],
+            ["assistant-skills", "创作指南", String(assistantSkills.length)],
+            ["skills", "自定义指南", inventory ? String(inventory.skills.length) : "—"],
+            ["extensions", "高级扩展", inventory ? String(inventory.extensions.length) : "—"],
+            ["logs", "执行记录", ""]
           ] as Array<[PiAgentPanelTab, string, string]>).map(([value, label, count]) => (
             <button
               key={value}
@@ -294,6 +313,12 @@ export function PiAgentSettingsPanel({
           ))}
         </nav>
 
+        {tab !== "overview" ? <p className="pi-resource-intro">{uiText(tab === "tools"
+          ? "选择助手可以执行的操作，关闭的操作不会被调用。"
+          : tab === "assistant-skills" ? "内置的创作指南，为不同任务提供合适的提示词和工作步骤。"
+          : tab === "skills" ? "加载你自己的操作指南（Skill）。一般使用无需修改。"
+          : tab === "extensions" ? "添加额外的本地功能。一般使用无需安装扩展。"
+          : "查看助手实际执行的操作和处理结果。")}</p> : null}
         <div className="pi-resource-grid">
         {tab === "logs" ? <div className="col-span-full overflow-y-auto p-6"><PiAgentLogPanel /></div> : tab === "overview" ? (
           <PiAgentOverview
@@ -325,9 +350,9 @@ export function PiAgentSettingsPanel({
                   <CompactFilter
                     value={status}
                     options={[
-                      { value: "all", label: "全部" },
-                      { value: "enabled", label: "已启用" },
-                      { value: "disabled", label: "未启用" }
+                      { value: "all", label: uiText("全部") },
+                      { value: "enabled", label: uiText("已启用") },
+                      { value: "disabled", label: uiText("未启用") }
                     ]}
                     onChange={(value) => setStatus(value as typeof status)}
                   />
@@ -335,11 +360,11 @@ export function PiAgentSettingsPanel({
                     <CompactFilter
                       value={source}
                       options={[
-                        { value: "all", label: "全部来源" },
-                        { value: "system", label: "系统" },
-                        { value: "project", label: "项目" },
+                        { value: "all", label: uiText("全部来源") },
+                        { value: "system", label: uiText("系统") },
+                        { value: "project", label: uiText("项目") },
                         { value: "package", label: "Package" },
-                        { value: "custom", label: "自定义" }
+                        { value: "custom", label: uiText("自定义") }
                       ]}
                       onChange={(value) => setSource(value as typeof source)}
                     />
@@ -357,8 +382,8 @@ export function PiAgentSettingsPanel({
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {!inventory ? (
                   <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {uiText("正在读取资源…")}</div>
+                    {!resourceError ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    {uiText(resourceError ? "暂时无法读取列表，请点击上方刷新重试。" : "正在读取列表…")}</div>
                 ) : visibleItems.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                     <Search className="h-5 w-5 text-muted-foreground" />
@@ -486,12 +511,21 @@ function PiAgentOverview({
 
   return (
     <section className="pi-overview">
+      <div className="pi-overview-guide">
+        <h3>{uiText("开启后能帮你做什么？")}</h3>
+        <p>{uiText("在“可执行操作”中选择允许的能力，助手会根据任务按需使用。")}</p>
+        <ul>
+          <li><strong>{uiText("查找与理解")}</strong><span>{uiText("读取画板、查找素材，了解当前创作内容。")}</span></li>
+          <li><strong>{uiText("生成与修改")}</strong><span>{uiText("调用已配置的图片模型，生成图片或调整画面。")}</span></li>
+          <li><strong>{uiText("整理与交付")}</strong><span>{uiText("整理画板内容，导出你需要的结果。")}</span></li>
+        </ul>
+      </div>
       <dl className="pi-overview-summary">
         {[
-          ["运行模式", enabled && available ? "工具调用" : "基础对话"],
-          ["使用模型", model || "尚未读取"],
-          ["启用工具", uiText("{{ui:0}} 个", [toolCount])],
-          ["扩展能力", uiText("{{ui:0}} Skills · {{ui:1}} 扩展", [skillCount, extensionCount])]
+          ["当前状态", !available ? "等待配置模型" : enabled ? "可执行操作" : "仅提供建议"],
+          ["对话模型", model || "未选择"],
+          ["已允许的操作", uiText("{{ui:0}} 个", [toolCount])],
+          ["自定义能力", uiText("{{ui:0}} 个指南 · {{ui:1}} 个扩展", [skillCount, extensionCount])]
         ].map(([label, value]) => (
           <div key={label}>
             <dt>{uiText(label)}</dt>
@@ -501,48 +535,32 @@ function PiAgentOverview({
       </dl>
 
       <div className="pi-overview-body">
-        <SettingsGroup title={uiText("运行策略")}>
-          <p className="pi-overview-description">{uiText("控制单次请求的成本、时延和搜索信息量。")}</p>
+        <SettingsGroup title={uiText("任务设置")}>
+          <p className="pi-overview-description">{uiText("调整一次任务的处理次数和搜索参考数量。")}</p>
           <PiAgentSettingRow
-            title={uiText("最大执行轮数")}
-            description={uiText("达到上限后停止继续调用模型和工具。复杂任务需要更多轮次。")}
+            title={uiText("单次任务步数")}
+            description={uiText("一次任务最多进行多少轮处理，复杂任务可适当调高。")}
           >
-            <select
-              aria-label={uiText("最大执行轮数")}
-              value={maxTurns}
-              onChange={(event) => onMaxTurnsChange(Number(event.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs"
-            >
-              {[4, 8, 12, 16, 20, 24].map((value) => <option key={value} value={value}>{value} {uiText("轮")}</option>)}
-            </select>
+            <PiAgentChoiceSelect label={uiText("单次任务步数")} value={maxTurns}
+              values={[4, 8, 12, 16, 20, 24]} unit={uiText("步")} onChange={onMaxTurnsChange} />
           </PiAgentSettingRow>
           <PiAgentSettingRow
-            title={uiText("搜索结果上限")}
+            title={uiText("搜索参考数量")}
             description={uiText("每次搜索最多提供给助手的来源数量。")}
           >
-            <select
-              aria-label={uiText("搜索结果上限")}
-              value={webSearchMaxResults}
-              onChange={(event) => onWebSearchMaxResultsChange(Number(event.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs"
-            >
-              {[3, 5, 8, 10].map((value) => <option key={value} value={value}>{value} {uiText("条")}</option>)}
-            </select>
+            <PiAgentChoiceSelect label={uiText("搜索参考数量")} value={webSearchMaxResults}
+              values={[3, 5, 8, 10]} unit={uiText("条")} onChange={onWebSearchMaxResultsChange} />
           </PiAgentSettingRow>
         </SettingsGroup>
 
         <aside className="pi-overview-aside">
-          <h3 className="text-sm font-semibold">{uiText("权限边界")}</h3>
+          <h3 className="text-sm font-semibold">{uiText("执行前你需要知道")}</h3>
           <ul className="pi-permission-notes">
-            <li>{uiText("场景 Skill 决定助手行为，但不能提升工具权限。")}</li>
-            <li>{uiText("扩展是本地可执行代码，默认关闭。")}</li>
-            <li>{uiText("画板写操作锁定当前画板。")}</li>
-            <li>{uiText("生成、覆盖、删除和导出仍经过宿主确认。")}</li>
+            <li>{uiText("创作指南只影响工作方式，不会增加操作权限。")}</li>
+            <li>{uiText("自定义指南和高级扩展都是可选项。")}</li>
+            <li>{uiText("修改画板时，只操作当前画板。")}</li>
+            <li>{uiText("生成、覆盖、删除和导出会先向你确认。")}</li>
           </ul>
-          {!available ? (
-            <p className="mt-4 rounded-md bg-destructive/8 p-3 text-xs text-destructive">
-              {uiText("文本模型尚未就绪。请在“模型与服务”中配置支持工具调用的模型。")}</p>
-          ) : null}
         </aside>
       </div>
     </section>
@@ -592,7 +610,7 @@ function PiAgentItemDetail({
 
       <dl className="mt-5 divide-y divide-border/70 border-y border-border/70 text-xs">
         <DetailRow label={uiText("类型")} value={catalogKindLabel(item.kind)} />
-        <DetailRow label={uiText("状态")} value={item.enabled ? "已启用" : "未启用"} />
+        <DetailRow label={uiText("状态")} value={item.enabled ? uiText("已启用") : uiText("未启用")} />
         {item.source ? <DetailRow label={uiText("来源")} value={sourceLabel(item.source)} /> : null}
         {item.resource?.packageName ? <DetailRow label="Package" value={item.resource.packageName} mono /> : null}
         {item.path ? <DetailRow label={uiText("路径")} value={item.path} mono /> : null}
@@ -756,4 +774,18 @@ function PiAgentSettingRow({
   children: ReactNode;
 }): React.ReactElement {
   return <SettingsRow title={title} description={description} control={children} />;
+}
+
+function PiAgentChoiceSelect({ label, value, values, unit, onChange }: {
+  label: string; value: number; values: number[]; unit: string; onChange: (value: number) => void;
+}): React.ReactElement {
+  return <div className="pi-task-select">
+    <select aria-label={label} value={value} onChange={(event) => {
+      const next = Number(event.target.value);
+      if (values.includes(next)) onChange(next);
+    }}>
+      {values.map((option) => <option key={option} value={option}>{option} {unit}</option>)}
+    </select>
+    <ChevronDown aria-hidden="true" />
+  </div>;
 }

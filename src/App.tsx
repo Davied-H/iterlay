@@ -1,79 +1,86 @@
-import { CodingAgentHint } from "@/components/workbench/settings/CodingAgentHint";
-import { useBoardHistory } from "@/features/boards/use-board-history";
-import { legacyBillingSnapshot } from "@/compat/billing";
-import { translateSourceText } from "@/i18n/ui-text";
-import { useUiText } from "@/i18n";
-import { createSettingsActions } from "@/features/settings/create-settings-actions";
-import { useSettingsState } from "@/features/settings/use-settings-state";
-import { createImageGenerationController } from "@/features/generation/create-generation-controller";
-import type { ActiveBoard, CanvasLayoutState, CanvasPersistedNode } from "@/features/boards/types";
-import { generationFingerprint } from "@/compat/paid-media";
-import { providerSupportsGenerateReferences } from "@shared/provider-capabilities";
-import { reconcileBoardSave } from "@/features/boards/reconcile-board-save";
-import { useBoardPersistence } from "@/features/boards/use-board-persistence";
-import { useWindowSave } from "@/features/boards/use-window-save";
-import { MediaToolsDialog, MediaToolsNotice } from "@/features/media-tools/MediaToolsDialog";
-import { useMediaTools } from "@/features/media-tools/use-media-tools";
 import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
-import { duplicateClipboardImages, type CanvasClipboardItem } from "@/components/canvas/canvas-clipboard";
-import { centerNodeAtDrop, type CanvasDropPoint } from "@/components/canvas/canvas-drop";
-import type { CanvasNodeLayout, CanvasRestoreSnapshot, CanvasSelectionSnapshot } from "@/components/canvas/canvas-history";
-import { VIDEO_GENERATION_NODE_HEIGHT, VIDEO_NODE_HEIGHT, VIDEO_NODE_WIDTH } from "@/components/canvas/canvas-node-layout";
+import { legacyBillingSnapshot } from "@/compat/billing";
+import { duplicateClipboardImages,type CanvasClipboardItem } from "@/components/canvas/canvas-clipboard";
+import { centerNodeAtDrop,type CanvasDropPoint } from "@/components/canvas/canvas-drop";
+import type { CanvasNodeLayout,CanvasRestoreSnapshot,CanvasSelectionSnapshot } from "@/components/canvas/canvas-history";
+import { VIDEO_GENERATION_NODE_HEIGHT,VIDEO_NODE_HEIGHT,VIDEO_NODE_WIDTH } from "@/components/canvas/canvas-node-layout";
 import type { EmptyCanvasMode } from "@/components/canvas/EmptyCanvasStart";
-import { placeGenerationReferenceImages, type GenerationReferencePlacementTarget } from "@/components/canvas/generation-reference-paste";
+import { placeGenerationReferenceImages,type GenerationReferencePlacementTarget } from "@/components/canvas/generation-reference-paste";
 import {
-  getPendingEditCount,
-  IMAGE_NODE_WIDTH,
-  imageKey,
-  type GeneratedImage,
-  type VersionSeparationPlacement
+getPendingEditCount,
+IMAGE_NODE_WIDTH,
+imageKey,
+type GeneratedImage,
+type VersionSeparationPlacement
 } from "@/components/canvas/image-node-model";
-import { copyImageVersions, createDetachedVersionImage, extractImageVersion, separateImageVersions } from "@/components/canvas/image-versions";
+import { copyImageVersions,createDetachedVersionImage,extractImageVersion,separateImageVersions } from "@/components/canvas/image-versions";
 import type { SliceSelection } from "@/components/canvas/ImageSliceDialog";
-import { ParticleBurst, type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
+import { ParticleBurst,type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
 import { getSliceResultCell } from "@/components/canvas/slice-result-layout";
-import { resolveVideoGenerationImageInputs } from "@/components/canvas/video-generation-image-inputs";
-import { VIDEO_MAX_REFERENCE_IMAGES, type GeneratedVideo, type VideoReferenceInput } from "@/components/canvas/video-node-model";
+import { type GeneratedVideo } from "@/components/canvas/video-node-model";
 import { useLicense } from "@/components/licensing/license-context";
 import type { TourDefinition } from "@/components/onboarding/FeatureTour";
-import { BOARD_TOUR, EDIT_TOUR, GALLERY_TOUR, LIBRARY_TOUR, TOUR_DEMO_IMAGE_ID, TOUR_DEMO_PROMPT } from "@/components/onboarding/tours";
+import { BOARD_TOUR,EDIT_TOUR,GALLERY_TOUR,LIBRARY_TOUR,TOUR_DEMO_IMAGE_ID,TOUR_DEMO_PROMPT } from "@/components/onboarding/tours";
 import { StartupLoading } from "@/components/system/StartupLoading";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
 import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { OverlayInteractionProvider } from "@/components/ui/overlay-interaction";
 import { Toaster } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreateChatGenerationPlan, CreateChatResult } from "@/components/workbench/CreateChatPage";
+import type { CreateChatGenerationPlan,CreateChatResult } from "@/components/workbench/CreateChatPage";
 import { PiTemplateAgentStatus } from "@/components/workbench/PiTemplateAgentStatus";
 import type { AssistantGenerationRequest } from "@/components/workbench/PromptDock";
 import { ProviderStatusNotice } from "@/components/workbench/ProviderStatusNotice";
 import { ReferralInviteDialog } from "@/components/workbench/ReferralInviteDialog";
+import { CodingAgentHint } from "@/components/workbench/settings/CodingAgentHint";
+import { reconcileBoardSave } from "@/features/boards/reconcile-board-save";
+import type { ActiveBoard,CanvasLayoutState,CanvasPersistedNode } from "@/features/boards/types";
+import { useBoardHistory } from "@/features/boards/use-board-history";
+import { useBoardPersistence } from "@/features/boards/use-board-persistence";
+import { useWindowSave } from "@/features/boards/use-window-save";
+import type { GenerationConfirmationRequest } from "@/features/generation/confirmation";
+import { createImageGenerationController } from "@/features/generation/create-generation-controller";
+import { createVideoGenerationController,isTerminalVideoJob } from "@/features/generation/create-video-generation-controller";
+import { MediaToolsDialog,MediaToolsNotice } from "@/features/media-tools/MediaToolsDialog";
+import { useMediaTools } from "@/features/media-tools/use-media-tools";
+import { useLegacyCharacterGeneration } from "@/features/plugins/legacy-character-generation";
+import { createSettingsActions } from "@/features/settings/create-settings-actions";
+import { useSettingsState } from "@/features/settings/use-settings-state";
+import { useTemplateExtraction } from "@/features/templates/use-template-extraction";
+import { useTemplateLibrary } from "@/features/templates/use-template-library";
+import { useVideoSequenceController } from "@/features/video-sequence/use-video-sequence-controller";
+import { useUiText } from "@/i18n";
+import { translateSourceText } from "@/i18n/ui-text";
 import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
 import type { AssistantDockLayout } from "@/lib/assistant-panel-docking";
 import { BoardDetailCache } from "@/lib/board-detail-cache";
-import { createEmptyPromptSpec, resetBoardDraft } from "@/lib/board-draft";
-import { hydrateBoardNodeImageLayout, hydrateGeneratedImage, serializeGeneratedImage } from "@/lib/board-node-image";
-import { createComicDramaMutationPlan } from "@/lib/comic-drama-assistant";
+import { createEmptyPromptSpec,resetBoardDraft } from "@/lib/board-draft";
+import { hydrateBoardNodeImageLayout,hydrateGeneratedImage,serializeGeneratedImage } from "@/lib/board-node-image";
+import { requestPluginCapability } from "@/features/plugins/request-plugin-capability";
+import { SHORT_DRAMA_PLUGIN_ID } from "@shared/plugins";
 import { DataUrlLruCache } from "@/lib/data-url-lru-cache";
 import { hasGalleryTourContent } from "@/lib/gallery-onboarding";
-import { collectGalleryPreloadPaths, preloadGalleryThumbnails } from "@/lib/gallery-preload";
+import { collectGalleryPreloadPaths,preloadGalleryThumbnails } from "@/lib/gallery-preload";
+import { providerSupportsGenerateReferences } from "@shared/provider-capabilities";
+import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 
 import { GenerationQueue } from "@/lib/generation-queue";
 
 import {
-  getImageWorkbenchApi,
-  getWorkbenchErrorMessage,
-  hasImageWorkbenchApi,
-  missingImageWorkbenchMessage
+getImageWorkbenchApi,
+getWorkbenchErrorMessage,
+hasImageWorkbenchApi,
+missingImageWorkbenchMessage
 } from "@/lib/image-workbench-api";
 import { mergeVideoProviderModelCatalogs } from "@/lib/official-video-models";
 import {
-  clearTourSeen,
-  hasSeenDemoStart,
-  hasSeenTour,
-  initializeOnboardingPersistence,
-  markDemoStartSeen,
-  markTourSeen
+clearTourSeen,
+hasSeenDemoStart,
+hasSeenTour,
+initializeOnboardingPersistence,
+markDemoStartSeen,
+markTourSeen
 } from "@/lib/onboarding";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
 import { getProviderMaxImageCount } from "@/lib/provider-image-count";
@@ -83,10 +90,10 @@ import { isSendEnter } from "@/lib/send-on-enter";
 import { resolveEditSmartSuggestionsEnabled } from "@/lib/smart-suggestions";
 import { selectStartupBoard } from "@/lib/startup-board";
 import { generateTemplateVerification } from "@/lib/template-verification";
-import { canUseTextAgent, resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
+import { canUseTextAgent,resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
 import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
 import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-notification";
-import { promoteRecentlyUsedBoard, sortBoardsByRecentUse } from "@shared/board-order";
+import { promoteRecentlyUsedBoard,sortBoardsByRecentUse } from "@shared/board-order";
 import { isComicDramaNode } from "@shared/comic-drama";
 import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
 import type { AgentEditDraft } from "@shared/modification-requests";
@@ -94,104 +101,78 @@ import type { AgentEditDraft } from "@shared/modification-requests";
 
 import { FieldChapterNavigation } from "@/components/workbench/FieldChapterNavigation";
 import type { FieldChapterTarget } from "@shared/field-chapters";
+import { restoreGenerationHistoryJob,reuseGenerationHistoryPrompt } from "@shared/generation-history";
 import type { ImageDeliveryRecipe } from "@shared/image-delivery";
 import { hasDeliveryReferencesToMovedVersions } from "@shared/image-delivery-references";
-import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
-import { restoreGenerationHistoryJob, reuseGenerationHistoryPrompt } from "@shared/generation-history";
-import { pendingVideoJobId, reconcileVideoGenerationPlaceholder } from "@shared/video-generation-placeholder";
 
 import type {
-  AssetComment,
-  AssetLibraryItem,
-  AssetReference,
-  BoardComicDramaEntryNode,
-  BoardConnection,
-  BoardData,
-  BoardDetail,
-  BoardEnterOrigin,
-  BoardGenerationNode,
-  BoardMutationPlan,
-  BoardMutationResult,
-  BoardSummary,
-  BoardVideoGenerationNode,
-  BoardVideoNode,
-  BoardViewport,
-  CollaborateSceneRequest,
-  CollaborateSceneResult,
-  ComicCharacterNode,
-  ComicDramaBoardSnapshot,
-  GenerateImageInput,
-  GenerationJob,
-  ImageCropRect,
-  ImageWorkflowMode,
-  VideoSequence as PersistedVideoSequence,
-  PromptSpec,
-  ProviderConfig,
-  ReferenceImagePayload,
-  ReferenceImageRole,
-  RestoreTrashedBoardImageResult,
-  SceneTemplateImportResult,
-  SliceSubjectDetection,
-  TemplateSubmissionResult,
-  UiDesignBrief,
-  VideoGenerationInput,
-  VideoGenerationJob,
-  VideoProviderConfig,
-  VideoProviderModelOption,
-  VideoSequenceTask,
-  VideoSequenceTemplate
+AssetComment,
+AssetLibraryItem,
+AssetReference,
+BoardComicDramaEntryNode,
+BoardConnection,
+BoardData,
+BoardDetail,
+BoardEnterOrigin,
+BoardGenerationNode,
+BoardMutationPlan,
+BoardMutationResult,
+BoardSummary,
+BoardVideoGenerationNode,
+BoardVideoNode,
+BoardViewport,
+CollaborateSceneRequest,
+CollaborateSceneResult,
+ComicDramaBoardSnapshot,
+GenerateImageInput,
+GenerationJob,
+ImageCropRect,
+PromptSpec,
+ProviderConfig,
+ReferenceImagePayload,
+ReferenceImageRole,
+RestoreTrashedBoardImageResult,
+SliceSubjectDetection,
+UiDesignBrief,
+VideoGenerationJob,
+VideoProviderConfig,
+VideoProviderModelOption
 } from "@shared/types";
 import {
-  DEFAULT_VIDEO_PROVIDER_CONFIG,
-  IMAGE_CREDIT_COST,
-  isBoardGenerationNode,
-  isBoardImageNode,
-  isBoardTextNode,
-  isBoardVideoGenerationNode,
-  isBoardVideoNode
+IMAGE_CREDIT_COST,
+isBoardGenerationNode,
+isBoardImageNode,
+isBoardTextNode,
+isBoardVideoGenerationNode,
+isBoardVideoNode
 } from "@shared/types";
-import { getDefaultQuality, getDefaultUseCase, parseGptImageSize } from "@shared/workflow";
-import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { getDefaultQuality,getDefaultUseCase,parseGptImageSize } from "@shared/workflow";
+import { AnimatePresence,motion,useAnimationControls,useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy,memo,Suspense,useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { toast } from "sonner";
 import { COMMUNITY_IMAGE_PROVIDER } from '../shared/community-providers';
 
-import type { VideoSequence as EditorVideoSequence, VideoSequenceExportOptions, VideoSequenceTaskState } from "@/components/video-sequence";
-import type { TemplateExtractionSaveDecision, TemplateExtractionSource } from "@/components/workbench/TemplateExtractionDialog";
 import { useI18n } from "@/i18n";
-import { DEFAULT_BOARD_ENTRY_VISIBLE_PRELOAD_LIMIT, selectBoardEntryPreload } from "@/lib/board-entry-preload";
+import { DEFAULT_BOARD_ENTRY_VISIBLE_PRELOAD_LIMIT,selectBoardEntryPreload } from "@/lib/board-entry-preload";
 import { preloadBoardImages } from "@/lib/board-preload";
-import { isShortcutHelpCommand, MAX_BOARD_SHORTCUTS, resolveBoardShortcutIndex } from "@/lib/board-shortcuts";
+import { isShortcutHelpCommand,MAX_BOARD_SHORTCUTS,resolveBoardShortcutIndex } from "@/lib/board-shortcuts";
 import { removeImageBackground } from "@/lib/remove-image-background";
 import {
-  createCustomScene,
-  createCustomSceneFromScene,
-  findSceneForMode,
-  parseSceneFields,
-  PRESET_SCENES,
-  readCustomScenes,
-  readFavoriteSceneIds,
-  updateCustomScene,
-  writeCustomScenes,
-  writeFavoriteSceneIds,
-  type NewSceneInput,
-  type SceneDefinition
+findSceneForMode,
+PRESET_SCENES,
+readCustomScenes,
+readFavoriteSceneIds,
+type SceneDefinition
 } from "@/lib/scene-library";
 import {
-  buildTemplateExtractionInstruction,
-  buildTemplatePreviewInstruction,
-  createTemplateExtractionFromAssistant,
-  createTemplatePromptSet,
-  parseTemplateExtractionItems,
-  retargetTemplateExtractionContext,
-  type TemplateExtractionResult,
-  type TemplateExtractionScenario,
-  type TemplatePromptSet
+buildTemplatePreviewInstruction,
+createTemplatePromptSet,
+type TemplatePromptSet
 } from "@/lib/template-workflow";
-import { buildUiDesignBriefInstruction, createUiDesignBrief, inferUiMaterialRole } from "@/lib/ui-design-workflow";
-import { parseIterlayDeepLink, type IterlayDeepLink } from "@shared/deep-link";
+import { buildUiDesignBriefInstruction,createUiDesignBrief,inferUiMaterialRole } from "@/lib/ui-design-workflow";
 import type { AgentSkillUpgradeDetail } from "@shared/agent-integration";
+import { parseIterlayDeepLink,type IterlayDeepLink } from "@shared/deep-link";
 
 const CanvasBoard = lazy(() =>
   import("@/components/canvas/CanvasBoard").then((module) => ({ default: module.CanvasBoard }))
@@ -356,24 +337,6 @@ function getInitialStatus(): string {
   return hasImageWorkbenchApi() ? "请选择 Provider 路线并保存配置。" : missingImageWorkbenchMessage;
 }
 
-interface GenerationConfirmationItem {
-  id: string;
-  label: string;
-  task: string;
-  costLabel: string;
-  quoteId?: string;
-  quoteExpiresAt?: string;
-}
-
-interface GenerationConfirmationRequest {
-  title: string;
-  providerLabel: string;
-  model: string;
-  totalCostLabel: string;
-  items: GenerationConfirmationItem[];
-  confirmLabel: string;
-}
-
 interface PendingGenerationConfirmation extends GenerationConfirmationRequest {
   resolve: (confirmed: boolean) => void;
 }
@@ -395,7 +358,7 @@ function GenerationConfirmationDialog({
     <Dialog open={confirmation !== null} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="max-h-[min(720px,calc(100dvh-32px))] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{confirmation?.title ?? "确认生成"}</DialogTitle>
+          <DialogTitle>{uiText(confirmation?.title ?? "确认生成")}</DialogTitle>
           <DialogDescription>{uiText("确认后才会提交以下生成任务；取消不会调用 Provider。")}</DialogDescription>
         </DialogHeader>
         {confirmation ? <div className="grid gap-4">
@@ -403,8 +366,8 @@ function GenerationConfirmationDialog({
             <div><dt className="text-muted-foreground">Provider</dt><dd className="mt-0.5 break-words font-medium">{confirmation.providerLabel}</dd></div>
             <div><dt className="text-muted-foreground">{uiText("模型")}</dt><dd className="mt-0.5 break-words font-medium">{confirmation.model}</dd></div>
             <div><dt className="text-muted-foreground">{uiText("任务数")}</dt><dd className="mt-0.5 font-medium">{confirmation.items.length}</dd></div>
-            <div><dt className="text-muted-foreground">{uiText("总费用")}</dt><dd className="mt-0.5 font-medium">{confirmation.totalCostLabel}</dd></div>
-            <div className="col-span-2"><dt className="text-muted-foreground">Quote expiry</dt><dd className="mt-0.5 font-medium">{
+            <div><dt className="text-muted-foreground">{uiText("总费用")}</dt><dd className="mt-0.5 font-medium">{uiText(confirmation.totalCostLabel)}</dd></div>
+            <div className="col-span-2"><dt className="text-muted-foreground">{uiText("报价有效期")}</dt><dd className="mt-0.5 font-medium">{
               confirmation.items.some((item) => item.quoteExpiresAt)
                 ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(Math.min(...confirmation.items.flatMap((item) => item.quoteExpiresAt ? [Date.parse(item.quoteExpiresAt)] : []))))
                 : uiText("外部 Provider 未提供 Iterlay 报价有效期")
@@ -412,27 +375,18 @@ function GenerationConfirmationDialog({
           </dl>
           <div className="divide-y divide-border border-y border-border" aria-label={uiText("生成确认任务")}>
             {confirmation.items.map((item) => <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 text-sm">
-              <span className="min-w-0"><b className="block break-words">{item.label}</b><small className="mt-0.5 block break-words text-muted-foreground">{item.task}{item.quoteId ? ` · Quote ${item.quoteId}` : ""}</small></span>
-              <b className="self-center whitespace-nowrap text-xs">{item.costLabel}</b>
+              <span className="min-w-0"><b className="block break-words">{item.label}</b><small className="mt-0.5 block break-words text-muted-foreground">{uiText(item.task)}{item.quoteId ? ` · Quote ${item.quoteId}` : ""}</small></span>
+              <b className="self-center whitespace-nowrap text-xs">{uiText(item.costLabel)}</b>
             </div>)}
           </div>
         </div> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>{uiText("取消")}</Button>
-          <Button type="button" onClick={onConfirm}>{confirmation?.confirmLabel ?? "确认提交"}</Button>
+          <Button type="button" onClick={onConfirm}>{uiText(confirmation?.confirmLabel ?? "确认提交")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-interface PreparedCharacterGeneration {
-  character: ComicCharacterNode;
-  prompt: string;
-  providerId: string;
-  providerLabel: string;
-  model: string;
-  metadata: Partial<GenerateImageInput>;
 }
 
 interface CanvasUndoSnapshot extends CanvasSelectionSnapshot {
@@ -458,11 +412,7 @@ function cloneBoardConnection(connection: BoardConnection): BoardConnection {
   return structuredClone(connection);
 }
 
-function isTerminalVideoJob(job: VideoGenerationJob): boolean {
-  return job.status === "completed" || job.status === "failed" || job.status === "cancelled";
-}
 
-/** 编辑会话默认跟随原图尺寸；原图尺寸不满足生成约束时返回 null（保持现值）。 */
 function adoptableSize(image: GeneratedImage): string | null {
   if (!image.width || !image.height) return null;
   try {
@@ -493,84 +443,6 @@ function useStableCallback<TArgs extends unknown[], TResult>(
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
   return useCallback((...args: TArgs) => callbackRef.current(...args), []);
-}
-
-function editorTaskState(status: VideoSequenceTask["status"]): VideoSequenceTaskState {
-  if (status === "pending" || status === "submitting") return "submitting";
-  if (status === "queued") return "queued";
-  if (status === "generating") return "generating";
-  if (status === "downloading" || status === "validating") return "post_processing";
-  if (status === "remote_unknown") return "recovering";
-  if (status === "completed") return "completed";
-  if (status === "cancelled") return "cancelled";
-  return "failed";
-}
-
-function toEditorVideoSequence(
-  sequence: PersistedVideoSequence & { sequenceTasks?: VideoSequenceTask[] },
-  boardName?: string
-): EditorVideoSequence {
-  return {
-    kind: sequence.kind ?? "keyframe-generation",
-    id: sequence.id,
-    boardId: sequence.boardId,
-    boardName,
-    name: sequence.name,
-    revision: sequence.revision,
-    updatedAt: sequence.updatedAt,
-    defaults: sequence.defaults,
-    keyframes: sequence.keyframes.map((frame) => ({
-      id: frame.id,
-      order: frame.order,
-      label: frame.label,
-      imagePath: frame.source.imagePath,
-      nodeId: frame.source.nodeId
-    })),
-    segments: sequence.segments.map((segment) => {
-      const task = [...(sequence.sequenceTasks ?? [])].reverse().find((candidate) => candidate.segmentId === segment.id
-        && candidate.segmentRevision === segment.desiredRevision
-        && candidate.inputFingerprint === segment.inputFingerprint);
-      const active = segment.versions.find((version) => version.id === segment.activeVersionId);
-      const state = segment.error
-        ? "incompatible" as const
-        : !segment.activeVersionId
-          ? (segment.config.prompt.trim() ? "configured" as const : "empty" as const)
-          : segment.renderedRevision !== segment.desiredRevision
-            ? "stale" as const
-            : "valid" as const;
-      return {
-        id: segment.id,
-        order: segment.order,
-        fromKeyframeId: segment.fromKeyframeId,
-        toKeyframeId: segment.toKeyframeId,
-        prompt: segment.config.prompt,
-        providerId: segment.config.providerId,
-        model: segment.config.model,
-        durationSeconds: segment.config.durationSeconds,
-        aspectRatio: segment.config.aspectRatio,
-        resolution: segment.config.resolution,
-        generateAudio: segment.config.generateAudio,
-        watermark: segment.config.watermark,
-        trimInMs: segment.trim.inMs,
-        trimOutMs: segment.trim.outMs,
-        muted: segment.trim.muted,
-        state,
-        taskState: task ? editorTaskState(task.status) : segment.error ? "failed" as const : undefined,
-        error: segment.error?.message,
-        versions: segment.versions.map((version) => ({
-          id: version.id,
-          videoPath: version.videoPath,
-          posterPath: version.posterPath,
-          durationMs: version.durationMs,
-          width: version.width,
-          height: version.height,
-          createdAt: version.createdAt,
-          model: "config" in version.inputSnapshot ? version.inputSnapshot.config.model : undefined
-        })),
-        activeVersionId: active?.id ?? segment.activeVersionId
-      };
-    })
-  };
 }
 
 export default function App(): React.ReactElement {
@@ -684,14 +556,8 @@ export default function App(): React.ReactElement {
   const [comicDramaEntryPosition, setComicDramaEntryPosition] = useState<CanvasDropPoint | null>(null);
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [videoCompare, setVideoCompare] = useState<{ left: GeneratedVideo; right: GeneratedVideo } | null>(null);
-  const [activeVideoSequence, setActiveVideoSequence] = useState<(PersistedVideoSequence & { mediaUrls: Record<string, string>; sequenceTasks?: VideoSequenceTask[] }) | null>(null);
-  const activeVideoSequenceRef = useRef(activeVideoSequence);
-  activeVideoSequenceRef.current = activeVideoSequence;
   const mediaTools = useMediaTools();
   const { ensureMediaToolsReady } = mediaTools;
-  const [videoSequenceTemplates, setVideoSequenceTemplates] = useState<VideoSequenceTemplate[]>([]);
-  const [videoSequenceSaving, setVideoSequenceSaving] = useState(false);
-  const [videoSequenceSaveError, setVideoSequenceSaveError] = useState<string>();
   const videoPollingStoppedRef = useRef(new Set<string>());
   const [generationConfirmation, setGenerationConfirmation] = useState<PendingGenerationConfirmation | null>(null);
   const paidSubmissionInFlightRef = useRef(new Set<string>());
@@ -764,6 +630,7 @@ export default function App(): React.ReactElement {
   const topLevelBoards = useMemo(() => boards.filter((board) => board.kind !== "comic-drama"), [boards]);
   const boardNameById = useMemo(() => new Map(boards.map((board) => [board.id, board.name])), [boards]);
   const [activeBoard, setActiveBoard] = useState<ActiveBoard | null>(null);
+  const [shortDramaAvailable, setShortDramaAvailable] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(readLibraryOpenPref);
   // 素材库整批进场每次应用启动只播放一次；库页卸载后仍保留已播放状态。
   const assetLibraryEntrancePlayedRef = useRef(false);
@@ -810,7 +677,6 @@ export default function App(): React.ReactElement {
   const comicDramaBoardHistoryOperationRef = useRef<Promise<void>>(Promise.resolve());
   const [imageTrashOpen, setImageTrashOpen] = useState(false);
   const [trashingImages, setTrashingImages] = useState(false);
-  const [templateExtractionSource, setTemplateExtractionSource] = useState<TemplateExtractionSource | null>(null);
   // 图片编辑会话：非空时 Lightbox 聚焦该图，dock 过渡为编辑模式。
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [advancedEditOpen, setAdvancedEditOpen] = useState(false);
@@ -1769,7 +1635,7 @@ export default function App(): React.ReactElement {
         setCanvasImageToolbarOnHover(settings.canvasImageToolbarOnHover ?? false);
         setCanvasRelationshipHoverHighlight(settings.canvasRelationshipHoverHighlight ?? false);
         setWechatStickerExportEnabled(settings.wechatStickerExportEnabled ?? false);
-        setOnlineImageSharingEnabled(settings.onlineImageSharingEnabled ?? true);
+        setOnlineImageSharingEnabled(settings.onlineImageSharingEnabled ?? false);
         setCopyImageFormat(settings.copyImageFormat ?? "png");
         setBoardSmartSuggestionsEnabled(settings.boardSmartSuggestionsEnabled ?? false);
         setBoardAssistantEnabled(settings.boardAssistantEnabled ?? true);
@@ -2155,7 +2021,7 @@ export default function App(): React.ReactElement {
         createdComicChildBoardId = project.childBoard.id;
         comicParentBoardId = target.id;
         const snapshot = await api.getComicDramaBoardSnapshot(project.childBoard.id);
-        const mutation = createComicDramaMutationPlan({ snapshot, selectedNodeIds: [], instruction: prompt });
+        const mutation = await requestPluginCapability(SHORT_DRAMA_PLUGIN_ID, "project.initialize", { snapshot, instruction: prompt });
         await api.applyComicDramaMutationPlan(mutation);
         boardDetailCacheRef.current.delete(target.id);
         await refreshBoards();
@@ -2212,144 +2078,8 @@ export default function App(): React.ReactElement {
     }
   }
 
-  async function prepareCharacterGeneration(
-    character: ComicCharacterNode,
-    boardId: string,
-    settingVersionId?: string
-  ): Promise<PreparedCharacterGeneration> {
-    void boardId; void settingVersionId;
-    const version = character.versions.find((item) => item.versionId === character.activeVersionId) ?? character.versions[0];
-    const prompt = [
-      character.name,
-      version.fields.role,
-      version.fields.profile,
-      version.fields.visualPrompt,
-      ...version.fields.appearanceAnchors
-    ].filter(Boolean).join("，");
-    const provider = activeProvider;
-
-    const metadata: Partial<GenerateImageInput> = {};
-    return {
-      character,
-      prompt,
-      providerId: provider.id,
-      providerLabel: provider.name,
-      model: provider.model,
-      metadata
-    };
-  }
-
-  async function confirmCharacterGeneration(
-    prepared: PreparedCharacterGeneration[],
-    title: string
-  ): Promise<boolean> {
-    const quoted = prepared.filter((item) => item.metadata.priceSnapshot);
-    const amount = quoted.reduce((sum, item) => sum + (item.metadata.priceSnapshot?.amount ?? 0), 0);
-    const currency = quoted[0]?.metadata.priceSnapshot?.currency;
-    const allQuoted = quoted.length === prepared.length;
-    const totalCostLabel = allQuoted
-      ? `${amount} ${currency === "gold-bean" ? "金豆" : currency === "credit" ? "Credit" : currency ?? ""}`.trim()
-      : quoted.length > 0
-        ? `${amount} ${currency ?? ""} + 外部 Provider 计费`.trim()
-        : "由外部 Provider 计费";
-    return requestGenerationConfirmation({
-      title,
-      providerLabel: prepared.map((item) => item.providerLabel).filter((value, index, values) => values.indexOf(value) === index).join("、"),
-      model: prepared.map((item) => item.model).filter((value, index, values) => values.indexOf(value) === index).join("、"),
-      totalCostLabel,
-      items: prepared.map((item) => ({
-        id: item.character.id,
-        label: item.character.name,
-        task: "生成 1 张角色图片",
-        costLabel: item.metadata.priceSnapshot
-          ? `${item.metadata.priceSnapshot.amount} ${item.metadata.priceSnapshot.currency === "credit" ? "Credit" : item.metadata.priceSnapshot.currency}`
-          : "Provider 计费",
-        quoteId: item.metadata.quoteId,
-        quoteExpiresAt: item.metadata.quoteExpiresAt
-      })),
-      confirmLabel: prepared.length === 1 ? "确认并生成角色" : `确认并生成 ${prepared.length} 个角色`
-    });
-  }
-
-  async function submitCharacterGeneration(prepared: PreparedCharacterGeneration, boardId: string): Promise<void> {
-    const { character, metadata } = prepared;
-    if (activeBoardRef.current?.id !== boardId) throw new Error("画板已切换，请回到原画板重新生成角色。");
-    updateWorkflowNode(character.id, { status: "generating", generationError: undefined });
-    try {
-      const outputs = await generate(undefined, {
-        workflowMode: "generate",
-        creationMode: "general",
-        useCase: "illustration-story",
-        prompt: prepared.prompt,
-        model: prepared.model,
-        size: "1024x1792",
-        n: 1,
-        referenceImages: [],
-        boardId,
-        providerId: prepared.providerId,
-        ...metadata
-      }, { preservePrompt: true, placementAnchorId: character.id, preserveModelOverride: true });
-      if (!outputs.length) throw new Error("角色图片生成未返回结果。");
-      if (activeBoardRef.current?.id === boardId) {
-        updateWorkflowNode(character.id, { status: "review", generationError: undefined });
-      }
-    } catch (error) {
-      const message = getWorkbenchErrorMessage(error, "角色图片生成失败。");
-      if (activeBoardRef.current?.id === boardId) {
-        updateWorkflowNode(character.id, { status: "failed", generationError: message });
-      }
-      throw new Error(message, { cause: error });
-    }
-  }
-
-  async function settleCharacterGenerationBatch(
-    prepared: PreparedCharacterGeneration[],
-    boardId: string
-  ): Promise<void> {
-    const results = await Promise.allSettled(prepared.map((item) => submitCharacterGeneration(item, boardId)));
-    const completed = results.filter((item) => item.status === "fulfilled").length;
-    const failures = results.flatMap((result, index) => result.status === "rejected"
-      ? [{
-          name: prepared[index].character.name,
-          reason: getWorkbenchErrorMessage(result.reason, "角色图片生成失败。")
-        }]
-      : []);
-    if (failures.length > 0) {
-      toast.error(translateSourceText("{{ui:0}}/{{ui:1}} 个角色生成完成", [completed, results.length]), {
-        description: failures.map((failure) => `${failure.name}：${failure.reason}`).join("\n")
-      });
-      return;
-    }
-    toast.success(translateSourceText("{{ui:0}}/{{ui:1}} 个角色生成完成，等待逐项采用", [completed, results.length]));
-  }
-
-  async function retryComicCharacterGeneration(character: ComicCharacterNode): Promise<void> {
-    const boardId = activeBoardRef.current?.id;
-    if (!boardId) {
-      toast.error(translateSourceText("当前漫剧画板尚未就绪，请返回后重新进入。"));
-      return;
-    }
-    if (paidSubmissionInFlightRef.current.has(character.id)) {
-      toast("该角色的生成请求正在处理中。");
-      return;
-    }
-    paidSubmissionInFlightRef.current.add(character.id);
-    try {
-      const settingVersionId = canvasStateRef.current.connections.find((connection) => connection.target === character.id)?.versionBinding?.mode === "pinned"
-        ? (canvasStateRef.current.connections.find((connection) => connection.target === character.id)?.versionBinding as { mode: "pinned"; versionId: string }).versionId
-        : undefined;
-      const prepared = await prepareCharacterGeneration(character, boardId, settingVersionId);
-      const confirmationTitle = character.status === "failed" ? `重试角色 · ${character.name}` : `生成角色形象 · ${character.name}`;
-      if (!await confirmCharacterGeneration([prepared], confirmationTitle)) return;
-      await settleCharacterGenerationBatch([prepared], boardId);
-    } catch (error) {
-      const message = getWorkbenchErrorMessage(error, "角色图片生成准备失败。");
-      updateWorkflowNode(character.id, { status: "failed", generationError: message });
-      toast.error(message);
-    } finally {
-      paidSubmissionInFlightRef.current.delete(character.id);
-    }
-  }
+  const { retryComicCharacterGeneration } = useLegacyCharacterGeneration({ boardId: activeBoard?.id, workflowNodesRef, activeProvider, activeBoardRef,
+    canvasStateRef, paidSubmissionInFlightRef, generate: (...args) => generate(...args), updateWorkflowNode, requestGenerationConfirmation });
 
   async function applyComicDramaPlan(plan: BoardMutationPlan): Promise<void> {
     const api = getWorkbenchApi();
@@ -2912,250 +2642,12 @@ export default function App(): React.ReactElement {
     }
   }
 
-  async function runVideoGenerationNode(
-    node: BoardVideoGenerationNode,
-    resolved: {
-      prompt: string;
-      images: GeneratedImage[];
-      sourceNodeIds: string[];
-      versionConflicts?: string[];
-      startFrame?: GeneratedImage;
-      endFrame?: GeneratedImage;
-      referenceImages: GeneratedImage[];
-      referenceVideos: VideoReferenceInput[];
-      requiresFirstLastFrame: boolean;
-    }
-  ): Promise<void> {
-    if ((resolved.versionConflicts?.length ?? 0) > 0) {
-      toast.error(translateSourceText("固定版本冲突：{{ui:0}}", [resolved.versionConflicts![0]]));
-      return;
-    }
-    const boardId = activeBoardRef.current?.id;
-    if (!boardId) {
-      toast.error(translateSourceText("请先打开一个画板。"));
-      return;
-    }
-    const api = getWorkbenchApi();
-    if (!api) {
-      toast.error(missingImageWorkbenchMessage);
-      return;
-    }
-    const prompt = resolved.prompt.trim();
-    if (resolved.referenceImages.length > VIDEO_MAX_REFERENCE_IMAGES) {
-      toast.error(translateSourceText("当前模型最多接收 {{ui:0}} 张参考图，请先移除多余连接。", [VIDEO_MAX_REFERENCE_IMAGES]));
-      return;
-    }
-    if (!prompt && resolved.images.length === 0 && resolved.referenceVideos.length === 0 && !node.sourceVideoPath) {
-      toast.error(translateSourceText("请填写运动描述，或连接图片/视频参考。"));
-      return;
-    }
-    const selectedVideoProvider = videoProviders.find((provider) => provider.id === (node.providerId || activeVideoProviderId));
-    if (!selectedVideoProvider) {
-      const message = "当前视频服务已被删除，请重新选择模型。";
-      updateWorkflowNode(node.id, { status: "failed", error: message });
-      toast.error(message);
-      return;
-    }
-
-    if (resolved.requiresFirstLastFrame && (!resolved.startFrame || !resolved.endFrame)) {
-      toast.error(translateSourceText("请先分别采用首帧和尾帧，并保持固定版本连接。"));
-      return;
-    }
-    if (paidSubmissionInFlightRef.current.has(node.id)) return;
-    const metadata: Partial<VideoGenerationInput> = {};
-    const videoCostLabel = metadata.priceSnapshot?.amount ? metadata.priceSnapshot.amount + " 金豆" : "由 Provider 计费";
-    const confirmed = await requestGenerationConfirmation({
-      title: "确认生成视频",
-      providerLabel: selectedVideoProvider.name,
-      model: node.model?.trim() || selectedVideoProvider.model,
-      totalCostLabel: videoCostLabel,
-      items: [{
-        id: node.id,
-        label: node.title || "片段视频",
-        task: `生成 ${node.duration ?? 5} 秒视频`,
-        costLabel: videoCostLabel,
-        quoteId: metadata.quoteId,
-        quoteExpiresAt: metadata.quoteExpiresAt
-      }],
-      confirmLabel: "确认并生成视频"
-    });
-    if (!confirmed) return;
-    if (paidSubmissionInFlightRef.current.has(node.id)) return;
-    paidSubmissionInFlightRef.current.add(node.id);
-    const pendingJobId = pendingVideoJobId(node.id);
-    const pendingOutputId = `video-output-${pendingJobId}`;
-    let submittedJobId = pendingJobId;
-    updateWorkflowNode(node.id, { status: "submitting", lastGenerationId: undefined, error: undefined });
-    const syncPlaceholder = (
-      job: Pick<VideoGenerationJob, "id" | "status" | "outputVideoPath" | "outputPosterPath" | "error">
-    ): void => {
-      if (node.mode === "remix" || activeBoardRef.current?.id !== boardId) return;
-      const placeholderId = `video-output-${job.id}`;
-      const reconciled = reconcileVideoGenerationPlaceholder(
-        workflowNodesRef.current, canvasStateRef.current.connections, node.id, job.id
-      );
-      const current = reconciled.nodes as CanvasPersistedNode[];
-      canvasStateRef.current.connections = reconciled.connections;
-      const existing = current.find((candidate): candidate is BoardVideoNode => (
-        (candidate.id === placeholderId || candidate.id === pendingOutputId) && isBoardVideoNode(candidate)
-      ));
-      const placeholder: BoardVideoNode = {
-        ...existing,
-        id: placeholderId,
-        type: "video",
-        title: "视频结果",
-        videoPath: job.outputVideoPath ?? existing?.videoPath ?? "",
-        posterPath: job.outputPosterPath ?? existing?.posterPath,
-        jobId: job.id,
-        source: "generated",
-        generationNodeId: node.id,
-        aspectRatio: existing?.aspectRatio ?? node.aspectRatio ?? "16:9",
-        status: job.status,
-        error: job.error,
-        x: existing?.x ?? node.x + Math.max(1, node.displayWidth ?? 340)
-          + GENERATION_OUTPUT_HORIZONTAL_GAP,
-        y: existing?.y ?? node.y
-      };
-      const next = existing
-        ? current.map((candidate) => candidate.id === existing.id ? placeholder : candidate)
-        : [...current, placeholder];
-      workflowNodesRef.current = next;
-      setWorkflowNodes(next);
-      const existingConnection = canvasStateRef.current.connections.find((connection) => (
-        connection.source === node.id
-        && (connection.target === placeholderId || connection.target === pendingOutputId)
-      ));
-      if (existingConnection) {
-        canvasStateRef.current.connections = canvasStateRef.current.connections.map((connection) => (
-          connection.id === existingConnection.id
-            ? {
-                ...connection,
-                target: placeholderId,
-                sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
-                targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-                routing: { mode: "auto", kind: "curved", waypoints: [] }
-              }
-            : connection
-        ));
-        setCanvasConnectionsVersion((value) => value + 1);
-      } else {
-        canvasStateRef.current.connections = [...canvasStateRef.current.connections, {
-          id: crypto.randomUUID(), source: node.id, target: placeholderId,
-          sourceHandle: "source-right", targetHandle: "target-left", kind: "visual", label: "生成结果",
-          sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
-          targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-          routing: { mode: "auto", kind: "curved", waypoints: [] }
-        }];
-        setCanvasConnectionsVersion((value) => value + 1);
-      }
-      scheduleBoardSave();
-    };
-    syncPlaceholder({
-      id: pendingJobId,
-      status: "submitting",
-      outputVideoPath: undefined,
-      outputPosterPath: undefined,
-      error: undefined
-    });
-    try {
-      await flushBoardSave();
-      const imageInputs = resolveVideoGenerationImageInputs(
-        selectedVideoProvider.type === "official",
-        resolved.startFrame,
-        resolved.endFrame,
-        resolved.referenceImages
-      );
-      const segmentNode = workflowNodesRef.current.find((candidate) => resolved.sourceNodeIds.includes(candidate.id) && candidate.type === "comic-segment-script");
-      const comicDramaContextSnapshot = resolved.requiresFirstLastFrame && segmentNode?.type === "comic-segment-script" && resolved.startFrame && resolved.endFrame ? {
-        segmentNodeId: segmentNode.id,
-        segmentScriptVersionId: segmentNode.activeVersionId,
-        characterVersions: canvasStateRef.current.connections.flatMap((connection) => {
-          if (connection.kind !== "reference" || connection.target !== segmentNode.id) return [];
-          const source = workflowNodesRef.current.find((candidate) => candidate.id === connection.source);
-          if (!source || source.type !== "comic-character") return [];
-          return [{ nodeId: source.id, versionId: connection.versionBinding?.mode === "pinned" ? connection.versionBinding.versionId : source.activeVersionId }];
-        }),
-        sharedVisualVersions: [],
-        adoptedFirstFrame: { nodeId: resolved.startFrame.id, versionId: resolved.startFrame.jobId },
-        adoptedLastFrame: { nodeId: resolved.endFrame.id, versionId: resolved.endFrame.jobId }
-      } : undefined;
-      const input: VideoGenerationInput = {
-        mode: node.mode ?? "generate",
-        prompt,
-        model: node.model?.trim() || selectedVideoProvider.model,
-        aspectRatio: node.aspectRatio || "16:9",
-        resolution: node.resolution || "720p",
-        durationSeconds: node.duration ?? 5,
-        referenceImagePaths: imageInputs.referenceImagePaths,
-        referenceVideoPaths: Array.from(new Set([
-          ...(node.referenceVideoPaths ?? []),
-          ...resolved.referenceVideos.map((video) => video.path)
-        ].filter(Boolean))),
-        referenceAudioPaths: node.referenceAudioPaths ?? [],
-        requireFirstLastFrameCapability: resolved.requiresFirstLastFrame,
-        comicDramaContextSnapshot,
-        sourceVideoPath: node.sourceVideoPath,
-        targetVideoNodeId: node.targetVideoNodeId,
-        firstFramePath: imageInputs.firstFramePath,
-        lastFramePath: imageInputs.lastFramePath,
-        generateAudio: node.generateAudio ?? false,
-        watermark: node.watermark ?? false,
-        providerId: node.providerId,
-        boardId,
-        generationNodeId: node.id,
-        ...metadata
-      };
-      let job = await api.startVideoGeneration(input);
-      submittedJobId = job.id;
-      videoPollingStoppedRef.current.delete(job.id);
-      if (activeBoardRef.current?.id === boardId) {
-        updateWorkflowNode(node.id, {
-          status: job.status,
-          lastGenerationId: job.id,
-          error: job.error,
-          ...(job.input.prompt !== prompt ? { prompt: job.input.prompt } : {})
-        });
-        syncPlaceholder(job);
-      }
-      void refreshHistory();
-      for (let attempt = 0; attempt < 300 && !isTerminalVideoJob(job) && !videoPollingStoppedRef.current.has(job.id); attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2_000));
-        const latest = await api.getVideoJob(job.id);
-        if (!latest) break;
-        job = latest;
-        if (activeBoardRef.current?.id === boardId) {
-          updateWorkflowNode(node.id, {
-            status: job.status,
-            error: job.error,
-            lastGenerationId: job.id
-          });
-          syncPlaceholder(job);
-        }
-      }
-      if (job.status === "completed") {
-        boardDetailCacheRef.current.delete(boardId);
-        if (activeBoardRef.current?.id === boardId) await openBoard(boardId, undefined, { forceReload: true });
-        notifyVideoJob(job);
-      } else if (job.status === "failed") {
-        notifyVideoJob(job);
-      }
-      void refreshHistory();
-    } catch (error) {
-      const message = getWorkbenchErrorMessage(error, "视频生成失败。");
-      updateWorkflowNode(node.id, { status: "failed", error: message });
-      syncPlaceholder({
-        id: submittedJobId,
-        status: "failed",
-        outputVideoPath: undefined,
-        outputPosterPath: undefined,
-        error: message
-      });
-      toast.error(message);
-    } finally {
-      paidSubmissionInFlightRef.current.delete(node.id);
-
-    }
-  }
+  const { runVideoGenerationNode, stopVideoPolling, resumeVideoPolling } = createVideoGenerationController({
+    activeBoardRef, getWorkbenchApi, videoProviders, activeVideoProviderId, updateWorkflowNode,
+    paidSubmissionInFlightRef, requestGenerationConfirmation, workflowNodesRef, canvasStateRef,
+    setWorkflowNodes, setCanvasConnectionsVersion, scheduleBoardSave, flushBoardSave, videoPollingStoppedRef,
+    refreshHistory, boardDetailCacheRef, openBoard, notifyVideoJob
+  });
 
   function chooseVideoReferenceAudio(nodeId: string): void {
     const picker = document.createElement("input");
@@ -3294,61 +2786,6 @@ export default function App(): React.ReactElement {
     const right = toGeneratedVideo(rightIndex);
     if (left && right) setVideoCompare({ left, right });
   }
-
-  async function stopVideoPolling(nodeId: string): Promise<void> {
-    const node = workflowNodesRef.current.find(
-      (candidate): candidate is BoardVideoGenerationNode => candidate.id === nodeId && isBoardVideoGenerationNode(candidate)
-    );
-    if (!node?.lastGenerationId) return;
-    try {
-      videoPollingStoppedRef.current.add(node.lastGenerationId);
-      await getImageWorkbenchApi().stopVideoPolling(node.lastGenerationId);
-      updateWorkflowNode(nodeId, {
-        status: "polling_stopped",
-        error: "仅停止本地等待，远端任务可能继续运行并产生费用。"
-      });
-      toast.info(translateSourceText("已停止本地等待，远端任务可能仍在运行"));
-    } catch (error) {
-      videoPollingStoppedRef.current.delete(node.lastGenerationId);
-      toast.error(getWorkbenchErrorMessage(error, "停止本地等待失败。"));
-    }
-  }
-
-  async function resumeVideoPolling(nodeId: string): Promise<void> {
-    const node = workflowNodesRef.current.find(
-      (candidate): candidate is BoardVideoGenerationNode => candidate.id === nodeId && isBoardVideoGenerationNode(candidate)
-    );
-    const boardId = activeBoardRef.current?.id;
-    if (!node?.lastGenerationId || !boardId) return;
-    try {
-      videoPollingStoppedRef.current.delete(node.lastGenerationId);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const recovered = await getImageWorkbenchApi().recoverVideoGenerations();
-      let job = recovered.find((candidate) => candidate.id === node.lastGenerationId)
-        ?? await getImageWorkbenchApi().getVideoJob(node.lastGenerationId);
-      if (!job) throw new Error("视频任务已不存在。");
-      updateWorkflowNode(nodeId, { status: job.status, error: undefined });
-      for (let attempt = 0; attempt < 300 && !isTerminalVideoJob(job) && !videoPollingStoppedRef.current.has(job.id); attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2_000));
-        const latest = await getImageWorkbenchApi().getVideoJob(job.id);
-        if (!latest) break;
-        job = latest;
-        if (activeBoardRef.current?.id === boardId) updateWorkflowNode(nodeId, { status: job.status, error: job.error });
-      }
-      if (job.status === "completed") {
-        boardDetailCacheRef.current.delete(boardId);
-        if (activeBoardRef.current?.id === boardId) await openBoard(boardId, undefined, { forceReload: true });
-        notifyVideoJob(job);
-      } else if (job.status === "failed") {
-        notifyVideoJob(job);
-      }
-    } catch (error) {
-      updateWorkflowNode(nodeId, { status: "polling_stopped" });
-      toast.error(getWorkbenchErrorMessage(error, "恢复本地等待失败。"));
-    }
-  }
-
-  // ---------- 图片编辑会话 ----------
 
   const enterEditSession = useCallback((image: GeneratedImage): void => {
     // 进入编辑：记住历史栏状态并收起，聚焦层不再被右侧历史挤占。
@@ -3673,179 +3110,11 @@ export default function App(): React.ReactElement {
     if (sliceTargetId && !images.some((image) => image.id === sliceTargetId)) setSliceTargetId(null);
   }, [images, sliceTargetId]);
 
-  const toggleFavoriteScene = useCallback((id: string): void => {
-    setFavoriteSceneIds((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      writeFavoriteSceneIds(next);
-      return next;
-    });
-  }, []);
-
-  const openTemplateDetail = useCallback((scene: SceneDefinition): void => {
-    setLibraryInitialSceneRequest((current) => ({
-      id: scene.id,
-      nonce: (current?.nonce ?? 0) + 1
-    }));
-    setLibraryInitialTab("scenes");
-    setLibraryOpen(true);
-  }, []);
-
-  const findImageSourceTemplate = useCallback((image: GeneratedImage): SceneDefinition | undefined => {
-    const activeVersionJobId = image.versions?.[image.activeVersion ?? -1]?.jobId;
-    const jobIds = [activeVersionJobId, image.jobId, ...image.versions?.map((version) => version.jobId) ?? []]
-      .filter((jobId, index, values): jobId is string => Boolean(jobId) && values.indexOf(jobId) === index);
-    const sceneId = jobIds
-      .map((jobId) => history.find((job) => job.id === jobId)?.input.sceneId)
-      .find((candidate): candidate is string => Boolean(candidate));
-    return sceneId ? scenes.find((scene) => scene.id === sceneId) : undefined;
-  }, [history, scenes]);
-
-  const templateSourceImageIds = useMemo(
-    () => images.filter((image) => findImageSourceTemplate(image)).map((image) => image.id),
-    [findImageSourceTemplate, images]
-  );
-
-  const openImageSourceTemplate = useCallback((image: GeneratedImage): void => {
-    const scene = findImageSourceTemplate(image);
-    if (!scene) {
-      toast.error(translateSourceText("来源模板已删除，无法打开。"));
-      return;
-    }
-    setHistoryOpen(false);
-    setCommentOpen(false);
-    openTemplateDetail(scene);
-  }, [findImageSourceTemplate, openTemplateDetail]);
-
-  const applyScene = useCallback((scene: SceneDefinition): void => {
-    setInput((current) => ({
-      ...current,
-      workflowMode: scene.mode,
-      useCase: scene.useCase,
-      sceneId: scene.id,
-      promptSpec: undefined,
-      quality: qualityEditedByUser ? current.quality : getDefaultQuality(scene.mode, scene.useCase)
-    }));
-    setLibraryOpen(false);
-    toast.success(translateSourceText("已套用模板「{{ui:0}}」", [scene.name]));
-  }, [qualityEditedByUser]);
-
-  const saveScene = useCallback((draft: NewSceneInput): SceneDefinition => {
-    const scene = createCustomScene(draft);
-    setCustomScenes((current) => {
-      const next = [scene, ...current];
-      writeCustomScenes(next);
-      return next;
-    });
-    iterlayToast.templateSaved({ name: scene.name, onNavigate: () => openTemplateDetail(scene) });
-    return scene;
-  }, [openTemplateDetail]);
-
-  const updateScene = useCallback((scene: SceneDefinition, draft: NewSceneInput): SceneDefinition => {
-    const updated = scene.source === "preset"
-      ? createCustomSceneFromScene(scene, draft)
-      : updateCustomScene(scene, draft);
-    setCustomScenes((current) => {
-      const next = scene.source === "preset"
-        ? [updated, ...current]
-        : current.map((item) => (item.id === scene.id ? updated : item));
-      writeCustomScenes(next);
-      return next;
-    });
-    iterlayToast.templateSaved({ name: updated.name, updated: true, onNavigate: () => openTemplateDetail(updated) });
-    return updated;
-  }, [openTemplateDetail]);
-
-  const deleteScene = useCallback((id: string): void => {
-    setCustomScenes((current) => {
-      const next = current.filter((scene) => scene.id !== id);
-      writeCustomScenes(next);
-      return next;
-    });
-    setFavoriteSceneIds((current) => {
-      if (!current.includes(id)) return current;
-      const next = current.filter((item) => item !== id);
-      writeFavoriteSceneIds(next);
-      return next;
-    });
-    toast.success(translateSourceText("模板已删除"));
-  }, []);
-
-  async function exportSceneTemplate(scene: SceneDefinition): Promise<void> {
-    const api = getWorkbenchApi();
-    if (!api) return;
-    try {
-      const result = await api.exportScene(scene);
-      if (result.ok && result.path) {
-        iterlayToast.exported({ title: translateSourceText("模板已导出"), path: result.path });
-      }
-    } catch (error) {
-      reportWorkbenchError(error);
-    }
-  }
-
-  async function submitSceneTemplate(
-    scene: SceneDefinition,
-    authorName: string,
-    exampleResultIds: string[]
-  ): Promise<TemplateSubmissionResult> {
-    const api = getWorkbenchApi();
-    if (!api) throw new Error("桌面应用通信未就绪，请重启 Iterlay 后重试。");
-    const submission = await api.submitSceneTemplate(scene, authorName, exampleResultIds);
-    toast.success(translateSourceText("发布申请已提交，审核通过后会出现在模板广场"));
-    return submission;
-  }
-
-  async function getSceneTemplateSubmission(scene: SceneDefinition): Promise<TemplateSubmissionResult | null> {
-    const api = getWorkbenchApi();
-    if (!api) throw new Error("桌面应用通信未就绪，请重启 Iterlay 后重试。");
-    return api.getSceneTemplateSubmission(scene.id);
-  }
-
-  async function importSceneTemplate(): Promise<SceneDefinition | null> {
-    const api = getWorkbenchApi();
-    if (!api) return null;
-    try {
-      const result = await api.importScene();
-      if (!result) return null;
-      return persistImportedSceneResults([result])[0] ?? null;
-    } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "导入模板失败。"));
-      return null;
-    }
-  }
-
-  function persistImportedSceneResults(results: SceneTemplateImportResult[]): SceneDefinition[] {
-    const importedScenes: SceneDefinition[] = results.map((result) => result.scene);
-    if (importedScenes.length === 0) return [];
-    setCustomScenes((current) => {
-      const next = [...importedScenes, ...current];
-      writeCustomScenes(next);
-      return next;
-    });
-    results.forEach((result) => {
-      const scene = result.scene;
-      toast.success(
-        result.instanceCount > 0
-          ? translateSourceText("已导入模板「{{ui:0}}」和 {{ui:1}} 个实例", [scene.name, result.instanceCount])
-          : translateSourceText("已导入模板「{{ui:0}}」", [scene.name])
-      );
-    });
-    return importedScenes;
-  }
-
-  async function importSceneTemplateFiles(files: File[]): Promise<SceneDefinition[]> {
-    const api = getWorkbenchApi();
-    if (!api) return [];
-    const results: SceneTemplateImportResult[] = [];
-    for (const file of files) {
-      try {
-        results.push(await api.importSceneData(await file.arrayBuffer()));
-      } catch (error) {
-        toast.error(translateSourceText("导入 {{ui:0}} 失败：{{ui:1}}", [file.name, getWorkbenchErrorMessage(error, "导入模板失败。")]));
-      }
-    }
-    return persistImportedSceneResults(results);
-  }
+  const { toggleFavoriteScene, templateSourceImageIds, openImageSourceTemplate,
+    applyScene, saveScene, updateScene, deleteScene, exportSceneTemplate, importSceneTemplate, importSceneTemplateFiles
+  } = useTemplateLibrary({ setFavoriteSceneIds, setCustomScenes, setLibraryInitialSceneRequest, setLibraryInitialTab,
+    setLibraryOpen, setHistoryOpen, setCommentOpen, setInput, qualityEditedByUser, history, scenes, images,
+    getWorkbenchApi, reportWorkbenchError });
 
   const optimizeSceneDescription = useCallback(
     async (scene: SceneDefinition, prompt: string, templatePrompt?: string): Promise<string> => {
@@ -3868,6 +3137,7 @@ export default function App(): React.ReactElement {
       const activeBoardId = activeBoardRef.current?.id;
       const result = await getImageWorkbenchApi().collaborateScene({
         ...request,
+        locale: request.locale ?? locale,
         memoryQuery: {
           ...(activeBoardId ? { boardId: activeBoardId } : {}),
           ...request.memoryQuery
@@ -3876,17 +3146,17 @@ export default function App(): React.ReactElement {
       refreshCreditStatus();
       return result;
     },
-    [refreshCreditStatus]
+    [refreshCreditStatus, locale]
   );
 
   const interpretCreateChat = useCallback(
     async (request: CollaborateSceneRequest): Promise<CollaborateSceneResult> => {
       if (!hasImageWorkbenchApi()) throw new Error(missingImageWorkbenchMessage);
-      const result = await getImageWorkbenchApi().collaborateScene(request);
+      const result = await getImageWorkbenchApi().collaborateScene({ ...request, locale: request.locale ?? locale });
       refreshCreditStatus();
       return result;
     },
-    [refreshCreditStatus]
+    [refreshCreditStatus, locale]
   );
 
   const resolveTemplatePromptSet = useCallback(async (
@@ -3969,107 +3239,9 @@ export default function App(): React.ReactElement {
     return createUiDesignBrief(result);
   }, [collaborateScene, locale]);
 
-  const openTemplateExtraction = useCallback((image: GeneratedImage): void => {
-    if (!textProviderReady) {
-      toast.error(translateSourceText("沉淀模板需要先配置可用的文本 AI。"));
-      openProviderSetup();
-      return;
-    }
-    const activeVersionJobId = image.versions?.[image.activeVersion ?? -1]?.jobId;
-    const jobId = activeVersionJobId || image.jobId;
-    const job = history.find((item) => item.id === jobId);
-    const sourcePrompt = job?.prompt?.trim() || job?.input.prompt?.trim() || "";
-    if (!image.dataUrl && !image.path) {
-      toast.error(translateSourceText("无法读取这张画板图片，暂时不能沉淀为模板。"));
-      return;
-    }
-    const workflowMode = job?.input.workflowMode ?? "generate";
-    const useCase = job?.useCase ?? job?.input.useCase ?? getDefaultUseCase(workflowMode);
-    const sourceScene = job?.input.sceneId ? scenes.find((scene) => scene.id === job.input.sceneId) : undefined;
-    setTemplateExtractionSource({
-      id: `${image.id}:${job?.id ?? image.activeVersion ?? "image"}`,
-      imageUrl: image.dataUrl,
-      imagePath: image.path,
-      sourcePrompt,
-      workflowMode,
-      useCase,
-      category: sourceScene?.category
-    });
-  }, [history, openProviderSetup, scenes, textProviderReady]);
-
-  const extractTemplateFromCanvas = useCallback(async (
-    source: TemplateExtractionSource,
-    workflowMode: ImageWorkflowMode,
-    scenario: TemplateExtractionScenario,
-    onItems: (items: TemplateExtractionResult["items"]) => void
-  ): Promise<TemplateExtractionResult> => {
-    const api = getWorkbenchApi();
-    const dataUrl = source.imageUrl.startsWith("data:")
-      ? source.imageUrl
-      : source.imagePath && api
-        ? await api.readAssetDataUrl(source.imagePath)
-        : "";
-    const reference = dataUrlToReferencePayload(dataUrl, "已验证的画板结果", "reference");
-    if (!reference) throw new Error("无法读取这张画板图片。");
-    const extractionContext = retargetTemplateExtractionContext({
-      sourcePrompt: source.sourcePrompt,
-      workflowMode: source.workflowMode,
-      useCase: source.useCase,
-      category: source.category,
-      extractionScenario: scenario
-    }, workflowMode);
-    const request = {
-      instruction: buildTemplateExtractionInstruction(
-        workflowMode,
-        Boolean(source.sourcePrompt.trim()),
-        scenario
-      ),
-      referenceImages: [{
-        name: reference.name,
-        mimeType: reference.mimeType,
-        dataBase64: reference.dataBase64
-      }],
-      currentFields: parseSceneFields(source.sourcePrompt).map((field) => ({
-        label: field.label || "生成提示词",
-        value: field.value
-      })),
-      workflowMode,
-      useCase: extractionContext.useCase,
-      assistantSurface: "scene-template",
-      recordInHistory: false,
-      memoryQuery: source.imagePath ? { assetPath: source.imagePath } : undefined
-    } satisfies CollaborateSceneRequest;
-    const result = await new Promise<CollaborateSceneResult>((resolve, reject) => {
-      startSceneCollaborationStream(request, {
-        onDelta: () => undefined,
-        onFields: (fields) => onItems(parseTemplateExtractionItems({ message: "", fields })),
-        onResult: resolve,
-        onError: (message) => reject(new Error(message)),
-        onCancelled: () => reject(new Error("已停止提炼模板。"))
-      });
-    });
-    refreshCreditStatus();
-    return createTemplateExtractionFromAssistant(result, extractionContext);
-  }, [getWorkbenchApi, refreshCreditStatus]);
-
-  const saveExtractedTemplate = useCallback(async (
-    source: TemplateExtractionSource,
-    draft: NewSceneInput,
-    decision: TemplateExtractionSaveDecision
-  ): Promise<void> => {
-    const scene = decision.action === "replace"
-      ? updateScene(decision.template, draft)
-      : saveScene(draft);
-    const api = getWorkbenchApi();
-    if (api && source.imagePath) {
-      try {
-        await api.addSceneExample(scene.id, source.imagePath, scene.prompt);
-      } catch (error) {
-        toast.warning(getWorkbenchErrorMessage(error, "模板已保存，但示例图暂时无法加入。"));
-      }
-    }
-    setTemplateExtractionSource(null);
-  }, [getWorkbenchApi, saveScene, updateScene]);
+  const { templateExtractionSource, setTemplateExtractionSource, openTemplateExtraction, extractTemplateFromCanvas,
+    saveExtractedTemplate } = useTemplateExtraction({ textProviderReady, openProviderSetup, history, scenes,
+    getWorkbenchApi, refreshCreditStatus, dataUrlToReferencePayload, saveScene, updateScene });
 
   const openLibrary = useCallback((initialTab?: LibraryInitialTab): void => {
     setLibraryInitialTab(initialTab);
@@ -5572,7 +4744,7 @@ export default function App(): React.ReactElement {
         "画板上的彩色线条、半透明图形、箭头、节点边界和文字只用于表达编辑意图，绝不是最终图片中要保留、绘制或复刻的视觉元素。",
         "综合图片内容、组件相对中心图片的位置、箭头方向、包围范围、组件之间的关系与文字含义，推断用户真正想修改的对象、区域、结果和需要保持不变的内容。不要机械地逐条拼接标注，也不要把颜色或形状本身当作编辑要求，除非文字明确要求这么做。",
         "把存在歧义的空间标注优先解释为最符合原图语义和用户文字的编辑意图；没有被画板意图影响的主体、构图、光线和画布尺寸必须保持不变。",
-        "不要提问，不要给多个方向，不要执行生成动作。fields 必须且只能返回一个字段：label 为“提示词”，value 为一条完整、明确、可直接交给图片编辑模型的中文提示词；提示词只描述最终图片该如何变化，不得提及画板、标注、箭头、节点或 React Flow。",
+        "不要提问，不要给多个方向，不要执行生成动作。fields 必须且只能返回一个字段：label 为“提示词”，value 为一条完整、明确、可直接交给图片编辑模型的提示词，使用当前界面语言；提示词只描述最终图片该如何变化，不得提及画板、标注、箭头、节点或 React Flow。",
         refinement ? `当前已识别的编辑方案：\n${refinement.interpretation.prompt}` : null,
         refinement ? `用户追加要求：\n${refinement.instruction}` : null,
         `结构化标注摘要：\n${request.annotationSummary}`
@@ -5601,7 +4773,7 @@ export default function App(): React.ReactElement {
             onCancelled: () => reject(new Error("已停止本次理解。"))
           });
         })
-      : await api.collaborateScene(collaborationRequest);
+      : await api.collaborateScene({ ...collaborationRequest, locale });
     refreshCreditStatus();
     const interpretedPrompt = sceneAssistantFieldsToPrompt(assistantResult.fields)
       || assistantResult.detailedPrompt?.trim()
@@ -5905,298 +5077,12 @@ export default function App(): React.ReactElement {
     : commentOpen ? 336 : historyOpen ? 320 : 0;
   const effectiveRightRailCanvasInset = reserveCanvasSpaceForRightRail ? rightRailCanvasInset : 0;
 
-  const refreshActiveVideoSequence = useCallback(async (): Promise<void> => {
-    const current = activeVideoSequence;
-    if (!current) return;
-    const next = await getImageWorkbenchApi().getVideoSequence({ boardId: current.boardId, sequenceId: current.id });
-    if (next) setActiveVideoSequence(next);
-  }, [activeVideoSequence]);
-
-  useEffect(() => {
-    if (!activeVideoSequence || !hasImageWorkbenchApi()) return;
-    return getImageWorkbenchApi().onVideoSequenceEvent((event) => {
-      const update = event as { boardId?: string; sequenceId?: string };
-      if (update.boardId === activeVideoSequence.boardId && update.sequenceId === activeVideoSequence.id) {
-        void refreshActiveVideoSequence();
-      }
-    });
-  }, [activeVideoSequence, refreshActiveVideoSequence]);
-
-  const openPersistedVideoSequence = useCallback(async (sequenceId: string): Promise<void> => {
-    const boardId = activeBoardRef.current?.id;
-    if (!boardId) return;
-    try {
-      const sequence = await getImageWorkbenchApi().getVideoSequence({ boardId, sequenceId });
-      if (!sequence) throw new Error("视频序列不存在或已被删除。");
-      setActiveVideoSequence(sequence);
-    } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "无法打开视频序列。"));
-    }
-  }, []);
-
-  const createVideoSequenceFromImages = useCallback(async (selected: GeneratedImage[]): Promise<void> => {
-    if (!activeBoard || selected.length < 2) return;
-    try {
-      const sequence = await getImageWorkbenchApi().createVideoSequence({
-        boardId: activeBoard.id,
-        name: `${activeBoard.name}镜头序列`,
-        imageNodeIds: selected.map((image) => image.id),
-        defaults: {
-          providerId: activeVideoProviderId,
-          model: videoProviders.find((provider) => provider.id === activeVideoProviderId)?.model ?? DEFAULT_VIDEO_PROVIDER_CONFIG.model
-        }
-      });
-      setVideoSequenceTemplates(await getImageWorkbenchApi().listVideoSequenceTemplates());
-      await openBoard(activeBoard.id, undefined, { forceReload: true, suppressLoadingScreen: true });
-      setActiveVideoSequence(sequence);
-      toast.success(translateSourceText("已创建 {{ui:0}} 个视频片段", [selected.length - 1]));
-    } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "创建镜头序列失败。"));
-    }
-  }, [activeBoard, activeVideoProviderId, openBoard, videoProviders]);
-
-  const createVideoAssemblyFromVideos = useCallback(async (selected: BoardVideoNode[]): Promise<void> => {
-    if (!activeBoard || selected.length < 2) return;
-    try {
-      const sequence = await getImageWorkbenchApi().createVideoSequenceFromVideos({
-        boardId: activeBoard.id,
-        name: activeBoard.name + "成片序列",
-        videoNodeIds: selected.map((video) => video.id),
-        defaults: {
-          providerId: activeVideoProviderId,
-          model: videoProviders.find((provider) => provider.id === activeVideoProviderId)?.model ?? DEFAULT_VIDEO_PROVIDER_CONFIG.model
-        }
-      });
-      await openBoard(activeBoard.id, undefined, { forceReload: true, suppressLoadingScreen: true });
-      setActiveVideoSequence(sequence);
-      toast.success("已按画布顺序合并 " + selected.length + " 个视频；未调用生成服务");
-    } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "合并视频失败，画板未发生变化。"));
-    }
-  }, [activeBoard, activeVideoProviderId, openBoard, videoProviders]);
-
-  const mutateActiveVideoSequence = useCallback(async (
-    operation: Parameters<ReturnType<typeof getImageWorkbenchApi>["mutateVideoSequence"]>[0],
-    input: Record<string, unknown>
-  ): Promise<void> => {
-    const current = activeVideoSequence;
-    if (!current) return;
-    setVideoSequenceSaving(true);
-    setVideoSequenceSaveError(undefined);
-    try {
-      const next = await getImageWorkbenchApi().mutateVideoSequence(operation, {
-        boardId: current.boardId,
-        sequenceId: current.id,
-        expectedRevision: current.revision,
-        ...input
-      });
-      setActiveVideoSequence(next);
-    } catch (error) {
-      setVideoSequenceSaveError(getWorkbenchErrorMessage(error, "保存失败。"));
-      throw error;
-    } finally {
-      setVideoSequenceSaving(false);
-    }
-  }, [activeVideoSequence]);
-
-  const updateActiveVideoSequence = useCallback((draft: EditorVideoSequence): void => {
-    const current = activeVideoSequence;
-    if (!current) return;
-    const currentFrameIds = [...current.keyframes].sort((a, b) => a.order - b.order).map((frame) => frame.id);
-    const draftFrameIds = [...draft.keyframes].sort((a, b) => a.order - b.order).map((frame) => frame.id);
-    if (current.kind === "video-assembly") {
-      const currentSegmentIds = [...current.segments].sort((a, b) => a.order - b.order).map((segment) => segment.id);
-      const draftSegmentIds = [...draft.segments].sort((a, b) => a.order - b.order).map((segment) => segment.id);
-      if (currentSegmentIds.join(":") !== draftSegmentIds.join(":")) {
-        void mutateActiveVideoSequence("reorderSegments", { segmentIds: draftSegmentIds });
-        return;
-      }
-    }
-    if (draftFrameIds.length < currentFrameIds.length) {
-      const removedId = currentFrameIds.find((id) => !draftFrameIds.includes(id));
-      if (removedId) void mutateActiveVideoSequence("removeKeyframe", { keyframeId: removedId });
-      return;
-    }
-    if (currentFrameIds.join(":") !== draftFrameIds.join(":")) {
-      void mutateActiveVideoSequence("reorderKeyframes", { keyframeIds: draftFrameIds });
-      return;
-    }
-    const changed = draft.segments.find((segment) => {
-      const source = current.segments.find((item) => item.id === segment.id);
-      if (!source) return false;
-      return segment.prompt !== source.config.prompt
-        || segment.providerId !== source.config.providerId
-        || segment.model !== source.config.model
-        || segment.durationSeconds !== source.config.durationSeconds
-        || segment.aspectRatio !== source.config.aspectRatio
-        || segment.resolution !== source.config.resolution
-        || segment.generateAudio !== source.config.generateAudio
-        || segment.watermark !== source.config.watermark
-        || segment.trimInMs !== source.trim.inMs
-        || segment.trimOutMs !== source.trim.outMs
-        || segment.muted !== source.trim.muted
-        || segment.activeVersionId !== source.activeVersionId;
-    });
-    if (!changed) return;
-    const source = current.segments.find((item) => item.id === changed.id)!;
-    if (changed.activeVersionId !== source.activeVersionId && changed.activeVersionId) {
-      void mutateActiveVideoSequence("selectSegmentVersion", { segmentId: changed.id, versionId: changed.activeVersionId });
-      return;
-    }
-    void mutateActiveVideoSequence("updateSegment", {
-      segmentId: changed.id,
-      configPatch: {
-        prompt: changed.prompt,
-        providerId: changed.providerId,
-        model: changed.model,
-        durationSeconds: changed.durationSeconds,
-        aspectRatio: changed.aspectRatio,
-        resolution: changed.resolution,
-        generateAudio: changed.generateAudio,
-        watermark: changed.watermark
-      },
-      trimPatch: { inMs: changed.trimInMs, outMs: changed.trimOutMs, muted: changed.muted }
-    });
-  }, [activeVideoSequence, mutateActiveVideoSequence]);
-
-  const prepareActiveVideoSequence = useCallback(async () => {
-    const current = activeVideoSequenceRef.current;
-    if (!current || !await ensureMediaToolsReady()) return null;
-    try {
-      const latest = await getImageWorkbenchApi().getVideoSequence({ boardId: current.boardId, sequenceId: current.id });
-      if (!latest) throw new Error("视频序列不存在或已被删除。");
-      const active = activeVideoSequenceRef.current;
-      if (active?.boardId !== current.boardId || active.id !== current.id) return null;
-      setActiveVideoSequence(latest);
-      return latest;
-    } catch (error) {
-      toast.error(getWorkbenchErrorMessage(error, "无法读取视频序列，请重试。"));
-      return null;
-    }
-  }, [ensureMediaToolsReady]);
-
-  const runActiveVideoSequence = useCallback(async (segmentIds?: string[]): Promise<VideoSequenceTask[]> => {
-    const current = await prepareActiveVideoSequence();
-    if (!current) return [];
-    const selected = current.segments.filter((segment) => !segmentIds || segmentIds.includes(segment.id));
-    if (selected.length === 0) return [];
-    const fingerprintItems = selected.map((segment) => ({
-      id: segment.id,
-      segmentRevision: segment.desiredRevision,
-      inputFingerprint: segment.inputFingerprint,
-      providerId: segment.config.providerId ?? current.defaults.providerId,
-      durationSeconds: segment.config.durationSeconds ?? current.defaults.durationSeconds
-    }));
-    const inputFingerprint = await generationFingerprint(fingerprintItems);
-    const metadata: Partial<GenerateImageInput> = { inputFingerprint };
-    const confirmationItems = selected.map((segment) => {
-      const duration = segment.config.durationSeconds ?? current.defaults.durationSeconds;
-      const cost = "Provider 计费";
-      return {
-        id: segment.id,
-        label: `片段 ${segment.order + 1}`,
-        task: `更新 ${duration} 秒视频`,
-        costLabel: cost,
-        quoteId: metadata.quoteId,
-        quoteExpiresAt: metadata.quoteExpiresAt
-      };
-    });
-    const quotedCost = metadata.priceSnapshot
-      ? `${metadata.priceSnapshot.amount} ${metadata.priceSnapshot.currency === "gold-bean" ? "金豆" : metadata.priceSnapshot.currency}`
-      : "由 Provider 计费";
-    const confirmed = await requestGenerationConfirmation({
-      title: segmentIds ? "确认更新片段" : "确认批量生成",
-      providerLabel: selected.map((segment) => videoProviders.find((provider) => provider.id === (segment.config.providerId ?? current.defaults.providerId ?? activeVideoProviderId))?.name ?? "未知 Provider").filter((value, index, values) => values.indexOf(value) === index).join("、"),
-      model: selected.map((segment) => segment.config.model ?? current.defaults.model).filter((value, index, values) => values.indexOf(value) === index).join("、"),
-      totalCostLabel: quotedCost,
-      items: confirmationItems,
-      confirmLabel: `确认提交 ${selected.length} 个片段`
-    });
-    if (!confirmed) return [];
-    const result = await getImageWorkbenchApi().runVideoSequence({
-      boardId: current.boardId,
-      sequenceId: current.id,
-      expectedRevision: current.revision,
-      scope: segmentIds ? { segmentIds } : "affected",
-      ...metadata
-    });
-    setActiveVideoSequence((value) => value ? { ...value, sequenceTasks: [...(value.sequenceTasks ?? []), ...result.jobs] } : value);
-    await refreshActiveVideoSequence();
-    return result.jobs;
-  }, [
-    activeVideoProviderId,
-    prepareActiveVideoSequence,
-    refreshActiveVideoSequence,
-    requestGenerationConfirmation,
-    videoProviders
-  ]);
-
-  const exportActiveVideoSequence = useCallback(async (options: VideoSequenceExportOptions): Promise<void> => {
-    const retry = (): void => { void exportActiveVideoSequence(options); };
-    let toastId: string | number | undefined;
-    try {
-      let current = await prepareActiveVideoSequence();
-      if (!current) return;
-      toastId = toast.loading(options.updateBeforeExport ? translateSourceText("正在更新待生成片段...") : translateSourceText("正在准备导出..."));
-      if (options.updateBeforeExport) {
-        const staleIds = current.segments
-          .filter((segment) => segment.renderedRevision !== segment.desiredRevision || !segment.activeVersionId)
-          .map((segment) => segment.id);
-        if (staleIds.length > 0) {
-          const submitted = await runActiveVideoSequence(staleIds);
-          const submittedIds = new Set(submitted.map((task) => task.id));
-          if (submittedIds.size === 0) throw new Error("没有创建本次更新任务，已停止导出。");
-          let finished = false;
-          for (let attempt = 0; attempt < 300; attempt += 1) {
-            await new Promise((resolve) => window.setTimeout(resolve, 1_000));
-            const latest = await getImageWorkbenchApi().getVideoSequence({ boardId: current.boardId, sequenceId: current.id });
-            if (!latest) throw new Error("视频序列不存在，已停止导出。");
-            current = latest;
-            const currentTasks = (latest.sequenceTasks ?? []).filter((task) => submittedIds.has(task.id));
-            const failed = currentTasks.find((task) => ["failed_retryable", "failed_terminal", "remote_unknown", "cancelled"].includes(task.status));
-            if (failed) throw new Error(failed.error || "本次更新片段失败，已停止导出。");
-            if (currentTasks.length === submittedIds.size && currentTasks.every((task) => task.status === "completed")) {
-              const stillStale = latest.segments.some((segment) => staleIds.includes(segment.id)
-                && (segment.renderedRevision !== segment.desiredRevision || !segment.activeVersionId));
-              if (stillStale) throw new Error("本次更新结果已被新的片段修改取代，已停止导出。");
-              finished = true;
-              break;
-            }
-          }
-          if (!finished) throw new Error("等待本次片段更新超时，已停止导出。");
-        }
-      }
-      toast.loading(translateSourceText("正在拼接视频..."), { id: toastId });
-      let job = await getImageWorkbenchApi().exportVideoSequence({
-        boardId: current.boardId, sequenceId: current.id, expectedRevision: current.revision,
-        fileName: options.fileName, resolution: options.resolution, fps: options.fps, includeAudio: options.includeAudio
-      });
-      for (let attempt = 0; attempt < 1_800 && job.status !== "completed"; attempt += 1) {
-        if (["failed", "cancelled"].includes(job.status)) break;
-        await new Promise((resolve) => window.setTimeout(resolve, 1_000));
-        const latest = await getImageWorkbenchApi().getVideoSequenceExport(job.id);
-        if (!latest) throw new Error("导出任务状态丢失，请重试导出。");
-        job = latest;
-        toast.loading(translateSourceText("正在拼接视频... {{ui:0}}%", [Math.round((job.progress ?? 0) * 100)]), { id: toastId });
-      }
-      if (job.status !== "completed") {
-        throw new Error(job.error?.message || (job.status === "cancelled" ? "导出已取消。" : "导出失败或等待超时。"));
-      }
-      const exportVersionId = job.exportVersionId
-        ?? (await getImageWorkbenchApi().getVideoSequence({ boardId: current.boardId, sequenceId: current.id }))?.activeExportVersionId;
-      if (!exportVersionId) throw new Error("导出完成但缺少可保存的版本记录。");
-      const saved = await getImageWorkbenchApi().saveVideoSequenceExport({
-        boardId: current.boardId, sequenceId: current.id, exportVersionId
-      });
-      toast.success(saved.ok ? translateSourceText("视频已保存") : translateSourceText("导出已完成，可再次点击导出保存"), { id: toastId });
-      await refreshActiveVideoSequence();
-    } catch (error) {
-      const message = getWorkbenchErrorMessage(error, "视频导出失败。");
-      toast.error(message, { id: toastId, duration: Infinity, action: { label: "重试", onClick: retry } });
-    }
-  }, [prepareActiveVideoSequence, refreshActiveVideoSequence, runActiveVideoSequence]);
-
-  const editorVideoSequence = useMemo(() => activeVideoSequence ? toEditorVideoSequence(activeVideoSequence, activeBoard?.name) : null, [activeBoard?.name, activeVideoSequence]);
+  const { activeVideoSequence, setActiveVideoSequence, videoSequenceTemplates, saveActiveVideoSequenceTemplate, applyActiveVideoSequenceTemplate,
+    videoSequenceSaving, videoSequenceSaveError, refreshActiveVideoSequence, openPersistedVideoSequence,
+    createVideoSequenceFromImages, createVideoAssemblyFromVideos, updateActiveVideoSequence,
+    prepareActiveVideoSequence, runActiveVideoSequence, exportActiveVideoSequence, editorVideoSequence
+  } = useVideoSequenceController({ activeBoard, activeBoardRef, activeVideoProviderId, videoProviders,
+    openBoard, ensureMediaToolsReady, requestGenerationConfirmation });
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 701px)");
@@ -6219,6 +5105,7 @@ export default function App(): React.ReactElement {
         onApplyPlan={applyComicDramaPlan}
         onSelect={(ids) => setSelectionTarget({ ids, nonce: Date.now() })}
         onLaunchShortDrama={() => startComicDramaAt({ x: 200, y: 200 })}
+        onShortDramaAvailabilityChange={setShortDramaAvailable}
       /> : null}
       <MemoizedCanvasBoard
         key={activeBoard?.id ?? "empty"}
@@ -6232,7 +5119,7 @@ export default function App(): React.ReactElement {
         goldBeanLoading={creditLoading}
         videoGoldBeanCostPerSecond={creditStatus?.videoGoldBeanCostPerSecond}
         advancedVideoModesEnabled={advancedVideoModesEnabled}
-        onStartComicDrama={startComicDramaAt}
+        onStartComicDrama={shortDramaAvailable ? startComicDramaAt : undefined}
         comicDramaBoard={activeBoard?.kind === "comic-drama" || (
           workflowNodes.some(isComicDramaNode)
           && !workflowNodes.some((node) => node.type === "comic-drama-entry")
@@ -6283,7 +5170,7 @@ export default function App(): React.ReactElement {
         onDeleteComment={deleteComment}
         onRequestDelete={requestDeleteImages}
         onSave={saveImage}
-        onQuickShareImage={onlineImageSharingEnabled ? shareCanvasImages : undefined}
+        onQuickShareImage={ONLINE_SHARING_AVAILABLE && onlineImageSharingEnabled ? shareCanvasImages : undefined}
         onRemoveBackground={saveImageWithoutBackground}
         onUseReference={toggleImageReference}
         onUseReferences={addImageReferences}
@@ -6379,7 +5266,10 @@ export default function App(): React.ReactElement {
       <Suspense fallback={<StartupLoading />}>
       <CanvasRoot>
         {/* 进入全屏画廊时让画板退到背景；只动透明度，避免缩放 React Flow 触发额外栅格化。 */}
+        <OverlayInteractionProvider value={!libraryOpen && !galleryOpen && !settingsOpen}>
         <motion.div
+          data-canvas-workspace=""
+          inert={libraryOpen || galleryOpen || settingsOpen ? true : undefined}
           className="absolute inset-0"
           initial={false}
           animate={{
@@ -6462,9 +5352,9 @@ export default function App(): React.ReactElement {
 
         {!creditLoading && (creditError || bridgeError) ? (
           <ProviderStatusNotice
-            message={creditError || bridgeError || "生成服务暂不可用。"}
+            message={creditError || bridgeError || uiText("生成服务暂不可用。")}
             onAction={creditError?.includes("设备凭证已失效") ? openLicenseCenter : refreshCreditStatus}
-            actionLabel={creditError?.includes("设备凭证已失效") ? "检查授权" : "重新检查"}
+            actionLabel={creditError?.includes("设备凭证已失效") ? uiText("检查授权") : uiText("重新检查")}
           />
         ) : null}
 
@@ -6546,7 +5436,7 @@ export default function App(): React.ReactElement {
           open
           source={{
             path: masterGoReconstructionImage.path,
-            name: masterGoReconstructionImage.path.split("/").pop() || "设计稿",
+            name: masterGoReconstructionImage.path.split("/").pop() || uiText("设计稿"),
             dataUrl: masterGoReconstructionImage.dataUrl,
             width: masterGoReconstructionImage.width,
             height: masterGoReconstructionImage.height
@@ -6611,6 +5501,13 @@ export default function App(): React.ReactElement {
                 thumbFor={getImageThumbnail}
                 onFocusImage={focusCommentImage}
                 onDeleteComment={deleteComment}
+                onHandoffToAgent={async () => {
+                  const boardId = activeBoardRef.current?.id;
+                  if (!boardId) throw new Error("请先打开要修改的画板。");
+                  const commentIds = visibleComments.map((comment) => comment.id);
+                  await persistBoard();
+                  return getImageWorkbenchApi().handoffCommentsToAgent({ boardId, commentIds });
+                }}
                 onClose={() => setCommentOpen(false)}
               />
             </Suspense>
@@ -6760,6 +5657,7 @@ export default function App(): React.ReactElement {
         </motion.div>
         </motion.div>
 
+        </OverlayInteractionProvider>
         {boardGalleryEnabled && gallerySceneMounted ? (
           <motion.div
             data-gallery-transition=""
@@ -6783,7 +5681,7 @@ export default function App(): React.ReactElement {
               <BoardGallery
                 active={galleryOpen}
                 boardId={activeBoard?.id ?? ""}
-                boardName={activeBoard?.name ?? "未命名画板"}
+                boardName={activeBoard?.name ?? uiText("未命名画板")}
                 history={galleryHistory.length ? galleryHistory : visibleHistory}
                 canCollaborate={textProviderReady}
                 onCollaborate={collaborateScene}
@@ -6810,6 +5708,10 @@ export default function App(): React.ReactElement {
           {libraryOpen ? (
             <Suspense key="library" fallback={null}>
               <LibraryShell
+                imageProviders={providers}
+                activeImageProviderId={activeProviderId}
+                activeImageModel={input.model}
+                onSelectImageModel={selectActiveProvider}
                 initialTab={libraryInitialTab}
                 initialSceneRequest={libraryInitialSceneRequest}
                 playAssetLibraryEntrance={!assetLibraryEntrancePlayedRef.current}
@@ -6849,8 +5751,6 @@ export default function App(): React.ReactElement {
                 onUpdateScene={updateScene}
                 onDeleteScene={deleteScene}
                 onExportScene={(scene) => void exportSceneTemplate(scene)}
-                onSubmitScene={submitSceneTemplate}
-                onGetSceneSubmission={getSceneTemplateSubmission}
                 onImportScene={importSceneTemplate}
                 onImportSceneFiles={importSceneTemplateFiles}
                 sceneHistory={sceneHistory}
@@ -6908,7 +5808,7 @@ export default function App(): React.ReactElement {
               credits={{
                 balance: creditStatus?.goldBeans?.balance,
                 videoGoldBeanCostPerSecond: creditStatus?.videoGoldBeanCostPerSecond,
-                quoteLabel: "由外部服务商计费"
+                quoteLabel: uiText("由外部服务商计费")
               }}
               templates={videoSequenceTemplates.map((template) => ({
                 id: template.id,
@@ -6924,19 +5824,8 @@ export default function App(): React.ReactElement {
               onChange={updateActiveVideoSequence}
               onGenerateSegment={async (segmentId) => { await runActiveVideoSequence([segmentId]); }}
               onGenerateBatch={async (segmentIds) => { await runActiveVideoSequence(segmentIds); }}
-              onSaveTemplate={async (name) => {
-                const template = await getImageWorkbenchApi().createVideoSequenceTemplate({ sequence: activeVideoSequence, name, description: "" });
-                setVideoSequenceTemplates((items) => [...items.filter((item) => item.id !== template.id), template]);
-              }}
-              onApplyTemplate={async (templateId) => {
-                const sequence = await getImageWorkbenchApi().instantiateVideoSequenceTemplate({
-                  boardId: activeVideoSequence.boardId,
-                  templateId,
-                  imageNodeIds: activeVideoSequence.keyframes.map((frame) => frame.source.nodeId).filter((id): id is string => Boolean(id))
-                });
-                const hydrated = await getImageWorkbenchApi().getVideoSequence({ boardId: sequence.boardId, sequenceId: sequence.id });
-                if (hydrated) setActiveVideoSequence(hydrated);
-              }}
+              onSaveTemplate={saveActiveVideoSequenceTemplate}
+              onApplyTemplate={applyActiveVideoSequenceTemplate}
               onExport={exportActiveVideoSequence}
               onClose={() => setActiveVideoSequence(null)}
               onLocateKeyframe={(keyframeId) => {

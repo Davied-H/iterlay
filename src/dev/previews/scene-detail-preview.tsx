@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import type { CollaborateSceneResult, TemplateSubmissionResult } from "@shared/types";
+import type { CollaborateSceneResult } from "@shared/types";
 import { SceneDetail } from "@/components/workbench/SceneDetail";
 import { I18nProvider } from "@/i18n";
 import type { SceneDefinition } from "@/lib/scene-library";
@@ -31,20 +31,7 @@ const previewScene: SceneDefinition = {
   createdAt: "2026-07-23T00:00:00.000Z"
 };
 
-const rejectedSubmission: TemplateSubmissionResult = {
-  id: "preview-submission",
-  slug: "preview-scene-detail",
-  name: "参考图风格拆解",
-  authorName: "Iterlay 设计团队",
-  status: "rejected",
-  reviewNote: "封面包含无权公开的品牌素材，请替换为原创图片后重新提交。",
-  submittedAt: "2026-07-23T08:30:00.000Z",
-  reviewedAt: "2026-07-24T02:15:00.000Z",
-  updatedAt: "2026-07-24T02:15:00.000Z"
-};
-
 function Preview(): React.ReactElement {
-  const showRejectedSubmission = new URLSearchParams(window.location.search).get("submission") === "rejected";
   return (
     <main className="h-screen min-h-0">
       <SceneDetail
@@ -80,15 +67,7 @@ function Preview(): React.ReactElement {
         onToggleFavorite={() => undefined}
         onEdit={() => undefined}
         onExport={() => undefined}
-        onSubmit={async () => ({
-          id: "preview-submission",
-          slug: "preview-scene-detail",
-          name: previewScene.name,
-          authorName: "Iterlay 创作者",
-          status: "pending",
-          submittedAt: new Date().toISOString()
-        })}
-        onGetSubmission={async () => showRejectedSubmission ? rejectedSubmission : null}
+
         onCollaborate={async (): Promise<CollaborateSceneResult> => ({
           message: "已按当前模板整理出一版可生成的画面方案。",
           fields: [{

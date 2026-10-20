@@ -237,7 +237,7 @@ export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorP
               ) : null}
               <StructuredFieldInput
                 lineIndex={lineIndex}
-                label={line.label || `第 ${lineIndex + 1} 行`}
+                label={line.label || uiText("第 {{ui:0}} 行", [lineIndex + 1])}
                 value={line.content}
                 onChange={(content) => updateStructuredLine(lineIndex, { content })}
                 onFocus={onFocus}

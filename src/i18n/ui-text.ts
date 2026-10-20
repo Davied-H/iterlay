@@ -4,6 +4,7 @@ let translator: ((text: string, locale: ResolvedAppLocale) => string) | undefine
 let loading: Promise<void> | undefined;
 let currentLocale: ResolvedAppLocale = "zh-CN";
 export function setUiTextLocale(locale: ResolvedAppLocale): void { currentLocale = locale; }
+export function getUiTextLocale(): ResolvedAppLocale { return currentLocale; }
 
 export function loadUiTextCatalog(): Promise<void> {
   if (translator) return Promise.resolve();

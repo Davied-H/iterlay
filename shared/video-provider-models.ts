@@ -3,6 +3,7 @@ import type {
   VideoProviderMode,
   VideoProviderModelOption
 } from "./types.js";
+import { normalizeModelPricing } from "./model-pricing.js";
 
 export type VideoModelCapabilityState = "supported" | "unsupported" | "unknown";
 
@@ -27,8 +28,10 @@ export function normalizeVideoProviderModelOption(value: unknown): VideoProvider
     ? [...new Set<number>(value.supportedDurations)].sort((a, b) => a - b) : undefined;
   const supportedRatios = normalizeStrings(value.supportedRatios);
   const supportedResolutions = normalizeStrings(value.supportedResolutions);
+  const pricing = normalizeModelPricing(value.pricing);
   return {
     id: value.id.trim(),
+    ...(pricing ? { pricing } : {}),
     ...(typeof value.requiresPrompt === "boolean" ? { requiresPrompt: value.requiresPrompt } : {}),
     ...(typeof value.supportsGeneratedAudio === "boolean" ? { supportsGeneratedAudio: value.supportsGeneratedAudio } : {}),
     ...(Array.isArray(value.supportedFrameImages) && value.supportedFrameImages.every((frame) => frame === "first_frame" || frame === "last_frame")

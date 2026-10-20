@@ -1,6 +1,7 @@
 import { useUiText } from "@/i18n";
 import { Command, ImagePlus, MousePointer2, Navigation, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CANVAS_TOOL_HINTS } from "./CanvasToolHint";
 import { getAssistantShortcutDescriptor } from "@/lib/assistant-shortcut";
 
 interface CanvasShortcutHelpDialogProps {
@@ -37,6 +38,11 @@ const groups = [
     title: "选择与画布",
     icon: MousePointer2,
     shortcuts: [
+      ["选择", CANVAS_TOOL_HINTS.select.shortcut],
+      ["平移", CANVAS_TOOL_HINTS.pan.shortcut],
+      ["生成图片", CANVAS_TOOL_HINTS.image.shortcut],
+      ["生成视频", CANVAS_TOOL_HINTS.video.shortcut],
+      ["添加文本", CANVAS_TOOL_HINTS.text.shortcut],
       ["全选", `${MOD} A`],
       ["多选", "Shift 点击"],
       ["复制 / 粘贴节点", `${MOD} C / V`],
@@ -85,7 +91,7 @@ export function CanvasShortcutHelpDialog({
           {groups.map((group) => {
             const Icon = group.icon;
             return (
-              <section key={uiText(group.title)} className="min-w-0 bg-popover px-4 py-4">
+              <section key={group.title} className="min-w-0 bg-popover px-4 py-4">
                 <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-foreground">
                   <Icon aria-hidden className="h-3.5 w-3.5 text-muted-foreground" />
                   {uiText(group.title)}
@@ -94,7 +100,7 @@ export function CanvasShortcutHelpDialog({
                   {group.shortcuts.filter(([, shortcut]) =>
                     (shortcut !== "C" || commentsEnabled) && (shortcut !== "G" || galleryEnabled)
                   ).map(([label, shortcut]) => (
-                    <div key={uiText(label)} className="flex min-w-0 items-center justify-between gap-3">
+                    <div key={label} className="flex min-w-0 items-center justify-between gap-3">
                       <dt className="min-w-0 text-[11px] leading-4 text-muted-foreground">{uiText(label)}</dt>
                       <dd className="shrink-0">
                         <kbd className="inline-flex min-h-5 items-center rounded border border-border bg-muted/60 px-1.5 font-sans text-[10px] font-medium leading-none text-foreground shadow-[0_1px_0_hsl(var(--border))]">

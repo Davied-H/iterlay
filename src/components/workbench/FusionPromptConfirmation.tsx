@@ -1,7 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronUp, Pencil, Play, Sparkles } from "lucide-react";
 import type { AiAssistantInteractionState } from "@/components/assistant/AiAssistant";
-import { useI18n } from "@/i18n";
+import { useI18n, useUiText } from "@/i18n";
 import { isSendEnter } from "@/lib/send-on-enter";
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
 /** Mounted by interaction ID so each proposal owns its refinement draft. */
 export function FusionPromptConfirmation({ state, disabled, onApply, onGenerate, onDismiss, onRefine }: Props): React.ReactElement | null {
   const { t } = useI18n();
+  const uiText = useUiText();
   const [refinement, setRefinement] = useState("");
   const [editing, setEditing] = useState(false);
   const refinementId = useId();
@@ -41,16 +42,16 @@ export function FusionPromptConfirmation({ state, disabled, onApply, onGenerate,
     const value = refinement.trim();
     if (editing && value) run(() => onRefine(value));
   };
-  return <section className="fusion-confirmation" aria-label={interaction.title}>
+  return <section className="fusion-confirmation" aria-label={uiText(interaction.title)}>
     <div className="fusion-confirmation-scroll">
       <header className="fusion-confirmation-heading" tabIndex={-1}>
         <Sparkles aria-hidden="true" />
-        <h3>{interaction.title}</h3>
+        <h3>{uiText(interaction.title)}</h3>
       </header>
-      {interaction.description ? <p className="fusion-confirmation-description">{interaction.description}</p> : null}
-      {state.confirmationPreview ? <div className="fusion-confirmation-preview" aria-label={state.confirmationPreview.title}>
+      {interaction.description ? <p className="fusion-confirmation-description">{uiText(interaction.description)}</p> : null}
+      {state.confirmationPreview ? <div className="fusion-confirmation-preview" aria-label={uiText(state.confirmationPreview.title)}>
         {state.confirmationPreview.items.map((item, index) => <div key={index}>
-          {item.label ? <p className="fusion-confirmation-label">{item.label}</p> : null}
+          {item.label ? <p className="fusion-confirmation-label">{uiText(item.label)}</p> : null}
           <p className="fusion-confirmation-prompt">{item.value}</p>
         </div>)}
       </div> : null}
@@ -65,10 +66,10 @@ export function FusionPromptConfirmation({ state, disabled, onApply, onGenerate,
     </div>
     <div className="fusion-confirmation-actions">
       <button type="button" className="fusion-confirmation-dismiss" disabled={disabled} onClick={() => run(onDismiss)}>
-        {interaction.cancelLabel ?? t("assistant.interaction.keepRefining")}
+        {(interaction.cancelLabel ? uiText(interaction.cancelLabel) : undefined) ?? t("assistant.interaction.keepRefining")}
       </button>
       <button type="button" className={state.canGenerateImmediately ? "fusion-confirmation-secondary" : "fusion-confirmation-primary"} disabled={disabled} onClick={() => run(onApply)}>
-        {interaction.confirmLabel ?? t("assistant.interaction.confirm")}
+        {(interaction.confirmLabel ? uiText(interaction.confirmLabel) : undefined) ?? t("assistant.interaction.confirm")}
       </button>
       {state.canGenerateImmediately ? <button type="button" className="fusion-confirmation-primary" disabled={disabled} onClick={() => run(onGenerate)}>
         <Play aria-hidden="true" />{t("assistant.interaction.applyAndGenerate")}

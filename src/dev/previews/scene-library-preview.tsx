@@ -45,15 +45,7 @@ function Preview(): React.ReactElement {
         onUpdate={(scene) => scene}
         onDelete={() => undefined}
         onExport={() => undefined}
-        onSubmit={async (scene) => ({
-          id: `preview-${scene.id}`,
-          slug: scene.id,
-          name: scene.name,
-          authorName: "Preview",
-          status: "pending",
-          submittedAt: new Date().toISOString()
-        })}
-        onGetSubmission={async () => null}
+
         onImport={async () => null}
         onImportFiles={async () => []}
         onOptimize={async (_scene, prompt) => prompt}

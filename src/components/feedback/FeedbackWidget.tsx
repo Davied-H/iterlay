@@ -508,7 +508,7 @@ export function FeedbackWidget({
               <motion.span
                 initial={false}
                 data-feedback-edge-label
-                className={`absolute inset-y-0 flex w-7 flex-col items-center justify-center gap-1 ${dockSide === "left" ? "left-0" : "right-0"}`}
+                className={`absolute inset-y-0 flex w-7 flex-col items-center justify-center gap-0.5 ${dockSide === "left" ? "left-0" : "right-0"}`}
                 animate={reduceMotion
                   ? { opacity: docked ? 1 : 0 }
                   : { opacity: docked ? 1 : 0, y: docked ? 0 : 3, scale: docked ? 1 : 0.96 }}
@@ -518,10 +518,9 @@ export function FeedbackWidget({
                     ? { delay: 0.08, duration: 0.16, ease: [0.22, 1, 0.36, 1] }
                     : { duration: 0.1, ease: [0.25, 1, 0.5, 1] }}
               >
-                <MessageSquareText className="size-3.5" aria-hidden="true" />
+                <MessageSquareText className="size-3" aria-hidden="true" />
                 <span data-feedback-edge-text className="flex flex-col text-[10px] font-medium leading-none">
-                  <span>{uiText("反")}</span>
-                  <span>{uiText("馈")}</span>
+                  <span style={{ writingMode: "vertical-rl" }}>{uiText("反馈")}</span>
                 </span>
               </motion.span>
             </motion.span>
@@ -539,12 +538,12 @@ export function FeedbackWidget({
           <div className="flex items-start gap-3">
             <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted"><MessageSquareText className="size-4" aria-hidden="true" /></span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{activeNudge.title}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeNudge.description}</p>
+              <p className="text-sm font-medium">{uiText(activeNudge.title)}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText(activeNudge.description)}</p>
             </div>
             <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 size-7 shrink-0" aria-label={uiText("关闭反馈提示")} title={uiText("关闭提示")} onClick={closeNudge}><X className="size-4" /></Button>
           </div>
-          <Button type="button" variant="secondary" size="sm" className="mt-3 w-full" onClick={openForm}>{activeNudge.action}</Button>
+          <Button type="button" variant="secondary" size="sm" className="mt-3 w-full" onClick={openForm}>{uiText(activeNudge.action)}</Button>
         </PopoverContent>
       </Popover>
 
@@ -594,7 +593,7 @@ export function FeedbackWidget({
                         : "size-3.5 scale-75 opacity-0 transition-[opacity,transform] duration-150 motion-reduce:transition-none"}
                       aria-hidden="true"
                     />
-                    {option.label}
+                    {uiText(option.label)}
                   </Button>
                 ))}
               </div>
@@ -606,7 +605,7 @@ export function FeedbackWidget({
                   autoFocus
                   value={content}
                   onChange={(event) => { setContent(event.target.value); if (error) setError(""); }}
-                  placeholder={kindPlaceholders[kind]}
+                  placeholder={uiText(kindPlaceholders[kind])}
                   className="min-h-52 resize-none pb-12 leading-6 transition-[border-color,box-shadow] duration-200 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] focus-visible:border-foreground/55 focus-visible:ring-foreground/10 motion-reduce:transition-none"
                   maxLength={2_000}
                   aria-invalid={Boolean(error)}
@@ -637,7 +636,7 @@ export function FeedbackWidget({
                 className={error ? "mt-1.5 text-xs text-destructive" : "sr-only"}
                 aria-live="polite"
               >
-                {error}
+                {uiText(error)}
               </p>
             </div>
             {issue.requiresPaste ? <div className="flex flex-col items-start gap-2 text-xs text-muted-foreground" role="status">

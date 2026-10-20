@@ -117,7 +117,7 @@ export function VersionCompareSlider({
       {/* After（底层，铺满） */}
       <img
         src={afterSrc}
-        alt={afterLabel ?? "之后"}
+        alt={afterLabel ?? uiText("之后")}
         className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         draggable={false}
         onLoad={(e) => {
@@ -129,7 +129,7 @@ export function VersionCompareSlider({
       {/* Before（上层，同尺寸铺满，clip-path 裁到左侧 position%） */}
       <img
         src={beforeSrc}
-        alt={beforeLabel ?? "之前"}
+        alt={beforeLabel ?? uiText("之前")}
         className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         draggable={false}
         style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}

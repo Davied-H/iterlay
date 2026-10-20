@@ -146,6 +146,17 @@ describe("OpenRouter video provider", () => {
     await expect(provider.listModels({ ...config, apiKey: "" })).resolves.toEqual([{ id: "google/veo-3.1", ownedBy: "google" }]);
     expect(fetchMock.mock.calls[0][1].headers).toBeUndefined();
   });
+
+  it("passes public catalog pricing through to the UI with the correct USD unit", async () => {
+    const provider = new OpenRouterVideoProvider(vi.fn().mockResolvedValue(jsonResponse({ data: [{
+      id: "x-ai/grok-imagine-video-1.5-lite",
+      pricing_skus: { cents_per_image_input: "1", cents_per_video_output_second_480p: "2", cents_per_video_output_second_1080p: "14" }
+    }] })));
+    await expect(provider.listModels(config)).resolves.toEqual([{
+      id: "x-ai/grok-imagine-video-1.5-lite", ownedBy: "x-ai",
+      pricing: [{ unit: "second", minUsd: 0.02, maxUsd: 0.14 }]
+    }]);
+  });
 });
 
 function jsonResponse(value: unknown, status = 200): Response {

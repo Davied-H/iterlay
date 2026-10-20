@@ -28,7 +28,13 @@ describe("prompt dock empty edit lifecycle", () => {
       onOpenSettings: noop, onOpenModelManagement: noop
     };
     try {
-      expect(renderToString(createElement(I18nProvider, null, createElement(PromptDock, props))).length).toBeGreaterThan(500);
+      const html = renderToString(createElement(I18nProvider, null, createElement(PromptDock, props)));
+      expect(html).toContain('data-fusion-mode="generate"');
+      expect(html).toContain('data-assistant-enabled="false"');
+      expect(html).toContain("prompt-fusion-direct-editor");
+      expect(html).not.toContain('role="switch"');
+      expect(html).not.toContain("prompt-dock-layer");
+      expect(html).not.toContain("prompt-dock-assistant-button");
     } finally { localStorage.removeItem("iterlay:language"); }
   });
 });

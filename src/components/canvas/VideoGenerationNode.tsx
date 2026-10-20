@@ -1,4 +1,5 @@
-import { useUiText } from "@/i18n";
+import { useUiLocale, useUiText } from "@/i18n";
+import { formatModelPricing } from "@shared/model-pricing";
 import { memo, useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   Check,
@@ -8,6 +9,7 @@ import {
   Clock3,
   FileAudio,
   Image as ImageIcon,
+  Info,
   Loader2,
   Play,
   Plus,
@@ -431,14 +433,16 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
         </div>
 
         <div className="video-generation-section video-generation-prompt-section">
-          <label htmlFor={`video-prompt-${id}`}>{modePresentation.promptLabel}</label>
+          <div className="video-generation-prompt-heading">
+            <label htmlFor={`video-prompt-${id}`}>{modePresentation.promptLabel}</label>
+            {promptRequired ? <span className="video-generation-prompt-required" aria-hidden="true">{uiText("必填")}</span> : null}
+          </div>
           <textarea
             id={`video-prompt-${id}`}
             value={draft.prompt}
             maxLength={VIDEO_GENERATION_PROMPT_MAX_LENGTH}
             disabled={busy}
             aria-required={promptRequired || undefined}
-            aria-invalid={Boolean(promptBlock) || undefined}
             aria-describedby={promptBlock ? `video-prompt-error-${id}` : undefined}
             placeholder={modePresentation.promptPlaceholder}
             onChange={(event) => update({ prompt: event.target.value })}
@@ -451,7 +455,6 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
               event.preventDefault(); flush(); onRun?.(id, draftRef.current);
             }}
           />
-          {promptBlock ? <small id={`video-prompt-error-${id}`} className="text-destructive" role="alert">{promptBlock}</small> : null}
           <span className="video-generation-prompt-meta"><span>{uiText("⌘ Enter 生成")}</span><span>{draft.prompt.length}/{VIDEO_GENERATION_PROMPT_MAX_LENGTH}</span></span>
         </div>
 
@@ -491,11 +494,21 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
       </div>
 
       <footer className="nodrag video-generation-footer" onPointerDown={(event) => event.stopPropagation()}>
-        <span className={cn(status === "failed" && "text-destructive")} role={status === "failed" ? "alert" : undefined} title={error}>
-          {(parameterError ? uiText(parameterError) : undefined) ?? (status === "failed"
-            ? error || "任务失败，配置已保留"
+        <span
+          id={promptBlock ? `video-prompt-error-${id}` : undefined}
+          className={cn(promptBlock && "video-generation-prompt-hint", status === "failed" && !promptBlock && "text-destructive")}
+          role={status === "failed" && !promptBlock ? "alert" : undefined}
+          aria-live="polite"
+          title={promptBlock ?? error}
+        >
+          {promptBlock ? <>
+            <Info aria-hidden="true" />
+            <span aria-hidden="true">{uiText("先填写视频描述")}</span>
+            <span className="sr-only">{promptBlock}</span>
+          </> : (parameterError ? uiText(parameterError) : undefined) ?? (status === "failed"
+            ? error || uiText("任务失败，配置已保留")
             : status === "polling_stopped"
-              ? error || "仅停止本地等待，远端可能继续并计费"
+              ? error || uiText("仅停止本地等待，远端可能继续并计费")
               : generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length))}
         </span>
         <button type="button" aria-describedby={capabilityBlock ? `video-capability-${id}` : undefined} disabled={busy ? !onStopPolling || !lastGenerationId : status === "polling_stopped" ? !onResumePolling || !lastGenerationId : !canRun} className="canvas-generation-run" onClick={() => {
@@ -655,6 +668,7 @@ function VideoProviderPicker({
   onSelect: (providerId: string, model: string) => void;
 }): React.ReactElement {
   const uiText = useUiText();
+  const locale = useUiLocale();
 
   const [open, setOpen] = useState(false);
   const selected = providers.find((provider) => provider.id === providerId);
@@ -678,7 +692,7 @@ function VideoProviderPicker({
             disabled={disabled || providers.length === 0}
             className={cn("video-generation-model-trigger", (unavailable || modelUnavailable) && "is-unavailable")}
           >
-            <span title={model}>{unavailable ? uiText("连接不可用") : modelUnavailable ? uiText("模型不可用") : model || "选择视频模型"}</span>
+            <span title={model}>{unavailable ? uiText("连接不可用") : modelUnavailable ? uiText("模型不可用") : model || uiText("选择视频模型")}</span>
             <ChevronDown aria-hidden />
           </button>
         </DropdownMenuTrigger>
@@ -701,11 +715,11 @@ function VideoProviderPicker({
               <DropdownMenuSub key={provider.id}>
                 <DropdownMenuSubTrigger className={cn("min-h-12 py-1.5", activeProvider && "bg-accent/60")}>
                   <span className="flex min-w-0 flex-1 flex-col text-left">
-                    <span className="truncate text-xs font-medium text-foreground" title={provider.name || "未命名视频服务"}>
-                      {provider.name || "未命名视频服务"}
+                    <span className="truncate text-xs font-medium text-foreground" title={provider.name || uiText("未命名视频服务")}>
+                      {provider.name || uiText("未命名视频服务")}
                     </span>
                     <span className="mt-0.5 truncate text-[11px] text-muted-foreground" title={provider.model}>
-                      {provider.model || "未配置模型"}
+                      {provider.model || uiText("未配置模型")}
                     </span>
                   </span>
                   {official ? (
@@ -727,6 +741,9 @@ function VideoProviderPicker({
                     "first-last-frame"
                   ) === "supported").map((providerModel) => {
                     const active = activeProvider && providerModel === model;
+                    const openRouterPrice = provider.type === "openrouter"
+                      ? formatModelPricing(findVideoProviderModelOption(provider.modelOptions, providerModel)?.pricing, locale)
+                      : undefined;
                     return (
                       <DropdownMenuItem
                         key={providerModel}
@@ -734,15 +751,23 @@ function VideoProviderPicker({
                         onSelect={() => choose(provider.id, providerModel)}
                         className={cn("min-h-9 text-xs", active && "bg-accent/60")}
                       >
-                        <span className="min-w-0 flex-1 truncate">{providerModel}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{providerModel}</span>
+                          {provider.type === "openrouter" ? (
+                            <span className="mt-1 block break-words text-[11px] leading-5 tabular-nums text-muted-foreground">
+                              <span className="block">{openRouterPrice?.usd ?? (locale === "zh-CN" ? "价格未提供" : "Price unavailable")}</span>
+                              {openRouterPrice?.cny ? <span className="block">{openRouterPrice.cny}</span> : null}
+                            </span>
+                          ) : null}
+                        </span>
                         <span className="flex shrink-0 items-center gap-2">
-                          <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                          {provider.type !== "openrouter" ? <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                             {official
                               ? uiText("{{ui:0}} 金豆/秒", [videoGoldBeanCostPerSecond ?? 1])
                               : provider.type === "minimax"
                                 ? minimaxVideoPriceLabel(providerModel, resolution)
-                                : findVideoProviderModelOption(provider.modelOptions, providerModel)?.pricingLabel || "供应商计费"}
-                          </span>
+                                : findVideoProviderModelOption(provider.modelOptions, providerModel)?.pricingLabel || uiText("供应商计费")}
+                          </span> : null}
                           <span className="flex h-3.5 w-3.5 items-center justify-center">
                             {active ? <Check className="h-3.5 w-3.5 text-primary" aria-hidden /> : null}
                           </span>

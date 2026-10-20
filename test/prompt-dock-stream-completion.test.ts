@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
+import { createAssistantStreamHandlers } from "../src/features/assistant/assistant-stream-handlers";
 
 // Execute the real inline handlers, rather than a fixture that starts idle and
 // misses progress-state leaks before a confirmation is displayed.
@@ -9,18 +10,15 @@ const source = ts.createSourceFile("PromptDock.tsx",
   ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 function handler(name: string, dependencies: Record<string, unknown>): (...args: unknown[]) => void {
+  if (name !== "recoverIdle") {
+    const options = { ...dependencies, onResult: dependencies.receivePromptAssistantResult } as unknown as Parameters<typeof createAssistantStreamHandlers>[0];
+    return createAssistantStreamHandlers(options)[name as "onResult" | "onCancelled"] as (...args: unknown[]) => void;
+  }
   let initializer: ts.Expression | undefined;
   function visit(node: ts.Node): void {
     if (name === "recoverIdle" && ts.isCallExpression(node) && node.expression.getText(source) === "useEffect") {
       const effect = node.arguments[0];
       if (effect?.getText(source).includes("Recover an orphaned progress label")) initializer = effect;
-    }
-    if (ts.isCallExpression(node) && node.expression.getText(source) === "startSceneCollaborationStream") {
-      const callbacks = node.arguments[1];
-      if (callbacks && ts.isObjectLiteralExpression(callbacks)) {
-        const property = callbacks.properties.find((item) => ts.isPropertyAssignment(item) && item.name.getText(source) === name);
-        if (property && ts.isPropertyAssignment(property)) initializer = property.initializer;
-      }
     }
     ts.forEachChild(node, visit);
   }

@@ -275,15 +275,15 @@ describe("SettingsStore provider normalization", () => {
     }
   });
 
-  it("enables online image sharing by default and persists an explicit opt-out", async () => {
+  it("disables online image sharing by default and retains the stored preference for future availability", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
-      expect(defaults.onlineImageSharingEnabled).toBe(true);
+      expect(defaults.onlineImageSharingEnabled).toBe(false);
 
-      store.saveSettings({ ...defaults, onlineImageSharingEnabled: false });
-      expect(new SettingsStore(directory).getSettings().onlineImageSharingEnabled).toBe(false);
+      store.saveSettings({ ...defaults, onlineImageSharingEnabled: true });
+      expect(new SettingsStore(directory).getSettings().onlineImageSharingEnabled).toBe(true);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

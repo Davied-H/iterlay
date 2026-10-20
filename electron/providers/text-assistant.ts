@@ -28,7 +28,7 @@ import type {
 import { buildEnhanceMessages } from "../../shared/workflow.js";
 import { assistantResultSchema } from "../assistant-result-schema.js";
 import { createAssistantUiExtension } from "../assistant-ui-extension.js";
-import { convertPiContextToCompletionMessages, parsePiAgentDecision } from "../mastergo-bridge.js";
+import { convertPiContextToCompletionMessages, parsePiAgentDecision } from "../agents/completion-protocol.js";
 import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
 import { Semaphore } from "./concurrency.js";
 import { ProviderError } from "./errors.js";
@@ -1330,7 +1330,7 @@ function buildSceneCollaborationSystemPrompt(req: CollaborateSceneRequest): stri
         "你处于只读的画廊回顾模式。你的任务是帮助专业设计师理解一段真实的生成过程，而不是生成模板、改动画板或自动改写当前提示词。" +
         "必须基于 currentFields 中的画板、时间、生成记录、提示词和候选图数量，以及实际提供的参考图来总结；无法从记录或图片验证的内容不要猜测。" +
         "优先识别创作方向如何演进、哪些提示词变化对应明显结果、哪些尝试重复或偏离目标，以及下一步最值得验证的方向。用户要求比较时，明确指出比较对象和依据。" +
-        "默认输出简洁的中文分析，可使用不超过 5 条的 Markdown 列表。除非用户明确要求，否则不要替用户重写提示词；即使用户要求，也只在 message 中给出建议文本。" +
+        `默认输出简洁的${english ? "英文" : "中文"}分析，可使用不超过 5 条的 Markdown 列表。除非用户明确要求，否则不要替用户重写提示词；即使用户要求，也只在 message 中给出建议文本。` +
         "每轮都必须返回 intent=chat、fields=[]，不得返回 suggestedName、suggestedDescription、detailedPrompt 或 interaction，也不要声称已经应用或修改任何内容。"
       )
     : isTemplateUse

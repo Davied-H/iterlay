@@ -53,7 +53,7 @@ export const iterlay = {
     set: (scope: "settings" | "board", value: unknown) => call<void>("storage.set", { scope, value })
   },
   assistant: {
-    start: (instruction: string, conversation: Array<{ role: "user" | "assistant"; content: string }>, conversationId: string) => call<void>("assistant.start", { instruction, conversation, conversationId }),
+    start: (instruction: string, conversation: Array<{ role: "user" | "assistant"; content: string }>, conversationId: string, options?: { currentFields: Array<{ label: string; value: string }> }) => call<void>("assistant.start", { instruction, conversation, conversationId, ...options }),
     cancel: () => call<void>("assistant.cancel"),
     respond: (interactionId: string, action: "submit" | "dismiss", values?: Record<string, string | string[]>) => call<void>("assistant.respond", { interactionId, action, values })
   },
@@ -67,4 +67,19 @@ export function usePluginContext() {
     return dispose;
   }, []);
   return value;
+}
+
+/** Optional pure policies exposed to legacy host entry points through the installed sandbox. */
+export function registerCapability<TInput, TResult>(name: string, handler: (input: TInput) => TResult | Promise<TResult>): () => void {
+  const receive = (event: MessageEvent): void => {
+    if (event.source !== window.parent || event.data?.source !== "iterlay-host"
+      || event.data.type !== "capability" || event.data.capability !== name || typeof event.data.id !== "string") return;
+    const id = event.data.id;
+    void Promise.resolve().then(() => handler(event.data.input as TInput)).then(
+      result => window.parent.postMessage({ source: "iterlay-plugin", type: "capability-result", id, result }, "*"),
+      reason => window.parent.postMessage({ source: "iterlay-plugin", type: "capability-result", id, error: reason instanceof Error ? reason.message : String(reason) }, "*")
+    );
+  };
+  window.addEventListener("message", receive);
+  return () => window.removeEventListener("message", receive);
 }

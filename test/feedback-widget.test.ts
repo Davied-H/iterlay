@@ -3,6 +3,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "../src/i18n";
+import { loadUiTextCatalog } from "../src/i18n/ui-text";
 import { FeedbackWidget } from "../src/components/feedback/FeedbackWidget";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -14,7 +16,7 @@ let container: HTMLDivElement | undefined;
 const originalInnerWidth = window.innerWidth;
 const originalInnerHeight = window.innerHeight;
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); document.documentElement.lang = "zh-CN"; });
 
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
@@ -29,6 +31,21 @@ afterEach(async () => {
 });
 
 describe("FeedbackWidget", () => {
+  it("localizes the dock label, feedback options, placeholders in English", async () => {
+    await loadUiTextCatalog();
+    localStorage.setItem("iterlay:language", "en-US");
+    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => root?.render(createElement(I18nProvider, null, createElement(FeedbackWidget, { view: "board" }))));
+    expect(document.body.querySelector("[data-feedback-edge-text]")?.textContent).toBe("Feedback");
+    await act(async () => document.querySelector('[aria-label="Send feedback"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(document.body.textContent).toContain("Experience issue");
+    expect(document.body.textContent).toContain("Feature request");
+    expect(document.querySelector("textarea")?.placeholder).toBe("Describe the issue and what you expected to happen");
+    const feature = document.body.querySelector<HTMLButtonElement>('[role="radio"][aria-checked="false"]')!;
+    await act(async () => feature.click());
+    expect(document.querySelector("textarea")?.placeholder).toBe("Describe the feature you would like and the problem it would solve");
+  });
+
   it("shows recurring, rotating feedback nudges after inactivity", async () => {
     vi.useFakeTimers();
     Object.defineProperty(window, "imageWorkbench", { configurable: true, value: { submitFeedback: vi.fn() } });
@@ -164,7 +181,8 @@ describe("FeedbackWidget", () => {
     expect(control?.querySelector("svg")).not.toBeNull();
     expect(control?.contains(edgeLabel ?? null)).toBe(true);
     expect(edgeText?.className).toContain("flex-col");
-    expect(Array.from(edgeText?.children ?? []).map((character) => character.textContent)).toEqual(["反", "馈"]);
+    expect(edgeText?.textContent).toBe("反馈");
+    expect((edgeText?.firstElementChild as HTMLElement).style.writingMode).toBe("vertical-rl");
   });
 
   it("keeps the selected feedback type visually explicit", async () => {

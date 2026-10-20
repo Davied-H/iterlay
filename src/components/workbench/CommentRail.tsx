@@ -1,6 +1,10 @@
 import { useUiText } from "@/i18n";
+import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Images, Trash2, X } from "lucide-react";
+import { Images, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import type { CommentAgentHandoffResult } from "@shared/agent-integration";
+import { getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 import type { AssetComment } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +18,7 @@ interface CommentRailProps {
   thumbFor: (imagePath: string) => string | undefined;
   onFocusImage: (imagePath: string) => void;
   onDeleteComment: (id: string) => void;
+  onHandoffToAgent?: () => Promise<CommentAgentHandoffResult>;
   onClose: () => void;
 }
 
@@ -23,9 +28,23 @@ export function CommentRail({
   thumbFor,
   onFocusImage,
   onDeleteComment,
+  onHandoffToAgent,
   onClose
 }: CommentRailProps): React.ReactElement {
   const uiText = useUiText();
+  const [handingOff, setHandingOff] = useState(false);
+
+  async function handoff(): Promise<void> {
+    if (!onHandoffToAgent || handingOff) return;
+    setHandingOff(true);
+    try {
+      const result = await onHandoffToAgent();
+      toast.success(result.delivery === "draft"
+        ? uiText("已在 Codex 中准备好修改建议，请确认后发送。")
+        : uiText("已将修改建议交给 Claude Code，请在终端确认方案。"));
+    } catch (error) { toast.error(getWorkbenchErrorMessage(error, uiText("无法打开默认 Coding Agent，请检查设置。"))); }
+    finally { setHandingOff(false); }
+  }
 
   const reduceMotion = useReducedMotion();
   return (
@@ -34,7 +53,7 @@ export function CommentRail({
       transition={{ duration: reduceMotion ? 0 : 0.24, ease: EASE_OUT }}
       className="pointer-events-auto absolute bottom-4 right-4 top-16 z-10 flex w-[320px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl"
     >
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">{uiText("评论")}</span>
           <Badge variant="muted">{comments.length}</Badge>
@@ -90,6 +109,18 @@ export function CommentRail({
           )}
         </div>
       </div>
+      {onHandoffToAgent ? <footer className="flex shrink-0 items-center px-3 pb-3 pt-2">
+        <Button type="button" variant="ghost" size="sm"
+          disabled={handingOff || comments.length === 0}
+          onClick={() => void handoff()}
+          className="gap-1.5"
+          title={uiText("将评论建议和图片上下文交给默认 Coding Agent")}
+          aria-label={uiText("交给 AI 处理评论")}
+        >
+          {handingOff ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Sparkles className="size-4" />}
+          {uiText(handingOff ? "正在打开…" : "交给 AI")}
+        </Button>
+      </footer> : null}
     </motion.aside>
   );
 }

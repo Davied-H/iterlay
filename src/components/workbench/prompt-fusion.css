@@ -63,10 +63,11 @@
 .prompt-fusion-context-chip{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px;background:hsl(var(--muted));padding:5px;border-radius:5px}
 .prompt-fusion textarea{display:block;resize:none;width:100%;min-height:56px;max-height:128px;padding:4px 5px 8px;background:transparent;font-size:14px;line-height:1.7;outline:none}
 .prompt-fusion-toolbar,.prompt-fusion-controls{display:flex;align-items:center;gap:4px;min-width:0}
-.prompt-fusion-controls{border:0;padding:0;flex:1;flex-wrap:nowrap}
+.prompt-fusion-controls{border:0;margin:0;padding:0;min-inline-size:0;flex:1;flex-wrap:nowrap}
 .prompt-fusion-controls>*{flex:none}
-.prompt-fusion-controls>.prompt-fusion-settings{flex:1;min-width:0;justify-content:flex-start}
-.prompt-fusion-toolbar{padding-top:6px;flex-wrap:nowrap}
+.prompt-fusion-controls>.prompt-fusion-settings{flex:1;min-width:32px;overflow:hidden;justify-content:flex-start}
+/* Reserve the mode and submit controls; only the middle settings track may shrink. */
+.prompt-fusion-toolbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;padding-top:6px}
 .prompt-mode-switch{position:relative;flex:none;min-width:112px;width:max-content;height:30px;overflow:hidden;padding:0 10px 0 32px;border:1px solid hsl(var(--border));border-radius:999px;background:hsl(var(--muted));color:hsl(var(--foreground));transition:border-color 150ms ease,background-color 220ms ease}
 .prompt-mode-switch:hover{border-color:hsl(var(--muted-foreground))}
 .prompt-mode-switch:active{border-color:hsl(var(--muted-foreground))}
@@ -192,3 +193,6 @@
 .assistant-tool-content h4{font-size:10px;margin-bottom:6px}
 .assistant-tool-content pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;background:hsl(var(--muted));border-radius:5px;padding:10px;margin:0 0 10px;font-size:11px}
 @media(prefers-reduced-motion:reduce){.prompt-fusion,.prompt-fusion *{animation:none!important;transition:none!important}}
+
+/* With planning disabled, the same direct composer has only tools and submit. */
+.prompt-fusion[data-assistant-enabled=false] .prompt-fusion-toolbar{grid-template-columns:minmax(0,1fr) auto}
