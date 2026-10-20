@@ -199,11 +199,14 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 
 ### APP-002 · Iterlay v0.1.64
 
-- 发布入口（正式发布后生效）：https://github.com/Davied-H/iterlay/releases/tag/v0.1.64 。
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.64 。
 - 内容：画板评论交给 Coding Agent、生成与画布交互、助手历史恢复、短剧插件 1.3.2、模型设置与工作台职责拆分。
-- 日期 / 时区：2026-10-20 / Asia/Shanghai。
-- 状态：准备发布；尚未公开安装包，不能视为已发布。
-- 验证：正在执行本地完整检查，随后运行固定提交的完整 CI、隔离网页冒烟和四平台安装包构建审计；实际结果及链接在发布后补记。
+- 日期 / 时区：2026-10-20 08:28:07 / Asia/Shanghai。
+- 发布提交：`ddcbe62d3334ba092e888f7cd216a901079e325c`；全部本地改动已提交并推送 GitHub main，安装包与 CI 固定使用此提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64 与 Windows ARM64 / x64 四份安装包和 SHA256SUMS.txt 已公开。
+- 本地验证：完整类型检查、Lint、生产构建、官网 13 项测试及 40 页 SEO 检查通过；根测试 2154 项通过，另 4 项媒体测试显式配置本机 FFmpeg 后补跑全部通过，累计 2158 项通过。
+- 云端验证：完整检查与隔离网页冒烟通过 https://github.com/Davied-H/iterlay/actions/runs/39347191070 ；四种安装包构建及内容/体积审计通过 https://github.com/Davied-H/iterlay/actions/runs/39347194303 。
+- 发布与公开核验：2026-10-20；发布流程 https://github.com/Davied-H/iterlay/actions/runs/39347753837 成功，上传前逐包 SHA-256 校验通过；GitHub API 确认非草稿、非预发布、Latest=v0.1.64，四份附件公开摘要与实际下载的 SHA256SUMS.txt 一致，发布说明与仓库版本一致。
 - 指标及采集日期：未采集。
 
 ### APP-001 · Iterlay v0.1.63
