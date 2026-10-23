@@ -1,6 +1,6 @@
 export const PLUGIN_API_VERSION = 1;
 export const SHORT_DRAMA_PLUGIN_ID = "dev.iterlay.short-drama";
-export const PLUGIN_PERMISSIONS = ["board:read", "board:write", "storage", "assistant:comic-drama"] as const;
+export const PLUGIN_PERMISSIONS = ["board:read", "board:write", "storage", "assistant:comic-drama", "creation:present"] as const;
 export type PluginPermission = typeof PLUGIN_PERMISSIONS[number];
 export interface PluginManifest {
   id: string;
@@ -14,6 +14,7 @@ export interface PluginManifest {
   permissions: PluginPermission[];
   settings?: boolean;
   surface?: "panel" | "workspace";
+  creationArtifacts?: Array<{ kind: string; label: string; mediaType: "image" | "video" | "project" }>;
 }
 export interface InstalledPlugin {
   manifest: PluginManifest;
@@ -39,5 +40,11 @@ export function validatePluginManifest(input: unknown): PluginManifest {
   if (m.type !== "tool" || m.entry !== "index.html") throw new Error("当前支持入口为 index.html 的工具插件。");
   if (!Array.isArray(m.permissions) || m.permissions.some(p => !PLUGIN_PERMISSIONS.includes(p))) throw new Error("插件请求了未知权限。");
   if (m.surface !== undefined && !["panel", "workspace"].includes(String(m.surface))) throw new Error("插件界面类型无效。");
-  return { id: m.id, name: (m.name as string).trim(), description: (m.description as string).trim(), author: (m.author as string).trim(), version: m.version as string, apiVersion: 1, type: "tool", entry: "index.html", permissions: [...new Set(m.permissions)] as PluginPermission[], settings: m.settings === true, ...(m.surface ? { surface: m.surface as "panel" | "workspace" } : {}) };
+  const artifactKinds = m.creationArtifacts;
+  if (artifactKinds !== undefined && (!Array.isArray(artifactKinds) || artifactKinds.length > 16 || artifactKinds.some((value) =>
+    !value || typeof value !== "object" || typeof value.kind !== "string" || !value.kind.startsWith(`${m.id}:`)
+    || value.kind.length > 140 || typeof value.label !== "string" || !value.label.trim() || value.label.length > 80
+    || !["image", "video", "project"].includes(value.mediaType)))) throw new Error("插件创作产物类型无效。");
+  return { id: m.id, name: (m.name as string).trim(), description: (m.description as string).trim(), author: (m.author as string).trim(), version: m.version as string, apiVersion: 1, type: "tool", entry: "index.html", permissions: [...new Set(m.permissions)] as PluginPermission[], settings: m.settings === true, ...(m.surface ? { surface: m.surface as "panel" | "workspace" } : {}),
+    ...(artifactKinds ? { creationArtifacts: artifactKinds.map((value) => ({ kind: value.kind, label: value.label.trim(), mediaType: value.mediaType })) } : {}) };
 }

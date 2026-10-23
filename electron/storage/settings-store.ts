@@ -1,3 +1,4 @@
+import { normalizeScreenAccessPolicy } from "../../shared/screen-access.js";
 import { safeStorage } from "electron";
 import { existsSync, readFileSync } from "node:fs";
 import { MutationQueue, writeJsonAtomic, writeJsonAtomicSync } from "./atomic-json.js";
@@ -73,6 +74,7 @@ interface SettingsSchema {
   piAgentCustomExtensionPaths?: string[];
   piAgentMaxTurns?: number;
   piAgentWebSearchMaxResults?: number;
+  assistantScreenAccess?: import("../../shared/screen-access.js").ScreenAccessPolicy;
   boardAssistantAwarenessEnabled?: boolean;
   boardAssistantIntentSuggestionsEnabled?: boolean;
   boardAssistantIntentSuggestionCount?: AssistantIntentSuggestionCount;
@@ -231,13 +233,14 @@ export class SettingsStore {
       piAgentBuiltinTools: normalizePiAgentBuiltinTools(current.piAgentBuiltinTools),
       piAgentIterlayTools: current.piAgentIterlayTools === undefined
         ? [...PI_AGENT_DEFAULT_ITERLAY_TOOLS]
-        : normalizeStringList(current.piAgentIterlayTools),
+        : normalizeIterlayTools(current.piAgentIterlayTools),
       piAgentSkillPaths: normalizeStringList(current.piAgentSkillPaths),
       piAgentExtensionPaths: normalizeStringList(current.piAgentExtensionPaths),
       piAgentCustomSkillPaths: normalizeStringList(current.piAgentCustomSkillPaths),
       piAgentCustomExtensionPaths: normalizeStringList(current.piAgentCustomExtensionPaths),
       piAgentMaxTurns: normalizeInteger(current.piAgentMaxTurns, 4, 24, 12),
       piAgentWebSearchMaxResults: normalizeInteger(current.piAgentWebSearchMaxResults, 3, 10, 5),
+      assistantScreenAccess: normalizeScreenAccessPolicy(current.assistantScreenAccess),
       boardAssistantAwarenessEnabled: current.boardAssistantAwarenessEnabled ?? true,
       boardAssistantIntentSuggestionsEnabled: current.boardAssistantIntentSuggestionsEnabled ?? true,
       boardAssistantIntentSuggestionCount: normalizeAssistantIntentSuggestionCount(
@@ -372,13 +375,14 @@ export class SettingsStore {
       piAgentBuiltinTools: normalizePiAgentBuiltinTools(settings.piAgentBuiltinTools),
       piAgentIterlayTools: settings.piAgentIterlayTools === undefined
         ? [...PI_AGENT_DEFAULT_ITERLAY_TOOLS]
-        : normalizeStringList(settings.piAgentIterlayTools),
+        : normalizeIterlayTools(settings.piAgentIterlayTools),
       piAgentSkillPaths: normalizeStringList(settings.piAgentSkillPaths),
       piAgentExtensionPaths: normalizeStringList(settings.piAgentExtensionPaths),
       piAgentCustomSkillPaths: normalizeStringList(settings.piAgentCustomSkillPaths),
       piAgentCustomExtensionPaths: normalizeStringList(settings.piAgentCustomExtensionPaths),
       piAgentMaxTurns: normalizeInteger(settings.piAgentMaxTurns, 4, 24, 12),
       piAgentWebSearchMaxResults: normalizeInteger(settings.piAgentWebSearchMaxResults, 3, 10, 5),
+      assistantScreenAccess: normalizeScreenAccessPolicy(settings.assistantScreenAccess ?? current.assistantScreenAccess),
       boardAssistantAwarenessEnabled:
         settings.boardAssistantAwarenessEnabled ?? current.boardAssistantAwarenessEnabled ?? true,
       boardAssistantIntentSuggestionsEnabled:
@@ -698,13 +702,14 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     piAgentBuiltinTools: normalizePiAgentBuiltinTools(parsed.piAgentBuiltinTools),
     piAgentIterlayTools: parsed.piAgentIterlayTools === undefined
       ? [...PI_AGENT_DEFAULT_ITERLAY_TOOLS]
-      : normalizeStringList(parsed.piAgentIterlayTools),
+      : normalizeIterlayTools(parsed.piAgentIterlayTools),
     piAgentSkillPaths: normalizeStringList(parsed.piAgentSkillPaths),
     piAgentExtensionPaths: normalizeStringList(parsed.piAgentExtensionPaths),
     piAgentCustomSkillPaths: normalizeStringList(parsed.piAgentCustomSkillPaths),
     piAgentCustomExtensionPaths: normalizeStringList(parsed.piAgentCustomExtensionPaths),
     piAgentMaxTurns: normalizeInteger(parsed.piAgentMaxTurns, 4, 24, 12),
     piAgentWebSearchMaxResults: normalizeInteger(parsed.piAgentWebSearchMaxResults, 3, 10, 5),
+    assistantScreenAccess: normalizeScreenAccessPolicy(parsed.assistantScreenAccess),
     boardAssistantAwarenessEnabled: parsed.boardAssistantAwarenessEnabled ?? true,
     boardAssistantIntentSuggestionsEnabled: parsed.boardAssistantIntentSuggestionsEnabled,
     boardAssistantIntentSuggestionCount: normalizeAssistantIntentSuggestionCount(
@@ -1039,4 +1044,11 @@ function normalizeKnownProvider(provider: Partial<ProviderConfig>, defaults: Pro
     falSizeMode: undefined,
     falReferenceInput: undefined
   };
+}
+
+function normalizeIterlayTools(value: unknown): string[] {
+  const tools = normalizeStringList(value);
+  const previousDefaults = PI_AGENT_DEFAULT_ITERLAY_TOOLS.filter(name => name !== "create_canvas" && name !== "update_canvas");
+  // Upgrade the full former default set, preserving deliberately restricted lists.
+  return previousDefaults.every(name => tools.includes(name)) ? [...new Set([...tools, "create_canvas", "update_canvas"])] : tools;
 }

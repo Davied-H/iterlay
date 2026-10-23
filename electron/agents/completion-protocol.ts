@@ -79,7 +79,9 @@ export function convertPiContextToCompletionMessages(
       "你通过 JSON 工具决策协议与 Pi Agent Core 连接。",
       "每次响应必须只输出一个 JSON 对象，不要 Markdown、代码围栏或额外文字。",
       "格式：{\"text\":\"本轮简短判断\",\"toolCalls\":[{\"name\":\"工具名\",\"arguments\":{}}]}。",
-      `toolCalls 必须是数组且最多一个；需要结束必须调用 ${terminalToolNames.join(" 或 ")}，不能只输出文字。`,
+      terminalToolNames.length > 0
+        ? `toolCalls 必须是数组且最多一个；需要结束必须调用 ${terminalToolNames.join(" 或 ")}，不能只输出文字。`
+        : 'toolCalls 必须是数组且最多一个；需要执行操作时调用实际业务工具。无需工具或已经完成本轮工作时，使用 {"text":"面向用户的自然语言回复","toolCalls":[]} 结束；不需要收尾工具。',
       `可用工具：${JSON.stringify(tools)}`
     ].filter(Boolean).join("\n\n")
   }];

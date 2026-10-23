@@ -3,7 +3,7 @@ import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../src/i18n";
-import { FusionPromptConfirmation } from "../src/components/workbench/FusionPromptConfirmation";
+import { AssistantConfirmationCard } from "../src/components/assistant/AssistantConfirmationCard";
 import { PromptFusionDock } from "../src/components/workbench/PromptFusionDock";
 import type { AiAssistantInteractionState } from "../src/components/assistant/AiAssistant";
 
@@ -63,7 +63,7 @@ describe("Fusion confirmation composer", () => {
           onOpenChange: vi.fn(), onValueChange: vi.fn(), onDirectValueChange: vi.fn(), onPromptContextChange: vi.fn(),
           onSubmit: vi.fn(), onStop: vi.fn(), onPasteImages: vi.fn(), onPasteCanvasReferences: vi.fn(),
           confirmationId: pending ? state.id : undefined,
-          confirmation: pending ? createElement(FusionPromptConfirmation, {
+          confirmation: pending ? createElement(AssistantConfirmationCard, {
             state, disabled: false, onApply: finish, onGenerate: finish, onDismiss: finish, onRefine: vi.fn()
           }) : null
         })
@@ -79,15 +79,15 @@ describe("Fusion confirmation composer", () => {
       expect(original.hasAttribute("inert")).toBe(true);
       expect(original.getAttribute("aria-hidden")).toBe("true");
       expect(field.value).toBe("尚未发送的草稿");
-      expect(container.querySelectorAll(".fusion-confirmation")).toHaveLength(1);
+      expect(container.querySelectorAll(".assistant-confirmation")).toHaveLength(1);
       const label = { apply: "应用提示词", generate: "应用并生成", dismiss: "暂不应用" }[action];
-      const button = [...container.querySelectorAll<HTMLButtonElement>(".fusion-confirmation button")].find((item) => item.textContent === label)!;
+      const button = [...container.querySelectorAll<HTMLButtonElement>(".assistant-confirmation button")].find((item) => item.textContent === label)!;
       button.focus();
       await act(async () => button.click());
       expect(invoked).toHaveBeenCalledOnce();
       expect(original.hidden).toBe(false);
       expect(original.hasAttribute("inert")).toBe(false);
-      expect(container.querySelector(".fusion-confirmation")).toBeNull();
+      expect(container.querySelector(".assistant-confirmation")).toBeNull();
       expect(field.value).toBe("尚未发送的草稿");
       expect(document.activeElement).toBe(field);
     } finally {
@@ -101,7 +101,7 @@ describe("Fusion confirmation composer", () => {
     const root = createRoot(container);
     const refine = vi.fn(), generate = vi.fn();
     try {
-      await act(async () => root.render(createElement(I18nProvider, null, createElement(FusionPromptConfirmation, {
+      await act(async () => root.render(createElement(I18nProvider, null, createElement(AssistantConfirmationCard, {
         state, disabled: false, onApply: vi.fn(), onGenerate: generate, onDismiss: vi.fn(), onRefine: refine
       }))));
       const form = container.querySelector("form")!;
@@ -140,7 +140,7 @@ describe("Fusion confirmation composer", () => {
     const container = document.createElement("div"), root = createRoot(container);
     const dismiss = vi.fn();
     try {
-      await act(async () => root.render(createElement(I18nProvider, null, createElement(FusionPromptConfirmation, {
+      await act(async () => root.render(createElement(I18nProvider, null, createElement(AssistantConfirmationCard, {
         state: { ...state, canGenerateImmediately: false }, disabled: false,
         onApply: vi.fn(), onGenerate: vi.fn(), onDismiss: dismiss, onRefine: vi.fn()
       }))));
@@ -155,7 +155,7 @@ describe("Fusion confirmation composer", () => {
   it("does not invent a generation action for agent-only confirmations", async () => {
     const container = document.createElement("div"), root = createRoot(container);
     try {
-      await act(async () => root.render(createElement(I18nProvider, null, createElement(FusionPromptConfirmation, {
+      await act(async () => root.render(createElement(I18nProvider, null, createElement(AssistantConfirmationCard, {
         state: { ...state, canGenerateImmediately: false }, disabled: true,
         onApply: vi.fn(), onGenerate: vi.fn(), onDismiss: vi.fn(), onRefine: vi.fn()
       }))));

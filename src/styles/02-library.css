@@ -1,6 +1,8 @@
 .library-sidebar {
   position: relative;
   z-index: 30;
+  min-height: 0;
+  height: 100%;
   overflow: visible;
   border-color: oklch(var(--library-divider));
   background-color: oklch(var(--library-sidebar));
@@ -193,123 +195,6 @@
 .dark .library-sidebar-create:hover,
 .dark .library-sidebar-create[aria-current="page"] {
   background: hsl(var(--accent));
-}
-
-.library-sidebar-create__motion {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.library-sidebar-create__beam {
-  fill: rgb(255 255 255 / 0.12);
-  opacity: 0.7;
-}
-
-.library-sidebar-create__wash {
-  opacity: 0.9;
-}
-
-.library-sidebar-create__icon-wrap {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 1rem;
-  height: 1rem;
-}
-
-.library-sidebar-create__plus {
-  animation: library-create-plus-pulse 2.4s ease-in-out infinite;
-  transform-origin: center;
-}
-
-.library-sidebar-create__icon-effect {
-  position: absolute;
-  inset: -6px;
-  width: calc(100% + 12px);
-  height: calc(100% + 12px);
-  overflow: visible;
-  pointer-events: none;
-}
-
-.library-sidebar-create__icon-ring,
-.library-sidebar-create__icon-rays {
-  fill: none;
-  stroke: rgb(255 255 255 / 0.8);
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.library-sidebar-create__icon-ring {
-  stroke-width: 0.8;
-  stroke-dasharray: 16 84;
-  animation: library-create-icon-ring 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-
-.library-sidebar-create__icon-rays {
-  stroke-width: 0.9;
-  opacity: 0;
-  animation: library-create-icon-rays 2.4s ease-out infinite;
-}
-
-.library-sidebar-create > :not(.library-sidebar-create__motion) {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes library-create-plus-pulse {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 0 rgb(255 255 255 / 0));
-    transform: scale(1);
-  }
-
-  45% {
-    filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.72));
-    transform: scale(1.12);
-  }
-}
-
-@keyframes library-create-icon-ring {
-  0%,
-  10% {
-    opacity: 0;
-    stroke-dashoffset: 0;
-  }
-
-  28%,
-  72% {
-    opacity: 0.85;
-  }
-
-  90%,
-  100% {
-    opacity: 0;
-    stroke-dashoffset: -100;
-  }
-}
-
-@keyframes library-create-icon-rays {
-  0%,
-  35%,
-  100% {
-    opacity: 0;
-    transform: scale(0.6);
-    transform-origin: center;
-  }
-
-  52% {
-    opacity: 0.75;
-    transform: scale(1);
-  }
-
-  74% {
-    opacity: 0;
-    transform: scale(1.18);
-  }
 }
 
 .library-sidebar-board-entry::before {
@@ -531,20 +416,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .library-sidebar-create__motion {
-    display: none;
-  }
-
-  .library-sidebar-create__plus,
-  .library-sidebar-create__icon-ring,
-  .library-sidebar-create__icon-rays {
-    animation: none;
-  }
-
-  .library-sidebar-create__icon-effect {
-    display: none;
-  }
-
   .library-sidebar-resize-handle::before {
     transition: none;
   }

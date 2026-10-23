@@ -7,6 +7,8 @@ import type { TemplateExtractionScenario, TemplateAssistantEntryIntent } from ".
 export type PiAgentBuiltinToolName = "read" | "bash" | "edit" | "write" | "grep" | "find" | "ls";
 
 export const PI_AGENT_DEFAULT_ITERLAY_TOOLS = [
+  "create_canvas",
+  "update_canvas",
   "list_boards",
   "get_active_board",
   "get_board",
@@ -232,10 +234,19 @@ export interface SceneAssistantInteractionField {
   placeholder?: string;
   required?: boolean;
   multiple?: boolean;
+  /** Allow an additional free-text answer alongside this question. */
+  allowSupplement?: boolean;
   options?: SceneAssistantInteractionOption[];
 }
 
 export type SceneAssistantInteraction =
+  | {
+      type: "permission";
+      capability: "screen-capture";
+      title: string;
+      description: string;
+      providerLabel: string;
+    }
   | {
       type: "confirm";
       title: string;
@@ -253,6 +264,10 @@ export type SceneAssistantInteraction =
     };
 
 export interface CollaborateSceneRequest {
+  /** 新对话创作入口：先收集需求，再确认方案，最后执行媒体任务。 */
+  creationWorkflow?: boolean;
+  /** 宿主填充；渲染进程提供的值不采信。 */
+  screenCaptureAvailable?: boolean;
   instruction: string;
   locale?: ResolvedAppLocale;
   referenceImages: SceneAssistantReference[];
@@ -268,7 +283,7 @@ export interface CollaborateSceneRequest {
     count: number;
     maxCount: number;
   };
-  /** 当前任务已经进行过的澄清轮数；达到 1 后默认不得继续追问。 */
+  /** 当前任务已经进行过的澄清轮数，供助手判断对话进展。 */
   clarificationRounds?: number;
   conversation?: AssistantConversationMessage[];
   /** 将同一次多轮交流归并为一条可恢复的历史会话。 */
@@ -308,6 +323,7 @@ export type AssistantGoal =
 export type AssistantCommitment = "execute_now" | "prepare_only" | "advise_only";
 
 export type SceneAssistantAction =
+  | { type: "request_screen_capture"; reason: string }
   | { type: "apply_prompt" }
   | { type: "set_generation_count"; count: number }
   | { type: "generate" }
@@ -346,6 +362,8 @@ export interface SceneAssistantDirectorReview {
 }
 
 export interface CollaborateSceneResult {
+  mediaType?: "image" | "video";
+  videoSettings?: { durationSeconds?: number; aspectRatio?: string; resolution?: string };
   message: string;
   intent?: AssistantIntent;
   goal?: AssistantGoal;
@@ -364,6 +382,7 @@ export interface CollaborateSceneResult {
 }
 
 export type CollaborateSceneStreamEvent =
+  | { requestId: string; type: "steer-ready" }
   | { requestId: string; type: "tool"; tool: import("../assistant-display.js").AssistantToolCall }
   | { requestId: string; type: "delta"; delta: string }
   | { requestId: string; type: "reasoning-summary"; delta: string }

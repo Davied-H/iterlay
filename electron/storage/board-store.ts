@@ -1,3 +1,4 @@
+import type { BoardCanvasNode, CanvasNodeWriteInput } from "../../shared/contracts/board.js";
 import {
   sanitizeBoardId,
   appendVideoNodeVersions,
@@ -24,7 +25,7 @@ export { toSummary, boardStorageFingerprint, boardAssetCatalogFingerprint } from
 import { assertBoardSavePayload } from "../../shared/input-validation.js";
 import { mapTaskPool } from "../task-pool.js";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import {
   isBoardImageNode,
@@ -802,6 +803,33 @@ export class BoardStore {
   }
 
   /** 把新生成的节点追加到画板文件（用于生成完成时用户已切走的场景），摆在现有内容右侧且不遮挡已有节点。 */
+  async writeCanvasNode(input: CanvasNodeWriteInput): Promise<BoardCanvasNode> {
+    if (!input || typeof input.boardId !== "string" || !["html", "react", "vue"].includes(input.framework)
+      || typeof input.code !== "string" || input.code.length > 100_000
+      || (input.nodeId !== undefined && typeof input.nodeId !== "string")
+      || (input.title !== undefined && (typeof input.title !== "string" || input.title.length > 200))) throw new Error("Canvas 参数无效。");
+    return this.mutations.run(async () => {
+      const board = await this.requireBoard(input.boardId);
+      const existing = input.nodeId ? board.nodes.find(node => node.id === input.nodeId) : undefined;
+      if (input.nodeId && existing?.type !== "canvas") throw new Error("Canvas 节点不存在。");
+      if (existing?.locked) throw new Error("Canvas 节点已锁定。");
+      if (existing?.type === "canvas" && (typeof input.expectedCode !== "string" || existing.code !== input.expectedCode)) {
+        throw new Error("CANVAS_CODE_CONFLICT: 代码已修改，请重新读取后再编辑。");
+      }
+      const node: BoardCanvasNode = {
+        ...(existing?.type === "canvas" ? existing : {
+          id: randomUUID(), x: board.nodes.length ? Math.max(...board.nodes.map(n => n.x + (n.displayWidth ?? 340))) + 40 : 0,
+          y: 0, type: "canvas" as const, title: "Canvas", displayWidth: 680, displayHeight: 500
+        }),
+        code: input.code, framework: input.framework,
+        ...(input.title === undefined ? {} : { title: input.title })
+      };
+      await this.saveBoardUnlocked({ id: board.id, expectedRevision: board.revision ?? 0,
+        nodes: existing ? board.nodes.map(n => n.id === node.id ? node : n) : [...board.nodes, node] });
+      return node;
+    });
+  }
+
   async appendNodes(id: string, nodes: UnpositionedBoardNode[]): Promise<void> {
     if (nodes.length === 0) return;
     await this.mutations.run(async () => {

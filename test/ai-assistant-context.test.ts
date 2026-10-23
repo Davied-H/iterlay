@@ -31,14 +31,14 @@ describe("AI assistant image context", () => {
     };
     try {
       await render(undefined);
-      expect(container.querySelector(".assistant-reasoning")).toBeNull();
+      expect(container.querySelector(".assistant-process-reasoning")).toBeNull();
       await render("先确认主体。");
-      const details = container.querySelector<HTMLDetailsElement>(".assistant-reasoning")!;
+      const details = container.querySelector<HTMLDetailsElement>(".assistant-process-reasoning")!;
       expect(details.open).toBe(false);
       expect(details.querySelector("summary")?.textContent).toContain("思考摘要");
       details.open = true;
       await render("先确认主体。再整理光线。");
-      expect(container.querySelector(".assistant-reasoning")).toBe(details);
+      expect(container.querySelector(".assistant-process-reasoning")).toBe(details);
       expect(details.open).toBe(true);
       expect(details.textContent).toContain("再整理光线");
       await render("先确认主体。再整理光线。", false);
@@ -280,10 +280,10 @@ describe("AI assistant activity state", () => {
       })));
     });
 
-    const choice = container.querySelector<HTMLButtonElement>('[role="radio"][aria-checked="false"]');
+    const choice = container.querySelector<HTMLInputElement>('input[type="radio"]');
     expect(choice?.disabled).toBe(false);
     await act(async () => choice?.click());
-    expect(choice?.getAttribute("aria-checked")).toBe("true");
+    expect(choice?.checked).toBe(true);
 
     const continueButton = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent === "继续");
@@ -430,8 +430,9 @@ describe("AI assistant confirmation refinement", () => {
       })));
     });
 
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.classList.contains("assistant-confirmation-edit"))?.click());
     const refinement = container.querySelector<HTMLTextAreaElement>('[aria-label="补充修改要求"]');
-    const sendButton = container.querySelector<HTMLButtonElement>('[aria-label="发送补充要求"]');
+    const sendButton = container.querySelector<HTMLButtonElement>('.assistant-confirmation-refine button[type="submit"]');
     expect(refinement).not.toBeNull();
     expect(sendButton?.disabled).toBe(true);
 
@@ -448,7 +449,7 @@ describe("AI assistant confirmation refinement", () => {
     expect(onInteractionSubmit).not.toHaveBeenCalled();
 
     const generateButton = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent?.includes("立即生成"));
+      .find((button) => button.textContent?.includes("应用并生成"));
     expect(generateButton).toBeDefined();
     await act(async () => generateButton?.click());
     expect(onInteractionGenerate).toHaveBeenCalledOnce();
@@ -576,10 +577,8 @@ describe("AI assistant composer", () => {
 
     const composer = container.querySelector<HTMLTextAreaElement>('[aria-label="给 AI 助手发送消息"]');
     expect(composer?.rows).toBe(1);
-    expect(composer?.className).toContain("overflow-hidden");
-    expect(composer?.style.height).toBe("32px");
-    const composerLayout = container.querySelector<HTMLElement>('[data-composer-mode="single-line"]');
-    expect(composerLayout?.getAttribute("data-composer-max-height")).toBe("128");
+    expect(composer?.style.height).toBe("52px");
+    expect(container.querySelector(".create-chat-composer-toolbar")).not.toBeNull();
 
     const expandButton = container.querySelector<HTMLButtonElement>('[aria-label="放大编辑消息"]');
     expect(expandButton).not.toBeNull();
@@ -617,10 +616,8 @@ describe("AI assistant composer", () => {
     });
 
     const composer = container.querySelector<HTMLTextAreaElement>('[aria-label="给 AI 助手发送消息"]');
-    const composerLayout = container.querySelector<HTMLElement>('[data-composer-mode="multiline"]');
-    expect(composer?.className).toContain("mb-9");
-    expect(composer?.style.maxHeight).toBe("128px");
-    expect(composerLayout).not.toBeNull();
+    expect(composer?.value).toBe("保留主体\n调整背景光线");
+    expect(composer?.parentElement?.querySelector(".create-chat-composer-toolbar")).not.toBeNull();
 
     await act(async () => root.unmount());
     container.remove();
@@ -649,7 +646,7 @@ describe("AI assistant i18n", () => {
 
     expect(container.textContent).toContain("Template Copilot");
     expect(container.textContent).toContain("Generating next-step suggestions…");
-    expect(container.textContent).toContain("Keep describing, or ask the assistant to refine it…");
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Keep describing, or ask the assistant to refine it…");
     expect(container.querySelector('[aria-label="Send a message to the AI assistant"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Close AI assistant"]')).not.toBeNull();
 

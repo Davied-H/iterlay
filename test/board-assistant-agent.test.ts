@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Type } from "typebox";
+import { SettingsStore } from "../electron/storage/settings-store.js";
 import { ProviderError } from "../electron/providers/errors.js";
 import {
   collaborateSceneAgentWith,
@@ -531,5 +532,137 @@ describe("board assistant result recovery", () => {
       recoveryTransport(complete), { ...recoveryRequest, instruction: secret }, undefined, [], resources
     )).rejects.toMatchObject({ code: "ASSISTANT_RESULT_INCOMPLETE" });
     expect(JSON.stringify(vi.mocked(resources.recordLog!).mock.calls)).not.toContain(secret);
+  });
+});
+
+it("lets the creation agent inspect context with tools and streams its final message without duplicating it", async () => {
+  const inspect = vi.fn(async () => ({ content: [{ type: "text" as const, text: "品牌为自然风格" }], details: {} }));
+  const message = "我已读取品牌上下文，建议用自然光表达咖啡香气。";
+  let turn = 0;
+  const deltas: string[] = [];
+  const presentActivity = vi.fn();
+  const presentReasoningSummary = vi.fn();
+  const resources = { ...recoveryResources(), presentActivity, presentReasoningSummary };
+  const transport: TextTransport = {
+    complete: vi.fn(async () => { throw new Error("Creation agent should stream"); }),
+    completeStream: vi.fn(async (_messages, _options, onChunk) => {
+      turn++;
+      _options.onReasoningSummary?.("先确认品牌定位。");
+      const raw = JSON.stringify(turn === 1 ? { text: "先了解品牌", toolCalls: [{ name: "inspect_brand", arguments: {} }] } : { text: message, toolCalls: [] });
+      const split = turn === 2 ? raw.indexOf(message) + 9 : Math.floor(raw.length / 2);
+      onChunk(raw.slice(0, split));
+      expect(deltas.join("")).toBe("");
+      onChunk(raw.slice(split));
+      return raw;
+    })
+  };
+  const result = await collaborateSceneAgentStreamWith(transport, { instruction: "帮我看看品牌再决定创作方向", creationWorkflow: true, workflowMode: "generate", assistantSurface: "canvas-prompt", referenceImages: [], currentFields: [] }, (delta) => deltas.push(delta), undefined, undefined, [{ name: "inspect_brand", label: "检查品牌", description: "检查当前品牌", parameters: Type.Object({}), execute: inspect }], resources);
+  expect(presentActivity).toHaveBeenCalledWith("先了解品牌");
+  expect(presentActivity).not.toHaveBeenCalledWith(message);
+  expect(presentReasoningSummary).toHaveBeenCalledTimes(2);
+  expect(deltas.join("")).not.toContain("品牌定位");
+  expect(inspect).toHaveBeenCalledOnce();
+  expect(result.message).toBe(message);
+  expect(deltas.join("")).toBe(result.message);
+  expect(transport.completeStream).toHaveBeenCalledTimes(2);
+  expect(transport.complete).not.toHaveBeenCalled();
+});
+
+it("can request an authorized screen snapshot through its host capability", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-screen-agent-"));
+  try {
+    const captureScreen = vi.fn(async () => ({ mimeType: "image/png" as const, dataBase64: "fixture-screen-pixels", width: 400, height: 300 }));
+    let turn = 0;
+    const transport: TextTransport = { complete: vi.fn(async () => { throw new Error("expected stream"); }), completeStream: vi.fn(async (messages, _options, onChunk) => {
+      turn++;
+      if (turn === 2) expect(JSON.stringify(messages)).toContain("data:image/png;base64,fixture-screen-pixels");
+      const raw = JSON.stringify(turn === 1 ? { text: "请求屏幕访问", toolCalls: [{ name: "inspect_screen", arguments: { reason: "识别当前桌面" } }] } : { text: "屏幕中有一个编辑器窗口。", toolCalls: [] });
+      onChunk(raw); return raw;
+    }) };
+    const result = await collaborateSceneAgentStreamWith(transport, { instruction: "你能看到我桌面吗", creationWorkflow: true, screenCaptureAvailable: true, assistantSurface: "canvas-prompt", workflowMode: "generate", referenceImages: [], currentFields: [] }, () => {}, undefined, undefined, [], {
+      cwd: root, agentDir: root, settings: new SettingsStore(root).getSettings(), captureScreen
+    });
+    expect(captureScreen).toHaveBeenCalledOnce();
+    expect(captureScreen).toHaveBeenCalledWith("识别当前桌面", undefined);
+    expect(result.message).toContain("编辑器窗口");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+const creationRequest = { ...recoveryRequest, creationWorkflow: true };
+function creationTransport(complete: TextTransport["complete"]): TextTransport {
+  return {
+    complete,
+    completeStream: async (messages, options, onChunk, signal) => {
+      const raw = await complete(messages, options, signal);
+      onChunk(raw);
+      return raw;
+    }
+  };
+}
+
+describe("creation agent natural completion", () => {
+  it("ends a normal reply without a finish tool or a repair request", async () => {
+    const complete = vi.fn().mockResolvedValue(JSON.stringify({ text: "可以用轻盈的水彩笔触表达风。", toolCalls: [] }));
+    const resources = recoveryResources();
+    const result = await collaborateSceneAgentWith(creationTransport(complete), creationRequest, undefined, [], resources);
+    expect(result).toEqual({ message: "可以用轻盈的水彩笔触表达风。", intent: "chat", fields: [] });
+    expect(complete).toHaveBeenCalledOnce();
+    const context = JSON.stringify(complete.mock.calls[0][0]);
+    expect(context).not.toContain("finish_assistant_result");
+    expect(context).not.toContain("不能只输出文字");
+    expect(resources.recordLog).not.toHaveBeenCalledWith(expect.objectContaining({ summary: "画板助手进入仅结果补交阶段" }));
+  });
+
+  it("shows creative directions through host choices when no card callback is installed", async () => {
+    const presentInteraction = vi.fn(async () => ({ action: "submit" as const, values: { direction: "watercolor" } }));
+    const complete = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({ text: "请选一个创作方向。", toolCalls: [{ name: "present_directions", arguments: {
+        directions: [{ id: "watercolor", title: "轻盈水彩", prompt: "半透明的水彩马" }, { id: "oil", title: "厚涂油画", prompt: "油画中的马" }]
+      } }] }))
+      .mockResolvedValueOnce(JSON.stringify({ text: "已选择轻盈水彩。", toolCalls: [] }));
+    const result = await collaborateSceneAgentWith(creationTransport(complete), creationRequest, undefined, [], { ...recoveryResources(), presentInteraction });
+    expect(presentInteraction).toHaveBeenCalledWith(expect.objectContaining({ type: "form", fields: [expect.objectContaining({ id: "direction", type: "select" })] }));
+    expect(JSON.stringify(complete.mock.calls[1][0])).toContain("watercolor");
+    expect(result.message).toContain("已选择轻盈水彩。");
+  });
+
+  it("executes generation once, reads its receipt and ends with text", async () => {
+    const generate = vi.fn(async () => ({ content: [{ type: "text" as const, text: '{"generationId":"job-1","status":"running"}' }], details: {} }));
+    const complete = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({ text: "我会生成半透明的水彩马。", toolCalls: [{ name: "generate_image", arguments: { boardId: "board-1", prompt: "半透明的马，草原，轻盈水彩" } }] }))
+      .mockResolvedValueOnce(JSON.stringify({ text: "图片任务已提交，仍在生成中。", toolCalls: [] }));
+    const deltas: string[] = [];
+    const result = await collaborateSceneAgentStreamWith(creationTransport(complete), creationRequest, (delta) => deltas.push(delta), undefined, undefined, [
+      { name: "generate_image", label: "生成图片", description: "生成图片", parameters: Type.Object({ boardId: Type.String(), prompt: Type.String() }), execute: generate }
+    ]);
+    expect(generate).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(complete.mock.calls[1][0])).toContain("job-1");
+    expect(result.message).toBe("图片任务已提交，仍在生成中。");
+    expect(deltas.join("")).toBe(result.message);
+    expect(result.fields).toEqual([]);
+    expect(result.actions).toBeUndefined();
+    expect(result.commitment).toBeUndefined();
+  });
+
+  it("never replays generation or reports success after a malformed reply", async () => {
+    const generate = vi.fn(async () => ({ content: [{ type: "text" as const, text: '{"generationId":"job-1"}' }], details: {} }));
+    const complete = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({ text: "开始生成。", toolCalls: [{ name: "generate_image", arguments: {} }] }))
+      .mockResolvedValueOnce("{broken");
+    await expect(collaborateSceneAgentWith(creationTransport(complete), creationRequest, undefined, [
+      { name: "generate_image", label: "生成图片", description: "生成图片", parameters: Type.Object({}), execute: generate }
+    ])).rejects.toMatchObject({ code: "ASSISTANT_RESULT_INCOMPLETE" });
+    expect(generate).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not treat a tool-turn limit as a completed creation", async () => {
+    const inspect = vi.fn(async () => ({ content: [{ type: "text" as const, text: "画板已读取" }], details: {} }));
+    const complete = vi.fn().mockResolvedValue(JSON.stringify({ text: "读取画板。", toolCalls: [{ name: "inspect_board", arguments: {} }] }));
+    await expect(collaborateSceneAgentWith(creationTransport(complete), creationRequest, undefined, [
+      { name: "inspect_board", label: "读取画板", description: "读取画板", parameters: Type.Object({}), execute: inspect }
+    ], recoveryResources(1))).rejects.toThrow("工具调用上限");
+    expect(complete).toHaveBeenCalledOnce();
   });
 });

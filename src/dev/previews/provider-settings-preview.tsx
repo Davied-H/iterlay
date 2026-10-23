@@ -147,8 +147,8 @@ const previewCodingStatus: CodingAgentIntegrationStatus = {
   development: true,
   cli: { installed: true, pathConfigured: true, path: "/Users/preview/.local/bin/iterlay" },
   clients: [
-    { id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/Users/preview/.codex/skills/iterlay-workspace", legacyConfigured: false },
-    { id: "claude-code", detected: true, detection: "installed", skillInstalled: true, skillManaged: true, skillPath: "/Users/preview/.claude/skills/iterlay-workspace", legacyConfigured: false }
+    { id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/Users/preview/.codex/skills/using-iterlay", legacyConfigured: false },
+    { id: "claude-code", detected: true, detection: "installed", skillInstalled: true, skillManaged: true, skillPath: "/Users/preview/.claude/skills/using-iterlay", legacyConfigured: false }
   ]
 };
 

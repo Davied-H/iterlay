@@ -472,7 +472,7 @@ export function BoardGallery({
         <AnimatePresence>
           {assistantOpen ? (
             <motion.aside
-              className="gallery-assistant-shell absolute bottom-5 right-5 top-16 z-30 w-[360px] max-w-[calc(100vw-40px)] overflow-hidden rounded-xl bg-card ring-1 ring-border max-[640px]:left-5 max-[640px]:w-auto"
+              className="gallery-assistant-shell assistant-panel-shell absolute bottom-5 right-5 top-16 z-30 w-[360px] max-w-[calc(100vw-40px)] overflow-hidden max-[640px]:left-5 max-[640px]:w-auto"
               initial={reduceMotion ? false : { opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 16 }}

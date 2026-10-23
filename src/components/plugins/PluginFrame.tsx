@@ -18,7 +18,8 @@ const permissionByMethod: Record<string, string> = {
   "workspace.export": "board:read",
   "board.previews": "board:read", "board.snapshot": "board:read", "board.select": "board:read", "board.applyPlan": "board:write",
   "storage.get": "storage", "storage.set": "storage", "assistant.start": "assistant:comic-drama",
-  "assistant.cancel": "assistant:comic-drama", "assistant.respond": "assistant:comic-drama"
+  "assistant.cancel": "assistant:comic-drama", "assistant.respond": "assistant:comic-drama",
+  "creation.present": "creation:present"
 };
 export function validateAssistantFields(input: unknown): Array<{ label: string; value: string }> {
   if (input === undefined) return [];
@@ -72,6 +73,32 @@ export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps
       }
       if (method === "workspace.manage") { host.onManage?.(); return; }
       if (method === "context.get") { post({ type: "view", view }); return host.context; }
+      if (method === "creation.present") {
+        const conversationId = params.conversationId;
+        const kind = params.kind;
+        const nodeId = params.nodeId;
+        if (typeof conversationId !== "string" || typeof kind !== "string" || typeof nodeId !== "string"
+          || conversationId.length > 128 || nodeId.length > 128) throw new Error("创作产物请求无效。");
+        const declared = plugin.manifest.creationArtifacts?.find((item) => item.kind === kind);
+        if (!declared) throw new Error("插件未声明此创作产物类型。");
+        const board = await api.getBoard(host.context.boardId);
+        const node = board?.nodes.find((item) => item.id === nodeId);
+        if (!board || !node) throw new Error("创作产物不在当前画板中。");
+        const sessions = await api.listCreationSessions();
+        const session = sessions.find((item) => item.id === conversationId && (!item.boardId || item.boardId === board.id));
+        if (!session) throw new Error("创作会话与当前画板不匹配。");
+        const imagePath = "imagePath" in node && typeof node.imagePath === "string" ? node.imagePath : undefined;
+        const videoPath = "videoPath" in node && typeof node.videoPath === "string" ? node.videoPath : undefined;
+        const path = declared.mediaType === "image" ? imagePath : declared.mediaType === "video" ? videoPath : undefined;
+        if (declared.mediaType !== "project" && !path) throw new Error("创作产物尚未完成。");
+        const artifactId = `${plugin.manifest.id}:${nodeId}`;
+        const artifact = { id: artifactId, kind, mediaType: declared.mediaType, pluginId: plugin.manifest.id,
+          boardId: board.id, boardName: board.name, nodeId, path, prompt: typeof params.prompt === "string" ? params.prompt.slice(0, 12000) : "",
+          status: "ready" as const, createdAt: new Date().toISOString() };
+        const updated = await api.presentCreationArtifact(conversationId, artifact);
+        window.dispatchEvent(new CustomEvent("iterlay:creation:updated", { detail: updated }));
+        return { artifactId };
+      }
       if (method === "storage.get" || method === "storage.set") {
         if (params.scope !== "settings" && params.scope !== "board") throw new Error("存储范围无效。");
         const scope = params.scope === "settings" ? "settings" : `board:${host.context.boardId}`;
@@ -167,7 +194,7 @@ export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps
     };
     window.addEventListener("message", listener);
     return () => { live = false; window.removeEventListener("message", listener); stream.current?.dispose(); stream.current = null; };
-  }, [plugin.manifest.id, view]);
+  }, [plugin.manifest.id, plugin.manifest.creationArtifacts, view]);
   if (error) return <div role="alert" className="plugin-message">{error}{props.onBack && <button onClick={props.onBack}>{uiText("返回主画板")}</button>}</div>;
   if (!html) return <div className="plugin-message">{uiText("正在加载工具…")}</div>;
   return <iframe ref={frame} title={`${plugin.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(plugin.manifest.name) : plugin.manifest.name} ${view === "settings" ? uiText("设置") : ""}`.trim()} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" src={html} className="plugin-frame" onLoad={() => frame.current?.contentWindow?.postMessage({ source: "iterlay-host", type: "context", context: current.current.context, view }, "*")} />;

@@ -1,3 +1,5 @@
+import { CANVAS_STARTERS } from "@/components/code-canvas/model";
+import { OPEN_ASSISTANT_PERMISSIONS_EVENT } from "@shared/screen-access";
 import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
 import { legacyBillingSnapshot } from "@/compat/billing";
 import { duplicateClipboardImages,type CanvasClipboardItem } from "@/components/canvas/canvas-clipboard";
@@ -28,7 +30,7 @@ import { iterlayToast } from "@/components/ui/iterlay-toast";
 import { OverlayInteractionProvider } from "@/components/ui/overlay-interaction";
 import { Toaster } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreateChatGenerationPlan,CreateChatResult } from "@/components/workbench/CreateChatPage";
+import type { CreationAssistantGenerationPlan,CreationAssistantResult } from "@/components/workbench/CreationAssistantPage";
 import { PiTemplateAgentStatus } from "@/components/workbench/PiTemplateAgentStatus";
 import type { AssistantGenerationRequest } from "@/components/workbench/PromptDock";
 import { ProviderStatusNotice } from "@/components/workbench/ProviderStatusNotice";
@@ -613,7 +615,13 @@ export default function App(): React.ReactElement {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDialogMounted, setSettingsDialogMounted] = useState(false);
-  const [settingsEntryPoint, setSettingsEntryPoint] = useState<"default" | "provider-setup" | "model-management" | "coding-agent">("default");
+  const [settingsEntryPoint, setSettingsEntryPoint] = useState<"default" | "provider-setup" | "model-management" | "coding-agent" | "assistant-permissions">("default");
+  useEffect(() => {
+    const openPermissions = (): void => { setSettingsEntryPoint("assistant-permissions"); setSettingsOpen(true); };
+    window.addEventListener(OPEN_ASSISTANT_PERMISSIONS_EVENT, openPermissions);
+    return () => window.removeEventListener(OPEN_ASSISTANT_PERMISSIONS_EVENT, openPermissions);
+  }, []);
+
 
   const [assistantDockLayout, setAssistantDockLayout] = useState<AssistantDockLayout | null>(null);
   const visibleAssistantDockLayout = historyOpen ? null : assistantDockLayout;
@@ -1289,7 +1297,8 @@ export default function App(): React.ReactElement {
         setVideoUrls(detail.media ?? {});
         const restoredWorkflowNodes = detail.nodes.filter(
           (node): node is CanvasPersistedNode => (
-            isBoardTextNode(node)
+            node.type === "canvas"
+            || isBoardTextNode(node)
             || isBoardGenerationNode(node)
             || isBoardVideoNode(node)
             || isBoardVideoGenerationNode(node)
@@ -1396,8 +1405,8 @@ export default function App(): React.ReactElement {
       if (detail.type === "board-created" && boardId) {
         void (async () => {
           await refreshBoards();
-          await openBoard(boardId, undefined, { resetPromptDraft: true });
-          setStatus("CLI 已创建画板。");
+          if (detail.preserveView !== true) await openBoard(boardId, undefined, { resetPromptDraft: true });
+          setStatus(detail.preserveView === true ? "创作助手已创建画板。" : "CLI 已创建画板。");
         })();
         return;
       }
@@ -1517,7 +1526,7 @@ export default function App(): React.ReactElement {
           boardDetailCacheRef.current.delete(boardId);
           await refreshBoards();
           if (activeBoardRef.current?.id === boardId) {
-            await openBoard(boardId, undefined, { forceReload: true });
+            await openBoard(boardId, undefined, { forceReload: true, keepLibraryOpen: detail.preserveView === true, suppressLoadingScreen: detail.preserveView === true });
           }
         })();
         return;
@@ -1788,7 +1797,7 @@ export default function App(): React.ReactElement {
         const activeBoardId = activeBoardRef.current?.id;
         if (activeBoardId && pending.some((job) => job.input.boardId === activeBoardId)) {
           boardDetailCacheRef.current.delete(activeBoardId);
-          await openBoard(activeBoardId, undefined, { forceReload: true });
+          await openBoard(activeBoardId, undefined, { forceReload: true, keepLibraryOpen: true, suppressLoadingScreen: true });
         }
         syncRecoveredJobs(pending);
         pending = pending.filter((job) => !isTerminalVideoJob(job));
@@ -1811,7 +1820,7 @@ export default function App(): React.ReactElement {
           const currentBoardId = activeBoardRef.current?.id;
           if (currentBoardId && completedBoards.has(currentBoardId)) {
             boardDetailCacheRef.current.delete(currentBoardId);
-            await openBoard(currentBoardId, undefined, { forceReload: true });
+            await openBoard(currentBoardId, undefined, { forceReload: true, keepLibraryOpen: true, suppressLoadingScreen: true });
           }
           pending = snapshots.filter((job) => !isTerminalVideoJob(job));
         }
@@ -1991,7 +2000,7 @@ export default function App(): React.ReactElement {
     }
   }
 
-  async function createFromChat(plan: CreateChatGenerationPlan): Promise<CreateChatResult> {
+  async function createFromChat(plan: CreationAssistantGenerationPlan): Promise<CreationAssistantResult> {
     const api = getWorkbenchApi();
     let createdBoardId: string | null = null;
     let createdComicChildBoardId: string | null = null;
@@ -2001,6 +2010,9 @@ export default function App(): React.ReactElement {
     try {
       const prompt = plan.prompt.trim();
       if (!prompt) throw new Error("Pi Agent 没有提供可执行的生成方案。");
+      const videoProvider = plan.mediaType === "video"
+        ? videoProviders.find((provider) => provider.id === activeVideoProviderId) ?? videoProviders[0] : undefined;
+      if (plan.mediaType === "video" && !videoProvider) throw new Error("尚未配置视频模型，请在设置中添加视频服务后重试。");
       const targetBoardId = plan.targetBoardId;
       let target: Pick<BoardSummary, "id" | "name"> | undefined =
         targetBoardId ? boards.find((board) => board.id === targetBoardId) : undefined;
@@ -2023,6 +2035,8 @@ export default function App(): React.ReactElement {
         const snapshot = await api.getComicDramaBoardSnapshot(project.childBoard.id);
         const mutation = await requestPluginCapability(SHORT_DRAMA_PLUGIN_ID, "project.initialize", { snapshot, instruction: prompt });
         await api.applyComicDramaMutationPlan(mutation);
+        plan.onArtifact?.({ id: project.childBoard.id, kind: "comic-drama", boardId: project.childBoard.id,
+          boardName: project.childBoard.name, prompt, status: "ready", createdAt: new Date().toISOString() });
         boardDetailCacheRef.current.delete(target.id);
         await refreshBoards();
         await openBoard(project.childBoard.id, undefined, { keepLibraryOpen: true, resetPromptDraft: !targetBoardId, forceReload: true, suppressLoadingScreen: true });
@@ -2034,14 +2048,58 @@ export default function App(): React.ReactElement {
         resetPromptDraft: !targetBoardId,
         suppressLoadingScreen: true
       });
+      if (plan.mediaType === "video" && videoProvider) {
+        // Use the same durable board node + video task pipeline as the canvas.
+        const nodeId = crypto.randomUUID();
+        const node: BoardVideoGenerationNode = {
+          id: nodeId, type: "video-generation", title: "视频生成", x: 80, y: 80,
+          prompt, model: videoProvider.model, providerId: videoProvider.id,
+          duration: plan.videoSettings?.durationSeconds ?? 5,
+          aspectRatio: plan.videoSettings?.aspectRatio ?? "16:9",
+          resolution: plan.videoSettings?.resolution ?? "720p", status: "draft"
+        };
+        workflowNodesRef.current = [...workflowNodesRef.current, node];
+        setWorkflowNodes(workflowNodesRef.current);
+        scheduleBoardSave();
+        await flushBoardSave();
+        plan.onProgress?.("正在提交视频任务…");
+        let job = await api.startVideoGeneration({
+          prompt, model: videoProvider.model, providerId: videoProvider.id,
+          durationSeconds: plan.videoSettings?.durationSeconds ?? 5,
+          aspectRatio: plan.videoSettings?.aspectRatio ?? "16:9",
+          resolution: plan.videoSettings?.resolution ?? "720p",
+          referenceImagePaths: plan.referencePaths ?? [], boardId: target.id, generationNodeId: nodeId
+        });
+        plan.onArtifact?.({ id: job.id, kind: "video", boardId: target.id, boardName: target.name,
+          nodeId, jobId: job.id, prompt, status: "pending", createdAt: new Date().toISOString() });
+        const deadline = Date.now() + 10 * 60_000;
+        while (!["completed", "failed", "cancelled"].includes(job.status) && Date.now() < deadline) {
+          plan.onProgress?.(job.status === "post_processing" ? "视频已生成，正在保存…" : job.status === "queued" ? "视频任务排队中…" : "视频模型正在生成…");
+          await new Promise((resolve) => window.setTimeout(resolve, 2_000));
+          const latest = await api.getVideoJob(job.id);
+          if (!latest) break;
+          job = latest;
+        }
+        boardDetailCacheRef.current.delete(target.id);
+        if (activeBoardRef.current?.id === target.id) {
+          await openBoard(target.id, undefined, { keepLibraryOpen: true, forceReload: true, suppressLoadingScreen: true });
+        }
+        await refreshBoards();
+        if (job.status === "failed" || job.status === "cancelled") throw new Error(job.error || "视频生成未完成，请在画板中查看任务状态。");
+        const completedBoard = job.outputVideoPath ? await api.getBoard(target.id) : null;
+        const videoUrl = job.outputVideoPath ? completedBoard?.media?.[job.outputVideoPath] : undefined;
+        return { boardId: target.id, boardName: target.name, images: [], videoJobId: job.id, videoPending: job.status !== "completed",
+          videos: videoUrl ? [{ id: job.id, url: videoUrl, path: job.outputVideoPath, nodeId }] : [] };
+      }
       const generated = await generate(undefined, {
         boardId: target.id,
         prompt,
-        workflowMode: "generate",
-        referenceImages: [],
+        workflowMode: plan.editSource ? "edit" : "generate",
+        editSource: plan.editSource,
+        referenceImages: plan.references ?? [],
         sceneId: undefined,
         promptSpec: undefined,
-        n: 1,
+        n: plan.count ?? 1,
         assistantConversationId: plan.conversationId
       });
       if (generated.length === 0) {
@@ -2091,7 +2149,8 @@ export default function App(): React.ReactElement {
       if (activeBoardRef.current?.id === result.boardId) {
         const updatedNodeById = new Map((plan.updates?.nodes ?? []).map((node) => [node.id, node]));
         const additions = plan.additions.nodes.filter((node): node is CanvasPersistedNode => (
-          isBoardTextNode(node)
+          node.type === "canvas"
+            || isBoardTextNode(node)
           || isBoardGenerationNode(node)
           || isBoardVideoNode(node)
           || isBoardVideoGenerationNode(node)
@@ -2335,10 +2394,12 @@ export default function App(): React.ReactElement {
   });
 
   function createWorkflowNode(
-    type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
+    type: "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
     position: CanvasDropPoint,
     initial?: {
       text?: string;
+      code?: string;
+      framework?: "html" | "react" | "vue";
       prompt?: string;
       model?: string;
       size?: string;
@@ -2356,7 +2417,9 @@ export default function App(): React.ReactElement {
       y: position.y
     };
     const videoProvider = videoProviders.find((provider) => provider.id === activeVideoProviderId) ?? videoProviders[0];
-    const node: CanvasPersistedNode = type === "text"
+    const node: CanvasPersistedNode = type === "canvas"
+      ? { ...base, type: "canvas", title: "Canvas", framework: initial?.framework ?? "html", code: initial?.code ?? CANVAS_STARTERS[initial?.framework ?? "html"] }
+      : type === "text"
       ? { ...base, type: "text", title: "文本", text: initial?.text ?? "" }
       : type === "generation" ? {
           ...base,
@@ -3150,9 +3213,28 @@ export default function App(): React.ReactElement {
   );
 
   const interpretCreateChat = useCallback(
-    async (request: CollaborateSceneRequest): Promise<CollaborateSceneResult> => {
+    async (request: CollaborateSceneRequest, stream?: import("@/components/workbench/CreationAssistantPage").CreationAssistantStreamOptions): Promise<CollaborateSceneResult> => {
       if (!hasImageWorkbenchApi()) throw new Error(missingImageWorkbenchMessage);
-      const result = await getImageWorkbenchApi().collaborateScene({ ...request, locale: request.locale ?? locale });
+      const localizedRequest = { ...request, locale: request.locale ?? locale };
+      const result = stream ? await new Promise<CollaborateSceneResult>((resolve, reject) => {
+        if (stream.signal.aborted) { reject(new Error("创作请求已取消。")); return; }
+        const cleanup = (): void => stream.signal.removeEventListener("abort", cancel);
+        const handle = startSceneCollaborationStream(localizedRequest, {
+          onDelta: stream.onDelta,
+          onReasoningSummary: stream.onReasoningSummary,
+          onSteerReady: () => stream.onSteerAvailable?.((instruction) => handle.steer(instruction)),
+          onActivity: stream.onActivity,
+          onTool: stream.onTool,
+          onInteraction: (_id, interaction) => {
+            if (interaction) stream.onInteraction?.(interaction, (action, values) => handle.respondToInteraction(_id, action, values));
+          },
+          onResult: (value) => { cleanup(); resolve(value); },
+          onError: (message) => { cleanup(); reject(new Error(message)); },
+          onCancelled: () => { cleanup(); reject(new Error("创作请求已取消。")); }
+        });
+        function cancel(): void { handle.dispose(); cleanup(); reject(new Error("创作请求已取消。")); }
+        stream.signal.addEventListener("abort", cancel, { once: true });
+      }) : await getImageWorkbenchApi().collaborateScene(localizedRequest);
       refreshCreditStatus();
       return result;
     },
@@ -5711,6 +5793,7 @@ export default function App(): React.ReactElement {
                 imageProviders={providers}
                 activeImageProviderId={activeProviderId}
                 activeImageModel={input.model}
+                activeVideoModelLabel={(videoProviders.find((provider) => provider.id === activeVideoProviderId) ?? videoProviders[0])?.model}
                 onSelectImageModel={selectActiveProvider}
                 initialTab={libraryInitialTab}
                 initialSceneRequest={libraryInitialSceneRequest}
@@ -5721,6 +5804,13 @@ export default function App(): React.ReactElement {
                 activeBoardId={activeBoard?.id}
                 openingBoardId={openingBoardId}
                 onOpenBoard={(id, origin) => void openBoard(id, origin)}
+                onOpenCreationConversation={(conversationId, boardId) => {
+                  void (async () => {
+                    await openBoard(boardId);
+                    if (activeBoardRef.current?.id !== boardId) return;
+                    setAssistantConversationRequest((current) => ({ conversationId, nonce: (current?.nonce ?? 0) + 1 }));
+                  })();
+                }}
                 onPrefetchBoard={prefetchBoard}
                 onCreateBoard={() => void createBoardAndOpen()}
                 onCreateFromChat={createFromChat}

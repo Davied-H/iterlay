@@ -210,7 +210,7 @@ function WorkspaceSidebar(): React.ReactElement {
     <aside className="sidebar workspace-sidebar">
       <TrafficLights />
       <Brand />
-      <button className="create-button" type="button"><Plus /> 新建创作</button>
+      <button className="create-button" type="button"><Plus /> 创作助手</button>
       <section className="workspace-group">
         <header><span>工作台</span><ChevronDown /></header>
         <PrimaryNav />
@@ -293,7 +293,7 @@ function HybridSidebar({
           <PanelLeftClose />
         </button>
       </div>
-      <button className="create-button" type="button"><Plus /> 新建创作</button>
+      <button className="create-button" type="button"><Plus /> 创作助手</button>
       <section className="workspace-group hybrid-workbench-group">
         <header><span>工作台</span><ChevronDown /></header>
         <PrimaryNav />

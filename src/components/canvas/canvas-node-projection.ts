@@ -4,6 +4,7 @@ import type {
   BoardComicDramaEntryNode,
   ComicDramaBoardNode,
   BoardTextNode,
+  BoardCanvasNode,
   BoardVideoGenerationNode,
   BoardVideoNode,
   BoardVideoSequenceEntryNode
@@ -56,7 +57,7 @@ export type PersistedVideoNode = BoardVideoNode | {
 
 export type PersistedVideoGenerationNode = BoardVideoGenerationNode;
 
-export type CanvasWorkflowNode = BoardTextNode | BoardGenerationNode | PersistedVideoNode | PersistedVideoGenerationNode | ComicDramaBoardNode | BoardComicDramaEntryNode | BoardVideoSequenceEntryNode;
+export type CanvasWorkflowNode = BoardCanvasNode | BoardTextNode | BoardGenerationNode | PersistedVideoNode | PersistedVideoGenerationNode | ComicDramaBoardNode | BoardComicDramaEntryNode | BoardVideoSequenceEntryNode;
 type GenerationNodeBaseData = Omit<GenerationNodeData, "referenceImages" | "upstreamPrompt">;
 
 export interface CanvasWorkflowNodeProjectionContext {
@@ -65,6 +66,7 @@ export interface CanvasWorkflowNodeProjectionContext {
 
 export interface CanvasNodeProjectionBindings {
   imageData: (image: GeneratedImage) => Omit<ImageNodeData, "image">;
+  canvasData?: (node: BoardCanvasNode) => Record<string, unknown>;
   textData: (node: BoardTextNode, context: CanvasWorkflowNodeProjectionContext) => TextNodeData;
   generationData: (
     node: BoardGenerationNode,
@@ -106,7 +108,7 @@ export function patchCanvasWorkflowNode(
   const dataPatch = patch as Record<string, unknown>;
   let changed = false;
   const next = nodes.map((node) => {
-    if (node.id !== id || !["textNode", "generationNode", "videoNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode", "comicDramaEntryNode"].includes(node.type ?? "")) return node;
+    if (node.id !== id || !["codeCanvasNode", "textNode", "generationNode", "videoNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode", "comicDramaEntryNode"].includes(node.type ?? "")) return node;
     const dataChanged = Object.entries(dataPatch).some(([key, value]) => node.data[key] !== value);
     const heightChanged = height !== undefined && node.height !== height;
     if (!dataChanged && !heightChanged) return node;
@@ -312,7 +314,8 @@ function parseVideoAspectRatio(value: string | undefined): number | undefined {
   return width > 0 && height > 0 ? width / height : undefined;
 }
 
-function projectedWorkflowNodeType(node: CanvasWorkflowNode): "textNode" | "generationNode" | "videoNode" | "videoGenerationNode" | "comicSettingNode" | "comicCharacterNode" | "comicSegmentNode" | "comicDramaEntryNode" | "videoSequenceEntryNode" {
+function projectedWorkflowNodeType(node: CanvasWorkflowNode): "codeCanvasNode" | "textNode" | "generationNode" | "videoNode" | "videoGenerationNode" | "comicSettingNode" | "comicCharacterNode" | "comicSegmentNode" | "comicDramaEntryNode" | "videoSequenceEntryNode" {
+  if (node.type === "canvas") return "codeCanvasNode";
   if (node.type === "text") return "textNode";
   if (node.type === "generation") return "generationNode";
   if (node.type === "video") return "videoNode";
@@ -325,6 +328,7 @@ function projectedWorkflowNodeType(node: CanvasWorkflowNode): "textNode" | "gene
 }
 
 function projectedWorkflowNodeSize(type: ReturnType<typeof projectedWorkflowNodeType>): { width: number; height: number } {
+  if (type === "codeCanvasNode") return { width: 680, height: 500 };
   if (type === "textNode") return { width: TEXT_NODE_WIDTH, height: TEXT_NODE_HEIGHT };
   if (type === "generationNode") return { width: GENERATION_NODE_WIDTH, height: GENERATION_NODE_HEIGHT };
   if (type === "videoNode") return { width: VIDEO_NODE_WIDTH, height: VIDEO_NODE_HEIGHT };
@@ -341,6 +345,7 @@ function projectedWorkflowNodeData(
   context: CanvasWorkflowNodeProjectionContext,
   bindings: CanvasNodeProjectionBindings
 ): TextNodeData | GenerationNodeBaseData | VideoNodeData | VideoGenerationNodeData | ComicDramaEntryNodeData | VideoSequenceEntryNodeData | Record<string, unknown> {
+  if (node.type === "canvas") return bindings.canvasData?.(node) ?? { ...node };
   if (node.type === "text") return bindings.textData(node, context);
   if (node.type === "video-sequence-entry") return bindings.videoSequenceEntryData?.(node, context) ?? { node };
   if (node.type === "comic-drama-entry") return bindings.comicDramaEntryData?.(node, context) ?? { node };

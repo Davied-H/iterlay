@@ -6,10 +6,19 @@ import { ReactFlow, type Node } from "@xyflow/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GenerationNode, type GenerationNodeData } from "@/components/canvas/GenerationNode";
 import { VideoGenerationNode, type VideoGenerationNodeData } from "@/components/canvas/VideoGenerationNode";
+import { CodeCanvasNode } from "@/components/code-canvas/CodeCanvasNode";
+import { CANVAS_EDITOR_FLUSH_EVENT } from "@shared/types";
 import { DEFAULT_VIDEO_PROVIDER_CONFIG } from "@shared/types";
 import { TEXT_NODE_MAX_LENGTH, TextNode, type TextNodeData } from "@/components/canvas/TextNode";
 import { NODE_INPUT_COMMIT_DELAY_MS } from "@/components/canvas/use-debounced-node-commit";
 import { DialogShell } from "@/components/video-sequence/VideoSequenceEditor";
+
+vi.mock("@/components/code-canvas/CodeEditor", () => ({
+  default: (props: { code: string; onChange: (code: string) => void; onCommit: () => void }) => createElement("textarea", {
+    "aria-label": "Canvas 代码", value: props.code,
+    onChange: (event: { target: { value: string } }) => props.onChange(event.target.value), onBlur: props.onCommit
+  })
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.ResizeObserver = class ResizeObserver {
@@ -29,7 +38,7 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-function renderNode(node: Node, nodeTypes: Record<string, typeof TextNode | typeof GenerationNode | typeof VideoGenerationNode>): void {
+function renderNode(node: Node, nodeTypes: Record<string, typeof CodeCanvasNode | typeof TextNode | typeof GenerationNode | typeof VideoGenerationNode>): void {
   container = document.createElement("div");
   container.style.width = "800px";
   container.style.height = "600px";
@@ -62,6 +71,23 @@ function videoNode(data: VideoGenerationNodeData): Node {
 }
 
 describe("canvas node input commits", () => {
+  it("flushes pending Canvas code before a workspace save without losing the edit to callback replacement", async () => {
+    vi.useFakeTimers();
+    const original = vi.fn();
+    const replacement = vi.fn();
+    const node: Node = { id: "canvas-1", type: "codeCanvasNode", position: { x: 0, y: 0 }, data: { code: "before", framework: "html", onChange: original } };
+    await act(async () => { renderNode(node, { codeCanvasNode: CodeCanvasNode }); });
+    const textarea = document.querySelector<HTMLTextAreaElement>('[aria-label="Canvas 代码"]')!;
+    act(() => enterValue(textarea, "latest manual code"));
+    expect(original).not.toHaveBeenCalled();
+    act(() => root?.render(createElement(ReactFlow, { nodes: [{ ...node, data: { ...node.data, onChange: replacement } }], edges: [], nodeTypes: { codeCanvasNode: CodeCanvasNode } })));
+    act(() => window.dispatchEvent(new Event(CANVAS_EDITOR_FLUSH_EVENT)));
+    expect(replacement).toHaveBeenCalledWith("canvas-1", { code: "latest manual code" });
+    expect(original).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(replacement).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves a pending video prompt when the canvas replaces callbacks", () => {
     vi.useFakeTimers();
     const onChange = vi.fn();

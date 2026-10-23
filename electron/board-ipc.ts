@@ -1,3 +1,4 @@
+import type { CanvasNodeWriteInput } from "../shared/contracts/board.js";
 import { ipcMain } from "electron";
 import {
   isBoardImageNode,
@@ -351,6 +352,8 @@ export function registerBoardIpc({
     if (deleted.length > 0) scheduleAssetGarbageCollection();
     return { ok: true, count: deleted.length };
   });
+
+  ipcMain.handle("boards:canvas:write", async (_event, input: CanvasNodeWriteInput) => boards.writeCanvasNode(input));
 
   ipcMain.handle(
     "boards:appendNodes",

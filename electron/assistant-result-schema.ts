@@ -9,11 +9,18 @@ const field = Type.Object({
   placeholder: Type.Optional(Type.String()),
   required: Type.Optional(Type.Boolean()),
   multiple: Type.Optional(Type.Boolean()),
+  allowSupplement: Type.Optional(Type.Boolean()),
   options: Type.Optional(Type.Array(option))
 });
 
 export const assistantResultSchema = Type.Object({
   message: text(),
+  mediaType: Type.Optional(Type.Union([Type.Literal("image"), Type.Literal("video")])),
+  videoSettings: Type.Optional(Type.Object({
+    durationSeconds: Type.Optional(Type.Number({ minimum: 1, maximum: 120 })),
+    aspectRatio: Type.Optional(Type.String()),
+    resolution: Type.Optional(Type.String())
+  })),
   fields: Type.Array(Type.Object({ label: text(), value: text() }), { maxItems: 16 }),
   intent: Type.Optional(Type.Union([
     Type.Literal("direct"), Type.Literal("creative"), Type.Literal("chat")
@@ -33,6 +40,7 @@ export const assistantResultSchema = Type.Object({
     id: text(), title: text(), description: Type.Optional(Type.String()), prompt: text()
   }), { maxItems: 4 })),
   actions: Type.Optional(Type.Array(Type.Union([
+    Type.Object({ type: Type.Literal("request_screen_capture"), reason: text() }),
     Type.Object({ type: Type.Literal("apply_prompt") }),
     Type.Object({ type: Type.Literal("generate") }),
     Type.Object({
@@ -72,7 +80,7 @@ export const assistantResultSchema = Type.Object({
       description: Type.Optional(Type.String()),
       submitLabel: Type.Optional(Type.String()),
       cancelLabel: Type.Optional(Type.String()),
-      fields: Type.Array(field, { minItems: 1, maxItems: 2 })
+      fields: Type.Array(field, { minItems: 1, maxItems: 16 })
     })
   ]))
 });

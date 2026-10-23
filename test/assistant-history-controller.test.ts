@@ -71,7 +71,7 @@ describe("assistant history controller", () => {
       await act(async () => harness.history().selectAssistantHistory(conversation("two")));
       expect(harness.navigate).toHaveBeenCalledWith("saved", "two");
       const dispose = vi.fn();
-      harness.session().assistantStreamRef.current = { dispose, cancel: vi.fn(), respondToInteraction: vi.fn() };
+      harness.session().assistantStreamRef.current = { dispose, cancel: vi.fn(), respondToInteraction: vi.fn(), steer: vi.fn() };
       harness.session().assistantClarificationRoundsRef.current = 3;
       const version = harness.session().assistantRequestVersionRef.current;
       await act(async () => harness.history().selectAssistantHistory(conversation()));

@@ -54,7 +54,8 @@ export function createAssistantSessionService(dependencies: AssistantSessionDepe
     const referenceImages = await Promise.all(
       validated.referenceImages.map((reference, index) => normalizeReference(reference, index, perReferenceBudget))
     );
-    return prepareMemoryRequest({ ...validated, referenceImages });
+    return prepareMemoryRequest({ ...validated, referenceImages,
+      screenCaptureAvailable: validated.assistantSurface !== "comic-drama" && settings.getSettings().assistantScreenAccess !== "deny" });
   };
   const recordAssistantResult = async (request: CollaborateSceneRequest, result: CollaborateSceneResult, toolCalls?: AssistantToolCall[], reasoningSummary?: string): Promise<void> => {
     const generatedPrompt = getPrimaryAssistantPrompt(result);

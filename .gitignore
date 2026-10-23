@@ -23,3 +23,6 @@ cli/guard/
 .test-agent/
 *.orig
 resources/native/.build-stamp
+
+# Generated offline code sandbox runtime
+/public/code-sandbox/

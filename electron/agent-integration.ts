@@ -42,13 +42,13 @@ export async function getAgentIntegrationStatus(homeDir: string): Promise<AgentI
   return { clients: [codex, claudeCode] };
 }
 
-const AGENT_SKILL_NAMES = ["iterlay-workspace", "using-iterlay"] as const;
+const AGENT_SKILL_NAMES = ["using-iterlay"] as const;
 type AgentSkillName = typeof AGENT_SKILL_NAMES[number];
 
 async function bundledAgentSkills(bundledSkillPath: string) {
   const bundles = AGENT_SKILL_NAMES.map((name) => ({
     name,
-    source: name === "iterlay-workspace" ? bundledSkillPath : path.join(path.dirname(bundledSkillPath), name)
+    source: bundledSkillPath
   }));
   for (const { source } of bundles) {
     try { await access(path.join(source, "SKILL.md")); }
@@ -63,19 +63,18 @@ export async function installAgentSkill(
   bundledSkillPath: string
 ): Promise<AgentIntegrationStatus> {
   const bundles = await bundledAgentSkills(bundledSkillPath);
-  // Check both destinations before replacing either Skill.
+  // Protect user-maintained Skills before installing.
   for (const { name } of bundles) {
     const target = getSkillPath(client, homeDir, name);
     if (await pathExists(target) && !await readManagedSkillDigest(target)) {
-      const content = await readOptional(path.join(target, "SKILL.md"));
-      const legacy = name === "iterlay-workspace" && content.includes("Use the `iterlay` MCP server as the source of truth");
-      if (!legacy) throw new Error(`已有自行维护的同名 Skill（${name}），请先处理该目录再安装。`);
+      throw new Error(`已有自行维护的同名 Skill（${name}），请先处理该目录再安装。`);
     }
   }
   for (const { name, source, snapshot } of bundles) {
     const target = getSkillPath(client, homeDir, name);
     if (target !== source) await replaceManagedSkill(target, source, snapshot.digest);
   }
+  await removeManagedWorkspaceSkill(client, homeDir);
   return getAgentIntegrationStatus(homeDir);
 }
 
@@ -87,7 +86,7 @@ export async function upgradeInstalledAgentSkills(
   const clients = (await getAgentIntegrationStatus(homeDir)).clients;
   const targets: CodingAgentId[] = [];
   for (const client of clients) {
-    if (await isSkillInstalled(client.skillPath)) targets.push(client.id);
+    if (await isSkillInstalled(client.skillPath) || await readManagedSkillDigest(path.join(path.dirname(client.skillPath), "iterlay-workspace"))) targets.push(client.id);
   }
   return syncSkillsForClients(homeDir, bundledSkillPath, targets);
 }
@@ -112,6 +111,7 @@ async function syncSkillsForClients(homeDir: string, bundledSkillPath: string, t
       await replaceManagedSkill(skillPath, source, snapshot.digest);
       upgrades.push({ client, skillPath, previousDigest, currentDigest: snapshot.digest, upgradedAt: new Date().toISOString(), files });
     }
+    if (await readManagedSkillDigest(getSkillPath(client, homeDir))) await removeManagedWorkspaceSkill(client, homeDir);
   }
   return {
     ...await getAgentIntegrationStatus(homeDir),
@@ -177,7 +177,14 @@ export async function uninstallAgentSkill(client: CodingAgentId, homeDir: string
     if (await pathExists(target) && !await readManagedSkillDigest(target)) throw new Error("此 Skill 未由 Iterlay 管理，未移除。");
   }
   for (const target of targets) await rm(target, { recursive: true, force: true });
+  await removeManagedWorkspaceSkill(client, homeDir);
   return getAgentIntegrationStatus(homeDir);
+}
+
+/** Only retire old copies installed by Iterlay; preserve user-maintained Skills. */
+async function removeManagedWorkspaceSkill(client: CodingAgentId, homeDir: string): Promise<void> {
+  const legacyPath = path.join(path.dirname(getSkillPath(client, homeDir)), "iterlay-workspace");
+  if (await readManagedSkillDigest(legacyPath)) await rm(legacyPath, { recursive: true, force: true });
 }
 
 /** Migration only: remove Iterlay's old entry, preserving every unrelated server. */
@@ -223,13 +230,13 @@ async function agentStatus(client: CodingAgentId, homeDir: string): Promise<Codi
 async function readCodexStatus(homeDir: string): Promise<CodingAgentStatus> { return agentStatus("codex", homeDir); }
 async function readClaudeCodeStatus(homeDir: string): Promise<CodingAgentStatus> { return agentStatus("claude-code", homeDir); }
 
-function getSkillPath(client: CodingAgentId, homeDir: string, name: AgentSkillName = "iterlay-workspace"): string {
+function getSkillPath(client: CodingAgentId, homeDir: string, name: AgentSkillName = "using-iterlay"): string {
   return client === "codex"
     ? path.join(homeDir, ".codex", "skills", name)
     : path.join(homeDir, ".claude", "skills", name);
 }
 
-async function isSkillInstalled(skillPath: string, name: AgentSkillName = "iterlay-workspace"): Promise<boolean> {
+async function isSkillInstalled(skillPath: string, name: AgentSkillName = "using-iterlay"): Promise<boolean> {
   try {
     const content = await readFile(path.join(skillPath, "SKILL.md"), "utf8");
     return new RegExp(`^name:\\s*${name}\\s*$`, "mu").test(content);

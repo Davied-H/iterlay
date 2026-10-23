@@ -11,6 +11,8 @@ type LocalApiCall = (
 ) => Promise<unknown>;
 
 const BOARD_WRITE_TOOLS = new Set([
+  "create_canvas",
+  "update_canvas",
   "move_image",
   "resize_image",
   "arrange_images",
@@ -38,6 +40,7 @@ const SEQUENTIAL_TOOLS = new Set([
 
 export interface IterlayAgentToolOptions {
   boardId?: string;
+  preserveView?: boolean;
 }
 
 export function createIterlayAgentTools(
@@ -60,7 +63,7 @@ export function createIterlayAgentTools(
       execute: async (_toolCallId, rawArgs) => {
         const args = isRecord(rawArgs) ? rawArgs : {};
         assertBoardScope(name, args, options.boardId);
-        const result = await callBridge(userDataPath, name, args);
+        const result = await callBridge(userDataPath, name, options.preserveView ? { ...args, preserveView: true } : args);
         return {
           content: buildToolContent(result),
           details: { toolName: name }

@@ -88,7 +88,7 @@ function Preview(): React.ReactElement {
       <div className="rp-workspace">
         <aside className={`rp-sidebar ${compact ? "rp-compact" : ""}`} aria-label="侧栏上下文示意，非重构范围">
           <div className="rp-brand"><img src={icon} alt="" /><strong>Iterlay</strong><button className="rp-icon" aria-label="切换侧栏宽度" onClick={() => setCompact(!compact)}><PanelLeftClose /></button></div>
-          <button className="rp-primary rp-sidebar-create" onClick={() => simulate("新建创作")}><Plus /><span>新建创作</span></button>
+          <button className="rp-primary rp-sidebar-create" onClick={() => simulate("创作助手")}><Plus /><span>创作助手</span></button>
           <span className="rp-sidebar-label">工作台</span>
           <nav aria-label="工作台示意">
             {[[Grid2X2, "画板库"], [Images, "素材库"], [Sparkles, "模版库"], [Lightbulb, "灵感"]].map(([Icon, label]) => {

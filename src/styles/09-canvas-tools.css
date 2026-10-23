@@ -167,22 +167,4 @@
   transform: translateY(-50%) scale(1.06);
 }
 
-.comic-plan-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.comic-plan-step { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 4px; color: hsl(var(--muted-foreground)); font-size: 9px; }
-.comic-plan-step::before { z-index: 1; width: 6px; height: 6px; border: 1px solid hsl(var(--border)); border-radius: 50%; background: hsl(var(--background)); content: ""; }
-.comic-plan-step:not(:first-child)::after { position: absolute; top: 3px; right: 50%; width: 100%; height: 1px; background: hsl(var(--border)); content: ""; }
-.comic-plan-step[data-complete="true"]::before { border-color: hsl(var(--muted-foreground)); background: hsl(var(--muted-foreground)); }
-.comic-plan-step[aria-current="step"] { color: hsl(var(--foreground)); font-weight: 650; }
-.comic-plan-step[aria-current="step"]::before { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); box-shadow: 0 0 0 2px hsl(var(--background)); }
 /* Provider-returned summaries stay separate from the assistant's answer. */
-.assistant-reasoning{margin:4px 0 10px;color:hsl(var(--muted-foreground));font-size:12px;max-width:100%}
-.assistant-reasoning summary{display:flex;align-items:center;gap:7px;min-height:30px;cursor:pointer;list-style:none;width:fit-content;border-radius:6px;padding:3px 5px}
-.assistant-reasoning summary::-webkit-details-marker{display:none}
-.assistant-reasoning summary:hover{background:hsl(var(--muted))}
-.assistant-reasoning summary:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
-.assistant-reasoning summary svg{height:14px;width:14px;flex:none}
-.assistant-reasoning-chevron{transition:transform 150ms}
-.assistant-reasoning[open] .assistant-reasoning-chevron{transform:rotate(180deg)}
-.assistant-reasoning-content{margin:5px 0 0 11px;padding:4px 12px;border-left:1px solid hsl(var(--border));max-height:200px;overflow:auto;scrollbar-width:thin;scrollbar-color:hsl(var(--border)) transparent}
-.assistant-reasoning-content p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
-@media(prefers-reduced-motion:reduce){.assistant-reasoning *{animation:none!important;transition:none!important}}

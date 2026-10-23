@@ -5,7 +5,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   {
-    ignores: ["**/dist/**", "**/dist-electron/**", "**/node_modules/**", "**/release/**", "**/output/**", "tmp/**", ".superpowers/**"]
+    ignores: ["**/dist/**", "**/dist-electron/**", "**/node_modules/**", "**/release/**", "**/output/**", "public/code-sandbox/**", "tmp/**", ".superpowers/**"]
   },
   js.configs.recommended,
   {
@@ -18,9 +18,11 @@ export default [
         console: "readonly",
         document: "readonly",
         window: "readonly",
+        URL: "readonly",
         URLSearchParams: "readonly",
         location: "readonly",
         localStorage: "readonly",
+        sessionStorage: "readonly",
         navigator: "readonly",
         getComputedStyle: "readonly",
         fetch: "readonly",

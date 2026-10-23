@@ -7,26 +7,22 @@ const homes: string[] = [];
 afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(homes.splice(0).map((p) => rm(p, { recursive: true, force: true }))); });
 async function fixture() {
   const home = await mkdtemp(path.join(os.tmpdir(), "iterlay-agent-")); homes.push(home);
-  const bundle = path.join(home, "bundle"); await mkdir(bundle); await writeFile(path.join(bundle, "SKILL.md"), "---\nname: iterlay-workspace\ndescription: CLI workflow\n---\nCLI v1");
-  const entry = path.join(home, "using-iterlay"); await mkdir(entry);
-  await writeFile(path.join(entry, "SKILL.md"), "---\nname: using-iterlay\ndescription: Explicit Iterlay entrypoint\ndisable-model-invocation: true\n---\nRead ../iterlay-workspace/SKILL.md");
-  await mkdir(path.join(entry, "agents"));
-  await writeFile(path.join(entry, "agents/openai.yaml"), "policy:\n  allow_implicit_invocation: false\n");
+  const bundle = path.join(home, "bundle"); await mkdir(bundle); await writeFile(path.join(bundle, "SKILL.md"), "---\nname: using-iterlay\ndescription: CLI workflow\n---\nCLI v1");
   vi.stubEnv("PATH", path.join(home, "empty-bin"));
   return { home, bundle, data: path.join(home, "data") };
 }
 describe("managed CLI Skills", () => {
-  it.each(["codex", "claude-code"] as const)("installs and removes both Skills for %s with explicit invocation policies intact", async (client) => {
+  it.each(["codex", "claude-code"] as const)("installs and removes the unified Skill for %s with explicit invocation policies intact", async (client) => {
     const f = await fixture();
-    const bundle = path.resolve("resources/skills/iterlay-workspace");
+    const bundle = path.resolve("resources/skills/using-iterlay");
     await installAgentSkill(client, f.home, bundle);
     const root = path.join(f.home, client === "codex" ? ".codex" : ".claude", "skills");
     expect(await readFile(path.join(root, "using-iterlay/SKILL.md"), "utf8")).toContain("disable-model-invocation: true");
     expect(await readFile(path.join(root, "using-iterlay/agents/openai.yaml"), "utf8")).toContain("allow_implicit_invocation: false");
-    expect(await readFile(path.join(root, "iterlay-workspace/references/cli.md"), "utf8")).toBe(await readFile(path.join(bundle, "references/cli.md"), "utf8"));
+    expect(await readFile(path.join(root, "using-iterlay/references/cli.md"), "utf8")).toBe(await readFile(path.join(bundle, "references/cli.md"), "utf8"));
     expect((await getAgentIntegrationStatus(f.home)).clients.find((c) => c.id === client)?.skillInstalled).toBe(true);
     await uninstallAgentSkill(client, f.home);
-    for (const name of ["iterlay-workspace", "using-iterlay"]) {
+    for (const name of ["using-iterlay"]) {
       await expect(readFile(path.join(root, name, "SKILL.md"))).rejects.toMatchObject({ code: "ENOENT" });
     }
   });
@@ -44,20 +40,30 @@ describe("managed CLI Skills", () => {
     await setSkillAutoInstallDeclined(f.data, "claude-code", false);
     await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data });
     expect(await readFile(path.join(entry, "SKILL.md"), "utf8")).toContain("name: using-iterlay");
-    await writeFile(path.join(f.home, "using-iterlay/SKILL.md"), "---\nname: using-iterlay\n---\nUpdated entrypoint");
+    await writeFile(path.join(f.bundle, "SKILL.md"), "---\nname: using-iterlay\n---\nUpdated entrypoint");
     const result = await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data });
     expect(result.skillUpgrades).toContainEqual(expect.objectContaining({ skillPath: entry, files: expect.objectContaining({ updated: ["SKILL.md"] }) }));
     expect(await readFile(path.join(entry, "SKILL.md"), "utf8")).toContain("Updated entrypoint");
   });
-  it("protects a user-maintained entrypoint before installing or removing either Skill", async () => {
+  it("protects a user-maintained entrypoint during installation and removal", async () => {
     const f = await fixture();
     const root = path.join(f.home, ".claude/skills");
     const entry = path.join(root, "using-iterlay"); await mkdir(entry, { recursive: true });
     await writeFile(path.join(entry, "SKILL.md"), "custom entrypoint");
     await expect(installAgentSkill("claude-code", f.home, f.bundle)).rejects.toThrow("自行维护");
-    await expect(readFile(path.join(root, "iterlay-workspace/SKILL.md"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(uninstallAgentSkill("claude-code", f.home)).rejects.toThrow("未由 Iterlay 管理");
     expect(await readFile(path.join(entry, "SKILL.md"), "utf8")).toBe("custom entrypoint");
+  });
+  it.each([true, false])("retires only managed legacy workspace copies (managed=%s)", async (managed) => {
+    const f = await fixture();
+    const legacy = path.join(f.home, ".claude/skills/iterlay-workspace");
+    await mkdir(legacy, { recursive: true });
+    await writeFile(path.join(legacy, "SKILL.md"), "custom or old workspace");
+    if (managed) await writeFile(path.join(legacy, ".iterlay-managed.json"), JSON.stringify({ schemaVersion: 1, bundleDigest: "old" }));
+    await installAgentSkill("claude-code", f.home, f.bundle);
+    expect(await readFile(path.join(f.home, ".claude/skills/using-iterlay/SKILL.md"), "utf8")).toContain("CLI v1");
+    if (managed) await expect(readFile(path.join(legacy, "SKILL.md"))).rejects.toMatchObject({ code: "ENOENT" });
+    else expect(await readFile(path.join(legacy, "SKILL.md"), "utf8")).toBe("custom or old workspace");
   });
   it("does not treat its own installed Skill directory as evidence of an installed Agent", async () => {
     const f = await fixture(); await installAgentSkill("claude-code", f.home, f.bundle);
@@ -68,12 +74,12 @@ describe("managed CLI Skills", () => {
     const f = await fixture(); const bin = path.join(f.home, ".local/bin"); await mkdir(bin, { recursive: true });
     await writeFile(path.join(bin, "claude"), "#!/bin/sh\nexit 0\n"); await chmod(path.join(bin, "claude"), 0o755);
     await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data });
-    await writeFile(path.join(f.bundle, "SKILL.md"), "---\nname: iterlay-workspace\ndescription: CLI workflow\n---\nCLI v2");
+    await writeFile(path.join(f.bundle, "SKILL.md"), "---\nname: using-iterlay\ndescription: CLI workflow\n---\nCLI v2");
     const upgraded = await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data });
     expect(upgraded.skillUpgrades?.[0].files.updated).toContain("SKILL.md");
     await setSkillAutoInstallDeclined(f.data, "claude-code", true);
     await writeFile(path.join(f.bundle, "SKILL.md"), "CLI v3");
     await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data });
-    expect(await readFile(path.join(f.home, ".claude/skills/iterlay-workspace/SKILL.md"), "utf8")).toContain("CLI v2");
+    expect(await readFile(path.join(f.home, ".claude/skills/using-iterlay/SKILL.md"), "utf8")).toContain("CLI v2");
   });
 });

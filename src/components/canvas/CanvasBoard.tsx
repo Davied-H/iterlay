@@ -1,3 +1,4 @@
+import { Code2 } from "lucide-react";
 import { CanvasToolHint, CanvasToolHintProvider, CANVAS_TOOL_HINTS } from "./CanvasToolHint";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
@@ -261,10 +262,12 @@ interface CanvasBoardProps {
   comicDramaBoard?: boolean;
   onOpenComicDramaProject?: (node: BoardComicDramaEntryNode, origin?: BoardEnterOrigin) => void;
   onCreateWorkflowNode?: (
-    type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
+    type: "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
     position: CanvasDropPoint,
     initial?: {
       text?: string;
+      code?: string;
+      framework?: "html" | "react" | "vue";
       prompt?: string;
       model?: string;
       size?: string;
@@ -837,7 +840,7 @@ export function CanvasBoard({
     commentMode: Boolean(commentMode),
     allowedCreateTypes: comicDramaBoard
       ? ["textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"]
-      : ["textNode", "generationNode", "videoGenerationNode"],
+      : ["codeCanvasNode", "textNode", "generationNode", "videoGenerationNode"],
     getNodes: getCanvasNodes,
     getCanvasBounds,
     screenToFlowPosition,
@@ -956,6 +959,7 @@ export function CanvasBoard({
       ...nodeBindingHandlers.layout,
       ...nodeBindingHandlers.connection
     }),
+    canvasData: (node) => ({ ...node, onChange: (id: string, patch: Partial<CanvasWorkflowNode>) => { recordCanvasChange(); onUpdateWorkflowNode?.(id, patch); } }),
     textData: (workflowNode, context) => ({
       text: workflowNode.text,
       title: workflowNode.title,
@@ -1389,7 +1393,7 @@ export function CanvasBoard({
     onSwitchVersion,
     onViewImageDetails
   ]);
-  const createWorkflowNode = useCallback((type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script"): void => {
+  const createWorkflowNode = useCallback((type: "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script"): void => {
     const rect = canvasContainerRef.current?.getBoundingClientRect();
     if (!rect) return;
     recordCanvasChange();
@@ -1406,7 +1410,9 @@ export function CanvasBoard({
       x: (comicNodeCount % 4) * 28,
       y: (comicNodeCount % 4) * 24
     };
-    const position = type === "video-generation"
+    const position = type === "canvas"
+      ? { x: viewportCenter.x - 340, y: viewportCenter.y - 250 }
+      : type === "video-generation"
       ? centerNodeAtDrop(
           viewportCenter,
           VIDEO_GENERATION_NODE_WIDTH,
@@ -1600,6 +1606,7 @@ export function CanvasBoard({
         {onCreateWorkflowNode && !comicDramaBoard ?
           <CanvasToolHint kind="text"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.text.aria} aria-label={uiText("添加文本")} onClick={() => createWorkflowNode("text")}><Type /></button></CanvasToolHint>
         : null}
+        {onCreateWorkflowNode && !comicDramaBoard ? <CanvasToolHint kind="canvas"><button type="button" aria-label={uiText("添加 Canvas")} onClick={() => createWorkflowNode("canvas")}><Code2 /></button></CanvasToolHint> : null}
         <CanvasToolHint kind="fit"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.fit.aria} aria-label={uiText("适应画布")} onClick={viewportController.fitAll}><Maximize /></button></CanvasToolHint>
         {onCreateWorkflowNode && onStartComicDrama ? <details><CanvasToolHint kind="more"><summary aria-label={uiText("更多画布工具")}><MoreHorizontal /></summary></CanvasToolHint><div>
           <button type="button" onClick={startComicDrama}><Clapperboard />{comicDramaBoard ? uiText("打开漫剧设定") : uiText("新建漫剧项目")}</button>

@@ -1,10 +1,10 @@
 import { createRoot } from "react-dom/client";
 import type { BoardSummary, CollaborateSceneRequest, CollaborateSceneResult } from "@shared/types";
 import {
-  CreateChatPage,
-  type CreateChatGenerationPlan,
-  type CreateChatResult
-} from "@/components/workbench/CreateChatPage";
+  CreationAssistantPage,
+  type CreationAssistantGenerationPlan,
+  type CreationAssistantResult
+} from "@/components/workbench/CreationAssistantPage";
 import "@/styles.css";
 
 const now = new Date().toISOString();
@@ -45,8 +45,8 @@ Object.defineProperty(globalThis, "imageWorkbench", {
 });
 
 async function createPreviewResult(
-  plan: CreateChatGenerationPlan
-): Promise<CreateChatResult> {
+  plan: CreationAssistantGenerationPlan
+): Promise<CreationAssistantResult> {
   await new Promise((resolve) => window.setTimeout(resolve, generationDelay));
   if (plan.prompt.includes("测试失败")) throw new Error("图片服务暂时无法连接。请稍后重试，你的创作方案已保留。");
   const target = boards.find((board) => board.id === plan.targetBoardId);
@@ -109,7 +109,7 @@ async function interpretPreview(
 
 createRoot(document.getElementById("root")!).render(
   <main className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-    <CreateChatPage
+    <CreationAssistantPage
       boards={boards}
       activeBoardId="brand"
       onInterpret={interpretPreview}

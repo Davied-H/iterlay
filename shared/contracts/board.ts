@@ -85,6 +85,16 @@ export interface BoardTextNode extends BoardNodeBase {
   heightMode?: "auto" | "manual";
 }
 
+export const CANVAS_EDITOR_FLUSH_EVENT = "iterlay:canvas-editor:flush";
+export type CanvasFramework = "html" | "react" | "vue";
+export interface BoardCanvasNode extends BoardNodeBase {
+  type: "canvas";
+  previewWidth?: number;
+  previewHeight?: number;
+  framework: CanvasFramework;
+  code: string;
+}
+
 export type BoardGenerationStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
 
 export interface BoardVideoVersion {
@@ -163,6 +173,7 @@ export interface BoardGenerationNode extends BoardNodeBase {
 export type BoardNode =
   | BoardNodeSnapshot
   | BoardTextNode
+  | BoardCanvasNode
   | BoardGenerationNode
   | BoardVideoNode
   | BoardVideoGenerationNode
@@ -173,6 +184,7 @@ export type BoardNode =
 /** Omit 对联合类型不分发，追加节点 API 使用显式联合保持各节点字段推断。 */
 export type UnpositionedBoardNode =
   | Omit<BoardNodeSnapshot, "x" | "y">
+  | Omit<BoardCanvasNode, "x" | "y">
   | Omit<BoardTextNode, "x" | "y">
   | Omit<BoardGenerationNode, "x" | "y">
   | Omit<BoardVideoNode, "x" | "y">
@@ -213,6 +225,12 @@ export function normalizeBoardNode(value: unknown): BoardNode | null {
   }
   if (node.type === "comic-drama-entry") return normalizeComicDramaEntryNode(value);
   if (node.type === "video-sequence-entry") return normalizeVideoSequenceEntryNode(value);
+  if (node.type === "canvas") {
+    if (!["html", "react", "vue"].includes(String(node.framework)) || typeof node.code !== "string" || node.code.length > 100_000) return null;
+    const validDimension = (value: unknown) => value === undefined || (typeof value === "number" && Number.isInteger(value) && value >= 240 && value <= 3840);
+    if (!validDimension(node.previewWidth) || !validDimension(node.previewHeight)) return null;
+    return { ...node, type: "canvas" } as BoardCanvasNode;
+  }
   if (node.type === "text") {
     if (typeof node.text !== "string") return null;
     return { ...node, type: "text", text: node.text } as BoardTextNode;
@@ -434,4 +452,14 @@ export interface ComicDramaProjectCreateResult {
   parentBoard: BoardData;
   childBoard: BoardData;
   entryNode: BoardComicDramaEntryNode;
+}
+
+/** Atomic Canvas mutation; expectedCode prevents overwriting a concurrent manual edit. */
+export interface CanvasNodeWriteInput {
+  boardId: string;
+  nodeId?: string;
+  framework: CanvasFramework;
+  code: string;
+  title?: string;
+  expectedCode?: string;
 }

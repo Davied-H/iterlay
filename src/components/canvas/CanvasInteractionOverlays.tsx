@@ -13,6 +13,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
+  Code2,
   ChevronsLeft,
   ChevronsRight,
   CopyPlus,
@@ -47,6 +48,7 @@ export interface CanvasCreateNodeItem {
 
 const BUILTIN_CREATE_ITEMS: Readonly<Record<string, Omit<CanvasCreateNodeItem, "type">>> = {
   imageNode: { label: "图片", description: "导入或承载画布图片", icon: ImageIcon },
+  codeCanvasNode: { label: "Canvas", description: "运行 HTML、React 或 Vue 代码", icon: Code2 },
   textNode: { label: "文本", description: "编写提示词、说明或备注", icon: Type },
   generationNode: { label: "图片生成", description: "组合上游输入并运行生成", icon: ImageIcon },
   videoNode: { label: "视频", description: "播放或承载画布视频", icon: Video },

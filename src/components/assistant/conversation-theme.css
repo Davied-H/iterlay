@@ -1,0 +1,34 @@
+/* One visual foundation for workbench conversations and canvas assistants. */
+:where(
+  .create-chat,
+  .create-chat-workspace,
+  .creation-assistant-sidebar,
+  .prompt-fusion,
+  .assistant-confirmation,
+  .assistant-permission-card,
+  .assistant-panel-shell
+) {
+  --chat-surface: #fff;
+  --chat-subtle: #f4f4f4;
+  --chat-hover: #ececec;
+  --chat-ink: #0d0d0d;
+  --chat-secondary: #676767;
+  --chat-border: #e5e5e5;
+}
+.dark
+  :where(
+    .create-chat,
+    .create-chat-workspace,
+    .creation-assistant-sidebar,
+    .prompt-fusion,
+    .assistant-confirmation,
+    .assistant-permission-card,
+  .assistant-panel-shell
+  ) {
+  --chat-surface: #212121;
+  --chat-subtle: #2f2f2f;
+  --chat-hover: #3b3b3b;
+  --chat-ink: #ececec;
+  --chat-secondary: #b4b4b4;
+  --chat-border: #424242;
+}

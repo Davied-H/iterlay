@@ -1,3 +1,4 @@
+import { AssistantPermissionsSettings } from "./AssistantPermissionsSettings";
 import { PiAgentLogPanel } from "@/components/workbench/PiAgentLogPanel";
 import { useUiText } from "@/i18n";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
@@ -19,7 +20,7 @@ import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-work
 import { SettingsGroup, SettingsPageHeader, SettingsRow } from "./SettingsPrimitives";
 import "./pi-agent-settings.css";
 
-type PiAgentPanelTab = "overview" | "tools" | "assistant-skills" | "skills" | "extensions" | "logs";
+type PiAgentPanelTab = "permissions" | "overview" | "tools" | "assistant-skills" | "skills" | "extensions" | "logs";
 
 interface PiAgentCatalogItem {
   id: string;
@@ -61,8 +62,10 @@ export function PiAgentSettingsPanel({
   onWebSearchMaxResultsChange,
   onRefresh,
   onEditAssistantSkill,
-  navigation
+  navigation,
+  initialTab
 }: {
+  initialTab?: "permissions";
   navigation?: ReactNode;
   available: boolean;
   enabled: boolean;
@@ -94,7 +97,7 @@ export function PiAgentSettingsPanel({
   const uiText = useUiText();
   const modeId = useId();
 
-  const [tab, setTab] = useState<PiAgentPanelTab>("overview");
+  const [tab, setTab] = useState<PiAgentPanelTab>(initialTab ?? "overview");
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<"all" | PiAgentResourceEntry["source"]>("all");
   const [status, setStatus] = useState<"all" | "enabled" | "disabled">("all");
@@ -295,6 +298,7 @@ export function PiAgentSettingsPanel({
         <nav className="pi-resource-tabs" aria-label={uiText("助手能力分类")}>
           {([
             ["overview", "使用说明", ""],
+            ["permissions", "权限", ""],
             ["tools", "可执行操作", inventory ? String(inventory.builtinTools.length + inventory.iterlayTools.length) : "—"],
             ["assistant-skills", "创作指南", String(assistantSkills.length)],
             ["skills", "自定义指南", inventory ? String(inventory.skills.length) : "—"],
@@ -313,14 +317,14 @@ export function PiAgentSettingsPanel({
           ))}
         </nav>
 
-        {tab !== "overview" ? <p className="pi-resource-intro">{uiText(tab === "tools"
+        {tab !== "overview" && tab !== "permissions" ? <p className="pi-resource-intro">{uiText(tab === "tools"
           ? "选择助手可以执行的操作，关闭的操作不会被调用。"
           : tab === "assistant-skills" ? "内置的创作指南，为不同任务提供合适的提示词和工作步骤。"
           : tab === "skills" ? "加载你自己的操作指南（Skill）。一般使用无需修改。"
           : tab === "extensions" ? "添加额外的本地功能。一般使用无需安装扩展。"
           : "查看助手实际执行的操作和处理结果。")}</p> : null}
         <div className="pi-resource-grid">
-        {tab === "logs" ? <div className="col-span-full overflow-y-auto p-6"><PiAgentLogPanel /></div> : tab === "overview" ? (
+        {tab === "permissions" ? <AssistantPermissionsSettings /> : tab === "logs" ? <div className="col-span-full overflow-y-auto p-6"><PiAgentLogPanel /></div> : tab === "overview" ? (
           <PiAgentOverview
             available={available}
             enabled={enabled}

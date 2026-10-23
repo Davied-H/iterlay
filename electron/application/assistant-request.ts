@@ -198,6 +198,7 @@ export function validateSceneCollaborationRequest(input: unknown): CollaborateSc
     ...(request.assistantScenario === "ui-design" || request.assistantScenario === "video"
       ? { assistantScenario: request.assistantScenario }
       : {}),
+    ...(request.creationWorkflow === true ? { creationWorkflow: true } : {}),
     workflowMode: request.workflowMode,
     ...(typeof request.useCase === "string" ? { useCase: request.useCase as CollaborateSceneRequest["useCase"] } : {}),
     ...(typeof request.textProviderId === "string" && request.textProviderId.trim()

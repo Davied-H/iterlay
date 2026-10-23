@@ -109,7 +109,7 @@ export function buildPromptAssistantGreeting(
     if (options.templateName) {
       return `You have selected the “${options.templateName}” template. Tell me the subject or occasion, and I’ll help turn it into a fitting result while keeping the template’s visual direction.`;
     }
-    return "Tell me what you want to create. I’ll turn your idea into a ready-to-use prompt and help you refine it along the way.";
+    return "Tell me what you want to create. I’ll use the board context to explore ideas with you and move the work forward.";
   }
   const referenceNote = options.referenceCount > 0
     ? `，并注意到你已经选择了 ${options.referenceCount} 张参考图`
@@ -126,7 +126,7 @@ export function buildPromptAssistantGreeting(
   if (options.templateName) {
     return `你已选中「${options.templateName}」模板。告诉我想呈现的人物、主题或使用场景，我会保留模板的视觉方向，并推荐适合生成的内容。`;
   }
-  return "告诉我你想生成什么画面，我会把想法整理成可直接使用的提示词，并随时帮你继续修改。";
+  return "说说你想完成的作品，我会结合画板内容，一起梳理方向并推进创作。";
 }
 
 export function sceneAssistantFieldsToPrompt(fields: SceneAssistantField[]): string {

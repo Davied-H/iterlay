@@ -284,7 +284,7 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
     <GenerationDialog open={dialog === "generate-batch" || dialog === "generate-segment"} sequence={props.sequence} segments={dialog === "generate-segment" && selectedSegment ? [selectedSegment] : targets} credits={props.credits} busy={busy} onClose={() => setDialog(null)} onConfirm={() => run(() => dialog === "generate-segment" && selectedSegment ? props.onGenerateSegment(selectedSegment.id) : props.onGenerateBatch(targets.map((item) => item.id)))} />
     <TemplateDialog open={dialog === "template"} templates={props.templates ?? []} busy={busy} onClose={() => setDialog(null)} onSave={(name) => run(() => props.onSaveTemplate(name))} onApply={(id) => run(() => props.onApplyTemplate(id))} />
     <ExportDialog open={dialog === "export"} sequence={props.sequence} hasStale={segments.some(segmentNeedsGeneration)} busy={busy} onClose={() => setDialog(null)} onConfirm={(options) => run(() => props.onExport(options))} />
-    {assistantOpen ? <aside className="vse-assistant">
+    {assistantOpen ? <aside className="vse-assistant assistant-panel-shell">
       <AiAssistant
         variant="docked"
         title={uiText("视频助手")}

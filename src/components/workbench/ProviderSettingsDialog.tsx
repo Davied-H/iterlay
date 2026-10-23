@@ -218,7 +218,7 @@ export function ProviderSettingsDialog({
     }
     if (dialogOpenRef.current) return;
     dialogOpenRef.current = true;
-    setSection(entryPoint === "coding-agent" ? "agent" : entryPoint === "default" ? "board" : "provider");
+    setSection(entryPoint === "assistant-permissions" ? "pi-agent" : entryPoint === "coding-agent" ? "agent" : entryPoint === "default" ? "board" : "provider");
     setDirectoryDraft(downloadDirectory);
     setDirectoryError(null);
     setCacheClearResult(null);
@@ -575,6 +575,8 @@ export function ProviderSettingsDialog({
                   )}>
                   {section === "pi-agent" ? (
                   <PiAgentSettingsPanel
+                  key={entryPoint}
+                  initialTab={entryPoint === "assistant-permissions" ? "permissions" : undefined}
                     available={boardAssistantAgentModeAvailable}
                     enabled={boardAssistantAgentModeEnabled}
                     model={boardAssistantAgentModeModel}

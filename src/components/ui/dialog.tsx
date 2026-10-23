@@ -19,7 +19,7 @@ export const DialogOverlay = React.forwardRef<
       // Full-viewport backdrop filters flash in tiled regions on some Electron/macOS GPUs
       // while a dialog's scrollable content is being rasterized. A denser flat scrim keeps
       // the same hierarchy without forcing the whole workspace to recompose every frame.
-      "fixed inset-0 z-50 bg-background/85 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 motion-reduce:!animate-none",
+      "fixed inset-0 z-50 bg-background/85 [-webkit-app-region:no-drag] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 motion-reduce:!animate-none",
       className
     )}
     {...props}
@@ -43,6 +43,8 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
+        // Electron drag regions can intercept clicks even through a visually higher portal.
+        "[-webkit-app-region:no-drag]",
         // Centered scale-up entrance. The slide-in/out-from 1/2 classes keep the animation's
         // start/end frames centered — without them the keyframe transform drops the static
         // -translate-x/y-1/2 and the dialog flies in from the bottom-right.
@@ -55,7 +57,7 @@ export const DialogContent = React.forwardRef<
       {hideClose ? null : (
         <DialogPrimitive.Close
           className={cn(
-            "absolute right-4 top-4 rounded-md p-1 text-muted-foreground opacity-80 transition-opacity hover:bg-accent hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
+            "absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-md p-1 text-muted-foreground opacity-80 transition-opacity hover:bg-accent hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none [-webkit-app-region:no-drag]",
             closeClassName
           )}
         >

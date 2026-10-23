@@ -14,6 +14,7 @@ import {
   GenerationNode,
   type GenerationNodeData
 } from "./GenerationNode";
+import { CodeCanvasNode } from "../code-canvas/CodeCanvasNode";
 import { TextNode } from "./TextNode";
 import { VideoNode, type GeneratedVideo, type VideoNodeData } from "./VideoNode";
 import { VideoGenerationNode, type VideoGenerationNodeData } from "./VideoGenerationNode";
@@ -280,6 +281,7 @@ const unknownNodeDefinition: CanvasNodeDefinition = {
 };
 
 const definitions = new Map<string, CanvasNodeDefinition>([
+  ["codeCanvasNode", { type: "codeCanvasNode", renderer: CodeCanvasNode, defaultWidth: 680, minWidth: 680, defaultHeight: 500, defaultData: {}, minimapColor: "#64748b", resource: () => null, accepts: [], ports: [], getResource: () => null }],
   [imageNodeDefinition.type, imageNodeDefinition],
   [textNodeDefinition.type, textNodeDefinition],
   [generationNodeDefinition.type, generationNodeDefinition],

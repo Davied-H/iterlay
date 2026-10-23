@@ -551,6 +551,7 @@ describe("Sub2ApiImageProvider", () => {
               label: "投放渠道",
               type: "select",
               multiple: true,
+              allowSupplement: false,
               options: [
                 { label: "电商", value: "电商" },
                 { label: "社媒", value: "社媒" }
@@ -584,6 +585,7 @@ describe("Sub2ApiImageProvider", () => {
           label: "投放渠道",
           type: "select",
           multiple: true,
+          allowSupplement: false,
           options: [
             { label: "电商", value: "电商" },
             { label: "社媒", value: "社媒" }

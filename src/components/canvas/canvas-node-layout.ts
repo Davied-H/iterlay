@@ -64,6 +64,7 @@ const UNKNOWN_LAYOUT: CanvasNodeLayoutDefinition = {
 };
 
 export function getCanvasNodeLayoutDefinition(type: string | undefined): CanvasNodeLayoutDefinition {
+  if (type === "codeCanvasNode") return { defaultWidth: 680, minWidth: 680, defaultHeight: 500 };
   if (type === "imageNode") return IMAGE_LAYOUT;
   if (type === "textNode") {
     return { defaultWidth: TEXT_NODE_WIDTH, minWidth: TEXT_NODE_MIN_WIDTH, defaultHeight: TEXT_NODE_HEIGHT };

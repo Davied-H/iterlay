@@ -1781,7 +1781,7 @@ export function SceneCreator({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 shrink-0 gap-1.5 px-2 text-xs text-[#686865] hover:bg-[#e8e8e4] hover:text-[#242422] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
+                    className="create-chat-icon-button h-8 w-auto gap-1.5 px-2 text-xs"
                     aria-label={uiText("选择提供给 AI 助手的模板示例，已选 {{ui:0}} 张", [assistantExampleReferences.length])}
                     onClick={() => setAssistantExamplesOpen(true)}
                   >

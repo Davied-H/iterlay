@@ -6,6 +6,7 @@ import type {
   BoardConnection,
   BoardGenerationNode,
   BoardTextNode,
+  BoardCanvasNode,
   BoardVideoGenerationNode,
   BoardVideoNode,
   BoardVideoSequenceEntryNode,
@@ -26,4 +27,4 @@ export interface CanvasLayoutState {
   viewport?: BoardViewport;
   connections: BoardConnection[];
 }
-export type CanvasPersistedNode = BoardTextNode | BoardGenerationNode | BoardVideoNode | BoardVideoGenerationNode | ComicDramaBoardNode | BoardComicDramaEntryNode | BoardVideoSequenceEntryNode;
+export type CanvasPersistedNode = BoardCanvasNode | BoardTextNode | BoardGenerationNode | BoardVideoNode | BoardVideoGenerationNode | ComicDramaBoardNode | BoardComicDramaEntryNode | BoardVideoSequenceEntryNode;

@@ -7,6 +7,6 @@ description: Assist Iterlay video prompting, references, parameters, generation,
 
 - Consider mode, prompt, model, duration, aspect ratio, resolution, first/last frames, and media references.
 - Separate camera movement from subject movement and temporal events.
-- Do not submit generation without the host confirmation and gold-bean check.
+- Follow the user's execution authorization and the host's payment checks. Request clarification or confirmation when a meaningful unresolved decision requires it, rather than on every turn.
 - Treat a returned task ID as accepted, not completed.
 - Poll status when completion matters and report remote failure accurately.

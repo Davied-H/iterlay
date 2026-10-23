@@ -52,8 +52,18 @@ fal / OpenRouter 视频可用 `--connection-provider <同类型图片服务ID>` 
 
 `iterlay guard descriptor` 可离线输出随包携带的 HOL Guard 命令描述；它不会安装 Guard 或改变 Agent 权限。生成/编辑、文件导出、配置安装与通用调用按影响分类，最终决策仍受 Guard 全局策略控制。参见 [说明](../docs/guard.md)。
 
-Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `iterlay-workspace` 和 `using-iterlay` 两份 Skill，或运行 `npx iterlay add --agent codex` / `--agent claude-code`。`using-iterlay` 仅供手动调用：在 Claude Code 中输入 `/using-iterlay`，在 Codex 中输入 `$using-iterlay`。迁移会移除该 Agent 原来的 Iterlay MCP 条目，保留其他服务。此版本不再提供 MCP server。
+Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `using-iterlay` Skill，或运行 `npx iterlay add --agent codex` / `--agent claude-code`。`using-iterlay` 仅供手动调用：在 Claude Code 中输入 `/using-iterlay`，在 Codex 中输入 `$using-iterlay`。迁移会移除该 Agent 原来的 Iterlay MCP 条目，保留其他服务。此版本不再提供 MCP server。
 
 指定 `--user-data-path` 或 `ITERLAY_USER_DATA_PATH` 时只连接指定工作区，不自动启动另一个工作区。生成默认等待，`--async` 提交即返回；结束等待不会取消远端任务。导出失败后可重试导出，不必重新生成。
 
 开发：`npm ci && npm run build`。发布前自动同步 App 的 Skill，版本保持一致。
+
+### 本地切图
+
+```sh
+iterlay image slice --path <受管图片路径> --board <画板ID> --rows 3 --columns 4 --out ./avatars --json
+iterlay image slice --input ./sheet.png --rows 3 --columns 4 --margin 12 --gap 8 --json
+iterlay image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":20,"width":300,"height":300}]' --json
+```
+
+复用 App 本地切图，不调用模型；保留原图，切片保存为受管 PNG 并加入画板。源参数三选一，宫格与 crops 互斥；每轴最多 8 格、最多 64 个区域。坐标、边距和间距均为原图像素；不自动去底、识别主体或统一输出尺寸。返回 images、crops、nodeIds 和可选 exportedPaths；--out 为目录，已有文件默认不覆盖。高级入口为 `iterlay call slice_image --input '<JSON>' --json`，精确 schema 见 tools list。

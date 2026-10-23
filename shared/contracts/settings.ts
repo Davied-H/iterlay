@@ -114,6 +114,8 @@ export interface AppSettings {
   piAgentMaxTurns?: number;
   /** 单次 Web 搜索默认允许返回的最大结果数。 */
   piAgentWebSearchMaxResults?: number;
+  /** 屏幕截图访问由宿主授权，默认每次询问。 */
+  assistantScreenAccess?: import("../screen-access.js").ScreenAccessPolicy;
   /** 是否在输入文字或添加引用后自动感知并解析上下文，默认开启。 */
   boardAssistantAwarenessEnabled?: boolean;
   /** 是否在画板 AI 助手中生成后续问题推荐，默认开启。 */

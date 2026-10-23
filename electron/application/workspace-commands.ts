@@ -1,3 +1,6 @@
+import { calculateSliceGrid, validateCropRect, MAX_SLICE_COUNT } from "../../shared/image-slicing.js";
+import { imageDimensionsFromHeader } from "../media/image-metadata.js";
+import type { ImageCropRect } from "../../shared/types.js";
 import { createHash } from "node:crypto";
 import { readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -52,7 +55,8 @@ export class WorkspaceCommands {
   private defaultBoardResolution?: Promise<string>;
   constructor(private readonly dependencies: CommandDependencies) {}
   async call(method: string, a: Record<string, unknown>): Promise<unknown> {
-    const { api, emit } = this.dependencies;
+    const { api } = this.dependencies;
+    const emit = (event: WorkbenchEvent) => this.dependencies.emit({ ...event, ...(a.preserveView === true ? { preserveView: true } : {}) });
     const boardId = string(a.boardId);
     const nodeId = string(a.nodeId);
     const mutate = async (action: () => Promise<unknown>, detail: Record<string, unknown> = {}) => {
@@ -101,8 +105,15 @@ export class WorkspaceCommands {
         const request=await api.getModificationRequest(string(a.requestId));
         return mutate(()=>api.finishModificationRequest({id:request.id,claimToken:string(a.claimToken),resultJobId:string(a.resultJobId)||undefined,resultPaths:strings(a.resultPaths),error:string(a.error)||undefined}),{boardId:request.boardId});
       }
+      case "create_canvas": case "update_canvas": {
+        if (!boardId) throw new Error("请指定目标画板。");
+        if (method === "update_canvas" && (!nodeId || typeof a.expectedCode !== "string")) throw new Error("修改 Canvas 前请读取当前代码。");
+        return mutate(() => api.writeCanvasNode({ boardId, ...(method === "update_canvas" ? { nodeId, expectedCode: string(a.expectedCode) } : {}),
+          framework: choice(a.framework, ["html", "react", "vue"] as const, "html"), code: string(a.code),
+          ...(a.title === undefined ? {} : { title: string(a.title) }) }));
+      }
       case "list_boards": return api.listBoards();
-      case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId) };
+      case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId, a.preserveView === true) };
       case "get_active_board": {
         const state = await api.getBoardsState();
         return state.lastOpenedBoardId ? api.getBoard(state.lastOpenedBoardId) : null;
@@ -155,6 +166,39 @@ export class WorkspaceCommands {
         return board;
       }
       case "list_assets": return api.listAssets(undefined, number(a.limit, 40));
+      case "slice_image": return mutate(async () => {
+        const board = await api.getBoard(boardId);
+        if (!board) throw new Error("画板不存在。");
+        const source = nodeId ? board.nodes.find((n) => n.id === nodeId && isBoardImageNode(n)) : undefined;
+        if (nodeId && !source) throw new Error("源图片节点不存在。");
+        const sourcePath = string(a.sourcePath) || (source && isBoardImageNode(source) ? source.imagePath : "");
+        if (!sourcePath) throw new Error("缺少受管源图片路径或节点 ID。");
+        if (source && isBoardImageNode(source) && sourcePath !== source.imagePath) throw new Error("源路径与节点不一致。");
+        const dataUrl = await api.readAssetDataUrl(sourcePath);
+        const size = imageDimensionsFromHeader(Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64"));
+        if (!size) throw new Error("无法读取源图片尺寸。");
+        if (a.crops !== undefined && [a.rows, a.columns, a.margin, a.gap].some((v) => v !== undefined)) throw new Error("裁切区域与宫格参数不能同时使用。");
+        let crops: ImageCropRect[];
+        if (a.crops !== undefined) {
+          if (!Array.isArray(a.crops) || !a.crops.length || a.crops.length > MAX_SLICE_COUNT) throw new Error("裁切区域数量无效。");
+          crops = a.crops.map((value: unknown) => {
+            if (!value || typeof value !== "object") throw new Error("裁切区域无效。");
+            const rect = value as Record<string, unknown>;
+            return { x: number(rect.x), y: number(rect.y), width: number(rect.width), height: number(rect.height) };
+          });
+        } else crops = calculateSliceGrid({ ...size, rows: number(a.rows), columns: number(a.columns), margin: number(a.margin, 0), gap: number(a.gap, 0) });
+        crops.forEach((crop) => validateCropRect(crop, size.width, size.height));
+        const images = await api.sliceImage({ sourcePath, crops });
+        if (images.length !== crops.length) throw new Error("切图结果数量不完整。");
+        const sourceNode = source ?? board.nodes.find((n) => isBoardImageNode(n) && n.imagePath === sourcePath);
+        const nodeIds = images.map(() => crypto.randomUUID());
+        await api.appendBoardNodes(boardId, images.map((image, index) => ({
+          id: nodeIds[index], imagePath: image.path, width: image.width, height: image.height,
+          jobId: "slice-" + nodeIds[index], source: "slice" as const,
+          ...(sourceNode ? { derivation: { sourceNodeId: sourceNode.id, sourceImagePath: sourcePath, crop: crops[index] } } : {})
+        })));
+        return { boardId, sourcePath, nodeIds, images, crops };
+      });
       case "export_assets": return api.saveAssetsAsZip(strings(a.paths));
       case "open_iterlay": return true;
       case "import_image": return mutate(async () => {
@@ -173,7 +217,7 @@ export class WorkspaceCommands {
       case "generate_image": case "edit_image": return this.startGeneration(a, method === "edit_image");
       case "get_generation_status": return this.generationStatus(string(a.generationId));
       case "generate_video": {
-        const targetBoardId = await this.resolveGenerationBoard(boardId);
+        const targetBoardId = await this.resolveGenerationBoard(boardId, a.preserveView === true);
         const input: VideoGenerationInput = {
           mode: choice(a.mode, ["generate", "remix", "extend"] as const, "generate"),
           prompt: string(a.prompt), model: string(a.model), aspectRatio: string(a.aspectRatio, "16:9"),
@@ -208,7 +252,7 @@ export class WorkspaceCommands {
   }
 
   /** Resolve once in the App so CLI and raw workspace calls share the same destination. */
-  private async resolveGenerationBoard(explicitBoardId: string): Promise<string> {
+  private async resolveGenerationBoard(explicitBoardId: string, preserveView = false): Promise<string> {
     const { api, emit } = this.dependencies;
     const configured = explicitBoardId || (await api.getSettings()).cliDefaultBoardId;
     if (configured) {
@@ -223,7 +267,7 @@ export class WorkspaceCommands {
       const existing = (await api.listBoards()).find((board) => board.name === "CLI 创作");
       if (existing) return existing.id;
       const board = await api.createBoard("CLI 创作");
-      emit({ type: "board-created", boardId: board.id, name: board.name });
+      emit({ type: "board-created", boardId: board.id, name: board.name, ...(preserveView ? { preserveView: true } : {}) });
       return board.id;
     })();
     this.defaultBoardResolution = pending;
@@ -251,8 +295,9 @@ export class WorkspaceCommands {
   }
 
   private async performGeneration(a: Record<string, unknown>, edit: boolean, requestId: string, requestHash: string): Promise<GenerationRecord> {
-    const { api, emit } = this.dependencies;
-    const boardId = await this.resolveGenerationBoard(string(a.boardId));
+    const { api } = this.dependencies;
+    const emit = (event: WorkbenchEvent) => this.dependencies.emit({ ...event, ...(a.preserveView === true ? { preserveView: true } : {}) });
+    const boardId = await this.resolveGenerationBoard(string(a.boardId), a.preserveView === true);
     const sourcePath = string(a.sourcePath);
     const prepared = a.modificationRequestId ? await api.prepareModificationRequest(string(a.modificationRequestId),string(a.claimToken)) : undefined;
     if (prepared && (!edit || prepared.boardId!==boardId || prepared.sourcePath!==sourcePath)) throw new Error("修改请求的画板或固定源版本与执行参数不一致。");

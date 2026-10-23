@@ -43,3 +43,13 @@ Task states `succeeded` (images) and `completed` (video) indicate a generated re
 `iterlay call` exposes the entire native workspace operation catalogue, including board CRUD and layout, image/video generation, references, media import, exports and recoverable image trash. Import image/video operations accept explicit data URLs; they are intended for programmatic callers. Prefer file-based CLI imports in an agent workflow so base64 does not enter the conversation.
 
 Without `--board`, generation uses the default board in Settings → Coding Agent; when unset it reuses or creates `CLI 创作`. An explicit `--board` overrides this preference. A deleted default board causes an error before submission; choose a new default or provide `--board`.
+
+### 本地切图
+
+```sh
+iterlay image slice --path <受管图片路径> --board <画板ID> --rows 3 --columns 4 --out ./avatars --json
+iterlay image slice --input ./sheet.png --rows 3 --columns 4 --margin 12 --gap 8 --json
+iterlay image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":20,"width":300,"height":300}]' --json
+```
+
+复用 App 本地切图，不调用模型；保留原图，切片保存为受管 PNG 并加入画板。源参数三选一，宫格与 crops 互斥；每轴最多 8 格、最多 64 个区域。坐标、边距和间距均为原图像素；不自动去底、识别主体或统一输出尺寸。返回 images、crops、nodeIds 和可选 exportedPaths；--out 为目录，已有文件默认不覆盖。高级入口为 `iterlay call slice_image --input '<JSON>' --json`，精确 schema 见 tools list。

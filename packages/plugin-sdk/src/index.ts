@@ -57,6 +57,10 @@ export const iterlay = {
     cancel: () => call<void>("assistant.cancel"),
     respond: (interactionId: string, action: "submit" | "dismiss", values?: Record<string, string | string[]>) => call<void>("assistant.respond", { interactionId, action, values })
   },
+  creation: {
+    present: (input: { conversationId: string; kind: string; nodeId: string; prompt?: string }) =>
+      call<{ artifactId: string }>("creation.present", input)
+  },
   onEvent(listener: (event: { type: string; [key: string]: unknown }) => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
 };
 export function usePluginContext() {

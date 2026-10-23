@@ -41,8 +41,8 @@ describe("TemplateUseAssistant", () => {
     expect(assistantSource).toContain("模板约束");
     expect(assistantSource).toContain(">自动保留<");
     expect(assistantSource).toContain(">需要补充<");
-    expect(assistantSource).toContain("whitespace-nowrap");
-    expect(assistantSource).toContain("compactSummary");
+    expect(assistantSource).toContain("assistant-chat-prompt-toggle");
+    expect(assistantSource).toContain("summary");
     expect(assistantSource).toContain("useState(false)");
     expect(assistantSource).toContain("setBriefExpanded(false)");
     expect(assistantSource).toContain("previousHasUserMessageRef");
@@ -66,13 +66,13 @@ describe("TemplateUseAssistant", () => {
     expect(assistantSource).toContain('aria-label="确认生成方案内容"');
     expect(assistantSource).toContain("onApply(draftPrompt)");
     expect(assistantSource).toContain("onGenerate(draftPrompt)");
-    expect(assistantSource).toContain("absolute inset-x-2 bottom-2");
+    expect(assistantSource).toContain("ct-card assistant-template-proposal");
   });
 
   it("supports references, contextual actions and keyboard submission", () => {
-    expect(assistantSource).toContain('aria-label="本次参考图片"');
-    expect(assistantSource).toContain("extractClipboardImageFiles");
-    expect(assistantSource).toContain("isSendEnter(event)");
+    expect(assistantSource).toContain("<AssistantChat");
+    expect(assistantSource).toContain("contextImages={contextImages}");
+    expect(assistantSource).toContain("onPasteImages={onPasteImages}");
     expect(assistantSource).toContain("onRefreshSuggestions");
   });
 });

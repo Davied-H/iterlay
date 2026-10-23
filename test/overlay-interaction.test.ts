@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { OverlayInteractionProvider } from "../src/components/ui/overlay-interaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../src/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../src/components/ui/popover";
-import { CreateChatPage } from "../src/components/workbench/CreateChatPage";
+import { CreationAssistantPage } from "../src/components/workbench/CreationAssistantPage";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -37,7 +37,7 @@ describe("covered workspace interactions", () => {
     const root = createRoot(container);
     const select = vi.fn();
     try {
-      await act(async () => root.render(createElement(CreateChatPage, {
+      await act(async () => root.render(createElement(CreationAssistantPage, {
         boards: [], imageProviders: [{ id: "image", name: "Image service", type: "openai-compatible", model: "model-a", models: ["model-a", "model-b"],
           apiMode: "images", baseUrl: "http://localhost", generationEndpoint: "/images/generations", supportsReferenceImages: true }],
         activeImageProviderId: "image", activeImageModel: "model-a", onSelectImageModel: select,

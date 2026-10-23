@@ -12,7 +12,7 @@ import { AssetLibrary } from "@/components/workbench/AssetLibrary";
 import { BoardGenerationStatus } from "@/components/workbench/BoardGenerationStatus";
 import { BoardLibrary } from "@/components/workbench/BoardLibrary";
 import { BoardTrash } from "@/components/workbench/BoardTrash";
-import { CreateChatPage, type CreateChatGenerationPlan, type CreateChatResult } from "@/components/workbench/CreateChatPage";
+import { CreationAssistantPage, type CreationAssistantGenerationPlan, type CreationAssistantResult } from "@/components/workbench/CreationAssistantPage";
 import { InspirationSources } from "@/components/workbench/InspirationSources";
 import { LibraryNavCanvasIcon, type LibraryNavIconKind } from "@/components/workbench/LibraryNavCanvasIcon";
 import { OnlineShareManagerDialog } from "@/components/workbench/OnlineShareManagerDialog";
@@ -61,7 +61,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
-  Plus,
   RadioTower,
   RefreshCw,
   Settings,
@@ -76,16 +75,18 @@ interface LibraryShellProps {
   imageProviders?: import("@shared/types").ProviderConfig[];
   activeImageProviderId?: string;
   activeImageModel?: string;
+  activeVideoModelLabel?: string;
   onSelectImageModel?: (providerId: string, model: string) => void;
   boards: BoardSummary[];
   activeBoardGenerations?: ActiveBoardGeneration[];
   activeBoardId?: string;
   openingBoardId?: string | null;
   onOpenBoard: (id: string, origin?: BoardEnterOrigin) => void;
+  onOpenCreationConversation?: (conversationId: string, boardId: string) => void;
   onPrefetchBoard: (id: string) => void;
   onCreateBoard: () => void;
-  onCreateFromChat: (plan: CreateChatGenerationPlan) => Promise<CreateChatResult>;
-  onInterpretCreateChat: (request: CollaborateSceneRequest) => Promise<CollaborateSceneResult>;
+  onCreateFromChat: (plan: CreationAssistantGenerationPlan) => Promise<CreationAssistantResult>;
+  onInterpretCreateChat: (request: CollaborateSceneRequest, stream?: import("./CreationAssistantPage").CreationAssistantStreamOptions) => Promise<CollaborateSceneResult>;
   onRenameBoard: (id: string, name: string) => void;
   onDuplicateBoard: (id: string) => void;
   onDeleteBoard: (id: string) => Promise<void>;
@@ -513,6 +514,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
     applySidebarSize(next);
   }
 
+  const compactSidebar = sidebarSize.mode === "small";
   return (
     <TooltipProvider delayDuration={180} skipDelayDuration={80}>
       <motion.div
@@ -522,11 +524,16 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
         exit={{ opacity: 0 }}
         transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
       >
-      <aside
+      <AnimatePresence initial={false}>
+      {tab !== "create" ? <><motion.aside
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24, filter: "blur(3px)" }}
+        animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -18, filter: "blur(2px)" }}
+        transition={{ duration: reduceMotion ? 0.16 : 0.34, ease: [0.16, 1, 0.3, 1] }}
         ref={sidebarElementRef}
         id="library-sidebar"
         inert={boardLibraryLocked ? true : undefined}
-        data-compact={sidebarSize.mode === "small" ? "true" : "false"}
+        data-compact={compactSidebar ? "true" : "false"}
         data-size-mode={sidebarSize.mode}
         data-active-tab={tab}
         className="library-sidebar flex shrink-0 flex-col border-r"
@@ -544,15 +551,15 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             />
             <span className="library-sidebar-label truncate text-lg font-semibold tracking-tight">Iterlay</span>
           </div>
-          <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={sidebarSize.mode === "small" ? uiText("展开侧边栏") : uiText("收起侧边栏")}>
+          <CompactSidebarTooltip compact={compactSidebar} label={compactSidebar ? uiText("展开侧边栏") : uiText("收起侧边栏")}>
             <button
               type="button"
               data-sidebar-toggle
-              aria-label={sidebarSize.mode === "small" ? uiText("展开侧边栏") : uiText("收起侧边栏")}
+              aria-label={compactSidebar ? uiText("展开侧边栏") : uiText("收起侧边栏")}
               onClick={() => void toggleSidebar()}
               className="library-sidebar-toggle mt-9 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [-webkit-app-region:no-drag]"
             >
-              {sidebarSize.mode === "small"
+              {compactSidebar
                 ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
                 : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
             </button>
@@ -562,67 +569,10 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
         <button
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            setTab("create");
-          }}
-          aria-current={tab === "create" ? "page" : undefined}
+          onClick={(event) => { event.stopPropagation(); setTab("create"); }}
           className="library-sidebar-create relative mx-3 mb-2 flex h-9 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-md bg-foreground px-3 text-[13px] font-semibold text-background transition-[background-color,transform] duration-150 hover:bg-foreground/90 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-[oklch(var(--library-sidebar))] motion-reduce:transition-none [-webkit-app-region:no-drag]"
         >
-          <svg
-            className="library-sidebar-create__motion"
-            viewBox="0 0 100 36"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient id="library-create-fill" gradientUnits="userSpaceOnUse" x1="-240" y1="0" x2="0" y2="0">
-                <stop offset="0" stopColor="white" stopOpacity="0" />
-                <stop offset="0.42" stopColor="white" stopOpacity="0.02" />
-                <stop offset="0.5" stopColor="white" stopOpacity="0.18" />
-                <stop offset="0.58" stopColor="white" stopOpacity="0.02" />
-                <stop offset="1" stopColor="white" stopOpacity="0" />
-                <animate
-                  attributeName="x1"
-                  values="-240;240"
-                  dur="4.8s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="x2"
-                  values="0;480"
-                  dur="4.8s"
-                  repeatCount="indefinite"
-                />
-              </linearGradient>
-              <filter id="library-create-fill-glow" x="-20%" y="-100%" width="140%" height="300%">
-                <feGaussianBlur stdDeviation="3.5" />
-              </filter>
-            </defs>
-            <rect className="library-sidebar-create__wash" width="240" height="36" fill="url(#library-create-fill)" />
-            <path
-              className="library-sidebar-create__beam"
-              d="M-90 40C-32 21 8 18 74-7h62C72 16 26 28-40 48Z"
-              filter="url(#library-create-fill-glow)"
-            >
-              <animateTransform
-                attributeName="transform"
-                type="translate"
-                from="-80 0"
-                to="320 0"
-                dur="4.8s"
-                repeatCount="indefinite"
-              />
-            </path>
-          </svg>
-          <span className="library-sidebar-create__icon-wrap">
-            <svg className="library-sidebar-create__icon-effect" viewBox="0 0 28 28" aria-hidden="true">
-              <circle className="library-sidebar-create__icon-ring" cx="14" cy="14" r="8" pathLength="100" />
-              <path className="library-sidebar-create__icon-rays" d="M14 1.5v3M14 23.5v3M1.5 14h3M23.5 14h3" />
-            </svg>
-            <Plus className="library-sidebar-create__plus h-4 w-4" aria-hidden="true" />
-          </span>
-          <span>{uiText("新建创作")}</span>
+          <span>{uiText("创作助手")}</span>
         </button>
 
         <nav
@@ -634,8 +584,8 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             <NavItem
               kind="create"
               label={uiText("创作")}
-              active={tab === "create"}
-              compact={sidebarSize.mode === "small"}
+              active={false}
+              compact={compactSidebar}
               reduceMotion={Boolean(reduceMotion)}
               onClick={() => setTab("create")}
             />
@@ -644,7 +594,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             kind="boards"
             label={uiText("画板库")}
             active={tab === "boards"}
-            compact={sidebarSize.mode === "small"}
+            compact={compactSidebar}
             reduceMotion={Boolean(reduceMotion)}
             onClick={() => setTab("boards")}
           />
@@ -652,7 +602,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             kind="assets"
             label={uiText("素材库")}
             active={tab === "assets"}
-            compact={sidebarSize.mode === "small"}
+            compact={compactSidebar}
             reduceMotion={Boolean(reduceMotion)}
             onClick={() => setTab("assets")}
           />
@@ -660,7 +610,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             kind="scenes"
             label={uiText("模版库")}
             active={tab === "scenes"}
-            compact={sidebarSize.mode === "small"}
+            compact={compactSidebar}
             reduceMotion={Boolean(reduceMotion)}
             onClick={() => setTab("scenes")}
           />
@@ -668,7 +618,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             kind="inspiration"
             label={uiText("灵感")}
             active={tab === "inspiration"}
-            compact={sidebarSize.mode === "small"}
+            compact={compactSidebar}
             reduceMotion={Boolean(reduceMotion)}
             onClick={() => setTab("inspiration")}
           />
@@ -808,7 +758,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
         </div>
 
         <CompactRecentBoards
-          active={sidebarSize.mode === "small"}
+          active={compactSidebar}
           boards={recentBoards}
           activeBoardId={activeBoardId}
           isSidebarResizing={isSidebarResizing}
@@ -822,7 +772,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           data-tour="library-settings"
           className="library-sidebar-footer library-sidebar-footer--graphite flex shrink-0 flex-col gap-1 border-t border-border px-2 py-2 [-webkit-app-region:no-drag]"
         >
-          {ONLINE_SHARING_AVAILABLE ? <CompactSidebarTooltip compact={sidebarSize.mode === "small"} label={uiText("在线分享管理")}>
+          {ONLINE_SHARING_AVAILABLE ? <CompactSidebarTooltip compact={compactSidebar} label={uiText("在线分享管理")}>
             <button
               type="button"
               data-sidebar-utility
@@ -838,14 +788,14 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             </button>
           </CompactSidebarTooltip> : null}
           <SidebarUtilityEntries
-            compact={sidebarSize.mode === "small"}
+            compact={compactSidebar}
             trashedBoardCount={trashedBoards.length}
             trashActive={tab === "trash"}
             onOpenTrash={() => setTab("trash")}
             onOpenSettings={onOpenSettings}
           />
         </div>
-      </aside>
+      </motion.aside>
 
       <div className="relative z-40 w-0 shrink-0 self-stretch">
         <button
@@ -876,21 +826,27 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
         />
       </div>
 
+      </> : null}
+      </AnimatePresence>
+
       <main className="library-content flex min-w-0 flex-1 flex-col">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
             className="flex min-h-0 flex-1 flex-col"
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+            initial={reduceMotion ? { opacity: 0 } : tab === "create" ? { opacity: 0, x: 20, scale: 0.992 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            exit={reduceMotion ? { opacity: 0 } : tab === "create" ? { opacity: 0, x: 20, scale: 0.992 } : { opacity: 0, y: -6 }}
+            transition={{ duration: reduceMotion ? 0.16 : tab === "create" ? 0.42 : 0.24, ease: [0.16, 1, 0.3, 1] }}
           >
             {tab === "create" ? (
-              <CreateChatPage
+              <CreationAssistantPage
+                onExit={() => setTab("boards")}
+                scenes={props.scenes}
                 imageProviders={props.imageProviders}
                 activeImageProviderId={props.activeImageProviderId}
                 activeImageModel={props.activeImageModel}
+                activeVideoModelLabel={props.activeVideoModelLabel}
                 onSelectImageModel={props.onSelectImageModel}
                 boards={boards}
                 activeBoardId={activeBoardId}
@@ -898,6 +854,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                 onInterpret={props.onInterpretCreateChat}
                 onCreate={props.onCreateFromChat}
                 onOpenBoard={(boardId) => onOpenBoard(boardId)}
+                onOpenCreationConversation={props.onOpenCreationConversation}
                 onOpenSettings={props.onOpenSettings}
               />
             ) : tab === "boards" ? (

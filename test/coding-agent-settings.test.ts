@@ -8,7 +8,7 @@ import { loadUiTextCatalog } from "../src/i18n/ui-text";
 const mock = vi.hoisted(() => ({ getCodingAgentStatus: vi.fn(), installAgentSkill: vi.fn(), installCli: vi.fn(), removeAgentSkill: vi.fn(), getSettings: vi.fn(), listBoards: vi.fn(), updateSettings: vi.fn() }));
 vi.mock("../src/lib/image-workbench-api", () => ({ getImageWorkbenchApi: () => mock, getWorkbenchErrorMessage: (error: Error) => error.message }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-const state: CodingAgentIntegrationStatus = { development: true, cli: { installed: true, pathConfigured: true, path: "/test/bin/iterlay" }, clients: [{ id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/test/skills/iterlay-workspace", legacyConfigured: true }] };
+const state: CodingAgentIntegrationStatus = { development: true, cli: { installed: true, pathConfigured: true, path: "/test/bin/iterlay" }, clients: [{ id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/test/skills/using-iterlay", legacyConfigured: true }] };
 afterEach(() => { vi.resetAllMocks(); document.documentElement.lang = "zh-CN"; });
 async function render(options: { providerReady?: boolean; state?: CodingAgentIntegrationStatus } = {}) {
   const container = document.createElement("div"); document.body.append(container);

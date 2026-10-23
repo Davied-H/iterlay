@@ -11,6 +11,7 @@ let directory: string, script: string;
 let generated = 0;
 let lastGenerationArgs: Record<string, unknown>;
 let resolvedBoards = 0;
+let lastSliceArgs: Record<string, unknown>;
 const configurations: Record<string, unknown>[] = [];
 const server = createServer(async (request, response) => {
   if (request.headers.authorization !== 'Bearer ' + 'a'.repeat(32)) { response.writeHead(401).end(); return; }
@@ -23,6 +24,7 @@ const server = createServer(async (request, response) => {
     case 'configure_provider': configurations.push(args); result = { providerId: args.providerId, kind: args.kind, authConfigured: Boolean(args.apiKey) }; break;
     case 'get_provider': result = { id: args.providerId, voice: 'nova' }; break;
     case 'list_boards': result = [{ id: 'board', name: 'CLI 创作' }]; break;
+    case 'slice_image': lastSliceArgs = args; result = { boardId: args.boardId, nodeIds: ['slice-node'], images: [{ path: '/managed/slice.png', width: 418, height: 418 }] }; break;
     case 'generate_image': lastGenerationArgs = args; generated++; result = { generationId: 'task', status: 'running' }; break;
     case 'get_generation_status': result = args.generationId === 'unknown-task'
       ? { generationId: 'unknown-task', status: 'unknown', error: '远端结果与费用状态待确认' }
@@ -42,6 +44,20 @@ beforeAll(async () => {
 });
 afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); });
 describe('CLI subprocess workflow', () => {
+  it('routes local slicing and exports PNGs without submitting generation', async () => {
+    const before = generated;
+    const target = path.join(directory, 'slices');
+    const run = await exec(process.execPath, [script, 'image', 'slice', '--path', '/managed/sheet.png', '--board', 'board', '--rows', '3', '--columns', '4', '--out', target, '--user-data-path', directory, '--json']);
+    expect(lastSliceArgs).toEqual({ sourcePath: '/managed/sheet.png', boardId: 'board', rows: 3, columns: 4 });
+    const result = JSON.parse(run.stdout).data;
+    expect(result.exportedPaths).toEqual([path.join(target, '1-slice.png')]);
+    expect(await readFile(result.exportedPaths[0], 'utf8')).toBe('image');
+    await expect(exec(process.execPath, [script, 'image', 'slice', '--path', '/managed/sheet.png', '--board', 'board', '--rows', '3', '--columns', '4', '--out', target, '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('切图已保存到画板') });
+    const crops = [{ x: 10, y: 20, width: 30, height: 40 }];
+    await exec(process.execPath, [script, 'image', 'slice', '--node', 'node', '--board', 'board', '--crops', JSON.stringify(crops), '--user-data-path', directory, '--json']);
+    expect(lastSliceArgs).toEqual({ nodeId: 'node', boardId: 'board', crops });
+    expect(generated).toBe(before);
+  });
   it('configures video and TTS via environment or stdin without printing credentials', async () => {
     const args = [script, 'providers', 'set', '--kind', 'video', '--provider', 'video', '--type', 'openrouter', '--base-url', 'https://openrouter.ai/api', '--model', 'vendor/video', '--saved-model', 'other', '--default', '--api-key-env', 'ITERLAY_TEST_SECRET', '--user-data-path', directory, '--json'];
     const run = await exec(process.execPath, args, { env: { ...process.env, ITERLAY_TEST_SECRET: 'env-secret-value' } });

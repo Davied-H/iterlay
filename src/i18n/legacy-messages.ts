@@ -393,7 +393,7 @@ const legacyEnglish: Record<string, string> = {
   "你的 Coding Agent": "Your coding agents",
   "重新检测": "Detect again",
   "新开会话后，Skill 会引导 Agent 使用 Iterlay CLI。": "Start a new session to let the Skill guide your agent through the Iterlay CLI.",
-  "已安装 iterlay-workspace 和 using-iterlay，新开会话后可手动调用。": "iterlay-workspace and using-iterlay are installed. Start a new session to invoke them manually.",
+  "已安装 using-iterlay，新开会话后可手动调用。": "using-iterlay is installed. Start a new session to invoke them manually.",
   "Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。": "Use $using-iterlay in Codex or /using-iterlay in Claude Code. This entrypoint activates only when explicitly invoked.",
   "$using-iterlay 列出我已配置的图片服务。": "$using-iterlay List my configured image services.",
   "发现旧版本集成，一键迁移为 CLI Skill。": "An older integration was found. Migrate it to the CLI Skill in one step.",

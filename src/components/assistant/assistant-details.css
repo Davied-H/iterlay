@@ -1,0 +1,368 @@
+.assistant-confirmation {
+  display: flex;
+  flex-direction: column;
+  max-height: min(480px, calc(72dvh - 76px));
+  overflow: hidden;
+  border: 1px solid hsl(var(--input));
+  border-color: var(--chat-border);
+  border-radius: 20px;
+  background: var(--chat-surface);
+}
+.assistant-confirmation-scroll {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+  padding: 18px 18px 12px;
+}
+.assistant-confirmation-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  outline: none;
+}
+.assistant-confirmation-heading > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 2px;
+  color: hsl(var(--canvas-ai-accent));
+}
+.assistant-confirmation-heading h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+.assistant-confirmation-description {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+.assistant-confirmation-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+}
+.assistant-confirmation-label {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin: 0 0 4px;
+}
+.assistant-confirmation-prompt {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.assistant-confirmation-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  flex: none;
+  gap: 8px;
+  padding: 6px 16px 16px;
+}
+.assistant-confirmation button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+  transition:
+    background-color 150ms,
+    color 150ms;
+  border-radius: 18px;
+  min-height: 34px;
+  padding-inline: 12px;
+}
+.assistant-confirmation button svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.assistant-confirmation button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+.assistant-confirmation-refine textarea:focus,
+.assistant-confirmation-refine textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.assistant-confirmation button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.assistant-confirmation-primary {
+  background: var(--chat-ink);
+  color: var(--chat-surface);
+}
+.assistant-confirmation-primary:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.85);
+}
+.assistant-confirmation-secondary {
+  border: 1px solid hsl(var(--input));
+  background: transparent;
+  border-color: var(--chat-border);
+}
+.assistant-confirmation-secondary:hover:not(:disabled),
+.assistant-confirmation-dismiss:hover:not(:disabled) {
+  background: hsl(var(--muted));
+}
+.assistant-confirmation-dismiss {
+  margin-right: auto;
+  color: hsl(var(--muted-foreground));
+}
+.assistant-confirmation-refine {
+  border-top: 1px solid hsl(var(--border));
+  padding: 10px;
+  flex: none;
+  border-color: var(--chat-border);
+}
+.assistant-confirmation-refine[hidden] {
+  display: none;
+}
+.assistant-confirmation-edit-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.assistant-confirmation-edit {
+  color: hsl(var(--muted-foreground));
+}
+.assistant-confirmation-edit:hover:not(:disabled) {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.assistant-confirmation-refine textarea {
+  min-height: 64px;
+  height: 64px;
+  max-height: 96px;
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
+}
+.assistant-confirmation-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+}
+.assistant-confirmation-mode {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 22px;
+  padding: 3px 10px 3px 3px;
+  font-size: 12px;
+  color: var(--chat-secondary);
+}
+.assistant-confirmation-mode > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: hsl(var(--card));
+}
+.assistant-confirmation-mode svg {
+  width: 15px;
+  height: 15px;
+}
+.assistant-sent-images {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.assistant-sent-images button {
+  width: 82px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+.assistant-sent-images img {
+  width: 80px;
+  height: 70px;
+  object-fit: cover;
+}
+.assistant-sent-images span {
+  display: block;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px;
+}
+.assistant-tool-group {
+  margin: 10px 0;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.assistant-tool-group summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  padding: 8px 0;
+}
+.assistant-tool-group summary::-webkit-details-marker {
+  display: none;
+}
+.assistant-tool-group summary > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.assistant-tool-group details > summary > svg:last-child {
+  margin-left: auto;
+}
+.assistant-tool-group details[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.assistant-tool-list {
+  border-left: 1px solid hsl(var(--border));
+  margin-left: 7px;
+  padding: 3px 0 0 14px;
+}
+.assistant-tool {
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+.assistant-tool > summary {
+  padding: 9px 10px;
+  font-size: 11px;
+}
+.assistant-tool-content {
+  padding: 10px;
+  border-top: 1px solid hsl(var(--border));
+}
+.assistant-tool-content h4 {
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.assistant-tool-content pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow: auto;
+  background: hsl(var(--muted));
+  border-radius: 5px;
+  padding: 10px;
+  margin: 0 0 10px;
+  font-size: 11px;
+}
+
+/* AI Elements inspired tool surface: one quiet status row, details on demand. */
+.assistant-tool-group {
+  margin: 12px 0 8px;
+  color: var(--chat-secondary);
+}
+.assistant-tool-group > summary {
+  min-height: 28px;
+  padding: 4px 0;
+  font-size: 11px;
+  font-weight: 500;
+}
+.assistant-tool-group > summary > svg:first-child { color: var(--chat-ink); }
+.assistant-tool-group > summary > span:nth-child(2) { color: var(--chat-ink); }
+.assistant-tool-list {
+  display: grid;
+  gap: 5px;
+  margin: 3px 0 0;
+  padding: 0;
+  border: 0;
+}
+.assistant-tool {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--chat-border) 72%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chat-subtle) 72%, transparent);
+}
+.assistant-tool > summary {
+  min-height: 34px;
+  padding: 7px 9px;
+  font-size: 11px;
+  color: var(--chat-ink);
+}
+.assistant-tool > summary:hover { background: color-mix(in srgb, var(--chat-hover) 70%, transparent); }
+.assistant-tool-icon { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 5px; color: var(--chat-secondary); background: var(--chat-surface); }
+.assistant-tool-icon svg { width: 12px; height: 12px; }
+.assistant-tool-name { min-width: 0; flex: 1; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.assistant-tool-status { padding: 2px 6px; border-radius: 999px; color: var(--chat-secondary); background: color-mix(in srgb, var(--chat-surface) 72%, transparent); font-size: 10px; }
+.assistant-tool--running .assistant-tool-status { color: var(--chat-ink); }
+.assistant-tool--error .assistant-tool-status { color: hsl(var(--destructive)); }
+.assistant-tool-content { padding: 9px; border-top: 1px solid color-mix(in srgb, var(--chat-border) 72%, transparent); }
+.assistant-confirmation-heading > svg {
+  color: var(--chat-secondary);
+}
+.assistant-confirmation-refine textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--chat-surface);
+  color: var(--chat-ink);
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.comic-plan-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.comic-plan-step { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 4px; color: hsl(var(--muted-foreground)); font-size: 9px; }
+.comic-plan-step::before { z-index: 1; width: 6px; height: 6px; border: 1px solid hsl(var(--border)); border-radius: 50%; background: hsl(var(--background)); content: ""; }
+.comic-plan-step:not(:first-child)::after { position: absolute; top: 3px; right: 50%; width: 100%; height: 1px; background: hsl(var(--border)); content: ""; }
+.comic-plan-step[data-complete="true"]::before { border-color: hsl(var(--muted-foreground)); background: hsl(var(--muted-foreground)); }
+.comic-plan-step[aria-current="step"] { color: hsl(var(--foreground)); font-weight: 650; }
+.comic-plan-step[aria-current="step"]::before { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); box-shadow: 0 0 0 2px hsl(var(--background)); }
+
+.assistant-process {
+  margin: 0 0 16px;
+  padding: 4px 12px;
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+  background: var(--chat-subtle);
+  color: var(--chat-secondary);
+  font-size: 12px;
+}
+.assistant-process-section + .assistant-process-section { border-top: 1px solid var(--chat-border); }
+.assistant-process-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  cursor: pointer;
+  list-style: none;
+}
+.assistant-process-section > summary::-webkit-details-marker { display: none; }
+.assistant-process-section > summary:hover { color: var(--chat-ink); }
+.assistant-process-section > summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; border-radius: 4px; }
+.assistant-process-section > summary > svg { flex: none; }
+.assistant-process-section > summary > svg:last-child { margin-left: auto; }
+.assistant-process-section[open] > summary > svg:last-child { transform: rotate(180deg); }
+.assistant-process-body {
+  margin: 0 0 12px;
+  padding: 4px 0 0 22px;
+  max-height: 240px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.8;
+  scrollbar-width: thin;
+  scrollbar-color: var(--chat-border) transparent;
+}
+ol.assistant-process-body { list-style: decimal; padding-left: 38px; }
+.assistant-process-body li + li { margin-top: 6px; }

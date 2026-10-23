@@ -28,6 +28,9 @@ export function sanitizeAssistantToolDetails(value: unknown): string {
         .slice(0, 3000);
     }
     if (!entry || typeof entry !== "object") return entry;
+    if (!Array.isArray(entry) && (entry as Record<string, unknown>).type === "image") {
+      return { type: "image", data: "[image omitted]" };
+    }
     if (seen.has(entry)) return "[circular]";
     seen.add(entry);
     if (Array.isArray(entry)) return entry.slice(0, 30).map((item) => clean(item, depth + 1));

@@ -2,8 +2,9 @@ import { useState, type ReactElement } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { useUiText } from "@/i18n";
 
-export type CanvasToolHintKind = "select" | "pan" | "image" | "video" | "text" | "fit" | "more";
+export type CanvasToolHintKind = "canvas" | "select" | "pan" | "image" | "video" | "text" | "fit" | "more";
 export const CANVAS_TOOL_HINTS = {
+  canvas: { title: "添加 Canvas", description: "编写 HTML、React 或 Vue，运行交互预览。", shortcut: "", aria: undefined },
   select: { title: "选择", description: "选择、移动画布中的内容，拖拽框选多个节点。", shortcut: "V", aria: "V" },
   pan: { title: "平移", description: "拖动画布浏览内容，也可按住空格临时平移。", shortcut: "H", aria: "H" },
   image: { title: "生成图片", description: "添加图片生成卡，输入描述并连接参考图。", shortcut: "Shift I", aria: "Shift+I" },

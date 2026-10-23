@@ -1,0 +1,135 @@
+.assistant-permission-card {
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--chat-border);
+  border-radius: 16px;
+  background: var(--chat-subtle);
+  color: var(--chat-ink);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.assistant-permission-content {
+  padding: 16px;
+}
+.assistant-permission-content header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.assistant-permission-content header > svg {
+  flex: none;
+  color: var(--chat-secondary);
+}
+.assistant-permission-content h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  flex: 1;
+}
+.assistant-permission-reason {
+  margin: 8px 0 0;
+}
+.assistant-permission-scope {
+  margin-top: 10px;
+  color: var(--chat-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.assistant-permission-scope p {
+  margin: 0;
+}
+.assistant-permission-scope strong {
+  color: var(--chat-ink);
+  font-weight: 500;
+}
+.assistant-permission-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--chat-surface);
+}
+.assistant-permission-remember {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 8px;
+  padding: 2px 4px;
+  color: var(--chat-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.assistant-permission-remember input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--chat-ink);
+  cursor: inherit;
+}
+.assistant-permission-remember:has(input:disabled) {
+  cursor: default;
+  opacity: 0.5;
+}
+.assistant-permission-manage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--chat-secondary);
+}
+.assistant-permission-manage:hover {
+  color: var(--chat-ink);
+  background: var(--chat-subtle);
+}
+.assistant-permission-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+.assistant-permission-actions button {
+  min-width: 68px;
+  min-height: 34px;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--chat-ink);
+  background: var(--chat-subtle);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 22px;
+  transition:
+    background-color 150ms,
+    opacity 150ms;
+}
+.assistant-permission-actions button:hover:not(:disabled) {
+  background: var(--chat-hover);
+}
+.assistant-permission-actions button[data-primary="true"] {
+  color: var(--chat-surface);
+  background: var(--chat-ink);
+}
+.assistant-permission-actions button[data-primary="true"]:hover:not(:disabled) {
+  background: var(--chat-ink);
+  opacity: 0.82;
+}
+.assistant-permission-card :is(button, input):focus-visible {
+  outline: 2px solid hsl(var(--focus-accent));
+  outline-offset: 3px;
+}
+.assistant-permission-card button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-permission-card button {
+    transition: none;
+  }
+}

@@ -113,6 +113,8 @@ export function TopBar({
   tourMenuOpen
 }: TopBarProps): React.ReactElement {
   const uiText = useUiText();
+  void onOpenModificationRequests;
+  void onOpenImageDelivery;
 
   const { getNodes, getEdges } = useReactFlow();
   const [editingName, setEditingName] = useState(false);
@@ -402,8 +404,6 @@ export function TopBar({
             <TooltipContent>{uiText("历史记录")}</TooltipContent>
           </Tooltip>
 
-          {onOpenModificationRequests ? <Button variant="ghost" size="sm" onClick={onOpenModificationRequests}>{uiText("修改请求")}</Button> : null}
-          {onOpenImageDelivery ? <Button variant="ghost" size="sm" onClick={onOpenImageDelivery}>{uiText("项目交付")}</Button> : null}
           {galleryAvailable ? (
             <Tooltip>
               <TooltipTrigger asChild>

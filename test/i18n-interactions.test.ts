@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FusionPromptConfirmation } from "../src/components/workbench/FusionPromptConfirmation";
+import { AssistantConfirmationCard } from "../src/components/assistant/AssistantConfirmationCard";
 import { I18nProvider, useI18n } from "../src/i18n";
 import { loadUiTextCatalog } from "../src/i18n/ui-text";
 import { localizeLegacyText } from "../src/i18n/legacy-messages";
@@ -38,7 +38,7 @@ describe("assistant interaction localization", () => {
       confirmationPreview: { title: "将更新的模板内容", items: [{ label: "提示词", value: "中文水獭提示词，保持原文。" }] }
     };
     let switchLanguage: ReturnType<typeof useI18n>["setLanguage"];
-    function Harness() { switchLanguage = useI18n().setLanguage; return createElement(FusionPromptConfirmation, { state, disabled: false, onApply: vi.fn(), onGenerate: vi.fn(), onDismiss: vi.fn(), onRefine: vi.fn() }); }
+    function Harness() { switchLanguage = useI18n().setLanguage; return createElement(AssistantConfirmationCard, { state, disabled: false, onApply: vi.fn(), onGenerate: vi.fn(), onDismiss: vi.fn(), onRefine: vi.fn() }); }
     const container = document.createElement("div"); document.body.append(container);
     const root = createRoot(container);
     try {
@@ -47,7 +47,7 @@ describe("assistant interaction localization", () => {
       expect(container.textContent).toContain("generate 1 image.");
       expect(container.textContent).toContain("Confirm and generate");
       expect(container.textContent).toContain("中文水獭提示词，保持原文。");
-      await act(async () => container.querySelector<HTMLButtonElement>(".fusion-confirmation-edit")!.click());
+      await act(async () => container.querySelector<HTMLButtonElement>(".assistant-confirmation-edit")!.click());
       const textarea = container.querySelector("textarea")!;
       await act(async () => {
         Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "继续保留用户修改");

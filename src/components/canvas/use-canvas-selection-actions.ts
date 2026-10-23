@@ -34,9 +34,9 @@ export interface CanvasSelectionImageActions {
 
 export interface CanvasSelectionWorkflowActions {
   createNode?: (
-    type: "text" | "generation" | "video-generation",
+    type: "canvas" | "text" | "generation" | "video-generation",
     position: CanvasDropPoint,
-    initial?: { text?: string; prompt?: string; model?: string; size?: string; count?: number }
+    initial?: { code?: string; framework?: "html" | "react" | "vue"; text?: string; prompt?: string; model?: string; size?: string; count?: number }
   ) => string | void;
   requestDeleteNodes?: (ids: string[]) => Promise<boolean> | boolean | void;
   deleteNodes?: (ids: string[]) => Promise<void> | void;
@@ -123,7 +123,9 @@ export function useCanvasSelectionActions({
         x: node.position.x + DUPLICATE_OFFSET,
         y: node.position.y + DUPLICATE_OFFSET
       };
-      const createdId = node.type === "textNode"
+      const createdId = node.type === "codeCanvasNode"
+        ? workflowActions.createNode?.("canvas", position, { code: node.data.code as string, framework: node.data.framework as "html" | "react" | "vue" })
+        : node.type === "textNode"
         ? workflowActions.createNode?.("text", position, {
             text: (node.data as unknown as TextNodeData).text
           })
@@ -259,7 +261,7 @@ export function useCanvasSelectionActions({
 }
 
 function isDuplicableWorkflowNode(node: Node): boolean {
-  return node.type === "textNode" || node.type === "generationNode" || node.type === "videoGenerationNode";
+  return node.type === "codeCanvasNode" || node.type === "textNode" || node.type === "generationNode" || node.type === "videoGenerationNode";
 }
 
 function isPersistedWorkflowNode(node: Node): boolean {

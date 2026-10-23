@@ -21,7 +21,7 @@ const CREATE_MENU_WIDTH = 264;
 const CREATE_MENU_HEIGHT = 150;
 const CREATE_MENU_LEFT_INSET = 8;
 const CREATE_MENU_TOP_INSET = 56;
-const CREATABLE_WORKFLOW_TYPES = ["textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"] as const;
+const CREATABLE_WORKFLOW_TYPES = ["codeCanvasNode", "textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"] as const;
 
 export type CanvasMenuConnectionSide = "top" | "right" | "bottom" | "left";
 
@@ -50,7 +50,7 @@ interface CanvasMenuControllerOptions {
   screenToFlowPosition: (point: CanvasDropPoint) => CanvasDropPoint;
   recordCanvasChange: () => void;
   createWorkflowNode?: (
-    type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
+    type: "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
     position: CanvasDropPoint
   ) => string | void;
   connect: (
@@ -97,7 +97,8 @@ export interface CanvasMenuController {
   };
 }
 
-function workflowType(type: string): "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script" | null {
+function workflowType(type: string): "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script" | null {
+  if (type === "codeCanvasNode") return "canvas";
   if (type === "textNode") return "text";
   if (type === "generationNode") return "generation";
   if (type === "videoGenerationNode") return "video-generation";

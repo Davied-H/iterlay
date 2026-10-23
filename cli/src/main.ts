@@ -23,6 +23,7 @@ iterlay models set --kind video|audio --provider <id> --model <id> [--saved-mode
       --saved-model <id>（可重复） --default --api-key-env <变量名> | --api-key-stdin
       --clear-api-key 清除密钥；省略密钥参数则保留原凭证。audio 为独立 TTS 配置。
 iterlay image generate --prompt <text> [--reference <file>] [--out <file>]
+iterlay image slice --path <managed-path> --rows 3 --columns 4 [--out <directory>]
 iterlay image edit --input <file> --prompt <text> [--out <file>]
 iterlay video generate --prompt <text> [--board <id>]
 iterlay tasks list|get|wait|cancel [task-id] [--kind video] [--out <file>]
@@ -45,7 +46,7 @@ type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
   const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
-  const values = new Set(["agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env"]);
+  const values = new Set(["agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -106,7 +107,7 @@ async function main(): Promise<void> {
   if (group === "add" || group === "remove") {
     const agents = flags.agent as CodingAgentId[] | undefined;
     if (agents?.some((a) => a !== "codex" && a !== "claude-code")) throw new Error("未知的 Coding Agent。");
-    const options = { homeDir: get("home") ?? os.homedir(), userDataPath, agents: agents ?? null, bundledSkillPath: path.resolve(moduleDir, "../skills/iterlay-workspace") };
+    const options = { homeDir: get("home") ?? os.homedir(), userDataPath, agents: agents ?? null, bundledSkillPath: path.resolve(moduleDir, "../skills/using-iterlay") };
     output(await (group === "add" ? runAdd(options) : runRemove(options))); return;
   }
   if (group === "tools" && action === "list") { output(listWorkspaceTools()); return; }
@@ -164,6 +165,24 @@ async function main(): Promise<void> {
     if (action === "import" && get("input")) { output({ path: await importFile(call, get("input")!, get("board")) }); return; }
     if (action === "export" && get("path") && get("out")) { output({ paths: await exportFiles(call, [get("path")!], get("out")!, Boolean(flags.overwrite)) }); return; }
     throw new Error("素材操作缺少参数。运行 iterlay help 查看用法。");
+  }
+  if (group === "image" && action === "slice") {
+    if ([get("input"), get("path"), get("node")].filter(Boolean).length !== 1) throw new Error("切图须指定且仅指定 --input、--path 或 --node。");
+    const args: Record<string, unknown> = {};
+    for (const key of ["rows", "columns", "margin", "gap"]) if (get(key) !== undefined) args[key] = Number(get(key));
+    if (get("crops")) args.crops = JSON.parse(get("crops")!);
+    // Resolve/create the board only after local argument validation.
+    if (args.crops === undefined && (!get("rows") || !get("columns"))) throw new Error("请指定 --rows 和 --columns，或 --crops JSON。");
+    const boardId = get("board") ?? String(record(await call("resolve_generation_board")).boardId);
+    args.boardId = boardId;
+    if (get("node")) args.nodeId = get("node");
+    else args.sourcePath = get("path") ?? await importFile(call, get("input")!, boardId);
+    const sliced = record(await call("slice_image", args));
+    if (get("out")) {
+      try { sliced.exportedPaths = await exportFiles(call, (sliced.images as Array<{ path: string }>).map((image) => image.path), path.resolve(get("out")!) + path.sep, Boolean(flags.overwrite)); }
+      catch (error) { throw new Error(`切图已保存到画板 ${boardId}；导出失败，可用 assets export 重试：${error instanceof Error ? error.message : String(error)}`); }
+    }
+    output(sliced); return;
   }
   if (group === "tasks" && action === "list") { output(await call("list_tasks")); return; }
   if (group === "tasks" && action === "cancel") {

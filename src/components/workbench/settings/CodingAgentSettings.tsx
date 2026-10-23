@@ -163,7 +163,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
           const installing = busy === `install:${agent.id}`;
           const migrated = agent.legacyConfigured;
           const installed = agent.skillInstalled && !migrated;
-          const description = installed ? "已安装 iterlay-workspace 和 using-iterlay，新开会话后可手动调用。" : migrated ? "发现旧版本集成，一键迁移为 CLI Skill。" : agent.detected ? "已找到本机应用，安装 Skill 即可开始。" : agent.detection === "config-only" ? "发现配置，尚未确认程序安装；也可先安装 Skill。" : "暂未检测到程序，也可先安装 Skill，稍后使用。";
+          const description = installed ? "已安装 using-iterlay，新开会话后可手动调用。" : migrated ? "发现旧版本集成，一键迁移为 CLI Skill。" : agent.detected ? "已找到本机应用，安装 Skill 即可开始。" : agent.detection === "config-only" ? "发现配置，尚未确认程序安装；也可先安装 Skill。" : "暂未检测到程序，也可先安装 Skill，稍后使用。";
           return <div className="coding-agent-setup-row" key={agent.id}>
             <div className="coding-agent-avatar" aria-hidden="true">{agent.id === "codex" ? <Terminal className="size-5" /> : <CodeXml className="size-5" />}</div>
             <div className="coding-agent-info"><div className="coding-agent-name"><strong>{title}</strong><Badge variant="outline">{uiText(installed ? "Skill 已安装" : agent.detected ? "已检测到" : "待配置")}</Badge></div><p>{uiText(description)}</p></div>

@@ -1,4 +1,7 @@
+import type { CanvasNodeWriteInput, BoardCanvasNode } from "./contracts/board.js";
 import type { CodingAgentIntegrationStatus } from "./agent-integration.js";
+import type { CreationSession } from "./creation-session.js";
+import type { CreationArtifact } from "./creation-session.js";
 import type { CreateModificationRequest, FinishModificationRequest, ModificationRequest, PublicModificationRequest, PreparedModificationRequest } from "./modification-requests.js";
 import type { ImageDeliveryRecipe, ImageVersionIdentity, ImageDeliveryExportResult } from "./image-delivery.js";
 import { WORKBENCH_COMMANDS } from "./contracts/workbench-commands.js";
@@ -95,7 +98,8 @@ import {
   SCENE_COLLABORATION_CANCEL_CHANNEL,
   SCENE_COLLABORATION_EVENT_CHANNEL,
   SCENE_COLLABORATION_INTERACTION_RESPONSE_CHANNEL,
-  SCENE_COLLABORATION_START_CHANNEL
+  SCENE_COLLABORATION_START_CHANNEL,
+  SCENE_COLLABORATION_STEER_CHANNEL
 } from "./assistant.js";
 import type { LicenseStatusSnapshot } from "./licensing.js";
 import type { InspirationSource } from "./inspiration-sources.js";
@@ -240,6 +244,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
   consumeAgentSkillUpgrades: () => transport.invoke("agent:skill-upgrade:consume") as Promise<AgentSkillUpgradeDetail[]>,
   getPiAgentLogs: () =>
     transport.invoke("pi-agent-log:list") as Promise<PiAgentLogSnapshot>,
+  getScreenAccessStatus: () => transport.invoke("assistant:screenAccess:status") as Promise<import("./screen-access.js").ScreenAccessStatus>,
+  openScreenCaptureSettings: () => transport.invoke("assistant:screenAccess:openSettings") as Promise<void>,
   getPiAgentResources: () =>
     transport.invoke("pi-agent:resources:list") as Promise<PiAgentResourceInventory>,
   getPiAgentResourceDetail: (resourcePath: string) =>
@@ -349,6 +355,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.send(SCENE_COLLABORATION_START_CHANNEL, { requestId, request: req }),
   cancelSceneCollaboration: (requestId: string) =>
     transport.send(SCENE_COLLABORATION_CANCEL_CHANNEL, requestId),
+  steerSceneCollaboration: (requestId: string, instruction: string) =>
+    transport.invoke(SCENE_COLLABORATION_STEER_CHANNEL, requestId, instruction) as Promise<boolean>,
   respondSceneCollaborationInteraction: (
     requestId: string,
     interactionId: string,
@@ -370,6 +378,15 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("assistant:suggestIntents", req) as Promise<SuggestAssistantIntentsResult>,
   listAssistantConversations: (query?: AssistantConversationHistoryQuery) =>
     transport.invoke("assistant:history:list", query) as Promise<AssistantConversationRecord[]>,
+  listCreationSessions: () => transport.invoke("creation:sessions:list") as Promise<CreationSession[]>,
+  saveCreationSession: (session: CreationSession) =>
+    transport.invoke("creation:sessions:save", session) as Promise<CreationSession>,
+  presentCreationArtifact: (conversationId: string, artifact: CreationArtifact) =>
+    transport.invoke("creation:artifact:present", conversationId, artifact) as Promise<CreationSession>,
+  saveCreationReference: (input: { id: string; name: string; mimeType: string; dataBase64: string }) =>
+    transport.invoke("creation:reference:save", input) as Promise<{ path: string; url: string }>,
+  creationReferenceUrl: (filePath: string) =>
+    transport.invoke("creation:reference:url", filePath) as Promise<string>,
   suggestImageEdits: (req: SuggestImageEditsRequest) =>
     transport.invoke("prompt:suggestImageEdits", req) as Promise<SuggestImageEditsResult>,
   listHistory: (boardId?: string) => (boardId ? transport.invoke(WORKBENCH_COMMANDS.listHistory, boardId) : transport.invoke(WORKBENCH_COMMANDS.listHistory)) as Promise<GenerationJob[]>,
@@ -607,6 +624,7 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("boards:images:trash:delete", id) as Promise<{ ok: boolean }>,
   emptyTrashedBoardImages: () =>
     transport.invoke("boards:images:trash:empty") as Promise<{ ok: boolean; count: number }>,
+  writeCanvasNode: (input: CanvasNodeWriteInput) => transport.invoke(WORKBENCH_COMMANDS.writeCanvasNode, input) as Promise<BoardCanvasNode>,
   appendBoardNodes: (id: string, nodes: UnpositionedBoardNode[]) =>
     transport.invoke(WORKBENCH_COMMANDS.appendBoardNodes, id, nodes) as Promise<{ ok: boolean }>,
   appendBoardNodeVersions: (id: string, nodeId: string, versions: BoardNodeVersion[]) =>

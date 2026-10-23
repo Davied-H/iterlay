@@ -69,7 +69,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 export interface ProviderSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entryPoint?: "default" | "provider-setup" | "model-management" | "coding-agent";
+  entryPoint?: "default" | "provider-setup" | "model-management" | "coding-agent" | "assistant-permissions";
   onImportStarterBoard?: () => void;
   onOpenStarterBoards?: () => void;
   providers: ProviderConfig[];

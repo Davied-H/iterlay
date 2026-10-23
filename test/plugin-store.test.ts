@@ -46,6 +46,8 @@ describe("plugin packages and lifecycle", () => {
     const { store } = await fixture();
     expect(() => store.inspect(pack({ ...manifest, permissions: ["fs:all"] }))).toThrow("权限");
     expect(() => validatePluginManifest({ ...manifest, apiVersion: 99 })).toThrow("不兼容");
+    expect(() => validatePluginManifest({ ...manifest, creationArtifacts: [{ kind: "other.plugin:poster", label: "海报", mediaType: "image" }] })).toThrow("产物类型");
+    expect(validatePluginManifest({ ...manifest, permissions: ["creation:present"], creationArtifacts: [{ kind: `${manifest.id}:poster`, label: "海报", mediaType: "image" }] }).creationArtifacts?.[0].kind).toBe(`${manifest.id}:poster`);
     expect(() => store.inspect(pack({ ...manifest, id: "../escape" }))).toThrow("ID");
     const zip = new AdmZip(pack()); zip.addFile("extra.js", Buffer.from("code"));
     expect(() => store.inspect(zip.toBuffer())).toThrow("只能包含");

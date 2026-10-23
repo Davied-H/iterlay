@@ -1,4 +1,8 @@
+import { continueWithScreenCapture } from "./application/screen-collaboration.js";
+import { createScreenAccessService } from "./application/screen-access.js";
+import { capturePrimaryScreen, getScreenAccessStatus, openScreenCaptureSettings } from "./screen-access.js";
 import { createAssistantSessionService } from "./application/assistant-session.js";
+import type { CreationArtifact, CreationSession } from "../shared/creation-session.js";
 import { normalizeAssistantReferenceImage } from "./application/assistant-reference-image.js";
 import { normalizeTemplateExtractionScenario, normalizeMemoryQueryValue } from "./application/assistant-request.js";
 export { validateSceneCollaborationRequest } from "./application/assistant-request.js";
@@ -38,6 +42,7 @@ import {
   SCENE_COLLABORATION_EVENT_CHANNEL,
   SCENE_COLLABORATION_INTERACTION_RESPONSE_CHANNEL,
   SCENE_COLLABORATION_START_CHANNEL,
+  SCENE_COLLABORATION_STEER_CHANNEL,
   type SceneCollaborationInteractionResponsePayload,
   type StartSceneCollaborationPayload
 } from "../shared/assistant.js";
@@ -393,6 +398,11 @@ export function registerIpc({
     }
     return new OpenAICompatibleTextTransport(config, settings.getApiKey(config.id));
   };
+  const authorizeScreenCapture = createScreenAccessService({
+    getPolicy: () => settings.getSettings().assistantScreenAccess,
+    setPolicy: (policy) => settings.updateSettings({ assistantScreenAccess: policy }),
+    capture: capturePrimaryScreen
+  });
   const resolveAssistantAgentMode = async (
     request: CollaborateSceneRequest,
     textProvider: TextProviderConfig
@@ -416,12 +426,14 @@ export function registerIpc({
   const getAssistantAgentResourceOptions = async (
     request: CollaborateSceneRequest,
     uiCallbacks: {
+      providerLabel?: string;
       presentInteraction?: (
         interaction: SceneAssistantInteraction
       ) => Promise<{ action: "submit" | "dismiss"; values?: Record<string, string | string[]> }>;
       presentActivity?: (label: string) => void;
       presentReasoningSummary?: (delta: string) => void;
       presentTool?: (tool: AssistantToolCall) => void;
+      onSessionReady?: (steer: (instruction: string) => Promise<void>) => void;
       presentDirections?: (directions: NonNullable<CollaborateSceneResult["directions"]>) => void;
     } = {}
   ) => {
@@ -451,7 +463,12 @@ export function registerIpc({
       recordLog: (entry: import("../shared/pi-agent-log.js").PiAgentLogInput) => {
         piAgentLogs.record({ ...entry, taskId: logTaskId });
       },
-      ...uiCallbacks
+      ...uiCallbacks,
+      ...(request.assistantSurface !== "comic-drama" ? {
+        captureScreen: (reason: string, signal?: AbortSignal) => authorizeScreenCapture({ reason,
+          providerLabel: uiCallbacks.providerLabel ?? (() => { const current = settings.getSettings(); const provider = current.textProviders?.find((item) => item.id === (request.textProviderId || current.activeTextProviderId)); return provider ? `${provider.name} · ${provider.model}` : "当前对话模型"; })(),
+          presentInteraction: uiCallbacks.presentInteraction, signal })
+      } : {})
     };
   };
   const createAssistantAgentTools = (
@@ -617,7 +634,7 @@ export function registerIpc({
         signal
       });
     }
-    return createIterlayAgentTools(app.getPath("userData"), { boardId });
+    return createIterlayAgentTools(app.getPath("userData"), { boardId, preserveView: request.creationWorkflow === true });
   };
   const getAssistantSkillRoots = () => ({
     builtInRoot: app.isPackaged
@@ -630,6 +647,7 @@ export function registerIpc({
     {
       controller: AbortController;
       senderId: number;
+      steer?: (instruction: string) => Promise<void>;
       pendingInteractions: Map<
         string,
         {
@@ -917,6 +935,8 @@ export function registerIpc({
       void analytics.track("settings.updated");
     }
   });
+  ipcMain.handle("assistant:screenAccess:status", () => getScreenAccessStatus(settings.getSettings().assistantScreenAccess));
+  ipcMain.handle("assistant:screenAccess:openSettings", () => openScreenCaptureSettings());
   ipcMain.handle("pi-agent:resources:list", () => discoverPiAgentResources(
     app.getAppPath(),
     path.join(app.getPath("home"), ".pi", "agent"),
@@ -960,7 +980,7 @@ export function registerIpc({
     await shell.openExternal(await inspirationClient.urlFor(sourceId));
   });
   const integrationHome = app.isPackaged ? app.getPath("home") : path.join(app.getPath("userData"), "agent-home");
-  const bundledSkillPath = app.isPackaged ? path.join(process.resourcesPath, "skills", "iterlay-workspace") : path.join(app.getAppPath(), "resources", "skills", "iterlay-workspace");
+  const bundledSkillPath = app.isPackaged ? path.join(process.resourcesPath, "skills", "using-iterlay") : path.join(app.getAppPath(), "resources", "skills", "using-iterlay");
   const cliOptions = { homeDir: integrationHome, selfTest: true, userDataPath: app.isPackaged ? undefined : app.getPath("userData"), executable: process.execPath, scriptPath: app.isPackaged ? path.join(process.resourcesPath, "cli", "dist", "main.js") : path.join(app.getAppPath(), "cli", "dist", "main.js") };
   let cliError: string | undefined;
   const installAppCli = async () => { const result = await installCli(cliOptions); cliError = result.error; return result; };
@@ -1724,6 +1744,7 @@ export function registerIpc({
         const useAgent = await resolveAssistantAgentMode(preparedRequest, textProvider);
         const agentResourceOptions = useAgent
           ? await getAssistantAgentResourceOptions(preparedRequest, {
+              providerLabel: `${textProvider.name} · ${textProvider.model}`,
               presentInteraction,
               presentReasoningSummary: onReasoningSummary,
               presentTool: (tool) => {
@@ -1737,11 +1758,18 @@ export function registerIpc({
               },
               presentActivity: (label) => {
                 presentActivity(label);
+              },
+              onSessionReady: (steer) => {
+                const active = sceneCollaborationStreams.get(requestId);
+                if (active && active.senderId === sender.id) {
+                  active.steer = steer;
+                  sendSceneCollaborationEvent(sender, { requestId, type: "steer-ready" });
+                }
               }
             })
           : undefined;
         if (!useAgent) presentActivity("正在生成回复…");
-        const result = useAgent
+        let result = useAgent
           ? await collaborateSceneAgentStreamWith(
               getTextTransport(textProvider),
               preparedRequest,
@@ -1782,6 +1810,13 @@ export function registerIpc({
               onFields,
               onReasoningSummary
             );
+        if (!useAgent) result = await continueWithScreenCapture({
+          request: preparedRequest, result,
+          capture: (reason) => authorizeScreenCapture({ reason, providerLabel: `${textProvider.name} · ${textProvider.model}`,
+            presentInteraction, signal: controller.signal }),
+          analyze: (request) => collaborateSceneStreamWith(getTextTransport(textProvider), request, onDelta,
+            controller.signal, onFields, onReasoningSummary)
+        });
         if (!controller.signal.aborted) {
           presentActivity("正在保存回复…");
           await recordAssistantResult(preparedRequest, result, toolCalls, reasoningSummary);
@@ -1812,6 +1847,14 @@ export function registerIpc({
     if (typeof requestId !== "string") return;
     const active = sceneCollaborationStreams.get(requestId.trim());
     if (active?.senderId === event.sender.id) active.controller.abort();
+  });
+
+  ipcMain.handle(SCENE_COLLABORATION_STEER_CHANNEL, async (event, requestId: string, instruction: string): Promise<boolean> => {
+    if (typeof requestId !== "string" || typeof instruction !== "string" || !instruction.trim() || instruction.length > 4_000) return false;
+    const active = sceneCollaborationStreams.get(requestId);
+    if (!active || active.senderId !== event.sender.id || active.controller.signal.aborted || !active.steer) return false;
+    await active.steer(instruction.trim());
+    return true;
   });
 
   ipcMain.on(
@@ -1916,6 +1959,27 @@ export function registerIpc({
       }));
     }
   );
+
+  ipcMain.handle("creation:sessions:list", () => assistantConversations.listCreationSessions());
+  ipcMain.handle("creation:sessions:save", (_event, session: CreationSession) =>
+    assistantConversations.saveCreationSession(session));
+  ipcMain.handle("creation:artifact:present", async (_event, conversationId: string, artifact: CreationArtifact) => {
+    if (!artifact?.pluginId || !artifact.kind.startsWith(`${artifact.pluginId}:`) || !artifact.nodeId) throw new Error("无效的插件创作产物。");
+    const board = await boards.getBoard(artifact.boardId);
+    const node = board?.nodes.find((item) => item.id === artifact.nodeId);
+    if (!node || !board) throw new Error("创作产物不在画板中。");
+    const path = "imagePath" in node ? node.imagePath : "videoPath" in node ? node.videoPath : undefined;
+    if (artifact.path && path !== artifact.path) throw new Error("创作产物路径不匹配。");
+    const existing = (await assistantConversations.listCreationSessions()).find((item) => item.id === conversationId);
+    if (!existing || existing.boardId && existing.boardId !== board.id) throw new Error("创作会话与画板不匹配。");
+    return assistantConversations.addCreationArtifact(conversationId, artifact);
+  });
+  ipcMain.handle("creation:reference:save", async (_event, input: { id: string; name: string; mimeType: string; dataBase64: string }) => {
+    if (!input || typeof input.dataBase64 !== "string" || input.dataBase64.length > 24_000_000) throw new Error("参考图无效或过大。");
+    const [saved] = await assets.saveReferenceImages([{ id: input.id, name: input.name, mimeType: input.mimeType, dataBase64: input.dataBase64, role: "reference" }]);
+    return { path: saved.path, url: assets.toAssetUrl(saved.path) };
+  });
+  ipcMain.handle("creation:reference:url", (_event, filePath: string) => assets.toAssetUrl(filePath));
 
   ipcMain.handle("history:list", (_event, boardId?: string) => history.listJobs(boardId));
   ipcMain.handle("history:scenes", () => history.listSceneJobs());

@@ -406,7 +406,8 @@ describe("SettingsStore provider normalization", () => {
       expect(defaults.boardAssistantAgentModeEnabled).toBe(false);
       expect(defaults.assistantAgentModeEnabled).toBe(false);
       expect(defaults.piAgentBuiltinTools).toEqual(["read", "grep", "find", "ls"]);
-      expect(defaults.piAgentIterlayTools).toHaveLength(26);
+      expect(defaults.piAgentIterlayTools).toHaveLength(28);
+      expect(defaults.piAgentIterlayTools).toEqual(expect.arrayContaining(["create_canvas", "update_canvas"]));
       expect(defaults.piAgentMaxTurns).toBe(12);
       expect(defaults.piAgentWebSearchMaxResults).toBe(5);
       expect(defaults.boardAssistantAwarenessEnabled).toBe(true);
@@ -596,4 +597,16 @@ describe("SettingsStore provider normalization", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+});
+
+it("defaults screen access to ask and persists only explicit permission choices", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-screen-settings-"));
+  try {
+    const store = new SettingsStore(directory);
+    expect(store.getSettings().assistantScreenAccess).toBe("ask");
+    await store.transaction(() => store.updateSettings({ assistantScreenAccess: "allow" }));
+    expect(new SettingsStore(directory).getSettings().assistantScreenAccess).toBe("allow");
+    await store.transaction(() => store.updateSettings({ assistantScreenAccess: "deny" }));
+    expect(new SettingsStore(directory).getSettings().assistantScreenAccess).toBe("deny");
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

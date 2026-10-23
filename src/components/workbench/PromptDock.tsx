@@ -93,7 +93,7 @@ import {
 } from "@/lib/ui-design-workflow";
 import { cn } from "@/lib/utils";
 import { settleAssistantToolCalls } from "@shared/assistant-display";
-import { FusionPromptConfirmation } from "./FusionPromptConfirmation";
+import { AssistantInteraction } from "../assistant/AssistantInteraction";
 import { PromptFusionDock } from "./PromptFusionDock";
 
 const loadAiAssistant = () =>
@@ -1260,7 +1260,7 @@ export function PromptDock({
     const currentPrompt = promptDraftRef.current;
     setAssistantConversationId(crypto.randomUUID());
     setAssistantMessages([{
-      id: crypto.randomUUID(),
+      id: "fusion-greeting",
       role: "assistant",
       content: assistantSurface === "comic-drama" && comicDramaSnapshot
         ? comicDramaGuide?.message ?? "请先安装或更新漫剧插件。"
@@ -2220,12 +2220,12 @@ export function PromptDock({
         open={assistantAvailable && assistantOpen}
         busy={assistantAvailable && (assistantStreaming || Boolean(assistantActivity))}
         inputDisabled={assistantAvailable && Boolean(assistantInteraction)}
-        confirmationId={assistantInteraction?.state.interaction.type === "confirm" ? assistantInteraction.state.id : undefined}
-        confirmation={assistantAvailable && assistantInteraction?.state.interaction.type === "confirm" ? <FusionPromptConfirmation
+        confirmationId={assistantInteraction?.state.id}
+        confirmation={assistantAvailable && assistantInteraction ? <AssistantInteraction
           key={assistantInteraction.state.id}
           state={assistantInteraction.state}
           disabled={Boolean(assistantActivity)}
-          onApply={() => submitAssistantInteraction({})}
+          onSubmit={submitAssistantInteraction}
           onGenerate={generateAssistantInteraction}
           onDismiss={dismissAssistantInteraction}
           onRefine={refineAssistantInteraction}
@@ -2311,7 +2311,12 @@ export function PromptDock({
               </ul>
             </div>
           ) : null}
-          {activeScene ? <details className="mb-2 text-xs"><summary>{uiText("模板：")}{activeScene.name}</summary>
+          {activeScene ? <details className="prompt-template-reference"><summary>
+            <LayoutTemplate size={14} aria-hidden="true" />
+            <span className="prompt-template-reference-label">{uiText("模板")}</span>
+            <span className="prompt-template-reference-name" title={activeScene.name}>{activeScene.name}</span>
+            <ChevronDown size={14} className="prompt-template-reference-chevron" aria-hidden="true" />
+          </summary><div className="prompt-template-reference-content">
             <p className="max-h-24 overflow-auto whitespace-pre-wrap py-2">{activeScene.prompt}</p>
             {templatePreviewImages.length ? <div className="my-2 flex gap-2">{templatePreviewImages.map((preview, index) => <button
               key={preview.src} type="button" className="h-14 w-20 overflow-hidden rounded" aria-label={uiText("查看模板示例 {{ui:0}}", [index + 1])}
@@ -2321,7 +2326,7 @@ export function PromptDock({
             {templateMediaLoading ? <p role="status">{uiText("正在加载示例…")}</p> : null}
             {templateMediaError ? <button type="button" onClick={() => setTemplateMediaReloadNonce((current) => current + 1)}>{uiText("重新加载示例")}</button> : null}
             <div className="flex gap-3"><button type="button" onClick={() => setScenePickerOpen(true)}>{uiText("更换模板")}</button><button type="button" onClick={() => onInputChange({ sceneId: undefined })}>{uiText("移除模板")}</button></div>
-          </details> : null}
+          </div></details> : null}
           {uiBriefPreview ? <details className="mb-2 text-xs"><summary>UI Brief · {uiBriefPreview.brief.goal}</summary><p>{uiBriefPreview.brief.structure}</p><p>{uiBriefPreview.brief.visualDirection}</p></details> : null}
           {isUiDesignMode && input.referenceImages.length ? <details className="mb-2 text-xs"><summary>{uiText("材料职责")}</summary>{input.referenceImages.map((image) => <label className="my-2 flex items-center justify-between gap-2" key={image.id}><span className="truncate">{image.name}</span><select aria-label={t("prompt.uiDesign.role.changeFor", { name: image.name })} value={image.semanticRole ?? inferUiMaterialRole(image.name)} onChange={(event) => changeUiMaterialRole(image.id, event.target.value as UiMaterialRole)}>{UI_MATERIAL_ROLES.map((role) => <option key={role} value={role}>{t(UI_MATERIAL_ROLE_MESSAGE_KEYS[role])}</option>)}</select></label>)}</details> : null}
 
@@ -2362,8 +2367,8 @@ export function PromptDock({
           {needsProviderSetup ? uiText("去配置") : isUiDesignMode ? uiGenerateActionLabel : templateResolving ? uiText("正在生成预览") : activeScene && !templatePromptPreviewReady ? uiText("预览提示词") : editTarget ? uiText("应用修改") : uiText("生成 {{ui:0}} 张", [input.n])}
         </GenerateActionButton>}
         assistant={<Suspense fallback={<div className="p-4 text-sm" role="status">{uiText("正在加载助手…")}</div>}>
-          <AiAssistant appearance="fusion" hideComposer variant={assistantDockSide ? "docked" : "floating"} dockSide={assistantDockSide ?? undefined} compact
-            hideInteraction={assistantInteraction?.state.interaction.type === "confirm"}
+          <AiAssistant  hideComposer variant={assistantDockSide ? "docked" : "floating"} dockSide={assistantDockSide ?? undefined} compact
+            hideInteraction
             headerPointerHandlers={{
               onPointerDown: startAssistantDrag
             }}

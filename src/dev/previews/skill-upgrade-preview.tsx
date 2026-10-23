@@ -10,7 +10,7 @@ import "@/styles.css";
 const details: AgentSkillUpgradeDetail[] = [
   {
     client: "codex",
-    skillPath: "/Users/demo/.codex/skills/iterlay-workspace",
+    skillPath: "/Users/demo/.codex/skills/using-iterlay",
     currentDigest: "0d8c7f2d",
     upgradedAt: new Date().toISOString(),
     files: {
@@ -21,7 +21,7 @@ const details: AgentSkillUpgradeDetail[] = [
   },
   {
     client: "claude-code",
-    skillPath: "/Users/demo/.claude/skills/iterlay-workspace",
+    skillPath: "/Users/demo/.claude/skills/using-iterlay",
     previousDigest: "9a12ec0b",
     currentDigest: "0d8c7f2d",
     upgradedAt: new Date().toISOString(),

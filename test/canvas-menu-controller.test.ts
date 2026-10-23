@@ -27,7 +27,7 @@ function Harness(props: {
   screenToFlowPosition: (point: { x: number; y: number }) => { x: number; y: number };
   recordCanvasChange: () => void;
   createWorkflowNode?: (
-    type: "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
+    type: "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script",
     position: { x: number; y: number }
   ) => string | void;
   connect: (connection: Connection, options: { recordHistory: false; targetNodeType: string }) => boolean;
@@ -113,7 +113,7 @@ describe("canvas menu controller", () => {
 
     expect(latest?.nodeCreateMenu).toMatchObject({
       anchor: { x: 536, y: 450 },
-      types: ["textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"],
+      types: ["codeCanvasNode", "textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"],
       title: "创建节点"
     });
     expect(screenToFlowPosition).toHaveBeenCalledWith({ x: 1200, y: 900 });

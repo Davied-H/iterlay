@@ -10,11 +10,7 @@ afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(directories.splice
 async function fixture() {
   const home = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-")); directories.push(home);
   const skill = path.join(home, "bundle"); await mkdir(skill);
-  await writeFile(path.join(skill, "SKILL.md"), "---\nname: iterlay-workspace\ndescription: Use the CLI\n---\nUse iterlay CLI.");
-  const entry = path.join(home, "using-iterlay"); await mkdir(entry);
-  await writeFile(path.join(entry, "SKILL.md"), "---\nname: using-iterlay\ndescription: Explicit Iterlay entrypoint\ndisable-model-invocation: true\n---\nRead ../iterlay-workspace/SKILL.md");
-  await mkdir(path.join(entry, "agents"));
-  await writeFile(path.join(entry, "agents/openai.yaml"), "policy:\n  allow_implicit_invocation: false\n");
+  await writeFile(path.join(skill, "SKILL.md"), "---\nname: using-iterlay\ndescription: Use the CLI\n---\nUse iterlay CLI.");
   return { home, skill, userDataPath: path.join(home, "data") };
 }
 describe("CLI installation and Skill migration", () => {
@@ -24,7 +20,7 @@ describe("CLI installation and Skill migration", () => {
     await runAdd({ homeDir: f.home, userDataPath: f.userDataPath, bundledSkillPath: f.skill, agents: ["codex"] });
     const config = await readFile(path.join(f.home, ".codex/config.toml"), "utf8");
     expect(config).toContain('command="other"'); expect(config).toContain('[features]'); expect(config).not.toContain('mcp_servers.iterlay');
-    expect(await readFile(path.join(f.home, ".codex/skills/iterlay-workspace/SKILL.md"), "utf8")).toContain("CLI");
+    expect(await readFile(path.join(f.home, ".codex/skills/using-iterlay/SKILL.md"), "utf8")).toContain("CLI");
     await runRemove({ homeDir: f.home, userDataPath: f.userDataPath, agents: ["codex"] });
     expect(JSON.parse(await readFile(path.join(f.userDataPath, "mcp-skill-policy.json"), "utf8")).declined.codex).toBe(true);
   });
@@ -56,7 +52,7 @@ describe("CLI installation and Skill migration", () => {
     expect(result.error).toContain("同名"); expect(await readFile(target, "utf8")).toBe("unrelated");
   });
   it("protects an unmanaged Skill from installation and removal", async () => {
-    const f = await fixture(); const existing = path.join(f.home, ".codex/skills/iterlay-workspace"); await mkdir(existing, { recursive: true });
+    const f = await fixture(); const existing = path.join(f.home, ".codex/skills/using-iterlay"); await mkdir(existing, { recursive: true });
     await writeFile(path.join(existing, "SKILL.md"), "custom skill");
     await expect(runAdd({ homeDir: f.home, userDataPath: f.userDataPath, bundledSkillPath: f.skill, agents: ["codex"] })).rejects.toThrow("自行维护");
     await expect(runRemove({ homeDir: f.home, userDataPath: f.userDataPath, agents: ["codex"] })).rejects.toThrow("未由 Iterlay 管理");

@@ -7,6 +7,7 @@ import type {
 import { getImageWorkbenchApi } from "@/lib/image-workbench-api";
 
 export interface SceneCollaborationStreamHandlers {
+  onSteerReady?: () => void;
   onTool?: (tool: import("@shared/assistant-display").AssistantToolCall) => void;
   onDelta: (delta: string) => void;
   onReasoningSummary?: (delta: string) => void;
@@ -27,6 +28,7 @@ export interface SceneCollaborationStreamHandle {
     action: "submit" | "dismiss",
     values?: Record<string, string | string[]>
   ) => void;
+  steer: (instruction: string) => Promise<boolean>;
 }
 
 export function startSceneCollaborationStream(
@@ -39,6 +41,7 @@ export function startSceneCollaborationStream(
 
   const unsubscribe = api.onSceneCollaborationEvent((event: CollaborateSceneStreamEvent) => {
     if (!active || event.requestId !== requestId) return;
+    if (event.type === "steer-ready") { handlers.onSteerReady?.(); return; }
     if (event.type === "tool") {
       handlers.onTool?.(event.tool);
       return;
@@ -89,6 +92,7 @@ export function startSceneCollaborationStream(
     },
     respondToInteraction: (interactionId, action, values) => {
       if (active) api.respondSceneCollaborationInteraction(requestId, interactionId, action, values);
-    }
+    },
+    steer: (instruction) => active ? api.steerSceneCollaboration(requestId, instruction) : Promise.resolve(false)
   };
 }

@@ -1,3 +1,4 @@
+import { CANVAS_EDITOR_FLUSH_EVENT } from "@shared/types";
 import { translateSourceText } from "@/i18n/ui-text";
 import { rebaseBoardSnapshot } from "@shared/board-snapshot-merge";
 import { useCallback, useEffect, useRef, type RefObject } from "react";
@@ -131,11 +132,11 @@ export function useBoardPersistence(options: BoardPersistenceOptions) {
     });
   }
   const coordinator = coordinatorRef.current;
-  const persistBoard = useCallback(() => coordinator.saveNow(), [coordinator]);
+  const persistBoard = useCallback(() => { window.dispatchEvent(new Event(CANVAS_EDITOR_FLUSH_EVENT)); return coordinator.saveNow(); }, [coordinator]);
   const scheduleBoardSave = useCallback(() => {
     if (latest.current.activeBoard.current) coordinator.schedule();
   }, [coordinator]);
-  const flushBoardSave = useCallback(() => coordinator.flush(), [coordinator]);
+  const flushBoardSave = useCallback(() => { window.dispatchEvent(new Event(CANVAS_EDITOR_FLUSH_EVENT)); return coordinator.flush(); }, [coordinator]);
   useEffect(() => {
     mounted.current = true;
     return () => {

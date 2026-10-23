@@ -47,6 +47,14 @@ describe("Iterlay Pi Agent tools", () => {
     }]);
   });
 
+  it("keeps creation tools in the current view without changing normal CLI calls", async () => {
+    const callBridge = vi.fn(async () => ({ id: "new-board" }));
+    const tool = createIterlayAgentTools("/tmp/iterlay", { preserveView: true }, callBridge)
+      .find((candidate) => candidate.name === "create_board")!;
+    await tool.execute("create", { name: "创作" });
+    expect(callBridge).toHaveBeenCalledWith("/tmp/iterlay", "create_board", { name: "创作", preserveView: true });
+  });
+
   it("blocks board mutations outside the active board", async () => {
     const callBridge = vi.fn();
     const tool = createIterlayAgentTools("/tmp/iterlay", { boardId: "board-1" }, callBridge)

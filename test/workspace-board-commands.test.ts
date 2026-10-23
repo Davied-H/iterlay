@@ -9,6 +9,14 @@ describe("typed workspace board commands", () => {
     expect(f.mocks.moveBoardImage).toHaveBeenCalledWith("board", "image", 10, 20);
     expect(f.emit).toHaveBeenCalledWith({ type: "board-updated", boardId: "board", movedNodeId: "image", x: 10, y: 20 });
   });
+  it("marks passive creation events so the active chat is not navigated away", async () => {
+    const f = workspaceFixture();
+    f.mocks.createBoard.mockResolvedValue({ id: "created", name: "创作" });
+    await f.commands.call("create_board", { name: "创作", preserveView: true });
+    expect(f.emit).toHaveBeenCalledWith({ type: "board-created", boardId: "created", name: "创作", preserveView: true });
+    await f.commands.call("move_image", { boardId: "board", nodeId: "image", x: 10, y: 20, preserveView: true });
+    expect(f.emit).toHaveBeenCalledWith(expect.objectContaining({ type: "board-updated", preserveView: true }));
+  });
   it("does not mutate when saving fails", async () => {
     const f = workspaceFixture();
     f.flush.mockRejectedValue(new Error("disk full"));

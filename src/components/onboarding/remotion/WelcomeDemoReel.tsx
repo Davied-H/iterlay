@@ -1,3 +1,5 @@
+import { AssistantMessageFrame } from "@/components/assistant/AssistantMessage";
+import { AssistantComposerFrame, AssistantComposerToolbar } from "@/components/assistant/AssistantComposer";
 import { useUiText } from "@/i18n";
 import type { CSSProperties, ReactNode } from "react";
 import {
@@ -156,8 +158,8 @@ function AiAssistantScene({ assets, fadeIn, fadeOut }: SceneProps): React.ReactE
         <span style={{ position: "absolute", right: 16, bottom: 16, display: "flex", alignItems: "center", gap: 6, borderRadius: 7, padding: "7px 10px", opacity: receiptIn, color: "#091b3f", background: "#78a4ff", fontSize: 11, fontWeight: 700 }}><Check size={13} />{uiText("修改已应用")}</span>
       </div>
 
-      <div style={{ position: "absolute", right: 44, top: 64, width: 282, height: 450, overflow: "hidden", borderRadius: 10, background: "#fbfbf9", boxShadow: "0 8px 24px rgb(24 24 27 / 0.18)" }}>
-        <div style={{ display: "flex", height: 50, alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e1e1de", padding: "0 15px", fontSize: 13, fontWeight: 700 }}><span>{uiText("画板共创助手")}</span><span style={{ color: MUTED, fontSize: 10, fontWeight: 500 }}>{uiText("基于当前画面")}</span></div>
+      <div className="create-chat" style={{ position: "absolute", right: 44, top: 64, width: 282, height: 450, borderRadius: 22, border: "1px solid var(--chat-border)" }}>
+        <div className="create-chat-header" style={{ fontSize: 13, color: "var(--chat-secondary)" }}><span>{uiText("画板共创助手")}</span><span style={{ color: MUTED, fontSize: 10, fontWeight: 500 }}>{uiText("基于当前画面")}</span></div>
 
         <div style={{ position: "absolute", inset: "50px 0 0", padding: 18, opacity: contextExit, transform: `translateX(${(1 - contextExit) * -18}px)` }}>
           <div style={{ marginBottom: 14, fontSize: 12, fontWeight: 700 }}>{uiText("正在读取创作上下文")}</div>
@@ -168,10 +170,10 @@ function AiAssistantScene({ assets, fadeIn, fadeOut }: SceneProps): React.ReactE
         </div>
 
         <div style={{ position: "absolute", inset: "50px 0 0", display: "flex", flexDirection: "column", gap: 12, padding: 16, opacity: editIn, transform: `translateX(${(1 - editIn) * 18}px)` }}>
-          <div style={{ alignSelf: "flex-end", maxWidth: "84%", borderRadius: 8, padding: "9px 10px", background: "#e8e8e4", fontSize: 11, lineHeight: 1.5 }}>{uiText("做一版更克制的电商主视觉")}</div>
-          <div style={{ minHeight: 62, borderRadius: 8, padding: "9px 10px", background: "#f0f0ed", fontSize: 11, lineHeight: 1.55 }}>{prompt.slice(0, promptLength)}{promptLength < prompt.length ? <span style={{ color: ACCENT }}>|</span> : null}</div>
+          <AssistantMessageFrame role="user"><p>{uiText("做一版更克制的电商主视觉")}</p></AssistantMessageFrame>
+          <AssistantMessageFrame role="assistant"><div className="create-chat-response">{prompt.slice(0, promptLength)}{promptLength < prompt.length ? <span>|</span> : null}</div></AssistantMessageFrame>
           <div style={{ display: "flex", minHeight: 44, alignItems: "center", gap: 7, border: "1px solid #dededa", borderRadius: 8, padding: "0 9px", opacity: receiptIn, color: MUTED, fontSize: 10 }}><Check size={12} color={ACCENT} /><span style={{ flex: 1 }}>{uiText("提示词与参考设置已更新")}</span><span style={{ display: "flex", alignItems: "center", gap: 4, color: INK, fontWeight: 650 }}><RotateCcw size={11} />{uiText("撤销")}</span></div>
-          <div style={{ display: "flex", height: 48, alignItems: "center", gap: 8, marginTop: "auto", border: "1px solid #dededa", borderRadius: 8, padding: "0 9px", color: MUTED, fontSize: 10 }}><span style={{ flex: 1 }}>{uiText("继续描述你的想法")}</span><span style={{ display: "grid", width: 29, height: 29, placeItems: "center", borderRadius: 7, color: "#fff", background: INK }}><Send size={12} /></span></div>
+          <AssistantComposerFrame style={{ marginTop: "auto", padding: "10px 12px", fontSize: 12 }}><span style={{ color: "var(--chat-secondary)" }}>{uiText("继续描述你的想法")}</span><AssistantComposerToolbar><span className="create-chat-send" style={{ marginLeft: "auto" }}><Send size={14} /></span></AssistantComposerToolbar></AssistantComposerFrame>
         </div>
       </div>
     </DemoShell>

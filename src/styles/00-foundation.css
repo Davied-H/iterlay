@@ -3,8 +3,6 @@
 @tailwind utilities;
 
 /* Assistant recovery state: the latest error is actionable; older failures stay compact. */
-.assistant-error-previous summary::-webkit-details-marker { display: none; }
-.assistant-error-previous[open] .assistant-error-chevron { transform: rotate(180deg); }
 
 /*
  * Neutral tool system with tightly scoped semantic color.
