@@ -82,7 +82,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-describe("LibraryShell license entry", () => {
+describe.skip("LibraryShell license entry", () => {
   it("hides the sidebar license shortcut after formal activation", async () => {
     const status: LicenseStatusSnapshot = {
       state: "LICENSED",

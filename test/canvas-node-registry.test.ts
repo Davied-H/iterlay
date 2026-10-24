@@ -37,6 +37,7 @@ describe("canvas node registry", () => {
 
   it("derives renderers and defaults from declarative definitions", () => {
     expect(listCanvasNodeDefinitions().map((definition) => definition.type)).toEqual([
+      "codeCanvasNode",
       "imageNode",
       "textNode",
       "generationNode",
