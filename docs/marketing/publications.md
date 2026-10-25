@@ -197,7 +197,21 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 
 ## App 版本发布
 
+### APP-004 · Iterlay v0.1.66
+
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.66 。
+- 内容：修复正式版 Canvas 本地文件沙盒预览白屏，内联运行时并增加启动失败提示；补充 file / HTTP 回归验证和安装包沙盒完整性审计。
+- 日期 / 时区：2026-10-25 14:02:24 / Asia/Shanghai。
+- 发布提交：`fe1f8bf0f0e199da2938c0eb91d4b5ffa832e92e`；CI、安装包和标签固定为同一提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64、Windows ARM64 / x64 四份安装包和 SHA256SUMS.txt 已公开。
+- 验证：本地类型检查、相关 ESLint、15 项 Canvas/翻译测试、7 项包审计测试和生产前端构建通过；构建前后均通过 HTML / React / Vue / Vue script setup 在 file 与 HTTP 下的 8 组渲染、交互、Console 和隔离检查。
+- 云端验证：完整检查、Canvas 沙盒回归与网页冒烟 https://github.com/Davied-H/iterlay/actions/runs/40167267046 成功；四平台打包与审计 https://github.com/Davied-H/iterlay/actions/runs/40167263659 成功。
+- 发布与公开核验：2026-10-25；发布流程 https://github.com/Davied-H/iterlay/actions/runs/40167629909 成功，GitHub API 确认非草稿、非预发布、Latest=v0.1.66，四份附件摘要与实际下载的 SHA256SUMS.txt 一致。未进行可见 App 安装测试。
+- 指标及采集日期：未采集。
+
 ### APP-003 · Iterlay v0.1.65
+
+- 后续修复（2026-10-25）：发现正式版 file:// 沙盒无法加载外部 runtime.js，导致预览白屏；已由 v0.1.66 修复并取代 Latest。
 
 - 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.65 。
 - 内容：Canvas HTML / React / Vue 沙盒、AI 创建与修改、代码高亮与格式化、Console 调试台、控制栏设备尺寸下拉及工作台入口精简。
