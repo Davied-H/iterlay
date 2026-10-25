@@ -197,6 +197,18 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 
 ## App 版本发布
 
+### APP-003 · Iterlay v0.1.65
+
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.65 。
+- 内容：Canvas HTML / React / Vue 沙盒、AI 创建与修改、代码高亮与格式化、Console 调试台、控制栏设备尺寸下拉及工作台入口精简。
+- 日期 / 时区：2026-10-25 12:22:44 / Asia/Shanghai。
+- 发布提交：`1ae50d2ea8cd106bf399621064c97b4580636cb6`；CI、安装包和 v0.1.65 标签固定使用同一提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64、Windows ARM64 / x64 四份安装包与 SHA256SUMS.txt 已公开。
+- 本地验证：完整 check:all 通过，2236 项测试通过、4 项既有媒体测试跳过；官网测试、生产构建与 40 页 SEO 检查通过。
+- 云端验证：全量检查及隔离网页冒烟 https://github.com/Davied-H/iterlay/actions/runs/40161272831 通过；四平台安装包及内容/体积审计 https://github.com/Davied-H/iterlay/actions/runs/40161280587 通过。
+- 发布与公开核验：2026-10-25；发布流程 https://github.com/Davied-H/iterlay/actions/runs/40161632269 成功，上传前逐包 SHA-256 校验通过；GitHub API 确认非草稿、非预发布、Latest=v0.1.65，四份公开附件摘要与下载的 SHA256SUMS.txt 一致。未进行可见 App 安装测试。
+- 指标及采集日期：未采集。
+
 ### APP-002 · Iterlay v0.1.64
 
 - 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.64 。
