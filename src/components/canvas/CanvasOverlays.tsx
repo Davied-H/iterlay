@@ -88,14 +88,15 @@ interface CanvasSelectionToolbarProps {
   onCreateSequence: () => void;
 }
 
-export function CanvasVideoMergeToolbar({ nodeIds, count, onMerge }: {
+export function CanvasVideoMergeToolbar({ nodeIds, count, onMerge, position = Position.Top }: {
+  position?: Position;
   nodeIds: string[];
   count: number;
   onMerge: () => void;
 }): React.ReactElement {
   const uiText = useUiText();
 
-  return <NodeToolbar nodeId={nodeIds} isVisible={count >= 2} position={Position.Top} offset={12} className="nodrag nopan">
+  return <NodeToolbar nodeId={nodeIds} isVisible={count >= 2} position={position} offset={12} className="nodrag nopan">
     <div role="toolbar" aria-label={uiText("所选 {{ui:0}} 个视频的批量操作", [count])} className="flex items-center gap-2 rounded-lg border border-border bg-popover p-1 pl-2.5 text-popover-foreground shadow-md" onPointerDown={(event) => event.stopPropagation()}>
       <span className="text-[11px] font-medium tabular-nums text-muted-foreground">{uiText("已选 ")}{count} {uiText("个完成视频")}</span>
       <button type="button" className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground" onClick={onMerge}><Merge className="h-4 w-4" />{uiText("合并视频 · ")}{count}</button>

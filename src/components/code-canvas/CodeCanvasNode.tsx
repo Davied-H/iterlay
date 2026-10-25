@@ -1,4 +1,5 @@
-import { memo, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { CanvasSelectionCountContext } from "../canvas/canvas-selection-context";
+import { memo, useContext, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { NodeToolbar, Position, useStore, type NodeProps } from '@xyflow/react';
 import { SiHtml5, SiReact, SiVuedotjs } from 'react-icons/si';
 import { resolveImageToolbarSide } from '../canvas/image-toolbar-position';
@@ -24,6 +25,7 @@ export interface CodeCanvasData extends Record<string, unknown> {
 const FRAMEWORKS = { html: { label: 'HTML', icon: SiHtml5 }, react: { label: 'React', icon: SiReact }, vue: { label: 'Vue', icon: SiVuedotjs } };
 function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
   const uiText = useUiText();
+  const hasMultipleSelection = useContext(CanvasSelectionCountContext) > 1;
   const value = data as CodeCanvasData;
   const frame = useRef<HTMLIFrameElement>(null);
   const [hovered, setHovered] = useState(false);
@@ -112,7 +114,7 @@ function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
   }
   return <section data-code-canvas-node="" className={`canvas-node-card code-canvas ${selected ? 'canvas-workflow-node--selected' : ''}`} aria-label={uiText('Canvas 代码组件')} onPointerEnter={showToolbar} onPointerLeave={scheduleHide}>
     <header className="code-canvas__header"><Code2 size={14} aria-hidden /><span className="code-canvas__title">{value.title || 'Canvas'}</span><span className="code-canvas__framework" role="img" aria-label={FRAMEWORKS[value.framework].label} title={FRAMEWORKS[value.framework].label}><FrameworkIcon aria-hidden /></span></header>
-    <NodeToolbar isVisible={!dragging && (Boolean(selected) || hovered)} position={toolbarPosition} offset={10} align="center" className="nodrag nopan nowheel">
+    <NodeToolbar isVisible={!hasMultipleSelection && !dragging && (Boolean(selected) || hovered)} position={toolbarPosition} offset={10} align="center" className="nodrag nopan nowheel">
       <div className="video-node-toolbar code-canvas__toolbar" role="toolbar" aria-label={uiText('Canvas 操作')} onPointerDown={e => e.stopPropagation()} onPointerEnter={showToolbar} onPointerLeave={scheduleHide}>
         <div className="code-canvas__tabs" role="tablist" aria-label={uiText('Canvas 视图')}>
           {(['code', 'preview'] as const).map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => {

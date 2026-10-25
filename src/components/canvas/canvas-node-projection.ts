@@ -187,7 +187,10 @@ export function projectCanvasNodes(input: CanvasNodeProjectionInput): CanvasNode
     const type = projectedWorkflowNodeType(workflowNode);
     const { width, height: defaultHeight } = projectedWorkflowNodeSize(type);
     const videoMedia = workflowNode.type === "video"
-      ? "video" in workflowNode ? workflowNode.video : workflowNode
+      ? "video" in workflowNode ? workflowNode.video
+        : workflowNode.versions?.length
+          ? workflowNode.versions[Math.min(Math.max(0, workflowNode.activeVersion ?? 0), workflowNode.versions.length - 1)]
+          : workflowNode
       : undefined;
     const generationSource = workflowNode.type === "video" && !("video" in workflowNode)
       ? workflowById.get(workflowNode.generationNodeId ?? "")
@@ -196,7 +199,7 @@ export function projectCanvasNodes(input: CanvasNodeProjectionInput): CanvasNode
       ? generationSource.aspectRatio
       : undefined;
     const requestedVideoRatio = workflowNode.type === "video" && !("video" in workflowNode)
-      ? parseVideoAspectRatio(workflowNode.aspectRatio ?? inheritedAspectRatio)
+      ? parseVideoAspectRatio(videoMedia?.aspectRatio ?? workflowNode.aspectRatio ?? inheritedAspectRatio)
       : workflowNode.type === "video" && "video" in workflowNode
         ? parseVideoAspectRatio(workflowNode.video.aspectRatio)
         : undefined;

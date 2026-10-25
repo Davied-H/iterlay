@@ -8,14 +8,16 @@ import { VideoGenerationNode, type VideoGenerationNodeData } from "@/components/
 import {
   isVideoControlPointer,
   resolveVideoInteractionPresentation,
-  resolveVideoPreload,
   VideoNode,
   type VideoNodeData
 } from "@/components/canvas/VideoNode";
+import { CanvasSelectionCountContext } from "@/components/canvas/canvas-selection-context";
+import { CodeCanvasNode } from "@/components/code-canvas/CodeCanvasNode";
 import { videoAspectRatio } from "@/components/canvas/video-node-model";
 import { NODE_INPUT_COMMIT_DELAY_MS } from "@/components/canvas/use-debounced-node-commit";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+Object.defineProperty(window, "DOMMatrixReadOnly", { configurable: true, value: class { m22 = 1; } });
 globalThis.ResizeObserver = class ResizeObserver {
   observe(): void {}
   unobserve(): void {}
@@ -32,13 +34,13 @@ afterEach(async () => {
   container = null;
 });
 
-function renderCanvasNode(node: Node, nodeTypes: NodeTypes): void {
+function renderCanvasNode(node: Node, nodeTypes: NodeTypes, selectionCount = 1): void {
   container = document.createElement("div");
   container.style.width = "900px";
   container.style.height = "760px";
   document.body.append(container);
   root = createRoot(container);
-  act(() => root?.render(createElement(ReactFlow, { nodes: [node], edges: [], nodeTypes })));
+  act(() => root?.render(createElement(CanvasSelectionCountContext.Provider, { value: selectionCount }, createElement(ReactFlow, { nodes: [node], edges: [], nodeTypes }))));
 }
 
 function buttonByLabel(label: string): HTMLButtonElement {
@@ -70,6 +72,20 @@ async function openVideoProviderSubmenu(providerName: string): Promise<HTMLButto
 }
 
 describe("video canvas node UI", () => {
+  it.each([1, 2, 30])("shows individual video/code actions only for single selection (count=%s)", (count) => {
+    renderCanvasNode({
+      id: "video", type: "videoNode", position: { x: 0, y: 0 }, selected: true,
+      data: { video: { id: "video", path: "/video.mp4", status: "completed" } }
+    }, { videoNode: VideoNode }, count);
+    expect(document.querySelector('[aria-label="视频操作"]') !== null).toBe(count === 1);
+    act(() => root?.render(createElement(CanvasSelectionCountContext.Provider, { value: count },
+      createElement(ReactFlow, { nodes: [{
+        id: "code", type: "codeCanvas", position: { x: 0, y: 0 }, selected: true,
+        data: { code: "", framework: "html" }
+      }], edges: [], nodeTypes: { codeCanvas: CodeCanvasNode } }))));
+    expect(document.querySelector('.code-canvas__toolbar') !== null).toBe(count === 1);
+  });
+
   it.each(["draft", "failed"] as const)("blocks blank HappyHorse descriptions with a first frame in %s state", async (status) => {
     const onRun = vi.fn();
     const onRetry = vi.fn();
@@ -227,11 +243,36 @@ describe("video canvas node UI", () => {
     expect(document.querySelector<HTMLImageElement>(".video-node-drag-poster")?.src).toBe("image:poster");
   });
 
-  it("preloads video metadata only for selected, interactive, or playing nodes", () => {
-    expect(resolveVideoPreload(false, false, false, false)).toBe("none");
-    expect(resolveVideoPreload(true, false, false, false)).toBe("metadata");
-    expect(resolveVideoPreload(false, true, false, false)).toBe("metadata");
-    expect(resolveVideoPreload(false, false, false, true)).toBe("metadata");
+  it("preloads an unselected video before any pointer interaction without autoplay", () => {
+    renderCanvasNode({
+      id: "video",
+      type: "videoNode",
+      position: { x: 0, y: 0 },
+      selected: false,
+      data: { video: { id: "video", dataUrl: "video:source", status: "completed" } }
+    }, { videoNode: VideoNode });
+
+    const player = document.querySelector<HTMLVideoElement>("[data-video-node] video");
+    expect(player?.src).toBe("video:source");
+    expect(player?.preload).toBe("auto");
+    expect(player?.autoplay).toBe(false);
+  });
+
+  it("fits a portrait video after metadata loads even when the node starts with a landscape height", () => {
+    const onMetadataLoaded = vi.fn();
+    renderCanvasNode({
+      id: "portrait", type: "videoNode", position: { x: 0, y: 0 }, width: 360, height: 202.5,
+      data: { video: { id: "portrait", path: "/portrait.mp4", dataUrl: "video:portrait", status: "completed" }, onMetadataLoaded }
+    }, { videoNode: VideoNode });
+    const player = document.querySelector<HTMLVideoElement>("[data-video-node] video")!;
+    Object.defineProperties(player, {
+      videoWidth: { value: 720 }, videoHeight: { value: 1280 }, duration: { value: 8 }
+    });
+    act(() => player.dispatchEvent(new Event("loadedmetadata")));
+    expect(document.querySelector<HTMLElement>("[data-video-node]")?.style.height).toBe("640px");
+    expect(onMetadataLoaded).toHaveBeenCalledWith(expect.objectContaining({ id: "portrait" }), {
+      width: 720, height: 1280, durationMs: 8000
+    });
   });
 
   it("uses the requested aspect ratio when decoded video dimensions are unavailable", () => {
@@ -387,13 +428,13 @@ describe("video canvas node UI", () => {
     expect(document.querySelector(".video-node-footer")).toBeNull();
     expect(document.querySelector('[role="toolbar"][aria-label="视频操作"]')).toBeNull();
     expect(document.querySelector<HTMLVideoElement>("[data-video-node] video")?.controls).toBe(false);
-    expect(document.querySelector<HTMLVideoElement>("[data-video-node] video")?.preload).toBe("none");
+    expect(document.querySelector<HTMLVideoElement>("[data-video-node] video")?.preload).toBe("auto");
     act(() => {
       document.querySelector("[data-video-node]")?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
     });
     expect(document.querySelector('[role="toolbar"][aria-label="视频操作"]')?.textContent).toContain("0:07");
     expect(document.querySelector<HTMLVideoElement>("[data-video-node] video")?.controls).toBe(true);
-    expect(document.querySelector<HTMLVideoElement>("[data-video-node] video")?.preload).toBe("metadata");
+    expect(document.querySelector<HTMLVideoElement>("[data-video-node] video")?.preload).toBe("auto");
     act(() => buttonByLabel("继续视频").click());
     act(() => buttonByLabel("改编视频").click());
     expect(onExtend).toHaveBeenCalledWith(versions[1]);

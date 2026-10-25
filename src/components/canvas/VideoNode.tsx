@@ -1,5 +1,6 @@
+import { CanvasSelectionCountContext } from "./canvas-selection-context";
 import { useUiText } from "@/i18n";
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Check,
   ChevronDown,
@@ -42,6 +43,7 @@ export interface VideoNodeData extends ConnectionTargetPresentation {
   video: GeneratedVideo;
   versions?: readonly GeneratedVideo[];
   activeVersionIndex?: number;
+  onMetadataLoaded?: (video: GeneratedVideo, metadata: { width: number; height: number; durationMs?: number }) => void;
   onRetry?: (video: GeneratedVideo) => void;
   onDownload?: (video: GeneratedVideo) => void;
   onExtractFrame?: (video: GeneratedVideo, frameDataUrl: string) => void;
@@ -80,23 +82,16 @@ export function resolveVideoInteractionPresentation(
   };
 }
 
-export function resolveVideoPreload(
-  selected: boolean,
-  hovered: boolean,
-  toolbarInteractionOpen: boolean,
-  playing: boolean
-): "none" | "metadata" {
-  return selected || hovered || toolbarInteractionOpen || playing ? "metadata" : "none";
-}
-
 function VideoNodeComponent({ id, data, selected, dragging, width, height }: NodeProps): React.ReactElement {
   const uiText = useUiText();
+  const hasMultipleSelection = useContext(CanvasSelectionCountContext) > 1;
 
   const {
   video,
   versions: suppliedVersions,
   activeVersionIndex = 0,
   onRetry,
+  onMetadataLoaded,
   onDownload,
   onExtractFrame,
   onReveal,
@@ -114,14 +109,15 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
   const [compareRight, setCompareRight] = useState(Math.min(1, Math.max(0, versions.length - 1)));
   const [hovered, setHovered] = useState(false);
   const [toolbarInteractionOpen, setToolbarInteractionOpen] = useState(false);
-  const [playing, setPlaying] = useState(false);
   const connectionPoints = useDelayedConnectionPoints();
   const hoverLeaveTimerRef = useRef<number | null>(null);
   const status = video.status ?? (video.dataUrl || video.path ? "completed" : "draft");
   const busy = BUSY_STATUSES.has(status);
   const playableSource = video.dataUrl || video.path;
   const poster = video.posterDataUrl || video.posterPath;
-  const ratio = videoAspectRatio(video);
+  const [decodedMetadata, setDecodedMetadata] = useState<{ source: string; width: number; height: number } | null>(null);
+  const currentMetadata = decodedMetadata?.source === playableSource ? decodedMetadata : null;
+  const ratio = videoAspectRatio(currentMetadata ?? video);
   const title = video.title?.trim() || "视频";
   const playerRef = useRef<HTMLVideoElement>(null);
   const resumePlaybackAfterDragRef = useRef(false);
@@ -130,7 +126,7 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
     hovered,
     toolbarInteractionOpen
   );
-  const toolbarVisible = !dragging && (selected || interactionPresentation.showToolbar);
+  const toolbarVisible = !hasMultipleSelection && !dragging && (selected || interactionPresentation.showToolbar);
   const showNativeControls = interactionPresentation.showNativeControls;
 
   function keepToolbarVisible(): void {
@@ -193,7 +189,9 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
       )}
       style={{
         width: Math.max(VIDEO_NODE_MIN_WIDTH, width || VIDEO_NODE_WIDTH),
-        height: Math.max(1, height || Math.max(VIDEO_NODE_MIN_WIDTH, width || VIDEO_NODE_WIDTH) / ratio)
+        height: Math.max(1, currentMetadata || (video.width && video.height) || video.aspectRatio
+          ? Math.max(VIDEO_NODE_MIN_WIDTH, width || VIDEO_NODE_WIDTH) / ratio
+          : height || Math.max(VIDEO_NODE_MIN_WIDTH, width || VIDEO_NODE_WIDTH) / ratio)
       }}
       aria-label={uiText("{{ui:0}}节点，{{ui:1}}{{ui:2}}", [title, videoNodeStatusLabel(status), video.version ? `，版本 ${video.version}` : ""])}
       onPointerEnter={() => {
@@ -214,7 +212,23 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
               src={playableSource}
               poster={poster || undefined}
               controls={showNativeControls}
-              preload={resolveVideoPreload(Boolean(selected), hovered, toolbarInteractionOpen, playing)}
+              preload="auto"
+              onLoadedMetadata={(event) => {
+                const player = event.currentTarget;
+                if (!Number.isFinite(player.videoWidth) || !Number.isFinite(player.videoHeight)
+                  || player.videoWidth <= 0 || player.videoHeight <= 0) return;
+                const metadata = {
+                  width: player.videoWidth,
+                  height: player.videoHeight,
+                  ...(Number.isFinite(player.duration) && player.duration >= 0
+                    ? { durationMs: Math.round(player.duration * 1000) } : {})
+                };
+                setDecodedMetadata({ source: playableSource, width: metadata.width, height: metadata.height });
+                if (video.width !== metadata.width || video.height !== metadata.height
+                  || (metadata.durationMs !== undefined && video.durationMs !== metadata.durationMs)) {
+                  onMetadataLoaded?.(video, metadata);
+                }
+              }}
               playsInline
               draggable={false}
               aria-label={uiText("{{ui:0}}播放器", [title])}
@@ -230,12 +244,10 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
                 event.currentTarget.muted = !event.currentTarget.muted;
               }}
               onPlay={(event) => {
-                setPlaying(true);
                 document.querySelectorAll<HTMLVideoElement>("[data-video-node] video").forEach((player) => {
                   if (player !== event.currentTarget) player.pause();
                 });
               }}
-              onPause={() => setPlaying(false)}
             />
             {poster ? <img className="video-node-drag-poster" src={poster} alt="" draggable={false} aria-hidden /> : null}
             <span className="video-node-drag-surface" aria-hidden="true" />

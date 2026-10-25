@@ -413,6 +413,18 @@ describe("canvas node projection", () => {
     });
   });
 
+  it("sizes the node using the active video version rather than stale top-level dimensions", () => {
+    const result = project({ workflowNodes: [{
+      id: "video", type: "video", x: 0, y: 0, videoPath: "/portrait.mp4",
+      jobId: "job", source: "generated", width: 1920, height: 1080, activeVersion: 1,
+      versions: [
+        { videoPath: "/landscape.mp4", jobId: "first", width: 1920, height: 1080 },
+        { videoPath: "/portrait.mp4", jobId: "second", width: 720, height: 1280 }
+      ]
+    }] });
+    expect(result.nodes[0]).toMatchObject({ width: 360, height: 640 });
+  });
+
   it("uses decoded dimensions before an inherited requested video ratio", () => {
     const result = project({
       workflowNodes: [

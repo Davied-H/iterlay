@@ -4,7 +4,7 @@ import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { useReactFlow, type Edge, type Node } from "@xyflow/react";
+import { Position, useReactFlow, type Edge, type Node } from "@xyflow/react";
 import type {
   AssetComment,
   AssetLibraryItem,
@@ -995,6 +995,20 @@ export function CanvasBoard({
     }),
     videoData: (workflowNode) => {
       const bindVideoActions = (versions: GeneratedVideo[], activeVersionIndex: number) => ({
+        onMetadataLoaded: (video: GeneratedVideo, metadata: { width: number; height: number; durationMs?: number }) => {
+          if ("video" in workflowNode) {
+            onUpdateWorkflowNode?.(workflowNode.id, { video: { ...workflowNode.video, ...metadata } });
+            return;
+          }
+          const versionIndex = versions.findIndex((candidate) => candidate.id === video.id);
+          if (versionIndex !== activeVersionIndex) return;
+          onUpdateWorkflowNode?.(workflowNode.id, {
+            ...metadata,
+            ...(workflowNode.versions?.length ? {
+              versions: workflowNode.versions.map((version, index) => index === versionIndex ? { ...version, ...metadata } : version)
+            } : {})
+          });
+        },
         onDownload: onDownloadVideo,
         onExtractFrame: onExtractVideoFrame,
         onReveal: onRevealVideo,
@@ -1685,6 +1699,7 @@ export function CanvasBoard({
           onCreateSequence={() => void onCreateVideoSequence?.(selectedSequenceImages)}
         />
         <CanvasVideoMergeToolbar
+          position={selectedImageNodes.length > 1 ? Position.Bottom : Position.Top}
           nodeIds={selectedAssemblyVideos.map((video) => video.id)}
           count={selectedAssemblyVideos.length}
           onMerge={() => void onCreateVideoAssembly?.(selectedAssemblyVideos)}

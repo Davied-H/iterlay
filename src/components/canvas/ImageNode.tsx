@@ -1,6 +1,7 @@
+import { CanvasSelectionCountContext } from "./canvas-selection-context";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
-import { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Handle, NodeResizeControl, Position, useStore, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { toast } from "sonner";
 import { Clock3, ChevronDown, ChevronUp, Loader2, MessageSquareText, Plus, Scissors, TriangleAlert } from "lucide-react";
@@ -83,7 +84,7 @@ export interface ImageNodeData extends ConnectionTargetPresentation {
 export type { CanvasZoomTier } from "./image-node/use-image-node-source";
 export { resolveCanvasZoomTier } from "./image-node/use-image-node-source";
 
-export const CanvasSelectionCountContext = createContext(0);
+export { CanvasSelectionCountContext } from "./canvas-selection-context";
 
 function usePendingTiming(active: boolean, startedAt?: number): ReturnType<typeof getGenerationTiming> {
   const fallbackStartedAtRef = useRef(Date.now());

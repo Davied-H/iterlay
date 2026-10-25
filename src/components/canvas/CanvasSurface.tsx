@@ -9,7 +9,7 @@ import {
 import type { BoardViewport } from "@shared/types";
 import { CanvasConnectionEdgeActionsProvider, type CanvasConnectionEdgeActions } from "./canvas-connection-edge-contract";
 import { canvasConnectionEdgeTypes } from "./ConnectionController";
-import { CanvasSelectionCountContext } from "./ImageNode";
+import { CanvasSelectionCountContext } from "./canvas-selection-context";
 import { canvasNodeTypes } from "./NodeRegistry";
 import type { CanvasWheelInteraction } from "./canvas-viewport";
 import type { CanvasToolMode } from "./canvas-tool-mode";
