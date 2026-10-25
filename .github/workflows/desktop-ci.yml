@@ -42,6 +42,8 @@ jobs:
       - run: pnpm setup:subprojects
       - run: pnpm build:cli
       - run: pnpm exec playwright install chromium
+      - name: Verify Canvas sandbox over file and HTTP URLs
+        run: pnpm test:canvas:sandbox
       - name: Verify the isolated browser workbench
         shell: bash
         run: |

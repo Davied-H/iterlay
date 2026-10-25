@@ -5,6 +5,7 @@ import { resolveImageToolbarSide } from '../canvas/image-toolbar-position';
 import { Code2, Play, Square, AlignLeft, Terminal, Monitor, Tablet, Smartphone, RotateCw } from 'lucide-react';
 import { CANVAS_EDITOR_FLUSH_EVENT, type BoardCanvasNode, type CanvasFramework } from '@shared/types';
 import { useUiText } from '@/i18n';
+import { translateSourceText } from '@/i18n/ui-text';
 import { CANVAS_STARTERS } from './model';
 import './code-canvas.css';
 import { PreviewViewport } from './PreviewViewport';
@@ -77,14 +78,18 @@ function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.data?.source !== 'iterlay-code-sandbox') return;
       if (event.data.type === 'ready') frame.current?.contentWindow?.postMessage({ source: 'iterlay-code-host', code: run.code, framework: run.framework }, '*');
-      if (event.data.type === 'running') setStatus('运行中');
+      if (event.data.type === 'running') { clearTimeout(timeout); setStatus('运行中'); }
       if (event.data.type === 'console' && ['log', 'info', 'warn', 'error', 'debug', 'result'].includes(event.data.level) && typeof event.data.message === 'string') {
         setEntries(previous => [...previous.slice(-199), { level: event.data.level, message: event.data.message.slice(0, 4000), timestamp: Date.now() }]);
       }
-      if (event.data.type === 'error') { const message = String(event.data.message).slice(0, 4000); setError(message); setStatus('运行出错'); setEntries(previous => [...previous.slice(-199), { level: 'error', message, timestamp: Date.now() }]); }
+      if (event.data.type === 'error') { clearTimeout(timeout); const message = String(event.data.message).slice(0, 4000); setError(message); setStatus('运行出错'); setEntries(previous => [...previous.slice(-199), { level: 'error', message, timestamp: Date.now() }]); }
     };
     window.addEventListener('message', receive);
-    const timeout = setTimeout(() => setStatus(s => s === '启动中' ? '预览未响应，请停止后重试' : s), 15000);
+    const timeout = setTimeout(() => {
+      const message = translateSourceText('预览启动失败，请停止后重试。若仍为空白，请更新应用。');
+      setError(message);
+      setEntries(previous => [...previous.slice(-199), { level: 'error', message, timestamp: Date.now() }]);
+    }, 15000);
     return () => { window.removeEventListener('message', receive); clearTimeout(timeout); };
   }, [run]);
   function start() { commit(); setEntries([]); setError(''); setStatus('启动中'); setRun({ code: draft, framework: value.framework, key: Date.now() }); setTab('preview'); }

@@ -16,7 +16,7 @@
 
 预览为独立静态文档，使用 `sandbox="allow-scripts"`，不授予同源、弹窗、表单提交、下载或顶层导航权限。没有 Electron preload / IPC，也没有宿主 API 消息桥。CSP 禁止 fetch/WebSocket、嵌套 frame、object、表单提交；允许 HTTP(S) 图片，供作品展示图片。预览不能读取宿主 DOM、Cookie 或 LocalStorage。不提供 Node.js、终端、文件系统、npm 包安装或任意远程模块加载。
 
-React、Vue、Babel 和 Vue 编译器在构建时打包到独立 `code-sandbox/runtime.js`，无需 CDN，只有点击运行才加载。依赖许可证随 `code-sandbox/LICENSES.txt` 分发。该隔离适用于界面代码预览，不提供独立进程的 CPU/内存资源配额；不应执行恶意死循环。
+React、Vue、Babel 和 Vue 编译器在构建时内联打包到独立 `code-sandbox/index.html`，避免正式版 `file://` 下隔离 iframe 无法加载外部本地脚本，无需 CDN，只有点击运行才加载。依赖许可证随 `code-sandbox/LICENSES.txt` 分发。该隔离适用于界面代码预览，不提供独立进程的 CPU/内存资源配额；不应执行恶意死循环。
 
 ## AI 助手
 
@@ -33,3 +33,7 @@ React、Vue、Babel 和 Vue 编译器在构建时打包到独立 `code-sandbox/r
 浮动工具栏中的 Console 可查看 `console.log/info/warn/error/debug`、运行错误和表达式结果，支持筛选、清空及在当前沙盒中执行表达式。日志最多保留 200 条，并限制每秒输出量，避免日志刷屏。
 
 设备尺寸可选桌面 1280×800、平板 768×1024、手机 390×844，也可输入 240–3840 范围内的自定义宽高或旋转横竖屏。尺寸保存到 Canvas 节点；预览画面会缩放适配节点，iframe 内实际 viewport 使用所选尺寸。
+
+## 沙盒加载回归验证
+
+运行 `pnpm test:canvas:sandbox`，在无界面 Chromium 中分别使用 `file://` 和 HTTP 加载构建后的沙盒，覆盖 HTML、React、Vue 和 Vue script setup 的渲染、点击交互、Console 与来源隔离。该检查已接入 CI，无需打开桌面 App 或正式工作区。预览启动超时会显示错误提示，避免无提示白屏。

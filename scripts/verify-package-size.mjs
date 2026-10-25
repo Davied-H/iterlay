@@ -20,6 +20,16 @@ const asar = appBuilderRequire("@electron/asar");
 const rendererOnly = new Set(["react-icons", "gifenc", "gifuct-js", "libavoid-js", "qrcode", "use-stick-to-bottom"]);
 const entries = asar.listPackage(asarPath).map((entry) => entry.replaceAll("\\", "/"));
 const violations = [];
+try {
+  const sandbox = asar.extractFile(asarPath, "dist/code-sandbox/index.html").toString("utf8");
+  const script = sandbox.match(/<script\b([^>]*)>/iu);
+  if (!script || /\bsrc\s*=/iu.test(script[1]) || !sandbox.includes("iterlay-code-sandbox")) {
+    violations.push("Canvas sandbox must include its runtime inline for file:// loading");
+  }
+  if (!entries.includes("/dist/code-sandbox/LICENSES.txt")) violations.push("Missing Canvas runtime licenses");
+} catch {
+  violations.push("Missing Canvas sandbox document in app.asar");
+}
 for (const entry of entries) {
   if (/^\/dist-electron\/(?:electron\/dev-browser-[^/]+|shared\/(?:dev-browser-wire|dev-asset-url))\.js$/u.test(entry)) {
     violations.push(`Browser development module: ${entry}`);

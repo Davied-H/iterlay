@@ -1,6 +1,6 @@
 {
   "name": "iterlay",
-  "version": "0.1.65",
+  "version": "0.1.66",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,6 +19,7 @@
     "build": "pnpm build:renderer && pnpm build:electron && pnpm build:cli",
     "test": "vitest run",
     "test:cli:background": "node scripts/cli-background-smoke.mjs",
+    "test:canvas:sandbox": "node scripts/build-code-sandbox.mjs && node scripts/playwright-code-canvas-sandbox.mjs",
     "test:browser:smoke": "node scripts/playwright-browser-smoke.mjs",
     "test:browser:assistant": "node scripts/playwright-browser-refactor-assistant.mjs",
     "test:browser:restart": "node scripts/playwright-browser-restart.mjs",
