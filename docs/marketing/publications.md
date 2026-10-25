@@ -246,3 +246,16 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - CI：main 上原检查被并行文档提交触发的自动取消规则取消；独立发布分支完整检查及隔离网页冒烟通过：https://github.com/Davied-H/iterlay/actions/runs/39267168633 。
 - 发布与线上核验：2026-10-19；发布流程成功 https://github.com/Davied-H/iterlay/actions/runs/39267923255 ，四包内容/体积审计与 SHA-256 校验通过；GitHub API 确认非草稿、非预发布、Latest=v0.1.63，公开安装包摘要与下载的 SHA256SUMS.txt 四项一致。
 - 指标及采集日期：未采集。
+
+
+### APP-005 · Iterlay v0.1.67
+
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.67 。
+- 内容：画布视频默认预加载、真实宽高比及当前版本尺寸适配、多选节点工具栏遮挡修复；同步由当前源码生成的短剧插件包（插件版本仍为 1.3.2）。
+- 日期 / 时区：2026-10-25 15:58:38 / Asia/Shanghai。
+- 发布提交：`26b3a69a9a41244c978eacd4b03d6d059d022fca`；源码、检查、安装包与标签固定为同一提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64、Windows ARM64 / x64 四份安装包及 SHA256SUMS.txt 已公开。
+- 本地验证：完整 check:all 通过，2244 项测试通过、4 项既有测试跳过；类型检查、Lint、构建与官网 40 页 SEO 检查通过；插件包重新生成哈希一致。
+- 云端验证：完整检查、Canvas 沙盒和网页冒烟 https://github.com/Davied-H/iterlay/actions/runs/40174219748 成功；四平台打包与包审计 https://github.com/Davied-H/iterlay/actions/runs/40174234274 成功。
+- 发布与公开核验：2026-10-25；发布流程 https://github.com/Davied-H/iterlay/actions/runs/40174748820 成功；API 确认非草稿、非预发布且 Latest=v0.1.67，标签 SHA 正确，四份公开附件摘要与实际下载的校验文件一致。未进行可见 App 安装测试。
+- 指标及采集日期：未采集。
