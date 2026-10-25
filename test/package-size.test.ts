@@ -42,7 +42,7 @@ async function fixture(files: Record<string, string | null>, platform = "mac") {
 }
 
 describe("packaged application audit", () => {
-  it.each([
+  it.each<{ files: Record<string, string | null>; violation: string }>([
     { files: { "dist/code-sandbox/index.html": null }, violation: "Missing Canvas sandbox document in app.asar" },
     { files: { "dist/code-sandbox/index.html": '<script src="./runtime.js"></script>' }, violation: "Canvas sandbox must include its runtime inline for file:// loading" },
     { files: { "dist/code-sandbox/LICENSES.txt": null }, violation: "Missing Canvas runtime licenses" }
