@@ -124,8 +124,8 @@ function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
         </div>
         <span className="code-canvas__divider" aria-hidden />
         {tab === 'code' && <button type="button" aria-label={uiText('格式化代码')} title={uiText('格式化代码 · ⌘/Ctrl Shift F')} onClick={() => void formatCode()}><AlignLeft size={14} aria-hidden /></button>}
-        <button type="button" aria-label="设备尺寸" title="设备尺寸" aria-pressed={deviceOpen} onClick={() => setDeviceOpen(open => !open)}><Monitor size={14} /></button>
-        <button type="button" aria-label="Console 调试台" title="Console 调试台" aria-pressed={consoleOpen} onClick={() => setConsoleOpen(open => !open)}><Terminal size={14} />{entries.some(entry => entry.level === 'error') && <span className="code-canvas__console-dot" />}</button>
+        <button type="button" aria-label={uiText('设备尺寸')} title={uiText('设备尺寸')} aria-pressed={deviceOpen} onClick={() => setDeviceOpen(open => !open)}><Monitor size={14} /></button>
+        <button type="button" aria-label={uiText('Console 调试台')} title={uiText('Console 调试台')} aria-pressed={consoleOpen} onClick={() => setConsoleOpen(open => !open)}><Terminal size={14} />{entries.some(entry => entry.level === 'error') && <span className="code-canvas__console-dot" />}</button>
         <button
           type="button"
           className="code-canvas__run-toggle"
@@ -137,12 +137,12 @@ function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
         </button>
       </div>
     </NodeToolbar>
-    {deviceOpen && <div className="nodrag nopan nowheel code-canvas__devices" role="group" aria-label="预览设备尺寸" onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-      {[{ label: '桌面', width: 1280, height: 800, icon: Monitor }, { label: '平板', width: 768, height: 1024, icon: Tablet }, { label: '手机', width: 390, height: 844, icon: Smartphone }].map(device => <button key={device.label} type="button" aria-pressed={previewWidth === device.width && previewHeight === device.height} onClick={() => resizePreview(device.width, device.height)} title={`${device.width} × ${device.height}`}><device.icon size={13} />{device.label}</button>)}
-      <label>宽<input key={`width-${previewWidth}`} aria-label="预览宽度" type="number" min={240} max={3840} defaultValue={previewWidth} onBlur={event => resizePreview(Number(event.target.value), previewHeight)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} /></label>
+    {deviceOpen && <div className="nodrag nopan nowheel code-canvas__devices" role="group" aria-label={uiText('预览设备尺寸')} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      {[{ label: '桌面', width: 1280, height: 800, icon: Monitor }, { label: '平板', width: 768, height: 1024, icon: Tablet }, { label: '手机', width: 390, height: 844, icon: Smartphone }].map(device => <button key={device.label} type="button" aria-pressed={previewWidth === device.width && previewHeight === device.height} onClick={() => resizePreview(device.width, device.height)} title={`${device.width} × ${device.height}`}><device.icon size={13} />{uiText(device.label)}</button>)}
+      <label>{uiText("宽")}<input key={`width-${previewWidth}`} aria-label={uiText('预览宽度')} type="number" min={240} max={3840} defaultValue={previewWidth} onBlur={event => resizePreview(Number(event.target.value), previewHeight)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} /></label>
       <span aria-hidden>×</span>
-      <label>高<input key={`height-${previewHeight}`} aria-label="预览高度" type="number" min={240} max={3840} defaultValue={previewHeight} onBlur={event => resizePreview(previewWidth, Number(event.target.value))} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} /></label>
-      <button type="button" aria-label="旋转设备" title="横竖屏切换" onClick={() => resizePreview(previewHeight, previewWidth)}><RotateCw size={13} /></button>
+      <label>{uiText("高")}<input key={`height-${previewHeight}`} aria-label={uiText('预览高度')} type="number" min={240} max={3840} defaultValue={previewHeight} onBlur={event => resizePreview(previewWidth, Number(event.target.value))} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} /></label>
+      <button type="button" aria-label={uiText('旋转设备')} title={uiText('横竖屏切换')} onClick={() => resizePreview(previewHeight, previewWidth)}><RotateCw size={13} /></button>
     </div>}
     <div className="nodrag nopan nowheel code-canvas__body" onPointerDown={e => e.stopPropagation()} onWheel={e => e.stopPropagation()} onKeyDown={e => { e.stopPropagation(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); start(); } }}>
       {tab === 'code' && <Suspense fallback={<div className="code-canvas__editor-loading">{uiText('正在加载编辑器…')}</div>}><CodeEditor code={draft} framework={value.framework} onChange={code => { draftRef.current = code; setDraft(code); }} onCommit={commit} /></Suspense>}

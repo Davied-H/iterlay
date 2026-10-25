@@ -43,7 +43,7 @@ vi.mock("framer-motion", async () => {
   });
   return {
     AnimatePresence: ({ children }: { children?: ReactNode }) => children,
-    motion: { div: MotionDiv, span: MotionSpan },
+    motion: { div: MotionDiv, aside: MotionDiv, span: MotionSpan },
     useReducedMotion: () => true
   };
 });
@@ -82,7 +82,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-describe.skip("LibraryShell license entry", () => {
+describe("LibraryShell license entry", () => {
   it("hides the sidebar license shortcut after formal activation", async () => {
     const status: LicenseStatusSnapshot = {
       state: "LICENSED",

@@ -48,6 +48,7 @@ describe("canvas interaction overlays", () => {
   it("builds the create menu from the active node renderer registry", () => {
     expect(registeredCanvasCreateItems().map((item) => item.type)).toEqual([
       "imageNode",
+      "codeCanvasNode",
       "textNode",
       "generationNode",
       "videoNode",

@@ -10,7 +10,7 @@ import { ASSISTANT_WIDTH_KEY, ASSISTANT_WIDTHS, readAssistantWidth, setAssistant
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("production prompt fusion", () => {
-  it.skip("keeps the direct composer and draft when disabling planning, without a mode switch or assistant", async () => {
+  it("keeps the direct composer and draft when disabling planning, without a mode switch or assistant", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     const generate = vi.fn();
@@ -27,7 +27,7 @@ describe("production prompt fusion", () => {
     };
     try {
       await act(async () => root.render(createElement(PromptFusionDock, props)));
-      expect(container.querySelector('[role="switch"]')).not.toBeNull();
+      expect(container.querySelector('[role="switch"]')).toBeNull();
       await act(async () => root.render(createElement(PromptFusionDock, { ...props, assistantEnabled: false })));
       expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-mode")).toBe("generate");
       expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-expanded")).toBe("false");
@@ -40,7 +40,7 @@ describe("production prompt fusion", () => {
       expect(generate).toHaveBeenCalledOnce();
       expect(props.onSubmit).not.toHaveBeenCalled();
       await act(async () => root.render(createElement(PromptFusionDock, props)));
-      expect(container.querySelector('[role="switch"]')).not.toBeNull();
+      expect(container.querySelector('[role="switch"]')).toBeNull();
       expect(container.querySelector<HTMLTextAreaElement>('[aria-label="对话规划输入"]')?.value).toBe("对话草稿");
     } finally { await act(async () => root.unmount()); }
   });
@@ -248,12 +248,12 @@ describe("production prompt fusion", () => {
     localStorage.removeItem(ASSISTANT_WIDTH_KEY);
   });
 
-  it.skip("keeps drag completion handlers on the panel after the direct-mode sidebar header disappears", async () => {
+  it("keeps drag completion handlers on the direct composer", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     const move = vi.fn(), up = vi.fn(), cancel = vi.fn();
     const props = {
-      open: false, busy: false, inputDisabled: false, assistant: null,
+      open: false, assistantEnabled: false, busy: false, inputDisabled: false, assistant: null,
       value: "", directValue: "", contextImages: [],
       controls: null, directEditor: null, directAction: null,
       onOpenChange: vi.fn(), onValueChange: vi.fn(), onDirectValueChange: vi.fn(),
@@ -263,7 +263,6 @@ describe("production prompt fusion", () => {
     };
     try {
       await act(async () => root.render(createElement(PromptFusionDock, { ...props, dockSide: "right" })));
-      await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')!.click());
       expect(container.querySelector(".prompt-fusion-collapsed")).toBeNull();
       const panel = container.querySelector(".prompt-fusion")!;
       await act(async () => root.render(createElement(PromptFusionDock, { ...props, dockSide: "right", dragging: true })));
@@ -278,7 +277,7 @@ describe("production prompt fusion", () => {
     } finally { await act(async () => root.unmount()); }
   });
 
-  it.skip("transfers the final prompt, collapses and restores chat without sending", async () => {
+  it("preserves the draft when collapsing and restoring chat without sending", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     const submit = vi.fn(), context = vi.fn();
@@ -300,15 +299,13 @@ describe("production prompt fusion", () => {
       await act(async () => setAssistantWidth("small"));
       expect(container.querySelector<HTMLElement>(".prompt-fusion")?.style.getPropertyValue("--assistant-width")).toBe("460px");
       await act(async () => setAssistantWidth("medium"));
-      const toggle = () => container.querySelector<HTMLButtonElement>('[role="switch"]')!;
-      expect(toggle().getAttribute("aria-checked")).toBe("true");
+      const toggle = () => container.querySelector<HTMLButtonElement>('.prompt-fusion-expand-handle')!;
+      expect(container.querySelector('[role="switch"]')).toBeNull();
       await act(async () => toggle().click());
-      expect(toggle().getAttribute("aria-checked")).toBe("false");
       expect(container.querySelector("[data-fusion-expanded=false]")).not.toBeNull();
-      expect(container.querySelector(".prompt-fusion-collapsed")).toBeNull();
-      expect(container.querySelector("[data-direct]")?.textContent).toBe("最终提示词");
       await act(async () => toggle().click());
-      expect(context).toHaveBeenCalledWith("最终提示词");
+      expect(container.querySelector("[data-fusion-expanded=true]")).not.toBeNull();
+      expect(context).not.toHaveBeenCalled();
       expect(container.querySelector("textarea")?.value).toBe("未发送的草稿");
       expect(submit).not.toHaveBeenCalled();
       expect(container.querySelector(".prompt-fusion-surface")).not.toBeNull();

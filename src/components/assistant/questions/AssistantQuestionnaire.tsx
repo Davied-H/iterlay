@@ -164,10 +164,10 @@ export function AssistantQuestionnaire({
                 field.required
                   ? field.type === "select"
                     ? field.multiple
-                      ? "多选"
-                      : "单选"
+                      ? uiText("多选")
+                      : uiText("单选")
                     : undefined
-                  : "可选"
+                  : uiText("可选")
               }
             >
               {field.type === "select" ? (
