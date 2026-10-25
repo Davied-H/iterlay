@@ -17,14 +17,20 @@ afterEach(async () => {
   await Promise.all(temporary.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
-async function fixture(files: Record<string, string>, platform = "mac") {
+async function fixture(files: Record<string, string | null>, platform = "mac") {
   const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-package-audit-"));
   temporary.push(directory);
   const source = path.join(directory, "source");
   const appPath = path.join(directory, platform === "mac" ? "Iterlay.app" : "win-unpacked");
   const resources = path.join(appPath, platform === "mac" ? "Contents/Resources" : "resources");
   await mkdir(resources, { recursive: true });
-  for (const [name, contents] of Object.entries(files)) {
+  const packageFiles = {
+    "dist/code-sandbox/index.html": '<script>parent.postMessage({ source: "iterlay-code-sandbox", type: "ready" }, "*")</script>',
+    "dist/code-sandbox/LICENSES.txt": "runtime licenses",
+    ...files
+  };
+  for (const [name, contents] of Object.entries(packageFiles)) {
+    if (contents === null) continue;
     const destination = path.join(source, name);
     await mkdir(path.dirname(destination), { recursive: true });
     await writeFile(destination, contents);
@@ -36,6 +42,16 @@ async function fixture(files: Record<string, string>, platform = "mac") {
 }
 
 describe("packaged application audit", () => {
+  it.each([
+    { files: { "dist/code-sandbox/index.html": null }, violation: "Missing Canvas sandbox document in app.asar" },
+    { files: { "dist/code-sandbox/index.html": '<script src="./runtime.js"></script>' }, violation: "Canvas sandbox must include its runtime inline for file:// loading" },
+    { files: { "dist/code-sandbox/LICENSES.txt": null }, violation: "Missing Canvas runtime licenses" }
+  ])("rejects a broken Canvas package: $violation", async ({ files, violation }) => {
+    const packaged = await fixture(files);
+    await expect(packaged.inspect()).rejects.toThrow();
+    const report = JSON.parse(await readFile(packaged.report, "utf8")) as { violations: string[] };
+    expect(report.violations).toEqual([violation]);
+  });
   it("audits the resources directory of a Windows package", async () => {
     const packaged = await fixture({ "package.json": "{}", "dist/index.js": "console.log('Windows');" }, "win");
     await packaged.inspect();

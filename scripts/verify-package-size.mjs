@@ -21,7 +21,7 @@ const rendererOnly = new Set(["react-icons", "gifenc", "gifuct-js", "libavoid-js
 const entries = asar.listPackage(asarPath).map((entry) => entry.replaceAll("\\", "/"));
 const violations = [];
 try {
-  const sandbox = asar.extractFile(asarPath, "dist/code-sandbox/index.html").toString("utf8");
+  const sandbox = asar.extractFile(asarPath, path.join("dist", "code-sandbox", "index.html")).toString("utf8");
   const script = sandbox.match(/<script\b([^>]*)>/iu);
   if (!script || /\bsrc\s*=/iu.test(script[1]) || !sandbox.includes("iterlay-code-sandbox")) {
     violations.push("Canvas sandbox must include its runtime inline for file:// loading");
