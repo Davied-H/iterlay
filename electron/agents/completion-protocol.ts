@@ -81,7 +81,8 @@ export function convertPiContextToCompletionMessages(
       "格式：{\"text\":\"本轮简短判断\",\"toolCalls\":[{\"name\":\"工具名\",\"arguments\":{}}]}。",
       terminalToolNames.length > 0
         ? `toolCalls 必须是数组且最多一个；需要结束必须调用 ${terminalToolNames.join(" 或 ")}，不能只输出文字。`
-        : 'toolCalls 必须是数组且最多一个；需要执行操作时调用实际业务工具。无需工具或已经完成本轮工作时，使用 {"text":"面向用户的自然语言回复","toolCalls":[]} 结束；不需要收尾工具。',
+        : 'toolCalls 必须是数组且最多一个；需要执行操作时调用实际业务工具。无需工具或已经完成本轮工作时，使用 {"toolCalls":[],"text":"面向用户的自然语言回复"} 结束；必须先输出 toolCalls，再输出 text，以便安全地流式显示正文；不需要收尾工具。',
+      "禁止把多个 JSON 对象拼接在一次回复中。批量任务必须逐次调用工具，收到工具回执后再继续下一项。格式错误的决策不会执行。",
       `可用工具：${JSON.stringify(tools)}`
     ].filter(Boolean).join("\n\n")
   }];

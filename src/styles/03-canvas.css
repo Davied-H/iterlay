@@ -9,25 +9,20 @@
   z-index: 45;
 }
 
-/* Keep white and low-contrast images legible against the expansive work surface. */
+/* Separate images from the work surface with a soft shadow, without a border. */
 .figma-canvas .image-node-card:not(.border-ring) {
-  border-color: hsl(var(--foreground) / 0.22);
   box-shadow:
-    0 1px 2px hsl(220 14% 12% / 0.12),
-    0 0 0 1px hsl(0 0% 100% / 0.55);
+    0 1px 2px hsl(220 14% 12% / 0.12);
 }
 
 .figma-canvas .image-node-card:not(.border-ring):hover {
   box-shadow:
-    0 2px 6px hsl(220 14% 12% / 0.14),
-    0 0 0 1px hsl(0 0% 100% / 0.72);
+    0 2px 6px hsl(220 14% 12% / 0.14);
 }
 
 .dark .figma-canvas .image-node-card:not(.border-ring) {
-  border-color: hsl(var(--foreground) / 0.28);
   box-shadow:
-    0 1px 3px hsl(0 0% 0% / 0.28),
-    0 0 0 1px hsl(0 0% 100% / 0.05);
+    0 1px 3px hsl(0 0% 0% / 0.28);
 }
 
 .figma-canvas .react-flow__pane,

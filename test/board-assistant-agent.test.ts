@@ -394,6 +394,54 @@ describe("board assistant result recovery", () => {
     expect(complete).toHaveBeenCalledTimes(2);
   });
 
+  it("corrects a malformed Canvas decision and creates the page before finishing", async () => {
+    const code = '<main><h1>程序员的一天</h1><button>我来优化一下</button></main>';
+    const execute = vi.fn(async () => ({ content: [{ type: "text" as const, text: "Canvas 已创建，节点 canvas-1" }], details: { nodeId: "canvas-1" } }));
+    const operation = JSON.stringify({ text: "创建网页", toolCalls: [{ name: "create_canvas", arguments: { boardId: "board-a", framework: "html", code } }] });
+    const complete = vi.fn().mockResolvedValueOnce(operation + operation)
+      .mockResolvedValueOnce(operation)
+      .mockResolvedValueOnce(finishDecision({ ...validResult, message: "网页代码已保存到 Canvas 节点，尚未运行预览。" }));
+    const resources = recoveryResources();
+    const result = await collaborateSceneAgentWith(recoveryTransport(complete),
+      { ...recoveryRequest, instruction: "这个帮我做成一个网页吧" }, undefined, [{
+        name: "create_canvas", label: "创建网页", description: "创建 Canvas",
+        parameters: Type.Object({ boardId: Type.String(), framework: Type.Literal("html"), code: Type.String() }), execute
+      }], resources);
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute.mock.calls[0]).toBeDefined();
+    expect(result.message).toContain("代码已保存");
+    const correction = JSON.stringify(complete.mock.calls[1][0]);
+    expect(correction).toContain("create_canvas");
+    expect(correction).toContain("继续完成用户原始请求");
+    expect(correction).not.toContain("只能总结已有事实");
+    expect(complete).toHaveBeenCalledTimes(3);
+    expect(resources.recordLog).not.toHaveBeenCalledWith(expect.objectContaining({ summary: "画板助手进入仅结果补交阶段" }));
+  });
+
+  it("retains the successful Canvas receipt while correcting the final decision", async () => {
+    const execute = vi.fn(async () => ({ content: [{ type: "text" as const, text: "已创建节点 canvas-once" }], details: { nodeId: "canvas-once" } }));
+    const complete = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({ text: "创建网页", toolCalls: [{ name: "create_canvas", arguments: {} }] }))
+      .mockResolvedValueOnce("{broken")
+      .mockResolvedValueOnce(finishDecision({ ...validResult, message: "网页已保存。" }));
+    await collaborateSceneAgentWith(recoveryTransport(complete), recoveryRequest, undefined, [{
+      name: "create_canvas", label: "创建网页", description: "创建 Canvas", parameters: Type.Object({}), execute
+    }], recoveryResources());
+    expect(execute).toHaveBeenCalledOnce();
+    const correction = JSON.stringify(complete.mock.calls[2][0]);
+    expect(correction).toContain("canvas-once");
+    expect(correction).toContain("不得重复执行");
+  });
+
+  it("fails explicitly after two invalid board decision corrections without a summary-only fallback", async () => {
+    const complete = vi.fn().mockResolvedValue("{broken");
+    const resources = recoveryResources();
+    await expect(collaborateSceneAgentWith(recoveryTransport(complete), recoveryRequest, undefined, [], resources))
+      .rejects.toMatchObject({ code: "ASSISTANT_RESULT_INCOMPLETE", message: expect.stringContaining("连续纠正失败") });
+    expect(complete).toHaveBeenCalledTimes(3);
+    expect(resources.recordLog).not.toHaveBeenCalledWith(expect.objectContaining({ summary: "画板助手进入仅结果补交阶段" }));
+  });
+
   it("stops after exactly two repairs and retains the unverified draft as an error", async () => {
     const complete = vi.fn().mockResolvedValue(textDecision);
     const onDelta = vi.fn();
@@ -548,10 +596,10 @@ it("lets the creation agent inspect context with tools and streams its final mes
     completeStream: vi.fn(async (_messages, _options, onChunk) => {
       turn++;
       _options.onReasoningSummary?.("先确认品牌定位。");
-      const raw = JSON.stringify(turn === 1 ? { text: "先了解品牌", toolCalls: [{ name: "inspect_brand", arguments: {} }] } : { text: message, toolCalls: [] });
+      const raw = JSON.stringify(turn === 1 ? { text: "先了解品牌", toolCalls: [{ name: "inspect_brand", arguments: {} }] } : { toolCalls: [], text: message });
       const split = turn === 2 ? raw.indexOf(message) + 9 : Math.floor(raw.length / 2);
       onChunk(raw.slice(0, split));
-      expect(deltas.join("")).toBe("");
+      expect(deltas.join("")).toBe(turn === 2 ? message.slice(0, 9) : "");
       onChunk(raw.slice(split));
       return raw;
     })
@@ -601,6 +649,42 @@ function creationTransport(complete: TextTransport["complete"]): TextTransport {
 }
 
 describe("creation agent natural completion", () => {
+  it("corrects concatenated decisions and continues all ten requested tasks", async () => {
+    const generate = vi.fn(async () => ({ content: [{ type: "text" as const, text: "任务已提交" }], details: {} }));
+    const decision = (index: number) => JSON.stringify({ toolCalls: [{ name: "generate_image", arguments: { index } }], text: "生成图片" });
+    const complete = vi.fn().mockResolvedValueOnce(decision(1) + "\n" + decision(2));
+    for (let index = 1; index <= 10; index += 1) complete.mockResolvedValueOnce(decision(index));
+    complete.mockResolvedValueOnce(JSON.stringify({ toolCalls: [], text: "10 个任务已提交。" }));
+    const result = await collaborateSceneAgentWith(creationTransport(complete), { ...creationRequest, instruction: "继续制作10个漫画" }, undefined, [
+      { name: "generate_image", label: "生成图片", description: "生成图片", parameters: Type.Object({ index: Type.Number() }), execute: generate }
+    ]);
+    expect(result.message).toBe("10 个任务已提交。");
+    expect(generate).toHaveBeenCalledTimes(10);
+    expect(complete).toHaveBeenCalledTimes(12);
+    expect(JSON.stringify(complete.mock.calls[1][0])).toContain("generate_image");
+  });
+
+  it("preserves successful receipts while correcting a later malformed reply", async () => {
+    const generate = vi.fn(async () => ({ content: [{ type: "text" as const, text: "任务 ID: already-submitted" }], details: {} }));
+    const complete = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({ toolCalls: [{ name: "generate_image", arguments: {} }], text: "提交任务" }))
+      .mockResolvedValueOnce("{broken")
+      .mockResolvedValueOnce(JSON.stringify({ toolCalls: [], text: "已有任务已提交。" }));
+    await collaborateSceneAgentWith(creationTransport(complete), creationRequest, undefined, [
+      { name: "generate_image", label: "生成图片", description: "生成图片", parameters: Type.Object({}), execute: generate }
+    ]);
+    expect(generate).toHaveBeenCalledOnce();
+    expect(JSON.stringify(complete.mock.calls[2][0])).toContain("already-submitted");
+    expect(JSON.stringify(complete.mock.calls[2][0])).toContain("不得重复执行");
+  });
+
+  it("reports an error after two failed creation decision corrections", async () => {
+    const complete = vi.fn().mockResolvedValue("{broken");
+    await expect(collaborateSceneAgentWith(creationTransport(complete), creationRequest))
+      .rejects.toMatchObject({ code: "ASSISTANT_RESULT_INCOMPLETE" });
+    expect(complete).toHaveBeenCalledTimes(3);
+  });
+
   it("ends a normal reply without a finish tool or a repair request", async () => {
     const complete = vi.fn().mockResolvedValue(JSON.stringify({ text: "可以用轻盈的水彩笔触表达风。", toolCalls: [] }));
     const resources = recoveryResources();
@@ -654,7 +738,7 @@ describe("creation agent natural completion", () => {
       { name: "generate_image", label: "生成图片", description: "生成图片", parameters: Type.Object({}), execute: generate }
     ])).rejects.toMatchObject({ code: "ASSISTANT_RESULT_INCOMPLETE" });
     expect(generate).toHaveBeenCalledOnce();
-    expect(complete).toHaveBeenCalledTimes(2);
+    expect(complete).toHaveBeenCalledTimes(4);
   });
 
   it("does not treat a tool-turn limit as a completed creation", async () => {

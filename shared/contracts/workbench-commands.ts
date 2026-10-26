@@ -1,5 +1,10 @@
 /** Stable channels shared by the preload adapter and local MCP transport. */
 export const WORKBENCH_COMMANDS = {
+  listTemplates: "templates:list",
+  getTemplate: "templates:get",
+  createTemplate: "templates:create",
+  updateTemplate: "templates:update",
+  syncTemplates: "templates:sync",
   "createModificationRequest": "modifications:create",
   "listModificationRequests": "modifications:list",
   "getModificationRequest": "modifications:get",
@@ -22,6 +27,7 @@ export const WORKBENCH_COMMANDS = {
   "readAssetDataUrl": "asset:readDataUrl",
   "listBoards": "boards:list",
   "getBoard": "boards:get",
+  "saveBoard": "boards:save",
   "createBoard": "boards:create",
   "moveBoardImage": "boards:images:move",
   "resizeBoardImage": "boards:images:resize",

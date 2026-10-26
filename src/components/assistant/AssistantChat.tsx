@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type CSSProperties,
 } from "react";
 import { useReducedMotion } from "framer-motion";
 import {
@@ -28,7 +29,6 @@ import type { AiAssistantMessage, AiAssistantProps } from "./assistant-types";
 import {
   AssistantMessageAttachments,
   AssistantProcessDetails,
-  AssistantToolGroup,
 } from "./AssistantMessageDetails";
 import "./conversation.css";
 import "./assistant-decision-cards.css";
@@ -155,10 +155,12 @@ export function AssistantChat(props: Props): React.ReactElement {
         data-assistant-suggestions=""
         aria-label={t("assistant.suggestions")}
       >
-        {suggestions.map((suggestion) => (
+        {suggestions.map((suggestion, index) => (
           <button
             type="button"
             key={suggestion}
+            className="assistant-chat-suggestion-bubble"
+            style={{ "--suggestion-delay": `${Math.min(index, 5) * 120}ms` } as CSSProperties}
             disabled={busy}
             onClick={() => props.onIntentSuggestionSelect?.(suggestion)}
           >
@@ -261,7 +263,6 @@ export function AssistantChat(props: Props): React.ReactElement {
               <div className="assistant-chat-welcome">
                 <h3>{title}</h3>
                 {greeting?.content ? <p>{greeting.content}</p> : null}
-                {suggestionContent}
               </div>
             ) : (
               props.messages
@@ -273,6 +274,7 @@ export function AssistantChat(props: Props): React.ReactElement {
                   <AssistantMessage
                     key={message.id}
                     message={message}
+                    activityLabel={message.streaming ? props.activityLabel : undefined}
                     copied={copiedId === message.id}
                     onCopy={copy}
                     onApply={props.onApplyGeneratedPrompt}
@@ -292,13 +294,7 @@ export function AssistantChat(props: Props): React.ReactElement {
                 <AssistantWorkflow workflow={props.workflow} />
               ) : null)}
             {props.afterMessages}
-            {props.activityLabel ||
-            (props.streaming &&
-              !props.messages.some(
-                (message) =>
-                  message.streaming &&
-                  (message.content || message.reasoningSummary),
-              )) ? (
+            {(props.activityLabel || props.streaming) && !props.messages.some((message) => message.streaming) ? (
               <div
                 className="create-chat-thinking"
                 data-assistant-activity=""
@@ -312,7 +308,6 @@ export function AssistantChat(props: Props): React.ReactElement {
                 </span>
               </div>
             ) : null}
-            {!empty ? suggestionContent : null}
             {!props.hideInteraction &&
             (props.interactionContent || props.interaction) ? (
               <div className="assistant-chat-interaction">
@@ -361,6 +356,7 @@ export function AssistantChat(props: Props): React.ReactElement {
           {props.contextImages?.length ? (
             <AssistantImageContext images={props.contextImages} />
           ) : null}
+          {suggestionContent}
           <AssistantComposer
             value={props.value}
             onValueChange={props.onValueChange}
@@ -454,22 +450,24 @@ export function AssistantChat(props: Props): React.ReactElement {
 
 export const AssistantMessage = memo(function AssistantMessage({
   message,
+  activityLabel,
   copied,
   onCopy,
   onApply,
   extra,
 }: {
   message: AiAssistantMessage;
+  activityLabel?: string;
   copied: boolean;
   onCopy: (id: string, content: string) => Promise<void>;
-  onApply?: (prompt: string) => void;
+  onApply?: (prompt: string, message?: AiAssistantMessage) => void;
   extra?: ReactNode;
 }): React.ReactElement | null {
   const { t } = useI18n();
   const uiText = useUiText();
   const user = message.role === "user";
   // Streaming rounds may contain an empty placeholder before any visible output arrives.
-  if (!message.content.trim() && !message.reasoningSummary?.trim() &&
+  if (!message.streaming && !message.content.trim() && !message.reasoningSummary?.trim() &&
       !message.attachments?.length && !message.toolCalls?.length &&
       !message.generatedPrompt?.trim() && !message.directions?.length &&
       !message.receipt && !extra) return null;
@@ -478,7 +476,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       {message.attachments?.length ? (
         <AssistantMessageAttachments attachments={message.attachments} />
       ) : null}
-      {!user ? <AssistantProcessDetails reasoningSummary={message.reasoningSummary} streaming={message.streaming} /> : null}
+      {!user ? <AssistantProcessDetails reasoningSummary={message.reasoningSummary} streaming={message.streaming && !message.content.trim()} calls={message.toolCalls} statusLabel={activityLabel} /> : null}
       {message.tone === "error" ? (
         <div className="create-chat-error" role="alert">
           <div>
@@ -504,15 +502,12 @@ export const AssistantMessage = memo(function AssistantMessage({
           streaming={message.streaming}
         />
       ) : null}
-      {message.toolCalls?.length ? (
-        <AssistantToolGroup calls={message.toolCalls} />
-      ) : null}
       {extra}
       {!user && !message.streaming && message.generatedPrompt?.trim() ? (
         <AssistantPromptReview
           messageId={message.id}
           prompt={message.generatedPrompt}
-          onApply={onApply}
+          onApply={onApply ? (prompt) => message.mediaType === "video" ? onApply(prompt, message) : onApply(prompt) : undefined}
         />
       ) : null}
       {message.directions?.length ? (

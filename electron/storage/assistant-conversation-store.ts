@@ -73,6 +73,8 @@ export class AssistantConversationStore {
     response: string;
     reasoningSummary?: string;
     generatedPrompt?: string;
+    mediaType?: AssistantConversationRecord["mediaType"];
+    videoSettings?: AssistantConversationRecord["videoSettings"];
     attachments?: AssistantConversationRecord["attachments"];
     toolCalls?: AssistantConversationRecord["toolCalls"];
     conversationId?: string;
@@ -93,6 +95,7 @@ export class AssistantConversationStore {
         response,
         ...(input.reasoningSummary?.trim() ? { reasoningSummary: normalizeMessage(input.reasoningSummary) } : {}),
         ...(generatedPrompt ? { generatedPrompt } : {}),
+        mediaType: input.mediaType, videoSettings: input.videoSettings,
         ...(input.attachments?.length ? { attachments: input.attachments } : {}),
         ...(input.toolCalls?.length ? { toolCalls: input.toolCalls } : {}),
         occurredAt: new Date().toISOString(),
@@ -157,6 +160,12 @@ function normalizeCreationSession(input: CreationSession): CreationSession {
       return { ...safe, name: text(reference.name, 200), imagePath: text(reference.imagePath, 1000) || undefined };
     }),
     messages: input.messages.slice(-300).map((message) => ({ ...message,
+      references: message.references?.slice(0, 24).map((reference) => {
+        const safe = { ...reference };
+        delete safe.dataBase64;
+        delete safe.previewUrl;
+        return { ...safe, name: text(reference.name, 200), imagePath: text(reference.imagePath, 1000) || undefined };
+      }),
       content: text(message.content, 12000), prompt: text(message.prompt, 12000) || undefined,
       reasoningSummary: text(message.reasoningSummary, 24000) || undefined,
       activitySteps: Array.isArray(message.activitySteps) ? message.activitySteps.slice(-100).map((step) => text(step, 2000)).filter(Boolean) : undefined,

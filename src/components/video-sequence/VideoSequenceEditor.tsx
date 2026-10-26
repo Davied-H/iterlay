@@ -95,9 +95,20 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
 
   const selectedSegment = selection.type === "segment" ? segments.find((item) => item.id === selection.id) : undefined;
   const selectedFrame = selection.type === "keyframe" ? frames.find((item) => item.id === selection.id) : undefined;
-  const current = playing
-    ? segmentAtPlayhead(segments, props.sequence.defaults.durationSeconds, playheadMs) ?? segments[0]
-    : selectedSegment ?? segmentAtPlayhead(segments, props.sequence.defaults.durationSeconds, playheadMs) ?? segments[0];
+  const current = segmentAtPlayhead(segments, props.sequence.defaults.durationSeconds, playheadMs) ?? segments[0];
+  const seek = useCallback((timeMs: number): void => {
+    const time = Math.max(0, Math.min(totalMs, timeMs));
+    setPlayheadMs(time);
+    const target = segmentAtPlayhead(segments, props.sequence.defaults.durationSeconds, time);
+    if (target) setSelection({ type: "segment", id: target.id });
+    if (target?.id === current?.id && playerRef.current) {
+      playerRef.current.currentTime = ((target?.trimInMs ?? 0) + time - segmentStartMs(segments, props.sequence.defaults.durationSeconds, target?.id)) / 1_000;
+    }
+  }, [totalMs, segments, props.sequence.defaults.durationSeconds, current?.id]);
+  function selectItem(next: Selection): void {
+    setSelection(next);
+    if (next.type === "segment") seek(segmentStartMs(segments, props.sequence.defaults.durationSeconds, next.id));
+  }
   const currentVersion = current ? activeSegmentVersion(current) : undefined;
   const currentFrame = current ? frames.find((frame) => frame.id === current.toKeyframeId) : frames[0];
   const videoUrl = currentVersion ? props.mediaUrls[currentVersion.videoPath] : undefined;
@@ -120,7 +131,7 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
     if (!player || !videoUrl) return;
     if (playing) void player.play().catch(() => setPlaying(false));
     else player.pause();
-  }, [playing, videoUrl]);
+  }, [playing, videoUrl, current?.id]);
 
   const generateSelected = useCallback(() => {
     if (selection.type !== "segment") return;
@@ -133,9 +144,17 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
     function onKeyDown(event: KeyboardEvent): void {
       const target = event.target as HTMLElement | null;
       const editing = target?.matches("input, textarea, select, [contenteditable=true]");
+      if (event.key === "Escape" && !editing) {
+        event.preventDefault();
+        if (dialog) setDialog(null);
+        else if (assistantOpen) setAssistantOpen(false);
+        else props.onClose();
+        return;
+      }
+      if (dialog) return;
       if (event.key === " " && !editing) { event.preventDefault(); setPlaying((value) => !value); }
-      if (!editing && event.key === "ArrowLeft") setPlayheadMs((value) => Math.max(0, value - (event.shiftKey ? 1_000 : 100)));
-      if (!editing && event.key === "ArrowRight") setPlayheadMs((value) => Math.min(totalMs, value + (event.shiftKey ? 1_000 : 100)));
+      if (!editing && event.key === "ArrowLeft") seek(playheadMs - (event.shiftKey ? 1_000 : 100));
+      if (!editing && event.key === "ArrowRight") seek(playheadMs + (event.shiftKey ? 1_000 : 100));
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); generateSelected(); }
       if (!editing && (event.key === "Delete" || event.key === "Backspace") && selection.type === "keyframe") {
         event.preventDefault();
@@ -153,7 +172,7 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [frames, generateSelected, props, selection, totalMs]);
+  }, [frames, generateSelected, props, selection, totalMs, playheadMs, dialog, assistantOpen, seek]);
 
   function reorder(id: string, index: number): void {
     props.onChange(props.sequence.kind === "video-assembly"
@@ -161,6 +180,15 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
       : reorderSequenceKeyframe(props.sequence, id, index));
   }
   function patchSegment(id: string, patch: Partial<VideoSequenceSegment>): void {
+    const segment = segments.find((item) => item.id === id);
+    if (segment && (patch.trimInMs !== undefined || patch.trimOutMs !== undefined)) {
+      const duration = activeSegmentVersion(segment)?.durationMs ?? (segment.durationSeconds ?? props.sequence.defaults.durationSeconds) * 1_000;
+      const end = Math.max(100, Math.min(duration, patch.trimOutMs ?? segment.trimOutMs ?? duration));
+      const start = Math.max(0, Math.min(end - 100, patch.trimInMs ?? segment.trimInMs));
+      patch = { ...patch, trimInMs: start, trimOutMs: end, state: segment.state };
+      setPlaying(false);
+      setPlayheadMs(segmentStartMs(segments, props.sequence.defaults.durationSeconds, id));
+    }
     props.onChange(updateSequenceSegment(props.sequence, id, patch));
   }
   async function run(action: () => void | Promise<void>): Promise<void> {
@@ -275,12 +303,12 @@ export function VideoSequenceEditor(props: VideoSequenceEditorProps): React.Reac
     <SequenceTopbar {...props} targetCount={targets.length} inspectorOpen={inspectorOpen} onToggleInspector={() => setInspectorOpen((value) => !value)} onGenerate={() => { void prepareGeneration("generate-batch"); }} onTemplate={() => setDialog("template")} onExport={() => setDialog("export")} onAssistant={() => setAssistantOpen((value) => !value)} />
     <section className={cn("vse-workspace", !inspectorOpen && "is-wide")}>
       <div className="vse-preview-column">
-        <SequencePreview videoRef={playerRef} videoUrl={videoUrl} posterUrl={posterUrl} segment={current} playing={playing} onPlayingChange={setPlaying} onTimeUpdate={(localMs) => setPlayheadMs(Math.min(totalMs, segmentStartMs(segments, props.sequence.defaults.durationSeconds, current?.id) + localMs))} onEnded={() => setPlayheadMs((value) => value >= totalMs - 100 ? 0 : Math.min(totalMs, segmentEndMs(segments, props.sequence.defaults.durationSeconds, current?.id) + 1))} />
-        <Transport playing={playing} timeMs={playheadMs} totalMs={totalMs} onPlayingChange={setPlaying} onSeek={setPlayheadMs} />
+        <SequencePreview localMs={Math.max(0, playheadMs - segmentStartMs(segments, props.sequence.defaults.durationSeconds, current?.id))} videoRef={playerRef} videoUrl={videoUrl} posterUrl={posterUrl} segment={current} playing={playing} onPlayingChange={setPlaying} onTimeUpdate={(localMs) => setPlayheadMs(Math.min(totalMs, segmentStartMs(segments, props.sequence.defaults.durationSeconds, current?.id) + localMs))} onEnded={() => setPlayheadMs((value) => value >= totalMs - 100 ? 0 : Math.min(totalMs, segmentEndMs(segments, props.sequence.defaults.durationSeconds, current?.id) + 1))} />
+        <Transport onPrevious={() => seek(segmentStartMs(segments, props.sequence.defaults.durationSeconds, segments[Math.max(0, segments.findIndex((s) => s.id === current?.id) - 1)]?.id))} onNext={() => seek(segmentStartMs(segments, props.sequence.defaults.durationSeconds, segments[Math.min(segments.length - 1, segments.findIndex((s) => s.id === current?.id) + 1)]?.id))} playing={playing} timeMs={playheadMs} totalMs={totalMs} onPlayingChange={setPlaying} onSeek={seek} />
       </div>
-      {inspectorOpen ? <Inspector {...props} frames={frames} segments={segments} selection={selection} selectedFrame={selectedFrame} selectedSegment={selectedSegment} onSelect={setSelection} onPatch={patchSegment} onReorder={reorder} onGenerate={() => { void prepareGeneration("generate-segment"); }} /> : null}
+      {inspectorOpen ? <Inspector {...props} frames={frames} segments={segments} selection={selection} selectedFrame={selectedFrame} selectedSegment={selectedSegment} onSelect={selectItem} onPatch={patchSegment} onReorder={reorder} onGenerate={() => { void prepareGeneration("generate-segment"); }} /> : null}
     </section>
-    <SequenceTimeline sequence={props.sequence} mediaUrls={props.mediaUrls} frames={frames} segments={segments} selection={selection} playheadMs={playheadMs} totalMs={totalMs} onSelect={setSelection} onSeek={setPlayheadMs} onReorder={reorder} />
+    <SequenceTimeline sequence={props.sequence} mediaUrls={props.mediaUrls} frames={frames} segments={segments} selection={selection} playheadMs={playheadMs} totalMs={totalMs} onSelect={selectItem} onSeek={seek} onReorder={reorder} />
     <GenerationDialog open={dialog === "generate-batch" || dialog === "generate-segment"} sequence={props.sequence} segments={dialog === "generate-segment" && selectedSegment ? [selectedSegment] : targets} credits={props.credits} busy={busy} onClose={() => setDialog(null)} onConfirm={() => run(() => dialog === "generate-segment" && selectedSegment ? props.onGenerateSegment(selectedSegment.id) : props.onGenerateBatch(targets.map((item) => item.id)))} />
     <TemplateDialog open={dialog === "template"} templates={props.templates ?? []} busy={busy} onClose={() => setDialog(null)} onSave={(name) => run(() => props.onSaveTemplate(name))} onApply={(id) => run(() => props.onApplyTemplate(id))} />
     <ExportDialog open={dialog === "export"} sequence={props.sequence} hasStale={segments.some(segmentNeedsGeneration)} busy={busy} onClose={() => setDialog(null)} onConfirm={(options) => run(() => props.onExport(options))} />
@@ -318,20 +346,26 @@ function SequenceTopbar(props: VideoSequenceEditorProps & { targetCount: number;
   </header>;
 }
 
-function SequencePreview({ videoRef, videoUrl, posterUrl, segment, playing, onPlayingChange, onTimeUpdate, onEnded }: { videoRef: React.RefObject<HTMLVideoElement | null>; videoUrl?: string; posterUrl?: string; segment?: VideoSequenceSegment; playing: boolean; onPlayingChange: (value: boolean) => void; onTimeUpdate: (localMs: number) => void; onEnded: () => void }): React.ReactElement {
+function SequencePreview({ localMs, videoRef, videoUrl, posterUrl, segment, playing, onPlayingChange, onTimeUpdate, onEnded }: { localMs: number; videoRef: React.RefObject<HTMLVideoElement | null>; videoUrl?: string; posterUrl?: string; segment?: VideoSequenceSegment; playing: boolean; onPlayingChange: (value: boolean) => void; onTimeUpdate: (localMs: number) => void; onEnded: () => void }): React.ReactElement {
   const uiText = useUiText();
 
+  useEffect(() => {
+    const player = videoRef.current;
+    if (!player) return;
+    const time = Math.max(0, (segment?.trimInMs ?? 0) + localMs) / 1_000;
+    if (Math.abs(player.currentTime - time) > .15) player.currentTime = time;
+  }, [segment?.id, segment?.trimInMs, segment?.trimOutMs, localMs, videoRef]);
   const status = segmentStatus(segment);
   return <div className="vse-stage"><div className="vse-stage-tools"><span>{segment ? uiText("片段 {{ui:0}}", [String(segment.order + 1).padStart(2, "0")]) : uiText("序列预览")}</span><Icon label={uiText("适应窗口")}><Focus /></Icon><Icon label={uiText("全屏")}><Maximize2 /></Icon></div><div className="vse-media">
-    {videoUrl ? <video ref={videoRef} src={videoUrl} poster={posterUrl} muted={segment?.muted} onLoadedMetadata={(event) => { event.currentTarget.currentTime = Math.max(0, (segment?.trimInMs ?? 0) / 1_000); }} onTimeUpdate={(event) => { const localMs = event.currentTarget.currentTime * 1_000 - (segment?.trimInMs ?? 0); onTimeUpdate(Math.max(0, localMs)); if (segment?.trimOutMs !== undefined && event.currentTarget.currentTime * 1_000 >= segment.trimOutMs) onEnded(); }} onEnded={onEnded} /> : posterUrl ? <img src={posterUrl} alt={uiText("当前片段预览")} /> : <div className="vse-media-empty"><Film /><strong>{uiText("暂无可预览版本")}</strong><span>{uiText("生成片段后将在这里连续预览")}</span></div>}
+    {videoUrl ? <video key={`${segment?.id}:${videoUrl}`} preload="auto" ref={videoRef} src={videoUrl} poster={posterUrl} muted={segment?.muted} onLoadedMetadata={(event) => { event.currentTarget.currentTime = Math.max(0, ((segment?.trimInMs ?? 0) + localMs) / 1_000); }} onTimeUpdate={(event) => { const localMs = event.currentTarget.currentTime * 1_000 - (segment?.trimInMs ?? 0); if (playing) onTimeUpdate(Math.max(0, localMs)); if (playing && segment?.trimOutMs !== undefined && event.currentTarget.currentTime * 1_000 >= segment.trimOutMs) onEnded(); }} onEnded={onEnded} /> : posterUrl ? <img src={posterUrl} alt={uiText("当前片段预览")} /> : <div className="vse-media-empty"><Film /><strong>{uiText("暂无可预览版本")}</strong><span>{uiText("生成片段后将在这里连续预览")}</span></div>}
     {status.kind !== "valid" ? <StatusBadge kind={status.kind} label={status.label} detail={segment?.progress} floating /> : null}
     <button className="vse-big-play" aria-label={playing ? uiText("暂停") : uiText("播放")} onClick={() => onPlayingChange(!playing)}>{playing ? <Pause /> : <Play />}</button>
   </div></div>;
 }
-function Transport({ playing, timeMs, totalMs, onPlayingChange, onSeek }: { playing: boolean; timeMs: number; totalMs: number; onPlayingChange: (value: boolean) => void; onSeek: (value: number) => void }): React.ReactElement {
+function Transport({ onPrevious, onNext, playing, timeMs, totalMs, onPlayingChange, onSeek }: { onPrevious: () => void; onNext: () => void; playing: boolean; timeMs: number; totalMs: number; onPlayingChange: (value: boolean) => void; onSeek: (value: number) => void }): React.ReactElement {
   const uiText = useUiText();
 
-  return <div className="vse-transport"><Icon label={uiText("上一片段")}><SkipBack /></Icon><button className="vse-play" aria-label={playing ? uiText("暂停") : uiText("播放")} onClick={() => onPlayingChange(!playing)}>{playing ? <Pause /> : <Play />}</button><Icon label={uiText("下一片段")}><SkipForward /></Icon><input aria-label={uiText("播放位置")} type="range" min={0} max={Math.max(1, totalMs)} step={100} value={Math.min(timeMs, totalMs)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(timeMs)} / {formatTime(totalMs)}</span><Icon label={uiText("音量")}><Volume2 /></Icon><Icon label={uiText("循环播放")}><RotateCcw /></Icon></div>;
+  return <div className="vse-transport"><Icon label={uiText("上一片段")} onClick={onPrevious}><SkipBack /></Icon><button className="vse-play" aria-label={playing ? uiText("暂停") : uiText("播放")} onClick={() => onPlayingChange(!playing)}>{playing ? <Pause /> : <Play />}</button><Icon label={uiText("下一片段")} onClick={onNext}><SkipForward /></Icon><input aria-label={uiText("播放位置")} type="range" min={0} max={Math.max(1, totalMs)} step={100} value={Math.min(timeMs, totalMs)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(timeMs)} / {formatTime(totalMs)}</span><Icon label={uiText("音量")}><Volume2 /></Icon><Icon label={uiText("循环播放")}><RotateCcw /></Icon></div>;
 }
 
 function Inspector(props: VideoSequenceEditorProps & { frames: ReturnType<typeof orderedKeyframes>; segments: ReturnType<typeof orderedSegments>; selection: Selection; selectedFrame?: ReturnType<typeof orderedKeyframes>[number]; selectedSegment?: VideoSequenceSegment; onSelect: (selection: Selection) => void; onPatch: (id: string, patch: Partial<VideoSequenceSegment>) => void; onReorder: (id: string, index: number) => void; onGenerate: () => void }): React.ReactElement {
@@ -354,7 +388,19 @@ function SegmentInspector(props: Parameters<typeof Inspector>[0] & { segment: Vi
   const uiText = useUiText();
 
   const { segment } = props; const from = props.frames.find((frame) => frame.id === segment.fromKeyframeId); const to = props.frames.find((frame) => frame.id === segment.toKeyframeId); const duration = props.sequence.kind === "video-assembly" ? (activeSegmentVersion(segment)?.durationMs ?? 0) / 1_000 : segment.durationSeconds ?? props.sequence.defaults.durationSeconds; const versions = [...segment.versions].reverse();
-  return <><div className={cn("vse-alert", segmentStatus(segment).kind)}><SegmentStatus segment={segment} /><small>{uiText(segment.error ?? statusExplanation(segment))}</small></div>{props.sequence.kind !== "video-assembly" ? <><section><h3>{uiText("生成输入")}</h3><div className="vse-frame-pair">{[from, to].map((frame, index) => <button key={frame?.id ?? index} onClick={() => frame && props.onSelect({ type: "keyframe", id: frame.id })}>{frame && props.mediaUrls[frame.imagePath] ? <img src={props.mediaUrls[frame.imagePath]} alt="" /> : <ImageIcon />}<span>{index ? uiText("尾帧") : uiText("首帧")}</span></button>)}</div><label className="vse-field"><span>{uiText("运动描述")}<small>{segment.prompt.length}/500</small></span><textarea maxLength={500} value={segment.prompt} onChange={(event) => props.onPatch(segment.id, { prompt: event.target.value })} /></label></section><section><h3>{uiText("生成设置")}</h3><label className="vse-row"><span>{uiText("模型")}</span><select value={segment.providerId ?? props.sequence.defaults.providerId ?? ""} onChange={(event) => props.onPatch(segment.id, { providerId: event.target.value })}>{props.providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label><label className="vse-row"><span>{uiText("时长")}</span><select value={duration} onChange={(event) => props.onPatch(segment.id, { durationSeconds: Number(event.target.value) })}>{[5, 6, 10].map((value) => <option key={value} value={value}>{value} {uiText("秒")}</option>)}</select></label><label className="vse-row"><span>{uiText("分辨率")}</span><select value={segment.resolution ?? props.sequence.defaults.resolution} onChange={(event) => props.onPatch(segment.id, { resolution: event.target.value })}><option>720p</option><option>1080p</option></select></label><label className="vse-row"><span>{uiText("生成声音")}</span><input type="checkbox" checked={segment.generateAudio ?? props.sequence.defaults.generateAudio} onChange={(event) => props.onPatch(segment.id, { generateAudio: event.target.checked })} /></label></section></> : null}<section><h3>{uiText("剪辑")}</h3><div className="vse-trim"><label>{uiText("入点")}<input type="number" min={0} step={.1} value={segment.trimInMs / 1_000} onChange={(event) => props.onPatch(segment.id, { trimInMs: Number(event.target.value) * 1_000 })} /></label><label>{uiText("出点")}<input type="number" min={0} step={.1} value={(segment.trimOutMs ?? duration * 1_000) / 1_000} onChange={(event) => props.onPatch(segment.id, { trimOutMs: Number(event.target.value) * 1_000 })} /></label><label className="vse-mute">{uiText("静音")}<input type="checkbox" checked={segment.muted ?? false} onChange={(event) => props.onPatch(segment.id, { muted: event.target.checked, state: segment.state })} /></label></div></section><section><h3>{uiText("版本")}<small>{versions.length} {uiText("个")}</small></h3><div className="vse-versions">{versions.length ? versions.map((version) => <button key={version.id} className={version.id === (segment.activeVersionId ?? versions[0]?.id) ? "active" : ""} onClick={() => props.onPatch(segment.id, { activeVersionId: version.id, state: segment.state })}><span>v{segment.versions.indexOf(version) + 1}</span><div><b>{version.id === segment.activeVersionId ? uiText("当前版本") : uiText("历史版本")}</b><small>{formatDate(version.createdAt)} · {version.model ?? uiText("视频模型")}</small></div>{version.id === segment.activeVersionId ? <Check /> : null}</button>) : <p className="vse-empty">{uiText("尚无成功版本")}</p>}</div></section>{props.sequence.kind !== "video-assembly" ? <footer><button className="vse-primary" disabled={segmentIsBlocked(segment) || ACTIVE_TASKS.has(segment.taskState ?? "idle")} onClick={props.onGenerate}>{segment.taskState === "failed" ? uiText("重试此片段") : uiText("重新生成此片段")}</button></footer> : null}</>;
+  return <><div className={cn("vse-alert", segmentStatus(segment).kind)}><SegmentStatus segment={segment} /><small>{uiText(segment.error ?? statusExplanation(segment))}</small></div>{props.sequence.kind !== "video-assembly" ? <><section><h3>{uiText("生成输入")}</h3><div className="vse-frame-pair">{[from, to].map((frame, index) => <button key={frame?.id ?? index} onClick={() => frame && props.onSelect({ type: "keyframe", id: frame.id })}>{frame && props.mediaUrls[frame.imagePath] ? <img src={props.mediaUrls[frame.imagePath]} alt="" /> : <ImageIcon />}<span>{index ? uiText("尾帧") : uiText("首帧")}</span></button>)}</div><label className="vse-field"><span>{uiText("运动描述")}<small>{segment.prompt.length}/500</small></span><textarea maxLength={500} value={segment.prompt} onChange={(event) => props.onPatch(segment.id, { prompt: event.target.value })} /></label></section><section><h3>{uiText("生成设置")}</h3><label className="vse-row"><span>{uiText("模型")}</span><select value={segment.providerId ?? props.sequence.defaults.providerId ?? ""} onChange={(event) => props.onPatch(segment.id, { providerId: event.target.value })}>{props.providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label><label className="vse-row"><span>{uiText("时长")}</span><select value={duration} onChange={(event) => props.onPatch(segment.id, { durationSeconds: Number(event.target.value) })}>{[5, 6, 10].map((value) => <option key={value} value={value}>{value} {uiText("秒")}</option>)}</select></label><label className="vse-row"><span>{uiText("分辨率")}</span><select value={segment.resolution ?? props.sequence.defaults.resolution} onChange={(event) => props.onPatch(segment.id, { resolution: event.target.value })}><option>720p</option><option>1080p</option></select></label><label className="vse-row"><span>{uiText("生成声音")}</span><input type="checkbox" checked={segment.generateAudio ?? props.sequence.defaults.generateAudio} onChange={(event) => props.onPatch(segment.id, { generateAudio: event.target.checked })} /></label></section></> : null}<section><h3>{uiText("剪辑")}</h3><div className="vse-trim"><TrimControl key={`${segment.id}:in:${segment.trimInMs}`} label={uiText("入点")} value={segment.trimInMs} max={(segment.trimOutMs ?? duration * 1_000) - 100} onCommit={(value) => props.onPatch(segment.id, { trimInMs: value })} /><TrimControl key={`${segment.id}:out:${segment.trimOutMs}`} label={uiText("出点")} value={segment.trimOutMs ?? duration * 1_000} min={segment.trimInMs + 100} max={duration * 1_000} onCommit={(value) => props.onPatch(segment.id, { trimOutMs: value })} /><label className="vse-mute">{uiText("静音")}<input type="checkbox" checked={segment.muted ?? false} onChange={(event) => props.onPatch(segment.id, { muted: event.target.checked, state: segment.state })} /></label></div></section><section><h3>{uiText("版本")}<small>{versions.length} {uiText("个")}</small></h3><div className="vse-versions">{versions.length ? versions.map((version) => <button key={version.id} className={version.id === (segment.activeVersionId ?? versions[0]?.id) ? "active" : ""} onClick={() => props.onPatch(segment.id, { activeVersionId: version.id, state: segment.state })}><span>v{segment.versions.indexOf(version) + 1}</span><div><b>{version.id === segment.activeVersionId ? uiText("当前版本") : uiText("历史版本")}</b><small>{formatDate(version.createdAt)} · {version.model ?? uiText("视频模型")}</small></div>{version.id === segment.activeVersionId ? <Check /> : null}</button>) : <p className="vse-empty">{uiText("尚无成功版本")}</p>}</div></section>{props.sequence.kind !== "video-assembly" ? <footer><button className="vse-primary" disabled={segmentIsBlocked(segment) || ACTIVE_TASKS.has(segment.taskState ?? "idle")} onClick={props.onGenerate}>{segment.taskState === "failed" ? uiText("重试此片段") : uiText("重新生成此片段")}</button></footer> : null}</>;
+}
+
+function TrimControl({ label, value, min = 0, max, onCommit }: { label: string; value: number; min?: number; max: number; onCommit: (value: number) => void }): React.ReactElement {
+  const [draft, setDraft] = useState(String(value / 1_000));
+  const commit = (): void => {
+    const number = Number(draft);
+    if (!draft.trim() || !Number.isFinite(number)) { setDraft(String(value / 1_000)); return; }
+    const next = Math.max(min, Math.min(max, number * 1_000));
+    setDraft(String(next / 1_000));
+    if (next !== value) onCommit(next);
+  };
+  return <label>{label}<input aria-label={label} type="number" min={min / 1_000} max={max / 1_000} step={.1} value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /><input aria-label={`${label}滑块`} type="range" min={min} max={Math.max(min, max)} step={100} value={Number(draft) * 1_000} onChange={(event) => setDraft(String(Number(event.target.value) / 1_000))} onPointerUp={commit} onKeyUp={commit} onBlur={commit} /></label>;
 }
 
 function SequenceTimeline({ sequence, mediaUrls, frames, segments, selection, playheadMs, totalMs, onSelect, onSeek, onReorder }: {
@@ -439,7 +485,7 @@ function segmentStatus(segment?: VideoSequenceSegment): { kind: string; label: s
   return { kind: segment.state, label: labels[segment.state] };
 }
 function statusExplanation(segment: VideoSequenceSegment): string { if (segment.taskState && ACTIVE_TASKS.has(segment.taskState)) return "新版本正在生成，旧版本仍可预览"; if (segment.state === "stale") return "生成输入已修改，需要重新生成"; if (segment.state === "valid") return "当前版本与生成输入一致"; if (segment.state === "missing_input") return "首帧或尾帧素材不可用"; if (segment.state === "incompatible") return "当前模型不支持所选参数"; return "配置完成后即可生成"; }
-function segmentAtPlayhead(segments: VideoSequenceSegment[], fallbackSeconds: number, timeMs: number): VideoSequenceSegment | undefined { let offset = 0; for (const segment of segments) { offset += effectiveSegmentDurationMs(segment, fallbackSeconds); if (timeMs <= offset) return segment; } return segments.at(-1); }
+function segmentAtPlayhead(segments: VideoSequenceSegment[], fallbackSeconds: number, timeMs: number): VideoSequenceSegment | undefined { let offset = 0; for (const segment of segments) { offset += effectiveSegmentDurationMs(segment, fallbackSeconds); if (timeMs < offset) return segment; } return segments.at(-1); }
 function segmentStartMs(segments: VideoSequenceSegment[], fallbackSeconds: number, segmentId?: string): number { let offset = 0; for (const segment of segments) { if (segment.id === segmentId) return offset; offset += effectiveSegmentDurationMs(segment, fallbackSeconds); } return offset; }
 function segmentEndMs(segments: VideoSequenceSegment[], fallbackSeconds: number, segmentId?: string): number { const start = segmentStartMs(segments, fallbackSeconds, segmentId); const segment = segments.find((item) => item.id === segmentId); return start + (segment ? effectiveSegmentDurationMs(segment, fallbackSeconds) : 0); }
 function selectionIndex(frames: ReturnType<typeof orderedKeyframes>, id: string): number { return Math.max(0, frames.findIndex((item) => item.id === id)); }

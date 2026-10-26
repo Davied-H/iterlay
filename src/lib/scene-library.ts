@@ -1,3 +1,4 @@
+import { persistTemplateChanges } from "./template-persistence";
 import type {
   GptImageUseCase,
   ImageWorkflowMode,
@@ -267,7 +268,9 @@ export function writeCustomScenes(
 ): void {
   const target = storage ?? (typeof localStorage === "undefined" ? null : localStorage);
   if (!target) return;
+  const previous = storage ? [] : JSON.parse(localStorage.getItem(CUSTOM_SCENES_STORAGE_KEY) ?? "[]") as SceneDefinition[];
   target.setItem(CUSTOM_SCENES_STORAGE_KEY, JSON.stringify(scenes.filter((scene) => scene.source === "custom")));
+  if (!storage) persistTemplateChanges(previous, scenes.filter(scene => scene.source === "custom"));
 }
 
 export function readFavoriteSceneIds(storage?: Pick<Storage, "getItem">): string[] {

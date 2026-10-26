@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type {
+  CollaborateSceneResult,
   AssistantIntentSuggestionCount,
   BoardMutationPlan,
   SceneAssistantInteraction,
@@ -37,6 +38,8 @@ export interface AiAssistantMessage {
   assistantContext?: string;
   /** 本轮实际生成的完整提示词，默认折叠供回顾与复用。 */
   generatedPrompt?: string;
+  mediaType?: CollaborateSceneResult["mediaType"];
+  videoSettings?: CollaborateSceneResult["videoSettings"];
   directions?: AiAssistantDirection[];
   onGenerateAllDirections?: () => void;
   comicDramaPlan?: AiAssistantComicDramaPlan;
@@ -169,5 +172,5 @@ export interface AiAssistantProps {
   onHistoryScopeChange?: (scope: "board" | "all") => void;
   onHistorySelect?: (conversation: AssistantHistoryConversation) => void;
   onNewConversation?: () => void;
-  onApplyGeneratedPrompt?: (prompt: string) => void;
+  onApplyGeneratedPrompt?: (prompt: string, message?: AiAssistantMessage) => void;
 }

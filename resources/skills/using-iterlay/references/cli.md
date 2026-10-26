@@ -53,3 +53,9 @@ iterlay image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":2
 ```
 
 复用 App 本地切图，不调用模型；保留原图，切片保存为受管 PNG 并加入画板。源参数三选一，宫格与 crops 互斥；每轴最多 8 格、最多 64 个区域。坐标、边距和间距均为原图像素；不自动去底、识别主体或统一输出尺寸。返回 images、crops、nodeIds 和可选 exportedPaths；--out 为目录，已有文件默认不覆盖。高级入口为 `iterlay call slice_image --input '<JSON>' --json`，精确 schema 见 tools list。
+
+## Reusable image templates
+
+Use `iterlay templates list|show <id>` to inspect custom templates shared with the App. Create with `templates create --name <name> --prompt <fixed-rules>`; update with `templates update <id> --prompt <rules>` (optional `--expected-prompt <previous-rules>`). `--input <JSON-file>` supports structured fields. Saving templates does not call a model.
+
+Use `image generate --template <id> --prompt <run-content>` to reuse fixed rules without editing the template. Edit-mode templates require `image edit --template <id> --input <file> --prompt <instruction>`. Generation retains the source template ID. Raw operations: `list_templates`, `get_template`, `create_template`, `update_template`; `generate_image`/`edit_image` accept `templateId`. Built-in presets are not included. Legacy local templates migrate when the upgraded workspace first opens; keep App and CLI versions aligned.

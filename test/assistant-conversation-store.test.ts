@@ -38,6 +38,19 @@ describe("AssistantConversationStore", () => {
     expect((await new AssistantConversationStore(directory).list())[0]?.reasoningSummary).toBe("先核对参考光线。");
   });
 
+  it("persists video metadata across a store reload", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-video-conversation-"));
+    directories.push(directory);
+    await new AssistantConversationStore(directory).add({
+      surface: "canvas-prompt", instruction: "基于参考图生成视频", response: "视频方案已准备",
+      generatedPrompt: "镜头推进", mediaType: "video",
+      videoSettings: { durationSeconds: 15, aspectRatio: "9:16" }
+    });
+    expect((await new AssistantConversationStore(directory).list())[0]).toMatchObject({
+      mediaType: "video", videoSettings: { durationSeconds: 15, aspectRatio: "9:16" }
+    });
+  });
+
   it("keeps multiple exchanges in the same conversation", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-assistant-conversation-"));
     directories.push(directory);

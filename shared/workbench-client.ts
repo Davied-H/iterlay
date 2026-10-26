@@ -142,6 +142,11 @@ export const VIDEO_SEQUENCE_MUTATIONS = [
 
 export function createWorkbenchClient(transport: WorkbenchTransport) {
   return {
+    listTemplates: () => transport.invoke("templates:list") as Promise<SceneTemplateData[]>,
+    getTemplate: (id: string) => transport.invoke("templates:get", id) as Promise<SceneTemplateData>,
+    createTemplate: (input: Partial<SceneTemplateData>) => transport.invoke("templates:create", input) as Promise<SceneTemplateData>,
+    updateTemplate: (id: string, patch: Partial<SceneTemplateData>, expectedPrompt?: string) => transport.invoke("templates:update", id, patch, expectedPrompt) as Promise<SceneTemplateData>,
+    syncTemplates: (previous: SceneTemplateData[], next: SceneTemplateData[], migrate = false) => transport.invoke("templates:sync", previous, next, migrate) as Promise<SceneTemplateData[]>,
   setImageFinalVersion: (input:{boardId:string;nodeId:string;version:ImageVersionIdentity|null}) => transport.invoke("imageDelivery:setFinalVersion",input) as Promise<BoardData>,
   saveImageDeliveryRecipe: (input:{boardId:string;recipe:ImageDeliveryRecipe}) => transport.invoke("imageDelivery:saveRecipe",input) as Promise<BoardData>,
   removeImageDeliveryRecipe: (input:{boardId:string;recipeId:string}) => transport.invoke("imageDelivery:removeRecipe",input) as Promise<BoardData>,
@@ -378,6 +383,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("assistant:suggestIntents", req) as Promise<SuggestAssistantIntentsResult>,
   listAssistantConversations: (query?: AssistantConversationHistoryQuery) =>
     transport.invoke("assistant:history:list", query) as Promise<AssistantConversationRecord[]>,
+  summarizeCreationTitle: (messages: Array<{ role: string; content: string }>) =>
+    transport.invoke("creation:title:summarize", messages) as Promise<string>,
   listCreationSessions: () => transport.invoke("creation:sessions:list") as Promise<CreationSession[]>,
   saveCreationSession: (session: CreationSession) =>
     transport.invoke("creation:sessions:save", session) as Promise<CreationSession>,

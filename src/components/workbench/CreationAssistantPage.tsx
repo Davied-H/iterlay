@@ -54,7 +54,7 @@ import { getProviderMaxImageCount } from "@shared/provider-capabilities";
 import { settleAssistantToolCalls, type AssistantToolCall } from "@shared/assistant-display";
 import type { CreationArtifact, CreationEvent, CreationReference, CreationSession, CreationSessionMessage } from "@shared/creation-session";
 import type { ReferenceImagePayload } from "@shared/types";
-import { AssistantProcessDetails, AssistantToolGroup } from "../assistant/AssistantMessageDetails";
+import { AssistantProcessDetails } from "../assistant/AssistantMessageDetails";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CreationArtifactPanel } from "./CreationArtifactPanel";
 import "./creation-workspace.css";
@@ -150,7 +150,7 @@ interface CreationAssistantPageProps {
 }
 
 type CreateChatMessage =
-  | { id: string; role: "user"; content: string }
+  | { id: string; role: "user"; content: string; references?: CreationReference[] }
   | {
       id: string;
       role: "assistant";
@@ -184,7 +184,8 @@ function toCreationMessage(message: CreateChatMessage): CreationSessionMessage {
     formInteraction: message.result.interaction?.type === "form" ? message.result.interaction : undefined };
   if (message.role === "result") return { id: message.id, role: "result", content: "", prompt: message.prompt,
     artifactIds: message.artifactIds };
-  return { id: message.id, role: message.role, content: message.content };
+  return { id: message.id, role: message.role, content: message.content,
+    ...(message.role === "user" ? { references: message.references } : {}) };
 }
 
 function updateSessionList(current: CreationSession[], saved: CreationSession): CreationSession[] {
@@ -231,6 +232,8 @@ export function CreationAssistantPage({
     crypto.randomUUID(),
   );
   const [sessionTitle, setSessionTitle] = useState("新对话");
+  const [titleSource, setTitleSource] = useState<CreationSession["titleSource"]>();
+  const titleRequestsRef = useRef(new Set<string>());
   const [projectId, setProjectId] = useState<string | undefined>();
   const [sessionPinned, setSessionPinned] = useState(false);
   const [sessionArchived, setSessionArchived] = useState(false);
@@ -358,9 +361,9 @@ export function CreationAssistantPage({
     return <div key={session.id} data-session-id={session.id} className={`creation-assistant-chat-row${session.id === conversationId ? " is-active" : ""}`}>
       {editingSessionId === session.id ? <input autoFocus aria-label={uiText("重命名创作会话")} value={sessionNameInput}
         onChange={(event) => setSessionNameInput(event.target.value)}
-        onKeyDown={(event) => { if (event.key === "Enter") { void updateSession(session, { title: sessionNameInput.trim() || session.title }); setEditingSessionId(null); }
+        onKeyDown={(event) => { if (event.key === "Enter") { void updateSession(session, { title: sessionNameInput.trim() || session.title, titleSource: "manual" }); setEditingSessionId(null); }
           if (event.key === "Escape") setEditingSessionId(null); }}
-        onBlur={() => { if (sessionNameInput.trim()) void updateSession(session, { title: sessionNameInput.trim() }); setEditingSessionId(null); }} />
+        onBlur={() => { if (sessionNameInput.trim()) void updateSession(session, { title: sessionNameInput.trim(), titleSource: "manual" }); setEditingSessionId(null); }} />
         : <button type="button" className="creation-assistant-sidebar-item" aria-current={session.id === conversationId ? "page" : undefined}
           onClick={() => void restoreSavedSession(session)}><span title={session.title}>{session.title}</span></button>}
       <DropdownMenu modal={false}><DropdownMenuTrigger asChild><button type="button" className="creation-assistant-row-action" aria-label={uiText("会话操作：{{ui:0}}", [session.title])}><MoreHorizontal size={15} /></button></DropdownMenuTrigger>
@@ -381,7 +384,7 @@ export function CreationAssistantPage({
     return typeof api.saveCreationSession === "function" ? api.saveCreationSession(snapshot).catch(() => undefined) : Promise.resolve();
   }
   latestSnapshotRef.current = sessionReady && (messages.length || references.length || queued.length || sessionEvents.length)
-    ? { id: conversationId, title: sessionTitle, projectId, pinned: sessionPinned, archived: sessionArchived, createdAt: sessionCreatedAt,
+    ? { id: conversationId, title: sessionTitle, titleSource, projectId, pinned: sessionPinned, archived: sessionArchived, createdAt: sessionCreatedAt,
       updatedAt: new Date().toISOString(), boardId: targetBoardId ?? undefined,
       draft: value, queued, references, messages: messages.map(toCreationMessage), events: sessionEvents,
       artifacts, activeRunId }
@@ -501,9 +504,9 @@ export function CreationAssistantPage({
       const session = (event as CustomEvent<CreationSession>).detail;
       if (session?.id !== conversationId) return;
       if (latestSnapshotRef.current?.id === session.id) latestSnapshotRef.current = {
-        ...latestSnapshotRef.current, title: session.title, projectId: session.projectId, pinned: session.pinned, archived: session.archived
+        ...latestSnapshotRef.current, title: session.title, titleSource: session.titleSource, projectId: session.projectId, pinned: session.pinned, archived: session.archived
       };
-      setSessionTitle(session.title); setProjectId(session.projectId); setSessionPinned(Boolean(session.pinned)); setSessionArchived(Boolean(session.archived));
+      setSessionTitle(session.title); setTitleSource(session.titleSource); setProjectId(session.projectId); setSessionPinned(Boolean(session.pinned)); setSessionArchived(Boolean(session.archived));
     };
     window.addEventListener("iterlay:creation:new", start);
     window.addEventListener("iterlay:creation:metadata", metadata);
@@ -537,7 +540,32 @@ export function CreationAssistantPage({
       }).catch(() => undefined);
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [sessionReady, conversationId, sessionTitle, projectId, sessionPinned, sessionArchived, sessionCreatedAt, messages, references, queued, sessionEvents, artifacts, activeRunId, targetBoardId, value]);
+  }, [sessionReady, conversationId, sessionTitle, titleSource, projectId, sessionPinned, sessionArchived, sessionCreatedAt, messages, references, queued, sessionEvents, artifacts, activeRunId, targetBoardId, value]);
+  useEffect(() => {
+    if (!sessionReady || busy || titleSource || titleRequestsRef.current.has(conversationId) || !hasImageWorkbenchApi()) return;
+    let rounds = 0;
+    let awaitingReply = false;
+    const conversation: Array<{ role: string; content: string }> = [];
+    for (const message of messages) {
+      if (message.role === "user") { awaitingReply = true; conversation.push({ role: "user", content: message.content }); }
+      if (message.role === "assistant" && !message.streaming && message.content.trim() && awaitingReply) {
+        rounds++; awaitingReply = false; conversation.push({ role: "assistant", content: message.content });
+      }
+      if (rounds === 2) break;
+    }
+    if (rounds < 2) return;
+    const api = getImageWorkbenchApi();
+    if (typeof api.summarizeCreationTitle !== "function") return;
+    const id = conversationId;
+    const originalTitle = sessionTitle;
+    titleRequestsRef.current.add(id);
+    void api.summarizeCreationTitle(conversation).then((title) => {
+      const latest = latestSnapshotRef.current;
+      if (!title || latest?.id !== id || latest.titleSource || latest.title !== originalTitle) return;
+      setSessionTitle(title);
+      setTitleSource("auto");
+    }).catch(() => { titleRequestsRef.current.delete(id); });
+  }, [sessionReady, busy, titleSource, conversationId, messages, sessionTitle]);
   const composerMediaType = resolveCreateChatMediaType(
     messages
       .filter((message) => message.role === "user")
@@ -710,6 +738,7 @@ export function CreationAssistantPage({
     setTargetBoardId(null);
     setConversationId(crypto.randomUUID());
     setSessionTitle("新对话");
+    setTitleSource(undefined);
     setProjectId(nextProjectId);
     setSessionPinned(false);
     setSessionArchived(false);
@@ -756,9 +785,14 @@ export function CreationAssistantPage({
       }
       return { ...reference, previewUrl: await api.creationReferenceUrl(reference.imagePath).catch(() => undefined) };
     }));
+    const messageReferences = new Map(await Promise.all(session.messages.map(async (message) => [message.id,
+      await Promise.all((message.references ?? []).map(async (reference) => ({ ...reference,
+        previewUrl: reference.imagePath ? await api.creationReferenceUrl(reference.imagePath).catch(() => undefined) : undefined,
+      }))),
+    ] as const)));
     setConversationId(session.id);
     setMobileSidebarOpen(false);
-    setSessionTitle(session.title);
+    setSessionTitle(session.title); setTitleSource(session.titleSource);
     setProjectId(session.projectId);
     setSessionPinned(Boolean(session.pinned));
     setSessionArchived(Boolean(session.archived));
@@ -780,7 +814,8 @@ export function CreationAssistantPage({
     }));
     setActiveRunId(undefined);
     setMessages(session.messages.map((message): CreateChatMessage => {
-      if (message.role === "user" || message.role === "error") return { id: message.id, role: message.role, content: message.content };
+      if (message.role === "user") return { id: message.id, role: "user", content: message.content, references: messageReferences.get(message.id) };
+      if (message.role === "error") return { id: message.id, role: "error", content: message.content };
       if (message.role === "result") {
         const attached = resolvedArtifacts.filter((artifact) => message.artifactIds?.includes(artifact.id));
         const boardId = attached[0]?.boardId ?? session.boardId ?? "";
@@ -819,7 +854,8 @@ export function CreationAssistantPage({
     return history
       .flatMap((message): AssistantConversationMessage[] => {
         if (message.role === "user")
-          return [{ role: "user", content: message.content }];
+          return [{ role: "user", content: [message.content, ...(message.references ?? []).map((reference) =>
+            `素材：${reference.name}${reference.imagePath ? `\n托管路径：${reference.imagePath}` : ""}`)].join("\n") }];
         if (message.role === "assistant")
           return [
             {
@@ -888,7 +924,7 @@ export function CreationAssistantPage({
     setActivity("正在梳理需求…");
     setMessages([
       ...priorMessages,
-      { id: crypto.randomUUID(), role: "user", content: displayContent },
+      { id: crypto.randomUUID(), role: "user", content: displayContent, references: [...references] },
       {
         id: assistantId,
         role: "assistant",
@@ -899,6 +935,7 @@ export function CreationAssistantPage({
       },
     ]);
     setValue("");
+    setReferences([]);
     setEditingMessageId(null);
     setActiveDecisionId(null);
     setInterpreting(true);
@@ -1290,9 +1327,6 @@ export function CreationAssistantPage({
     else onOpenBoard(boardId);
   }
   const isEmpty = messages.length === 0 && !interpreting;
-  const latestMessage = messages.at(-1);
-  const showWaitingStatus = interpreting && latestMessage?.role === "assistant"
-    && !latestMessage.content.trim() && !latestMessage.toolCalls?.length && !agentInteraction;
 
   async function copyMessage(id: string, content: string): Promise<void> {
     try {
@@ -1436,13 +1470,23 @@ export function CreationAssistantPage({
               aria-live="polite"
               aria-relevant="additions text"
             >
-              {messages.map((message) =>
+              {messages.map((message, messageIndex) =>
                 message.role === "user" ? (
                   <AssistantMessageFrame
                     key={message.id}
                     role="user"
                     label={uiText("你")}
                   >
+                    {message.references?.length ? <div className="creation-reference-rail" aria-label={uiText("已发送素材")}>
+                      {message.references.map((reference) => <div key={reference.id} className="creation-reference-item" title={reference.name}>
+                        <button type="button" className="creation-reference-preview-trigger"
+                          aria-label={uiText("预览素材：{{ui:0}}", [reference.name])}
+                          onClick={() => void openReferencePreview(reference)}>
+                          {reference.previewUrl ? <img src={reference.previewUrl} alt={reference.name} /> : <ImageIcon size={20} />}
+                        </button>
+                        <span>{reference.name}</span>
+                      </div>)}
+                    </div> : null}
                     <p>{message.content}</p>
                     <div className="create-chat-message-actions">
                       <button
@@ -1469,6 +1513,7 @@ export function CreationAssistantPage({
                         onClick={() => {
                           setEditingMessageId(message.id);
                           setValue(message.content);
+                          setReferences(message.references ?? []);
                           textareaRef.current?.focus();
                         }}
                       >
@@ -1477,8 +1522,8 @@ export function CreationAssistantPage({
                     </div>
                   </AssistantMessageFrame>
                 ) : message.role === "error" ? (
+                  <div key={message.id} className="create-chat-error-turn">
                   <div
-                    key={message.id}
                     className="create-chat-error"
                     role="alert"
                   >
@@ -1516,18 +1561,24 @@ export function CreationAssistantPage({
                       </div>
                     </div>
                   </div>
+                  {(() => {
+                    const previous = messages[messageIndex - 1];
+                    return previous?.role === "assistant" ? <AssistantProcessDetails
+                      reasoningSummary={previous.reasoningSummary} activitySteps={previous.activitySteps} calls={previous.toolCalls} /> : null;
+                  })()}
+                  </div>
                 ) : message.role === "assistant" ? (
                   <AssistantMessageFrame
                     key={message.id}
                     role="assistant"
                     label={uiText("创作助手")}
                   >
-                    <AssistantProcessDetails reasoningSummary={message.reasoningSummary} activitySteps={message.activitySteps} streaming={message.streaming} />
                     {message.content.trim() ? <AssistantResponse
                       content={message.content}
                       streaming={message.streaming}
                     /> : null}
-                    {message.toolCalls?.length ? <AssistantToolGroup calls={message.toolCalls} /> : null}
+                    {messages[messageIndex + 1]?.role !== "error" ? <AssistantProcessDetails
+                      reasoningSummary={message.reasoningSummary} activitySteps={message.activitySteps} streaming={message.streaming && !message.content.trim()} calls={message.toolCalls} statusLabel={message.streaming ? activity : undefined} /> : null}
                     {agentInteraction?.messageId === message.id &&
                     agentInteraction.interaction.type === "permission" ? (
                       <AssistantPermissionCard
@@ -1569,6 +1620,10 @@ export function CreationAssistantPage({
                             values,
                           );
                           if (agentInteraction?.messageId === message.id) {
+                            // Keep form answers in the same durable history as typed messages.
+                            // Insert before the continuing assistant response so future turns retain user/assistant order.
+                            const answerMessage: CreateChatMessage = { id: crypto.randomUUID(), role: "user", content: answers };
+                            setMessages((current) => current.flatMap((entry) => entry.id === message.id ? [answerMessage, entry] : [entry]));
                             agentInteraction.respond("submit", values);
                             setAgentInteraction(null);
                             setActiveDecisionId(null);
@@ -1744,12 +1799,6 @@ export function CreationAssistantPage({
                   </article>
                 ),
               )}
-              {showWaitingStatus ? (
-                <div className="create-chat-thinking" role="status">
-                  <span className="create-chat-thinking-dot" />
-                  <span>{uiText(activity || "正在梳理需求…")}</span>
-                </div>
-              ) : null}
             </div>
           </div>
         )}

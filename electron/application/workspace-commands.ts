@@ -13,6 +13,7 @@ import type {
 } from "../../shared/types.js";
 import { isBoardImageNode } from "../../shared/types.js";
 import { writeJsonAtomic } from "../storage/atomic-json.js";
+import { pendingVideoJobId } from "../../shared/video-generation-placeholder.js";
 import type { WorkspaceApi } from "./workbench-api.js";
 
 export interface WorkbenchEvent { type: string; [key: string]: unknown }
@@ -50,6 +51,7 @@ function choice<T extends string>(value: unknown, values: readonly T[], fallback
 
 /** Typed command dispatch; all mutations use the same service as UI IPC. */
 export class WorkspaceCommands {
+  private readonly videoStatuses = new Map<string, string>();
   private readonly tasks = new Map<string, GenerationRecord>();
   private readonly submissions = new Map<string, { hash: string; promise: Promise<GenerationRecord> }>();
   private defaultBoardResolution?: Promise<string>;
@@ -111,6 +113,14 @@ export class WorkspaceCommands {
         return mutate(() => api.writeCanvasNode({ boardId, ...(method === "update_canvas" ? { nodeId, expectedCode: string(a.expectedCode) } : {}),
           framework: choice(a.framework, ["html", "react", "vue"] as const, "html"), code: string(a.code),
           ...(a.title === undefined ? {} : { title: string(a.title) }) }));
+      }
+      case "list_templates": return api.listTemplates();
+      case "get_template": return api.getTemplate(string(a.templateId));
+      case "create_template": case "update_template": {
+        const allowed = ["name", "description", "prompt", "category", "mode", "useCase", "fields", "extractionScenario"];
+        const input = Object.fromEntries(Object.entries(a).filter(([key]) => allowed.includes(key)));
+        const result = method === "create_template" ? await api.createTemplate(input) : await api.updateTemplate(string(a.templateId), input, a.expectedPrompt === undefined ? undefined : string(a.expectedPrompt));
+        emit({ type: "templates-updated" }); return result;
       }
       case "list_boards": return api.listBoards();
       case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId, a.preserveView === true) };
@@ -228,27 +238,94 @@ export class WorkspaceCommands {
           generationNodeId: string(a.generationNodeId) || undefined, targetVideoNodeId: string(a.targetVideoNodeId) || undefined,
           generateAudio: a.generateAudio === true, watermark: a.watermark === true, providerId: string(a.providerId) || undefined, boardId: targetBoardId
         };
-        const job = await api.startVideoGeneration(input);
+        // Tool submissions need the same durable canvas anchor as UI submissions.
+        // Publish it before awaiting the provider so even a slow submit is visible.
+        const createdNodeId = !input.generationNodeId ? crypto.randomUUID() : undefined;
+        if (createdNodeId) {
+          input.generationNodeId = createdNodeId;
+          await this.dependencies.flush();
+          await api.appendBoardNodes(targetBoardId, [{
+            id: createdNodeId, type: "video-generation", title: "视频生成", displayWidth: 340,
+            mode: input.mode, prompt: input.prompt, model: input.model, providerId: input.providerId,
+            duration: input.durationSeconds, aspectRatio: input.aspectRatio, resolution: input.resolution,
+            generateAudio: input.generateAudio, watermark: input.watermark,
+            referenceVideoPaths: input.referenceVideoPaths, referenceAudioPaths: input.referenceAudioPaths,
+            sourceVideoPath: input.sourceVideoPath, targetVideoNodeId: input.targetVideoNodeId, status: "submitting"
+          }, {
+            id: `video-output-${pendingVideoJobId(createdNodeId)}`, type: "video", videoPath: "",
+            jobId: pendingVideoJobId(createdNodeId), source: "generated", generationNodeId: createdNodeId,
+            aspectRatio: input.aspectRatio, status: "submitting"
+          }]);
+          emit({ type: "board-updated", boardId: targetBoardId,
+            nodeIds: [`video-output-${pendingVideoJobId(createdNodeId)}`] });
+        } else {
+          emit({ type: "board-updated", boardId: targetBoardId, nodeIds: [input.generationNodeId] });
+        }
+        let job;
+        try {
+          // The renderer may have reloaded the anchor; drain its saves before the
+          // service atomically installs the job's output placeholder.
+          await this.dependencies.flush();
+          job = await api.startVideoGeneration(input);
+        } catch (error) {
+          if (createdNodeId) {
+            await this.dependencies.flush();
+            const board = await api.getBoard(targetBoardId);
+            if (board) await api.saveBoard({ id: board.id, nodes: board.nodes.map((node) =>
+              (node.id === createdNodeId && node.type === "video-generation")
+                || (node.type === "video" && node.generationNodeId === createdNodeId && !node.videoPath)
+                ? { ...node, status: "failed" as const, error: error instanceof Error ? error.message : String(error) } : node) });
+            emit({ type: "board-updated", boardId: targetBoardId, nodeIds: [createdNodeId] });
+          }
+          throw error;
+        }
+        this.videoStatuses.set(job.id, job.status);
+        emit({ type: "board-updated", boardId: targetBoardId,
+          nodeIds: [input.mode === "remix" && input.targetVideoNodeId ? input.targetVideoNodeId : `video-output-${job.id}`] });
+        if (!["completed", "failed", "cancelled"].includes(job.status)) {
+          this.watchVideoJob(job.id, a.preserveView === true);
+        }
         return { videoGenerationId: job.id, status: job.status, boardId: targetBoardId, job };
       }
       case "get_video_generation_status": {
         const job = await api.getVideoJob(string(a.videoGenerationId));
         if (!job) return null;
-        if (job.status === "completed" && job.outputVideoPath && job.input.boardId && (job.input.mode ?? "generate") === "generate") {
+        let outputNodeId: string | undefined;
+        let appended = false;
+        if (job.status === "completed" && job.outputVideoPath && job.input.boardId) {
           const board = await api.getBoard(job.input.boardId);
-          if (board && !board.nodes.some((n) => n.type === "video" && n.videoPath === job.outputVideoPath)) {
+          outputNodeId = board?.nodes.find((n) => n.type === "video" && n.videoPath === job.outputVideoPath)?.id;
+          if (board && !outputNodeId && (job.input.mode ?? "generate") === "generate") {
             await this.dependencies.flush();
-            await api.appendBoardNodes(board.id, [{ id: "video-" + job.id, type: "video", videoPath: job.outputVideoPath, posterPath: job.outputPosterPath,
+            outputNodeId = "video-" + job.id;
+            await api.appendBoardNodes(board.id, [{ id: outputNodeId, type: "video", videoPath: job.outputVideoPath, posterPath: job.outputPosterPath,
               jobId: job.id, source: "generated", mimeType: job.mimeType, width: job.width, height: job.height, durationMs: job.durationMs }]);
-            emit({ type: "board-updated", boardId: board.id });
+            appended = true;
           }
         }
+        if (job.input.boardId && (appended || this.videoStatuses.get(job.id) !== job.status)) {
+          emit({ type: "board-updated", boardId: job.input.boardId,
+            ...(outputNodeId ? { nodeIds: [outputNodeId] } : {}) });
+        }
+        this.videoStatuses.set(job.id, job.status);
         return { videoGenerationId: job.id, status: job.status, boardId: job.input.boardId, job,
           video: job.outputVideoPath ? { path: job.outputVideoPath, posterPath: job.outputPosterPath, mimeType: job.mimeType, width: job.width, height: job.height, durationMs: job.durationMs } : undefined };
       }
       case "stop_video_polling": return { ...await api.stopVideoPolling(string(a.videoGenerationId)), videoGenerationId: a.videoGenerationId, remoteCancelled: false, message: "仅停止本机轮询，远端任务不会被取消。" };
       default: throw new Error(`未知的 工作台 工具：${method}`);
     }
+  }
+
+  /** Canvas visibility must not depend on the assistant remembering to poll. */
+  private watchVideoJob(id: string, preserveView: boolean): void {
+    const timer = setTimeout(() => {
+      void this.call("get_video_generation_status", { videoGenerationId: id, preserveView })
+        .then((result) => {
+          const status = (result as { status?: string } | null)?.status;
+          if (status && !["completed", "failed", "cancelled"].includes(status)) this.watchVideoJob(id, preserveView);
+        }).catch(() => { /* Explicit status queries and persisted task recovery remain available. */ });
+    }, 2_000);
+    timer.unref();
   }
 
   /** Resolve once in the App so CLI and raw workspace calls share the same destination. */
@@ -297,13 +374,16 @@ export class WorkspaceCommands {
   private async performGeneration(a: Record<string, unknown>, edit: boolean, requestId: string, requestHash: string): Promise<GenerationRecord> {
     const { api } = this.dependencies;
     const emit = (event: WorkbenchEvent) => this.dependencies.emit({ ...event, ...(a.preserveView === true ? { preserveView: true } : {}) });
+    const template = a.templateId === undefined ? undefined : await api.getTemplate(string(a.templateId));
+    if (template && template.mode !== (edit ? "edit" : "generate")) throw new Error("模板创作模式与当前命令不匹配。");
     const boardId = await this.resolveGenerationBoard(string(a.boardId), a.preserveView === true);
     const sourcePath = string(a.sourcePath);
     const prepared = a.modificationRequestId ? await api.prepareModificationRequest(string(a.modificationRequestId),string(a.claimToken)) : undefined;
     if (prepared && (!edit || prepared.boardId!==boardId || prepared.sourcePath!==sourcePath)) throw new Error("修改请求的画板或固定源版本与执行参数不一致。");
     const references = edit ? [sourcePath,...(prepared ? [prepared.maskPath,...prepared.referencePaths].filter((value):value is string=>Boolean(value)) : strings(a.referencePaths,3))] : strings(a.referencePaths,4);
     if (references.length>4) throw new Error("修改请求的源图、蒙版和参考图片合计最多4张。");
-    const prompt = string(a.prompt,prepared?.instruction??"");
+    const content = string(a.prompt,prepared?.instruction??"");
+    const prompt = template ? `模板固定规则：\n${template.prompt}\n\n本次创作内容：\n${content}` : content;
     if (!prompt.trim() || !boardId || (edit && !sourcePath)) throw new Error("生成缺少画板、提示词或编辑目标。");
     const settings = await api.getSettings();
     const provider = settings.providers.find((p) => p.id === (a.providerId || settings.activeProviderId));
@@ -319,6 +399,7 @@ export class WorkspaceCommands {
     if (!Number.isInteger(count) || count < 1 || count > 4) throw new Error("图片数量必须是 1 到 4 的整数。");
     const input: GenerateImageInput = {
       clientTaskId: requestId,
+      sceneId: template?.id, useCase: template?.useCase,
       editSource: edit && target ? { nodeId: target.id, boardId, imagePath: sourcePath,
         jobId: target.versions?.find((version) => version.imagePath === sourcePath)?.jobId ?? target.jobId } : undefined,
       modificationRequestId: prepared?.id, idempotencyKey: prepared?.executionKey,

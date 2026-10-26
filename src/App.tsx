@@ -1,3 +1,4 @@
+import { connectTemplatePersistence, readPersistedTemplates } from "@/lib/template-persistence";
 import { CANVAS_STARTERS } from "@/components/code-canvas/model";
 import { OPEN_ASSISTANT_PERMISSIONS_EVENT } from "@shared/screen-access";
 import tourDemoImageUrl from "@/assets/tour-demo-lamp.jpg";
@@ -1379,6 +1380,29 @@ export default function App(): React.ReactElement {
     });
   });
 
+  useEffect(() => {
+    const api = getWorkbenchApi();
+    if (!api) return;
+    let active = true;
+    const refresh = async (): Promise<void> => {
+      const templates = await readPersistedTemplates();
+      if (active && templates) {
+        localStorage.setItem("iterlay.customScenes", JSON.stringify(templates));
+        setCustomScenes(templates);
+      }
+    };
+    const onError = (error: unknown): void => {
+      localStorage.setItem("iterlay.unsavedTemplateDrafts", localStorage.getItem("iterlay.customScenes") ?? "[]");
+      reportWorkbenchError(error);
+    };
+    void connectTemplatePersistence(api, readCustomScenes(), onError, localStorage.getItem("iterlay.templatesMigrated") !== "1")
+      .then(async () => { localStorage.setItem("iterlay.templatesMigrated", "1"); await refresh(); }).catch(onError);
+    const unsubscribe = api.onWorkbenchEvent(detail => {
+      if (detail.type === "templates-updated") void refresh().catch(onError);
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [getWorkbenchApi, reportWorkbenchError]);
+
   // CLI runs outside React and mutates boards through the preload API. Reconcile the
   // local workbench so its pending state and persisted canvas snapshot stay authoritative.
   useEffect(() => {
@@ -1527,6 +1551,13 @@ export default function App(): React.ReactElement {
           await refreshBoards();
           if (activeBoardRef.current?.id === boardId) {
             await openBoard(boardId, undefined, { forceReload: true, keepLibraryOpen: detail.preserveView === true, suppressLoadingScreen: detail.preserveView === true });
+            // Focus only after the persisted nodes have been loaded. A separate
+            // focus event can arrive before the asynchronous reload finishes.
+            const nodeIds = Array.isArray(detail.nodeIds)
+              ? detail.nodeIds.filter((id): id is string => typeof id === "string") : [];
+            if (nodeIds.length && activeBoardRef.current?.id === boardId) {
+              setSelectionTarget({ ids: nodeIds, nonce: Date.now() });
+            }
           }
         })();
         return;
@@ -2060,6 +2091,7 @@ export default function App(): React.ReactElement {
         };
         workflowNodesRef.current = [...workflowNodesRef.current, node];
         setWorkflowNodes(workflowNodesRef.current);
+        setSelectionTarget({ ids: [nodeId], nonce: Date.now() });
         scheduleBoardSave();
         await flushBoardSave();
         plan.onProgress?.("正在提交视频任务…");
@@ -2070,6 +2102,10 @@ export default function App(): React.ReactElement {
           resolution: plan.videoSettings?.resolution ?? "720p",
           referenceImagePaths: plan.referencePaths ?? [], boardId: target.id, generationNodeId: nodeId
         });
+        if (activeBoardRef.current?.id === target.id) {
+          await openBoard(target.id, undefined, { keepLibraryOpen: true, forceReload: true, suppressLoadingScreen: true });
+          setSelectionTarget({ ids: [`video-output-${job.id}`], nonce: Date.now() });
+        }
         plan.onArtifact?.({ id: job.id, kind: "video", boardId: target.id, boardName: target.name,
           nodeId, jobId: job.id, prompt, status: "pending", createdAt: new Date().toISOString() });
         const deadline = Date.now() + 10 * 60_000;
@@ -2083,6 +2119,7 @@ export default function App(): React.ReactElement {
         boardDetailCacheRef.current.delete(target.id);
         if (activeBoardRef.current?.id === target.id) {
           await openBoard(target.id, undefined, { keepLibraryOpen: true, forceReload: true, suppressLoadingScreen: true });
+          setSelectionTarget({ ids: [`video-output-${job.id}`], nonce: Date.now() });
         }
         await refreshBoards();
         if (job.status === "failed" || job.status === "cancelled") throw new Error(job.error || "视频生成未完成，请在画板中查看任务状态。");
@@ -5022,6 +5059,54 @@ export default function App(): React.ReactElement {
     requests: AssistantGenerationRequest[],
     assistantConversationId?: string
   ): Promise<string | null> {
+    // Video requests must never fall through to the image provider.
+    if (requests.some((request) => request.mediaType === "video")) {
+      const api = getWorkbenchApi();
+      const boardId = activeBoardRef.current?.id;
+      const provider = videoProviders.find((item) => item.id === activeVideoProviderId) ?? videoProviders[0];
+      if (!api || !boardId) return "请先打开画板。";
+      if (!provider) return "尚未配置视频模型，请在设置中添加视频服务后重试。";
+      if (requests.some((request) => request.mediaType !== "video")) return "请分别提交图片和视频任务。";
+      for (const request of requests) {
+        const prompt = request.prompt.trim();
+        if (!prompt) return "视频提示词不能为空。";
+        const references = [...inputRef.current.referenceImages];
+        const sources: GeneratedImage[] = [];
+        for (const reference of references) {
+          const existing = imagesRef.current.find((image) => image.id === reference.sourceNodeId && image.path);
+          if (existing) { sources.push(existing); continue; }
+          const dataUrl = `data:${reference.mimeType};base64,${reference.dataBase64}`;
+          const imported = await api.importUploadedImage(dataUrl);
+          sources.push({ id: crypto.randomUUID(), path: imported.path, dataUrl,
+            jobId: `upload-${crypto.randomUUID()}`, source: "upload" });
+        }
+        const additions = sources.filter((source) => !imagesRef.current.some((image) => image.id === source.id));
+        imagesRef.current = [...imagesRef.current, ...additions];
+        setImages(imagesRef.current);
+        const nodeId = createWorkflowNode("video-generation", { x: 80, y: 80 }, {
+          prompt, model: provider.model, duration: request.videoSettings?.durationSeconds,
+          aspectRatio: request.videoSettings?.aspectRatio, resolution: request.videoSettings?.resolution,
+          focusOnCreate: true
+        });
+        canvasStateRef.current.connections = [...canvasStateRef.current.connections, ...sources.map((source) => ({
+          id: crypto.randomUUID(), source: source.id, target: nodeId, kind: "reference" as const,
+          sourceHandle: "source-right", targetHandle: "target-reference"
+        }))];
+        setCanvasConnectionsVersion((version) => version + 1);
+        scheduleBoardSave();
+        await flushBoardSave();
+        if (!request.prepareOnly) {
+          const node = workflowNodesRef.current.find((item): item is BoardVideoGenerationNode =>
+            item.id === nodeId && item.type === "video-generation");
+          if (!node) return "视频节点创建失败。";
+          // Reuse canvas confirmation, provider capability checks, placeholders and polling.
+          void runVideoGenerationNode(node, { prompt, images: sources,
+            sourceNodeIds: sources.map((source) => source.id), referenceImages: sources,
+            referenceVideos: [], requiresFirstLastFrame: false });
+        }
+      }
+      return null;
+    }
     const normalized = requests
       .map((request) => ({
         prompt: request.prompt.trim(),

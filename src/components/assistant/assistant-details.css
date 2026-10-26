@@ -338,31 +338,58 @@
   color: var(--chat-secondary);
   font-size: 12px;
 }
-.assistant-process-section + .assistant-process-section { border-top: 1px solid var(--chat-border); }
-.assistant-process-section > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  cursor: pointer;
-  list-style: none;
+.assistant-chain {
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
 }
-.assistant-process-section > summary::-webkit-details-marker { display: none; }
-.assistant-process-section > summary:hover { color: var(--chat-ink); }
-.assistant-process-section > summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; border-radius: 4px; }
-.assistant-process-section > summary > svg { flex: none; }
-.assistant-process-section > summary > svg:last-child { margin-left: auto; }
-.assistant-process-section[open] > summary > svg:last-child { transform: rotate(180deg); }
-.assistant-process-body {
-  margin: 0 0 12px;
-  padding: 4px 0 0 22px;
-  max-height: 240px;
-  overflow: auto;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  line-height: 1.8;
+.assistant-chain-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; text-align: left; }
+.assistant-chain-heading > span:not(:first-child) { font-size: 11px; color: var(--chat-secondary); }
+.assistant-chain-heading > .text-destructive { color: hsl(var(--destructive)); }
+.assistant-chain-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.assistant-chain [data-state] { min-width: 0; }
+.assistant-chain button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; border-radius: 4px; }
+.assistant-chain .assistant-tool { border: 0; border-radius: 0; background: transparent; }
+.assistant-chain .assistant-tool > summary { display: flex; align-items: center; gap: 6px; padding: 2px 0; min-height: 28px; cursor: pointer; list-style: none; color: var(--chat-secondary); }
+.assistant-chain .assistant-tool > summary::-webkit-details-marker { display: none; }
+.assistant-chain .assistant-tool[open] > summary > svg { transform: rotate(180deg); }
+.assistant-chain .assistant-tool-content { padding: 8px 0; border: 0; }
+.assistant-chain [data-step-status="active"] > div:first-child > svg { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chain *, .assistant-chain [data-step-status="active"] > div:first-child > svg { animation: none !important; transition: none !important; }
+}
+
+/* Bound activity growth; the conversation and its composer retain their space. */
+.assistant-chain-content {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--chat-border) transparent;
+  padding: 2px 8px 4px 0;
 }
-ol.assistant-process-body { list-style: decimal; padding-left: 38px; }
-.assistant-process-body li + li { margin-top: 6px; }
+.assistant-chain-content > [data-step-status] { font-size: 12px; line-height: 1.6; }
+.assistant-chain-content > [data-step-status] + [data-step-status] { margin-top: 8px; }
+/* One compact disclosure owns status; details never compete with the answer. */
+.assistant-chain { margin: 4px 0 10px; padding: 0; }
+.assistant-chain:not(.assistant-chain-status) > :not([hidden]) ~ :not([hidden]) { margin-top: 8px; }
+.assistant-chain-trigger {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 3px 0;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.assistant-chain-trigger > svg { flex: none; width: 14px; height: 14px; }
+.assistant-chain-trigger:has([role="status"]) > svg:first-child { animation: spin 1s linear infinite; }
+.assistant-chain-status { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.assistant-chain-content { margin-left: 7px; padding-left: 14px; border-left: 1px solid var(--chat-border); }
+.assistant-chain .assistant-tool > summary { gap: 8px; min-height: 30px; }
+.assistant-chain .assistant-tool > summary > svg { flex: none; }
+.assistant-chain .assistant-tool > summary > svg:last-child { margin-left: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chain-trigger:has([role="status"]) > svg:first-child { animation: none; }
+}

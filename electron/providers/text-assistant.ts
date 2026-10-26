@@ -402,6 +402,28 @@ export async function collaborateSceneAgentStreamWith(
         mimeType: image.mimeType
       }))
     });
+    // Parsing failed before the rejected decision could execute. Correct the next
+    // decision in this same session; result-only repair would abandon pending work.
+    for (let retry = 0; retry < 2 && !completion.result
+      && completion.reason === "invalid_decision" && !completion.upstreamError && !signal?.aborted; retry += 1) {
+      resourceOptions?.presentActivity?.("正在纠正回复格式并继续任务…");
+      completion.recordLog?.({ event: "decision", level: "warn", summary: "助手纠正工具决策格式并继续任务",
+        details: { reason: completion.reason, retry: retry + 1, turns: completion.turns } });
+      await session.prompt([
+        "上一条工具决策格式无效，该条决策没有执行。请纠正格式，继续完成用户原始请求，不要仅总结失败。",
+        "保留已有上下文和真实工具回执；已有成功回执的操作不得重复执行，也不要重新提交已成功的生成任务。",
+        "每次只输出一个 JSON 对象，不得拼接多个 JSON，不得一次列出多个工具调用。批量任务需每次调用一个工具，收到回执后再处理下一项。",
+        '执行格式：{"toolCalls":[{"name":"可用工具名","arguments":{}}],"text":"简短说明"}。',
+        req.creationWorkflow
+          ? '仅当任务已处理完毕或确实无需操作时，使用 {"toolCalls":[],"text":"面向用户的最终回复"}。'
+          : "完成必要操作后调用 finish_assistant_result 提交结果；该工具只负责收尾，不能替代 create_canvas、update_canvas 等业务工具。",
+        completion.feedback
+      ].join("\n"));
+    }
+    if (!completion.result && completion.reason === "invalid_decision" && !completion.upstreamError && !signal?.aborted) {
+      throw new ProviderError("ASSISTANT_RESULT_INCOMPLETE",
+        "助手工具调用格式连续纠正失败，未能完成本轮任务。格式无效的调用没有执行；已有成功回执的操作不会自动重试，请核对画板与任务状态。");
+    }
     for (
       let repair = 0;
       !req.creationWorkflow && repair < 2 && !completion.result && !signal?.aborted && !completion.upstreamError && completion.repairs < 2;
@@ -534,7 +556,10 @@ function createCodingAgentDecisionFactory(
       let partial = "";
       raw = onMessage ? await transport.completeStream(messages, options, (chunk) => {
         partial += chunk;
-        // Creation decisions are classified after parsing so tool preambles never leak into the reply.
+        // Only stream text after the top-level empty tool list classifies this as a final reply.
+        if (state.conversational && /^\s*\{\s*"toolCalls"\s*:\s*\[\s*\]\s*,\s*"text"\s*:/.test(partial)) {
+          onMessage(extractStreamingJsonString(partial, "text").trimStart());
+        }
         // Forward the user-facing final message, never tool arguments or raw decision JSON.
         if (!state.conversational && /"name"\s*:\s*"finish_assistant_result"/.test(partial)) {
           onMessage(extractStreamingSceneMessage(partial));
@@ -548,9 +573,14 @@ function createCodingAgentDecisionFactory(
     let decision: ReturnType<typeof parsePiAgentDecision>;
     try {
       decision = parsePiAgentDecision(raw, allowedToolNames);
-    } catch {
+    } catch (error) {
+      state.recordLog?.({ event: "decision", level: "warn", summary: "助手工具决策解析失败",
+        details: { reason: error instanceof Error ? error.message : "invalid decision", responseLength: raw.length } });
       state.reason = "invalid_decision";
-      state.feedback = "上次工具决策格式无效或调用了补交阶段不允许的工具。只提交 finish_assistant_result。";
+      const correction = state.repairing
+        ? "当前为仅结果补交阶段，只能提交 finish_assistant_result，不得执行业务操作。"
+        : "只输出一个符合协议的 JSON；工具名必须来自当前可用工具列表。纠正后继续未完成的操作，不能仅总结失败。";
+      state.feedback = `上次工具决策未执行：${error instanceof Error ? error.message.slice(0, 1000) : "格式无效"}。${correction}`;
       return stop(raw.slice(0, 64_000));
     }
     if (decision.text) {
@@ -1522,7 +1552,8 @@ function buildSceneCollaborationSystemPrompt(req: CollaborateSceneRequest): stri
       surfaceRules +
       intentRules +
       responseLanguageRule +
-      "message 必须作为 JSON 的第一个字段，可以包含 Markdown 列表。" +
+      "视频创作的最终结果必须设置 mediaType=video，并在 videoSettings 中提供用户指定的 durationSeconds、aspectRatio、resolution；图片结果设置 mediaType=image。视频提示词不能通过图片生成动作执行。" +
+    "message 必须作为 JSON 的第一个字段，可以包含 Markdown 列表。" +
       '只返回严格 JSON，不要 Markdown 代码围栏或额外文字。固定格式：{"message":"回顾结论","intent":"chat","goal":"review","commitment":"advise_only","fields":[]}。'
     );
   }
@@ -1541,6 +1572,7 @@ function buildSceneCollaborationSystemPrompt(req: CollaborateSceneRequest): stri
     screenAccessRules +
     "除 explore 方向建议外，当输入包含已有字段时，最终 fields 必须是采纳建议后的完整相关字段，而不是只返回改动项。" +
     responseLanguageRule +
+    "视频创作的最终结果必须设置 mediaType=video，并在 videoSettings 中提供用户指定的 durationSeconds、aspectRatio、resolution；图片结果设置 mediaType=image。视频提示词不能通过图片生成动作执行。" +
     "message 必须作为 JSON 的第一个字段，可以包含 Markdown 列表。" +
     "只返回严格 JSON，不要 Markdown 代码围栏或额外文字。格式示例：" +
     `{"message":"回复","intent":"creative","goal":"create","commitment":"prepare_only","suggestedName":"可选名称","suggestedDescription":"可选说明","fields":[],"interaction":{"type":"form","title":"补充一个关键点","description":"可选说明","submitLabel":"继续","cancelLabel":"暂不补充","fields":[${formFieldExample}]}}；` +

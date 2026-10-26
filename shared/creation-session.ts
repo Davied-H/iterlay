@@ -42,6 +42,7 @@ export interface CreationSessionMessage {
   id: string;
   role: "user" | "assistant" | "error" | "result";
   content: string;
+  references?: CreationReference[];
   prompt?: string;
   confirmed?: boolean;
   toolCalls?: AssistantToolCall[];
@@ -56,6 +57,7 @@ export interface CreationSessionMessage {
 export interface CreationSession {
   id: string;
   title: string;
+  titleSource?: "auto" | "manual";
   projectId?: string;
   pinned?: boolean;
   archived?: boolean;

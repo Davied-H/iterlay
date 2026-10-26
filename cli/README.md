@@ -67,3 +67,21 @@ iterlay image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":2
 ```
 
 复用 App 本地切图，不调用模型；保留原图，切片保存为受管 PNG 并加入画板。源参数三选一，宫格与 crops 互斥；每轴最多 8 格、最多 64 个区域。坐标、边距和间距均为原图像素；不自动去底、识别主体或统一输出尺寸。返回 images、crops、nodeIds 和可选 exportedPaths；--out 为目录，已有文件默认不覆盖。高级入口为 `iterlay call slice_image --input '<JSON>' --json`，精确 schema 见 tools list。
+
+### 可复用图片模板
+
+模板规则保存到当前工作区的模板库，与 App 自定义模板共用。创建/更新模板不调用模型、不产生生成费用。
+
+```sh
+iterlay templates create --name "品牌海报" --prompt "米白背景、黑色大标题、充足留白" --category marketing
+iterlay templates list
+iterlay templates show 'custom:返回的ID'
+iterlay templates update 'custom:返回的ID' --description "品牌系列海报"
+iterlay image generate --template 'custom:返回的ID' --prompt "春季咖啡新品，标题：春日第一杯" --out poster.png
+```
+
+`--prompt` 在创建/更新时表示固定模板规则，在生成时表示本次内容；使用模板不会修改模板本身。生成记录保留模板 ID，结果沿用普通图片任务的等待、导出和画板流程。编辑模板使用 `--mode edit`，配合 `image edit --template ... --input ... --prompt ...`。
+
+复杂模板可使用 `templates create --input template.json` 或 `templates update <id> --input patch.json`，支持 name、description、prompt、category、mode、useCase、fields（id/label/value）、extractionScenario；命令行字段覆盖文件中的同名字段。更新保留未提供的字段，修改 prompt 且未提供 fields 时清除旧结构字段。`--expected-prompt` 可拒绝覆盖已改变的规则。
+
+目前列表包含自定义模板，不包含内置预设。旧版 localStorage 模板会在打开升级后的工作台时迁入共享库；首次迁移前，纯后台 CLI 无法读取这些旧模板。旧客户端不支持新接口，须使用同版本的 App 后台和 CLI。模板不保证模型输出像素级一致，仍需检查生成结果。

@@ -158,6 +158,9 @@ export interface AssistantGenerationRequest {
   prompt: string;
   count: number;
   preservePrompt?: boolean;
+  mediaType?: CollaborateSceneResult["mediaType"];
+  videoSettings?: CollaborateSceneResult["videoSettings"];
+  prepareOnly?: boolean;
 }
 
 function buildAssistantOpeningInstruction(surface: AssistantSurface): string {
@@ -1363,16 +1366,35 @@ export function PromptDock({
     });
   }
 
-  function submitImmediateAssistantGeneration(prompt: string, count = input.n): void {
+  function submitImmediateAssistantGeneration(prompt: string, count = input.n, result?: CollaborateSceneResult): void {
     const nextPrompt = prompt.trim();
     if (!nextPrompt) return;
     if (assistantSurface === "canvas-prompt") assistantPreviousGenerationPromptRef.current = nextPrompt;
-    onGeneratePrompts([{ prompt: nextPrompt, count }], assistantConversationId);
+    onGeneratePrompts([{ prompt: nextPrompt, count, mediaType: result?.mediaType, videoSettings: result?.videoSettings }], assistantConversationId);
   }
 
-  function applyReviewedAssistantPrompt(prompt: string): void {
+  function applyReviewedAssistantPrompt(prompt: string, message?: AiAssistantMessage): void {
     const nextPrompt = prompt.trim();
     if (!nextPrompt) return;
+    // Older saved conversations may contain only a labelled video prompt.
+    const isVideo = message?.mediaType === "video" || /^\s*视频提示词[：:]/u.test(nextPrompt);
+    if (isVideo) {
+      const submit = async (prepareOnly: boolean) => {
+        try {
+          const error = await onGeneratePrompts([{ prompt: nextPrompt, count: 1,
+            mediaType: "video", videoSettings: message?.videoSettings, prepareOnly }], assistantConversationId);
+          if (error) toast.error(error);
+          else toast.success(prepareOnly ? "已创建视频草稿，请在视频节点中继续" : "已进入视频生成流程，请在画板确认并查看进度");
+        } catch (error) { toast.error(error instanceof Error ? error.message : "视频任务提交失败"); }
+      };
+      showAssistantConfirmation(
+        buildAssistantActionConfirmInteraction(assistantSurface, { changesPrompt: true, hasCurrentPrompt: false }),
+        () => void submit(true),
+        { onGenerateImmediately: () => void submit(false),
+          confirmationPreview: buildAssistantConfirmationPreview("视频提示词", [{ value: nextPrompt }]) }
+      );
+      return;
+    }
     showAssistantConfirmation(
       buildAssistantActionConfirmInteraction(assistantSurface, {
         changesPrompt: nextPrompt !== promptDraftRef.current.trim(),
@@ -1499,6 +1521,7 @@ export function PromptDock({
     if (!actions.some((action) => action.type === "generate") || !prompt.trim()) return [];
     return [{
       prompt: prompt.trim(),
+      mediaType: result.mediaType, videoSettings: result.videoSettings,
       count: resolveAssistantGenerationCount(result, maxImageCount) ?? previousCount
     }];
   }
@@ -1547,7 +1570,7 @@ export function PromptDock({
                   applyVariant(nextVariant);
                   submitImmediateAssistantGeneration(
                     nextVariant === "detailed" ? detailedPrompt : concisePrompt,
-                    generationCount ?? previous.n
+                    generationCount ?? previous.n, result
                   );
                 },
                 confirmationPreview: buildAssistantConfirmationPreview(
@@ -1565,7 +1588,7 @@ export function PromptDock({
         label: executesGeneration
           ? generationRequests.length > 1
             ? `正在生成 ${generationRequests.length} 个方向…`
-            : `正在生成 · ${generationRequests[0].count} 张…`
+            : result.mediaType === "video" ? "正在提交视频任务…" : `正在生成 · ${generationRequests[0].count} 张…`
           : changesPrompt && changesGenerationCount
             ? assistantSurface === "canvas-edit" ? "已更新编辑指令和生成数量" : "已更新提示词和生成数量"
             : changesGenerationCount
@@ -1584,7 +1607,7 @@ export function PromptDock({
 
     const changesPrompt = Boolean(concisePrompt) && concisePrompt !== previous.prompt;
     const hasAppliedChange = changesPrompt || changesGenerationCount;
-    if (hasAppliedChange) applyAssistantChanges(changesPrompt ? concisePrompt : "", generationCount);
+    if (hasAppliedChange && result.mediaType !== "video") applyAssistantChanges(changesPrompt ? concisePrompt : "", generationCount);
     const directionMessage = buildAssistantDirectionMessage(result);
     setAssistantMessages((current) => current.map((message) => (
       message.id === assistantMessageId
@@ -1593,6 +1616,7 @@ export function PromptDock({
           content: result.message,
           streaming: false,
           generatedPrompt: getAssistantGeneratedPrompt(result) || undefined,
+          mediaType: result.mediaType, videoSettings: result.videoSettings,
           ...directionMessage,
           ...(hasAppliedChange || executesGeneration ? { receipt: buildReceipt("concise") } : {})
         }
@@ -1611,7 +1635,7 @@ export function PromptDock({
       void Promise.resolve().then(async () => await onGeneratePrompts(generationRequests, assistantConversationId))
         .then((error) => {
           setAssistantMessages((messages) => messages.map((message) => message.id === assistantMessageId
-            ? { ...message, receipt: { label: error ? `生成失败：${error}` : "生成完成", actions: [] } }
+            ? { ...message, receipt: { label: error ? `生成失败：${error}` : result.mediaType === "video" ? "已进入视频生成流程，请在画板确认" : "生成完成", actions: [] } }
             : message));
         }).catch((error: unknown) => {
           const reason = error instanceof Error ? error.message : "请重试。";
@@ -1719,6 +1743,7 @@ export function PromptDock({
           content: result.message,
           streaming: false,
           generatedPrompt: getAssistantGeneratedPrompt(result) || undefined,
+          mediaType: result.mediaType, videoSettings: result.videoSettings,
           ...directionMessage
         }
         : message
@@ -1727,8 +1752,20 @@ export function PromptDock({
     setAssistantStreaming(false);
     assistantStreamRef.current = null;
 
-    // 模型主动要求的交互（澄清表单，或旧协议返回的确认）仍走底部面板。
+    // Video plans share the same media-aware apply/confirm path as their prompt card.
+    // Do not apply video text to the image composer, including legacy result confirmations.
     const interaction = resolveAssistantInteraction(result, assistantSurface);
+    const videoPrompt = getAssistantGeneratedPrompt(result)?.trim();
+    if (result.mediaType === "video" && videoPrompt && interaction?.type !== "form") {
+      setAssistantInteraction(null);
+      assistantClarificationRoundsRef.current = 0;
+      applyReviewedAssistantPrompt(videoPrompt, {
+        id: assistantMessageId, role: "assistant", content: result.message,
+        mediaType: "video", videoSettings: result.videoSettings
+      });
+      return;
+    }
+    // 模型主动要求的交互（澄清表单，或旧协议返回的确认）仍走底部面板。
     if (interaction) {
       if (interaction.type === "form") assistantClarificationRoundsRef.current += 1;
       setAssistantInteraction({
@@ -1750,7 +1787,7 @@ export function PromptDock({
             applyPromptAssistantResult(result, assistantMessageId, previous);
             submitImmediateAssistantGeneration(
               prompt,
-              resolveAssistantGenerationCount(result, maxImageCount) ?? previous.n
+              resolveAssistantGenerationCount(result, maxImageCount) ?? previous.n, result
             );
           },
           generationActivityLabel: "正在提交生成…",
@@ -1793,7 +1830,7 @@ export function PromptDock({
               applyPromptAssistantResult(result, assistantMessageId, previous);
               submitImmediateAssistantGeneration(
                 previewPrompt,
-                nextGenerationCount ?? previous.n
+                nextGenerationCount ?? previous.n, result
               );
             }
           } : {}),

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useReducedMotion } from "framer-motion";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
@@ -35,6 +35,27 @@ export function AssistantResponse({
   streaming?: boolean;
 }): React.ReactElement {
   const reduceMotion = useReducedMotion();
+  const [visible, setVisible] = useState(streaming && !reduceMotion ? "" : content);
+  const animate = useRef(Boolean(streaming));
+  if (streaming) animate.current = true;
+  useEffect(() => {
+    if (reduceMotion || !animate.current) {
+      setVisible(content);
+      return;
+    }
+    if (visible === content) return;
+    const timer = window.setTimeout(() => {
+      setVisible((previous) => {
+        const next = content;
+        if (!next.startsWith(previous)) return next;
+        const remaining = Array.from(next.slice(previous.length));
+        // Catch up with large chunks without making long replies wait for playback.
+        return previous + remaining.slice(0, Math.max(1, Math.ceil(remaining.length / 12))).join("");
+      });
+    }, 24);
+    return () => window.clearTimeout(timer);
+  }, [content, visible, reduceMotion]);
+  const revealing = Boolean(streaming || visible !== content);
   return (
     <div
       className="create-chat-response"
@@ -42,18 +63,18 @@ export function AssistantResponse({
       data-streaming={Boolean(streaming)}
     >
       <Streamdown
-        mode={streaming ? "streaming" : "static"}
+        mode={revealing ? "streaming" : "static"}
         animated={
           reduceMotion
             ? false
             : { animation: "fadeIn", duration: 110, sep: "char", stagger: 7 }
         }
-        isAnimating={Boolean(streaming && !reduceMotion)}
-        caret={streaming ? "block" : undefined}
+        isAnimating={Boolean(revealing && !reduceMotion)}
+        caret={revealing ? "block" : undefined}
         controls={false}
         linkSafety={{ enabled: true }}
       >
-        {content}
+        {visible}
       </Streamdown>
     </div>
   );

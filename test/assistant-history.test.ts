@@ -24,6 +24,13 @@ function record(
 }
 
 describe("buildAssistantHistory", () => {
+  it("restores video routing and parameters along with the saved prompt", () => {
+    const saved = { ...record("video", "thread", "参考图生成视频", "视频方案", "2026-10-26T00:00:00Z", "镜头推进"),
+      mediaType: "video" as const, videoSettings: { durationSeconds: 15, aspectRatio: "9:16", resolution: "720p" } };
+    expect(buildAssistantHistory([saved])[0].messages[1]).toMatchObject({
+      generatedPrompt: "镜头推进", mediaType: "video", videoSettings: saved.videoSettings
+    });
+  });
   it("retains an already received summary when cancelled before answer text arrives", () => {
     expect(settleCancelledAssistantMessages([
       { content: "", reasoningSummary: "已有摘要", streaming: true }

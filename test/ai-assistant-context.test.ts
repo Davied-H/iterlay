@@ -33,14 +33,14 @@ describe("AI assistant image context", () => {
       await render(undefined);
       expect(container.querySelector(".assistant-process-reasoning")).toBeNull();
       await render("先确认主体。");
-      const details = container.querySelector<HTMLDetailsElement>(".assistant-process-reasoning")!;
-      expect(details.open).toBe(false);
-      expect(details.querySelector("summary")?.textContent).toContain("思考摘要");
-      details.open = true;
+      const details = container.querySelector<HTMLButtonElement>(".assistant-chain button")!;
+      expect(details.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => details.click());
+      expect(container.textContent).toContain("思考过程");
       await render("先确认主体。再整理光线。");
-      expect(container.querySelector(".assistant-process-reasoning")).toBe(details);
-      expect(details.open).toBe(true);
-      expect(details.textContent).toContain("再整理光线");
+      expect(container.querySelector(".assistant-chain button")).toBe(details);
+      expect(details.getAttribute("aria-expanded")).toBe("true");
+      expect(container.textContent).toContain("再整理光线");
       await render("先确认主体。再整理光线。", false);
       expect(container.textContent).toContain("最终回复");
       expect(details.querySelector(".animate-spin")).toBeNull();
@@ -228,7 +228,8 @@ describe("AI assistant activity state", () => {
       })));
     });
 
-    expect(container.querySelectorAll("[data-assistant-activity]")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-assistant-process]")).toHaveLength(1);
+    expect(container.querySelector("[data-assistant-activity]")).toBeNull();
     expect(container.textContent).toContain("正在读取漫剧画板");
     expect(container.textContent).not.toContain("正在思考");
 

@@ -29,6 +29,11 @@ iterlay video generate --prompt <text> [--board <id>]
 iterlay tasks list|get|wait|cancel [task-id] [--kind video] [--out <file>]
 iterlay boards list|create|show|open [id] [--name <name>]
 iterlay assets list|import|export [--input <file>] [--path <managed-path>] [--out <file>]
+iterlay templates list|show [id]       查询可复用模板
+iterlay templates create --name <name> --prompt <rules>
+iterlay templates update <id> --prompt <rules>
+模板字段：--description --category --mode --use-case；--input <JSON文件>
+图片生成/编辑：--template <id> --prompt <本次内容>
 iterlay tools list                      完整操作目录及 JSON schema
 iterlay guard descriptor                离线输出 Guard 命令描述（不会安装或启用 Guard）
 iterlay call <operation> --input '<JSON>'  调用任意工作台操作
@@ -46,7 +51,7 @@ type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
   const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
-  const values = new Set(["agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
+  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -155,6 +160,22 @@ async function main(): Promise<void> {
   }
   let result: unknown;
   const video = group === "video" || get("kind") === "video";
+  if (group === "templates") {
+    const methods: Record<string, string> = { list: "list_templates", show: "get_template", create: "create_template", update: "update_template" };
+    if (!methods[action]) throw new Error("未知模板操作。");
+    if (["show", "update"].includes(action) && !id) throw new Error("缺少模板 ID。");
+    let input: Record<string, unknown> = {};
+    if (get("input")) {
+      const parsed: unknown = JSON.parse(await readFile(get("input")!, "utf8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("模板文件必须是 JSON 对象。");
+      input = parsed as Record<string, unknown>;
+    }
+    for (const [flag, field] of Object.entries({ name: "name", prompt: "prompt", description: "description", category: "category", mode: "mode", "use-case": "useCase", "expected-prompt": "expectedPrompt" })) {
+      if (get(flag) !== undefined) input[field] = get(flag);
+    }
+    if (id) input.templateId = id;
+    output(await call(methods[action], input)); return;
+  }
   if (group === "boards") {
     const methods: Record<string, string> = { list: "list_boards", create: "create_board", show: "get_board", open: "open_board", active: "get_active_board" };
     if (!methods[action]) throw new Error("未知画板操作。");
@@ -195,13 +216,14 @@ async function main(): Promise<void> {
     result = await call(video ? "get_video_generation_status" : "get_generation_status", video ? { videoGenerationId: id } : { generationId: id });
     if (action === "get") { const r = record(result); delete r.previewImageDataUrls; output(r); return; }
   } else if ((group === "image" && (action === "generate" || action === "edit")) || (group === "video" && action === "generate")) {
+    if (video && get("template")) throw new Error("--template 目前只支持图片生成和编辑。");
     if (!get("prompt")?.trim()) throw new Error("缺少 --prompt。");
     if (action === "edit" && !get("input")) throw new Error("缺少 --input。");
     let boardId = get("board");
     if (!boardId) {
       boardId = String(record(await call("resolve_generation_board")).boardId);
     }
-    const args: Record<string, unknown> = { boardId, prompt: get("prompt"), providerId: get("provider"), model: get("model"), size: get("size"), quality: get("quality"), background: get("background"), style: get("style"), n: get("n") ? Number(get("n")) : 1 };
+    const args: Record<string, unknown> = { templateId: get("template"), boardId, prompt: get("prompt"), providerId: get("provider"), model: get("model"), size: get("size"), quality: get("quality"), background: get("background"), style: get("style"), n: get("n") ? Number(get("n")) : 1 };
     if (flags.reference) args[video ? "referenceImagePaths" : "referencePaths"] = await Promise.all(flags.reference.map((file) => importFile(call, file, boardId)));
     if (action === "edit") { if (!get("input")) throw new Error("缺少 --input。"); args.sourcePath = await importFile(call, get("input")!, boardId); }
     if (video) { args.aspectRatio = get("ratio"); args.durationSeconds = get("duration") ? Number(get("duration")) : undefined; args.resolution = get("resolution"); }

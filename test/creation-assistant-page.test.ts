@@ -79,6 +79,55 @@ async function setComposer(value: string): Promise<void> {
 }
 
 describe("CreationAssistantPage", () => {
+  it("moves sent references into message history and clears the composer", async () => {
+    const session = makeCreationSession();
+    session.references = [{ id: "ref-1", kind: "upload", role: "reference", name: "孩子照片",
+      mimeType: "image/png", imagePath: "/references/child.png" }];
+    window.localStorage.setItem("iterlay:creation:active", session.id);
+    const save = vi.fn().mockImplementation(async (value) => value);
+    Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: {
+      listCreationSessions: vi.fn().mockResolvedValue([session]), saveCreationSession: save,
+      creationReferenceUrl: vi.fn().mockResolvedValue("data:image/png;base64,YQ=="),
+      readAssetDataUrl: vi.fn().mockResolvedValue("data:image/png;base64,YQ=="),
+      suggestAssistantIntents: vi.fn().mockResolvedValue({ suggestions: [] })
+    } });
+    const interpret = vi.fn().mockResolvedValue({ message: "已收到照片", fields: [] });
+    await renderPage(vi.fn(), interpret);
+    await setComposer("制作成长纪念书");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    expect(interpret.mock.calls[0]?.[0].referenceImages).toHaveLength(1);
+    expect(container?.querySelector('[aria-label="创作参考素材"]')).toBeNull();
+    expect(container?.querySelector('[aria-label="已发送素材"]')?.textContent).toContain("孩子照片");
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 400)); });
+    const saved = save.mock.calls.at(-1)?.[0];
+    expect(saved.references).toEqual([]);
+    expect(saved.messages.find((message: { role: string }) => message.role === "user").references[0].imagePath)
+      .toBe("/references/child.png");
+  });
+
+  it.each([undefined, "manual" as const])("summarizes after two completed rounds unless manually named (%s)", async (source) => {
+    const session = makeCreationSession();
+    session.title = "你好";
+    session.titleSource = source;
+    session.messages = [
+      { id: "u1", role: "user", content: "你好" },
+      { id: "a1", role: "assistant", content: "你好，请说说想法" },
+      { id: "u2", role: "user", content: "想给儿子做一本书" },
+      { id: "a2", role: "assistant", content: "我们来设计亲子绘本" }
+    ];
+    window.localStorage.setItem("iterlay:creation:active", session.id);
+    const summarize = vi.fn().mockResolvedValue("为儿子创作亲子绘本");
+    Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: {
+      listCreationSessions: vi.fn().mockResolvedValue([session]),
+      saveCreationSession: vi.fn().mockImplementation(async (value) => value),
+      summarizeCreationTitle: summarize,
+      suggestAssistantIntents: vi.fn().mockResolvedValue({ suggestions: [] })
+    } });
+    await renderPage(vi.fn());
+    expect(summarize).toHaveBeenCalledTimes(source ? 0 : 1);
+    if (!source) expect(container?.textContent).toContain("为儿子创作亲子绘本");
+  });
+
   it("continues and retries saved conversations containing invisible empty replies", async () => {
     const session = makeCreationSession();
     session.title = "把风画成一匹半透明的马";
@@ -665,6 +714,19 @@ describe("CreationAssistantPage comic drama entry", () => {
 
 
 describe("creation progress", () => {
+  it("places execution details below errors", async () => {
+    await renderPage(vi.fn(), async (_request, options) => {
+      options?.onActivity("正在分析需求");
+      throw new Error("助手未返回有效回复");
+    });
+    await setComposer("重试");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    const error = container?.querySelector('.create-chat-error');
+    const process = container?.querySelector('.assistant-process');
+    expect(error).not.toBeNull();
+    expect(process).toBeNull();
+  });
+
   it("retains process details and settles running tools after a failed request", async () => {
     await renderPage(vi.fn(), async (_request, stream) => {
       stream?.onReasoningSummary?.("先确认画板。");
@@ -674,6 +736,7 @@ describe("creation progress", () => {
     });
     await setComposer("继续生成");
     await act(async () => findButton("发送给 Pi Agent")?.click());
+    await act(async () => container?.querySelector<HTMLButtonElement>('.assistant-chain button')?.click());
     expect(container?.querySelector('.assistant-process-reasoning')?.textContent).toContain("先确认画板");
     expect(container?.querySelector('.assistant-tool--error')).not.toBeNull();
     expect(container?.querySelector('.assistant-tool--running')).toBeNull();
@@ -701,11 +764,15 @@ describe("creation progress", () => {
       stream?.onActivity("正在生成图片");
     });
     expect(container?.querySelector('.create-chat-response')).toBeNull();
+    await act(async () => container?.querySelector<HTMLButtonElement>('.assistant-chain-trigger')?.click());
     expect(container?.querySelector('.assistant-process-reasoning')?.textContent).toContain("选择清晰的六格布局。使用大字标题。");
-    expect(container?.querySelectorAll('.assistant-process-activity li')).toHaveLength(2);
-    expect(container?.querySelector('details.assistant-process-reasoning')?.hasAttribute('open')).toBe(false);
+    expect(container?.querySelectorAll('.assistant-process-activity')).toHaveLength(2);
+    expect(container?.querySelector('.assistant-chain button')?.getAttribute('aria-expanded')).toBe('true');
     await act(async () => finish({ message: "图卡已生成。", intent: "chat", fields: [] }));
     expect(container?.querySelector('.create-chat-response')?.textContent).toBe("图卡已生成。");
+    const response = container?.querySelector('.create-chat-response');
+    const process = container?.querySelector('.assistant-process');
+    expect(Boolean(response && process && (response.compareDocumentPosition(process) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
     expect(container?.querySelector('.assistant-process-reasoning')?.textContent).toContain("六格布局");
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 450)); });
     expect(saveCreationSession).toHaveBeenLastCalledWith(expect.objectContaining({ messages: expect.arrayContaining([
@@ -723,10 +790,13 @@ describe("creation progress", () => {
     await renderPage(onCreate, onInterpret);
     await setComposer("直接生成一个5秒咖啡视频");
     await act(async () => findButton("发送给 Pi Agent")?.click());
-    expect(container?.querySelector('.create-chat-thinking')).not.toBeNull();
+    expect(container?.querySelector('.assistant-chain-status')).not.toBeNull();
+    expect(container?.querySelectorAll('[data-assistant-process] [role="status"], [data-assistant-process][role="status"]')).toHaveLength(1);
     expect(container?.querySelector('[aria-label="复制回复"]')).toBeNull();
     await act(async () => stream?.onDelta("正在整理咖啡视频的需求"));
-    expect(container?.textContent).toContain("正在整理咖啡视频的需求");
+    expect(container?.textContent).not.toContain("正在整理咖啡视频的需求");
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+    expect(container?.querySelector("[data-assistant-message-body]")?.textContent).toBe("正");
     expect(container?.querySelector('[data-assistant-message-body][data-streaming="true"]')).not.toBeNull();
     expect(container?.querySelector('.create-chat-thinking')).toBeNull();
     expect(container?.querySelector('[aria-label="复制回复"]')).toBeNull();
@@ -780,6 +850,11 @@ it("does not resubmit media already attempted through an agent tool", async () =
 });
 
 it("answers a live agent form in the same run while the request is streaming", async () => {
+  const saveCreationSession = vi.fn(async (session) => session);
+  Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: {
+    listCreationSessions: vi.fn().mockResolvedValue([]), saveCreationSession,
+    suggestAssistantIntents: vi.fn().mockResolvedValue({ suggestions: [] })
+  } });
   const respond = vi.fn();
   let finish!: (result: CollaborateSceneResult) => void;
   const onInterpret = vi.fn((_request: CollaborateSceneRequest, stream?: CreationAssistantStreamOptions) => {
@@ -795,5 +870,12 @@ it("answers a live agent form in the same run while the request is streaming", a
   await act(async () => findButton("继续")?.click());
   expect(respond).toHaveBeenCalledWith("submit", { style: "natural" });
   expect(onInterpret).toHaveBeenCalledOnce();
+  const answer = [...(container?.querySelectorAll('.create-chat-user') ?? [])].find((node) => node.textContent?.includes("风格：自然"));
+  expect(answer).toBeDefined();
   await act(async () => finish({ message: "已根据自然调性继续规划。", intent: "chat", fields: [] }));
+  expect(container?.textContent).toContain("风格：自然");
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 450)); });
+  expect(saveCreationSession).toHaveBeenLastCalledWith(expect.objectContaining({ messages: expect.arrayContaining([
+    expect.objectContaining({ role: "user", content: expect.stringContaining("风格：自然") })
+  ]) }));
 });

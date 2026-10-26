@@ -122,6 +122,8 @@ export interface AssistantConversationRecord {
   reasoningSummary?: string;
   /** 本轮生成的完整提示词，与面向用户的回复文案分开保存。 */
   generatedPrompt?: string;
+  mediaType?: "image" | "video";
+  videoSettings?: CollaborateSceneResult["videoSettings"];
   attachments?: (import("../assistant-display.js").AssistantAttachmentSnapshot & { path?: string })[];
   toolCalls?: import("../assistant-display.js").AssistantToolCall[];
   occurredAt: string;

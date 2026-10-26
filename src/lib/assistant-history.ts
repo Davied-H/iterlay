@@ -6,6 +6,8 @@ export interface AssistantHistoryMessage {
   content: string;
   reasoningSummary?: string;
   generatedPrompt?: string;
+  mediaType?: AssistantConversationRecord["mediaType"];
+  videoSettings?: AssistantConversationRecord["videoSettings"];
   attachments?: AssistantConversationRecord["attachments"];
   toolCalls?: AssistantConversationRecord["toolCalls"];
 }
@@ -61,6 +63,7 @@ export function buildAssistantHistory(
                 role: "assistant" as const,
                 ...(record.reasoningSummary?.trim() ? { reasoningSummary: record.reasoningSummary } : {}),
                 ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}),
+                mediaType: record.mediaType, videoSettings: record.videoSettings,
                 ...splitStoredAssistantResponse(record)
               }]
             : [])

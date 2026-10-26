@@ -317,13 +317,14 @@ describe("production prompt fusion", () => {
     const root = createRoot(container);
     try {
       await act(async () => root.render(createElement(AssistantToolGroup, { calls: [{ id: "t", name: "inspect", status: "running" }] })));
-      const group = container.querySelector<HTMLDetailsElement>(".assistant-tool-group")!;
+      const group = container.querySelector<HTMLButtonElement>(".assistant-chain button")!;
+      expect(group.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => group.click());
       const tool = container.querySelector<HTMLDetailsElement>(".assistant-tool")!;
-      expect(group.open).toBe(false);
       expect(tool.open).toBe(false);
-      group.open = true; tool.open = true;
+      tool.open = true;
       await act(async () => root.render(createElement(AssistantToolGroup, { calls: [{ id: "t", name: "inspect", status: "completed", output: "done" }] })));
-      expect(container.querySelector<HTMLDetailsElement>(".assistant-tool-group")?.open).toBe(true);
+      expect(container.querySelector(".assistant-chain button")?.getAttribute("aria-expanded")).toBe("true");
       expect(container.querySelector<HTMLDetailsElement>(".assistant-tool")?.open).toBe(true);
       expect(container.textContent).toContain("done");
     } finally { await act(async () => root.unmount()); }

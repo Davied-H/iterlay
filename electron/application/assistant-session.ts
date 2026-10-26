@@ -88,6 +88,7 @@ export function createAssistantSessionService(dependencies: AssistantSessionDepe
       response: result.message,
       reasoningSummary,
       generatedPrompt,
+      mediaType: result.mediaType, videoSettings: result.videoSettings,
       attachments: savedReferences.map((image, index) => ({
         id: image.id, src: "", path: image.path, name: image.name,
         role: request.assistantSurface === "canvas-edit" && index === 0 ? "edit-target" : "reference"

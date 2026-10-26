@@ -66,6 +66,68 @@ describe("Codex OAuth", () => {
     expect(url.searchParams.get("codex_cli_simplified_flow")).toBe("true");
   });
 
+  it.each(["success", "token-error", "storage-error"] as const)(
+    "reports the final %s result in both the callback page and app",
+    async (scenario) => {
+      const directory = tempDir();
+      const store = new CodexCredentialStore(directory);
+      if (scenario === "storage-error") {
+        vi.spyOn(store, "set").mockImplementation(() => { throw new Error("凭据保存失败"); });
+      }
+      let releaseToken!: (response: Response) => void;
+      const tokenResponse = new Promise<Response>((resolve) => { releaseToken = resolve; });
+      const fetchMock = vi.fn().mockReturnValue(tokenResponse);
+      let callback!: Promise<Response>;
+      let callbackReturned = false;
+      const service = new CodexOAuthService(directory, fetchMock, async (authorizationUrl) => {
+        const authorization = new URL(authorizationUrl);
+        const url = new URL(authorization.searchParams.get("redirect_uri")!);
+        url.searchParams.set("state", authorization.searchParams.get("state")!);
+        url.searchParams.set("code", "test-code");
+        callback = fetch(url).then((response) => {
+          callbackReturned = true;
+          return response;
+        });
+      }, store);
+      try {
+        const result = service.signIn("codex-a").then(
+          (status) => ({ status, error: null }),
+          (error: Error) => ({ status: null, error })
+        );
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        expect(callbackReturned).toBe(false);
+        expect(store.get("codex-a")).toBeNull();
+        expect(service.getStatus("codex-a").state).toBe("authorizing");
+        releaseToken(scenario === "token-error"
+          ? new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 })
+          : new Response(JSON.stringify({
+            access_token: "access-new",
+            id_token: credentials().idToken,
+            refresh_token: "refresh-new"
+          }), { status: 200 }));
+        const outcome = await result;
+        const response = await callback;
+        const html = await response.text();
+        if (scenario === "success") {
+          expect(outcome.status?.state).toBe("connected");
+          expect(response.status).toBe(200);
+          expect(html).toContain("登录完成");
+          expect(store.get("codex-a")?.accessToken).toBe("access-new");
+        } else {
+          const message = scenario === "token-error" ? "HTTP 400 / invalid_grant" : "凭据保存失败";
+          expect(outcome.error?.message).toContain(message);
+          expect(response.status).toBe(502);
+          expect(html).toContain(message);
+          expect(html).toContain("登录未完成");
+          expect(html).not.toContain("<h1>登录完成</h1>");
+          expect(service.getStatus("codex-a").state).toBe("signed-out");
+        }
+      } finally {
+        service.dispose();
+      }
+    }
+  );
+
   it("encrypts credentials per provider and removes stale entries", () => {
     const store = new CodexCredentialStore(tempDir());
     store.set("codex-a", credentials());

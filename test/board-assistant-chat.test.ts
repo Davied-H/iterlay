@@ -25,12 +25,15 @@ describe("canvas assistant with the workbench conversation style", () => {
       { id: "tools", role: "assistant", content: "", toolCalls: [{ id: "read", name: "read_board", status: "completed" }] },
       { id: "pending", role: "assistant", content: "", streaming: true }
     ] });
-    expect(page.container.querySelectorAll('[data-assistant-message="assistant"]')).toHaveLength(1);
+    expect(page.container.querySelectorAll('[data-assistant-message="assistant"]')).toHaveLength(2);
     expect(page.container.querySelector('.create-chat-response')).toBeNull();
-    expect(page.container.querySelector('.assistant-tool-group')).not.toBeNull();
-    expect(page.container.querySelector('[data-assistant-activity]')?.textContent).toContain("正在分析你的需求");
+    expect(page.container.querySelector('.assistant-chain')).not.toBeNull();
+    expect(page.container.querySelector('[data-assistant-activity]')).toBeNull();
     await page.rerender({ messages: [{ id: "pending", role: "assistant", content: "已读取画板", streaming: true }] });
-    expect(page.container.querySelector('.create-chat-response')?.textContent).toContain("已读取画板");
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+      expect(page.container.querySelector('.create-chat-response')?.textContent).toContain("已读取画板");
+    });
   });
   it("uses the workbench chat surface and hides the greeting after the conversation starts", async () => {
     const greeting = { id: "fusion-greeting", role: "assistant" as const, content: "欢迎开始创作" };
@@ -40,7 +43,10 @@ describe("canvas assistant with the workbench conversation style", () => {
     expect(page.container.querySelector("header img")).toBeNull();
     await page.rerender({ messages: [greeting, { id: "user", role: "user", content: "设计咖啡海报" }, { id: "assistant", role: "assistant", content: "先梳理品牌方向", streaming: true }] });
     expect(page.container.querySelector(".create-chat-user")?.textContent).toContain("设计咖啡海报");
-    expect(page.container.querySelector(".create-chat-response")?.textContent).toContain("先梳理品牌方向");
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+      expect(page.container.querySelector(".create-chat-response")?.textContent).toContain("先梳理品牌方向");
+    });
     expect(page.container.textContent).not.toContain("欢迎开始创作");
   });
   it("keeps history scope, restore and new-conversation callbacks", async () => {
@@ -85,4 +91,16 @@ describe("canvas assistant with the workbench conversation style", () => {
     await act(async () => container.querySelector<HTMLButtonElement>(".assistant-chat-directions .ct-button-primary")?.click());
     expect(onGenerate).toHaveBeenCalledOnce();
   });
+  it("passes video type and settings from the exact prompt card being applied", async () => {
+    const onApplyGeneratedPrompt = vi.fn();
+    const video = { id: "video", role: "assistant" as const, content: "已准备视频方案",
+      generatedPrompt: "镜头缓慢推进", mediaType: "video" as const,
+      videoSettings: { durationSeconds: 15, aspectRatio: "9:16" } };
+    const { container } = await render({ onApplyGeneratedPrompt, messages: [video,
+      { id: "later", role: "assistant", content: "另一张图片", generatedPrompt: "静态插画" }] });
+    await act(async () => container.querySelector<HTMLButtonElement>(".assistant-chat-prompt-toggle")?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>(".assistant-chat-prompt-content .ct-button-primary")?.click());
+    expect(onApplyGeneratedPrompt).toHaveBeenCalledWith("镜头缓慢推进", video);
+  });
+
 });

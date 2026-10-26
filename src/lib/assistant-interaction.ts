@@ -177,7 +177,8 @@ export function formatAssistantInteractionAnswers(
 ): string {
   const lines = interaction.fields.flatMap((field) => {
     const value = values[field.id];
-    const formatted = Array.isArray(value) ? value.join("、") : value?.trim();
+    const displayValue = (entry: string): string => field.options?.find((option) => option.value === entry)?.label ?? entry;
+    const formatted = Array.isArray(value) ? value.map(displayValue).join("、") : value ? displayValue(value.trim()) : undefined;
     const supplementValue = values[assistantInteractionSupplementKey(field.id)];
     const supplement = typeof supplementValue === "string" ? supplementValue.trim() : "";
     const answer = [formatted, supplement ? `补充：${supplement}` : ""].filter(Boolean).join("；");

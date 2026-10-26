@@ -15,3 +15,12 @@
 @media(max-width:900px){.vse-workspace{position:relative;display:block}.vse-preview-column{height:100%}.vse-inspector{position:absolute;z-index:10;top:0;right:0;bottom:0;width:304px;border-left:1px solid var(--vse-border);box-shadow:-10px 0 30px #0006}.vse-title-group span,.vse-title-group small,.vse-actions>i,.vse-actions>.vse-icon:nth-child(-n+2){display:none}.vse-actions>.export{width:32px;padding:0}.vse-actions>.export span{display:none}.vse-primary{padding-inline:8px}.vse-frame-chip{width:94px;flex-basis:94px}.vse-link{width:67px;flex-basis:67px}}
 @media(max-width:720px){.vse-assistant{left:8px;right:8px;bottom:8px;width:auto}}
 @media(prefers-reduced-motion:reduce){.video-sequence-editor *,.video-sequence-editor *:before,.video-sequence-editor *:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Reserve the native window controls and keep the exit action clickable. */
+.vse-topbar{padding-left:84px;-webkit-app-region:drag}
+.vse-topbar button{-webkit-app-region:no-drag}
+.vse-title-group>.vse-icon{border:1px solid var(--vse-border);background:var(--vse-surface-2)}
+.vse-transport .vse-play{color:#171a1f}
+.vse-timeline:has(.vse-storyboard:empty){grid-template-rows:36px 0px 22px 1fr}
+.vse-timeline .vse-storyboard:empty{padding:0;border:0}
+.vse-trim input[type=range]{width:100%;margin:3px 0;accent-color:var(--vse-blue)}

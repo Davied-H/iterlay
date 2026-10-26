@@ -248,7 +248,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
         <div
           data-generation-status
           aria-busy="true"
-          className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 rounded-lg border border-border bg-card shadow-sm transition-[opacity,transform] duration-200 group-focus-within:scale-[0.98] group-focus-within:opacity-0 group-hover:scale-[0.98] group-hover:opacity-0 motion-reduce:transform-none"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 rounded-lg bg-card shadow-sm transition-[opacity,transform] duration-200 group-focus-within:scale-[0.98] group-focus-within:opacity-0 group-hover:scale-[0.98] group-hover:opacity-0 motion-reduce:transform-none"
         >
           {generationQueued ? (
             <Clock3 aria-hidden className="h-6 w-6 text-muted-foreground" />
@@ -354,8 +354,8 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
       data-connection-snap-target={connectionSnapTargetHandle}
       style={{ width: renderedWidth, height: renderedHeight }}
       className={cn(
-        "canvas-node-card image-node-card group relative overflow-visible rounded-lg border bg-card shadow-sm transition-[border-color,box-shadow] duration-200",
-        selected ? "image-node-card--selected" : "border-border"
+        "canvas-node-card image-node-card group relative overflow-visible rounded-lg bg-card shadow-sm transition-[border-color,box-shadow] duration-200",
+        selected && "image-node-card--selected"
       )}
       onPointerEnter={() => {
         connectionPoints.showConnectionPoints();

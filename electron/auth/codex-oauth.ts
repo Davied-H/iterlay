@@ -157,12 +157,13 @@ export class CodexOAuthService {
     const challenge = createHash("sha256").update(verifier).digest("base64url");
 
     try {
-      const code = await this.waitForAuthorizationCode(state, async () => {
+      return await this.waitForAuthorizationCode(state, async () => {
         await this.openExternal(buildAuthorizationUrl(state, challenge));
+      }, async (code) => {
+        const credentials = await this.exchangeCode(code, verifier);
+        this.store.set(providerId, credentials);
+        return this.toStatus(credentials, "connected");
       });
-      const credentials = await this.exchangeCode(code, verifier);
-      this.store.set(providerId, credentials);
-      return this.toStatus(credentials, "connected");
     } finally {
       this.authorizing.delete(providerId);
       this.closeCallbackServer();
@@ -251,12 +252,21 @@ export class CodexOAuthService {
     const response = await this.fetchImpl(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
+      body,
+      signal: AbortSignal.timeout(30_000)
     });
     const payload = (await response.json().catch(() => ({}))) as TokenPayload;
     if (!response.ok) {
       const description = typeof payload.error_description === "string" ? payload.error_description : "";
-      throw new TokenRequestError(description || "OpenAI 授权失败，请重新登录。", response.status);
+      const error = payload.error;
+      const errorCode = typeof error === "string" ? error
+        : error && typeof error === "object" && "code" in error && typeof error.code === "string"
+          ? error.code : "";
+      const diagnostic = [`HTTP ${response.status}`, errorCode].filter(Boolean).join(" / ");
+      throw new TokenRequestError(
+        `${description || "OpenAI 授权失败，请重新登录。"}（${diagnostic}）`,
+        response.status
+      );
     }
     return payload;
   }
@@ -284,15 +294,20 @@ export class CodexOAuthService {
     };
   }
 
-  private waitForAuthorizationCode(state: string, openBrowser: () => Promise<void>): Promise<string> {
+  private waitForAuthorizationCode(
+    state: string,
+    openBrowser: () => Promise<void>,
+    completeSignIn: (code: string) => Promise<CodexAuthStatus>
+  ): Promise<CodexAuthStatus> {
     return new Promise((resolve, reject) => {
       let settled = false;
-      const finish = (error?: Error, code?: string): void => {
+      let processing = false;
+      const finish = (error?: Error, status?: CodexAuthStatus): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
         if (error) reject(error);
-        else resolve(code || "");
+        else resolve(status!);
       };
       const timeout = setTimeout(() => finish(new Error("登录等待超时，请重新发起授权。")), AUTH_TIMEOUT_MS);
       const server = createServer((request, response) => {
@@ -301,21 +316,44 @@ export class CodexOAuthService {
           response.writeHead(404).end();
           return;
         }
+        const reply = (status: number, ok: boolean, detail: string): void => {
+          response.writeHead(status, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store",
+            "Referrer-Policy": "no-referrer"
+          });
+          response.end(callbackPage(ok, detail));
+        };
+        if (processing || settled) {
+          reply(409, false, "此授权回调已处理，请返回 Iterlay 查看登录结果。");
+          return;
+        }
         const returnedState = url.searchParams.get("state") || "";
         const code = url.searchParams.get("code") || "";
         const oauthError = url.searchParams.get("error_description") || url.searchParams.get("error") || "";
         const stateMatches = safeEqual(state, returnedState);
-        const ok = stateMatches && Boolean(code) && !oauthError;
-        response.writeHead(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
-        response.end(callbackPage(ok, oauthError || (stateMatches ? "授权未返回登录凭据" : "授权状态校验失败")));
-        if (!stateMatches) finish(new Error("授权状态校验失败，请重新登录。"));
-        else if (oauthError) finish(new Error(`OpenAI 授权未完成：${oauthError}`));
-        else if (!code) finish(new Error("OpenAI 授权未返回登录凭据。"));
-        else finish(undefined, code);
+        const error = !stateMatches ? new Error("授权状态校验失败，请重新登录。")
+          : oauthError ? new Error(`OpenAI 授权未完成：${oauthError}`)
+            : !code ? new Error("OpenAI 授权未返回登录凭据。") : null;
+        if (error) {
+          reply(400, false, error.message);
+          finish(error);
+          return;
+        }
+        processing = true;
+        clearTimeout(timeout);
+        void completeSignIn(code).then((status) => {
+          reply(200, true, "");
+          finish(undefined, status);
+        }).catch((error: unknown) => {
+          const failure = error instanceof Error ? error : new Error(String(error));
+          reply(502, false, failure.message);
+          finish(failure);
+        });
       });
       server.on("error", (error) => finish(new Error(`无法启动本机授权回调：${error.message}`)));
+      this.callbackServer = server;
       server.listen(CALLBACK_PORT, "localhost", () => {
-        this.callbackServer = server;
         void openBrowser().catch((error) => finish(error instanceof Error ? error : new Error(String(error))));
       });
     });
