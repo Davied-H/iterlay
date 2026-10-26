@@ -1,5 +1,6 @@
 // Supplemental UI copy found through the English workspace page audit.
 export const workbenchEnglish: Record<string, string> = {
+  "已发送素材": "Sent references",
   "预览启动失败，请停止后重试。若仍为空白，请更新应用。": "Preview failed to start. Stop and retry. If it remains blank, update the app.",
   "添加 Canvas": "Add Canvas",
   "Canvas 代码组件": "Canvas code component",
