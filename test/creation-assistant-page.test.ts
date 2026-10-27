@@ -92,7 +92,8 @@ describe("CreationAssistantPage", () => {
       suggestAssistantIntents: vi.fn().mockResolvedValue({ suggestions: [] })
     } });
     const interpret = vi.fn().mockResolvedValue({ message: "已收到照片", fields: [] });
-    await renderPage(vi.fn(), interpret);
+    const create = vi.fn().mockResolvedValue({ boardId: "board-1", boardName: "人物肖像", images: [] });
+    await renderPage(create, interpret);
     await setComposer("制作成长纪念书");
     await act(async () => findButton("发送给 Pi Agent")?.click());
     expect(interpret.mock.calls[0]?.[0].referenceImages).toHaveLength(1);
@@ -103,6 +104,17 @@ describe("CreationAssistantPage", () => {
     expect(saved.references).toEqual([]);
     expect(saved.messages.find((message: { role: string }) => message.role === "user").references[0].imagePath)
       .toBe("/references/child.png");
+    interpret.mockResolvedValueOnce({ message: "视频方案已准备", mediaType: "video", intent: "direct",
+      fields: [{ label: "提示词", value: "animate this photo" }] });
+    await setComposer("把这张照片做成视频");
+    await act(async () => findButton("发送给 Pi Agent")?.click());
+    expect(interpret.mock.calls.at(-1)?.[0].referenceImages).toEqual([
+      expect.objectContaining({ imagePath: "/references/child.png", name: "孩子照片" })
+    ]);
+    await act(async () => findButton("确认生成")?.click());
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      mediaType: "video", referencePaths: ["/references/child.png"]
+    }));
   });
 
   it.each([undefined, "manual" as const])("summarizes after two completed rounds unless manually named (%s)", async (source) => {

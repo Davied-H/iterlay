@@ -154,7 +154,7 @@ export function defaultVideoProviders(): VideoProvider[] {
 function taskError(error: unknown, task: VideoRemoteTask, forceRecoverable = false): VideoTaskServiceError {
   if (error instanceof VideoTaskServiceError) return error;
   const normalized = normalizeProviderError(error);
-  const recoverable = forceRecoverable || ["NETWORK_ERROR", "TIMEOUT", "PROVIDER_UNAVAILABLE", "POLLING_STOPPED", "DOWNLOAD_FAILED"].includes(normalized.code);
+  const recoverable = forceRecoverable || ["NETWORK_ERROR", "TIMEOUT", "RATE_LIMITED", "PROVIDER_UNAVAILABLE", "POLLING_STOPPED", "DOWNLOAD_FAILED"].includes(normalized.code);
   return new VideoTaskServiceError(normalized.code, normalized.message, task, recoverable, normalized.status);
 }
 

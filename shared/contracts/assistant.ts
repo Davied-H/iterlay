@@ -97,6 +97,9 @@ export interface SceneAssistantField {
 }
 
 export interface SceneAssistantReference {
+  /** Managed source identity, retained for media tool execution. */
+  imagePath?: string;
+  sourceNodeId?: string;
   name: string;
   mimeType: string;
   dataBase64: string;

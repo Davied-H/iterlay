@@ -131,6 +131,35 @@ describe("video IPC", () => {
     electronMocks.netFetch.mockReset();
   });
 
+  it("automatically retries a recoverable poll failure using the same remote task", async () => {
+    vi.useFakeTimers();
+    const harness = makeHarness();
+    harness.service.waitForCompletion.mockRejectedValueOnce(new VideoTaskServiceError(
+      "TIMEOUT", "temporary timeout", { provider: "ark", id: "remote-1", model: input.model,
+        status: "queued", submittedAt: "2026-08-11T00:00:00.000Z", updatedAt: "2026-08-11T00:00:00.000Z" }, true
+    ));
+    const registration = registerVideoIpc(harness as never);
+    try {
+      const job = await electronMocks.handlers.get("video:start")!({}, input) as VideoGenerationJob;
+      await vi.advanceTimersByTimeAsync(0);
+      expect(harness.jobs.get(job.id)).toMatchObject({ status: "recovering", error: "temporary timeout" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(harness.service.waitForCompletion).toHaveBeenCalledTimes(2);
+      expect(harness.service.submit).toHaveBeenCalledOnce();
+      expect(harness.jobs.get(job.id)).toMatchObject({ status: "completed" });
+    } finally { registration.dispose(); vi.useRealTimers(); }
+  });
+  it("exposes startup recovery and coalesces concurrent renderer recovery", async () => {
+    const harness = makeHarness();
+    const stored: VideoGenerationJob = { id: "restart", status: "queued", createdAt: "2026-08-11T00:00:00.000Z",
+      input, providerId: "ark-provider", model: input.model, remoteTaskId: "remote-1" };
+    harness.jobs.set(stored.id, stored);
+    const registration = registerVideoIpc(harness as never);
+    await Promise.all([registration.recover(), registration.recover()]);
+    expect(harness.service.waitForCompletion).toHaveBeenCalledOnce();
+    expect(harness.service.submit).not.toHaveBeenCalled();
+    registration.dispose();
+  });
   it("rejects a blank HappyHorse description before creating a task or output node", async () => {
     const harness = makeHarness({ provider: "openrouter" });
     harness.settings.getSettings().videoProviders[0].models.push("alibaba/happyhorse-1.1");

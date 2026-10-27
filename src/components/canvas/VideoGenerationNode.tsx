@@ -509,7 +509,8 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
             ? error || uiText("任务失败，配置已保留")
             : status === "polling_stopped"
               ? error || uiText("仅停止本地等待，远端可能继续并计费")
-              : generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length))}
+              : status === "recovering" && error ? error
+                : generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length))}
         </span>
         <button type="button" aria-describedby={capabilityBlock ? `video-capability-${id}` : undefined} disabled={busy ? !onStopPolling || !lastGenerationId : status === "polling_stopped" ? !onResumePolling || !lastGenerationId : !canRun} className="canvas-generation-run" onClick={() => {
           if (busy) {

@@ -55,6 +55,16 @@ describe("Iterlay Pi Agent tools", () => {
     expect(callBridge).toHaveBeenCalledWith("/tmp/iterlay", "create_board", { name: "创作", preserveView: true });
   });
 
+  it("retains the user's attached board image when the model emits an empty reference list", async () => {
+    const callBridge = vi.fn(async () => ({ id: "video" }));
+    const tool = createIterlayAgentTools("/tmp/iterlay", { boardId: "board-1",
+      referenceImagePaths: ["/managed/attached.png"], referenceNodeIds: ["attached"] }, callBridge)
+      .find((candidate) => candidate.name === "generate_video")!;
+    await tool.execute("video", { boardId: "board-1", prompt: "animate this", referenceImagePaths: [] });
+    expect(callBridge).toHaveBeenCalledWith("/tmp/iterlay", "generate_video", expect.objectContaining({
+      referenceImagePaths: ["/managed/attached.png"], referenceNodeIds: ["attached"]
+    }));
+  });
   it("blocks board mutations outside the active board", async () => {
     const callBridge = vi.fn();
     const tool = createIterlayAgentTools("/tmp/iterlay", { boardId: "board-1" }, callBridge)

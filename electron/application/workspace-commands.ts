@@ -238,6 +238,27 @@ export class WorkspaceCommands {
           generationNodeId: string(a.generationNodeId) || undefined, targetVideoNodeId: string(a.targetVideoNodeId) || undefined,
           generateAudio: a.generateAudio === true, watermark: a.watermark === true, providerId: string(a.providerId) || undefined, boardId: targetBoardId
         };
+        await this.dependencies.flush();
+        const referenceBoard = await api.getBoard(targetBoardId);
+        const boardImages = referenceBoard?.nodes.filter(isBoardImageNode).filter((node) => node.imagePath) ?? [];
+        // Older assistants omitted media arguments. Prefer the requested node, otherwise
+        // the most recently added image; never send every unrelated image on a board.
+        if (a.textOnly !== true && input.referenceImagePaths.length === 0 && !input.firstFramePath && !input.lastFramePath && input.mode === "generate") {
+          const requested = strings(a.referenceNodeIds);
+          const incoming = referenceBoard?.connections?.filter((connection) => connection.kind === "reference"
+            && connection.target === input.generationNodeId) ?? [];
+          const sources = requested.length
+            ? boardImages.filter((node) => requested.includes(node.id))
+            : nodeId ? boardImages.filter((node) => node.id === nodeId)
+              : input.generationNodeId ? boardImages.filter((node) => incoming.some((connection) => connection.source === node.id))
+                : boardImages.slice(-1);
+          input.firstFramePath = sources.find((node) => incoming.some((connection) => connection.source === node.id
+            && connection.targetHandle === "target-start-frame"))?.imagePath;
+          input.lastFramePath = sources.find((node) => incoming.some((connection) => connection.source === node.id
+            && connection.targetHandle === "target-end-frame"))?.imagePath;
+          input.referenceImagePaths = sources.filter((node) => node.imagePath !== input.firstFramePath
+            && node.imagePath !== input.lastFramePath).map((node) => node.imagePath);
+        }
         // Tool submissions need the same durable canvas anchor as UI submissions.
         // Publish it before awaiting the provider so even a slow submit is visible.
         const createdNodeId = !input.generationNodeId ? crypto.randomUUID() : undefined;
@@ -256,6 +277,35 @@ export class WorkspaceCommands {
             jobId: pendingVideoJobId(createdNodeId), source: "generated", generationNodeId: createdNodeId,
             aspectRatio: input.aspectRatio, status: "submitting"
           }]);
+          const board = await api.getBoard(targetBoardId);
+          if (board) {
+            const sources = boardImages.filter((node) => input.referenceImagePaths.includes(node.imagePath)
+              || node.imagePath === input.firstFramePath || node.imagePath === input.lastFramePath);
+            const anchor = sources.at(-1);
+            const x = anchor ? anchor.x + (anchor.displayWidth ?? 264) + 96 : undefined;
+            let y = anchor?.y ?? 0;
+            if (x !== undefined) {
+              // Keep the chain near its source without covering an existing card.
+              const obstacles = board.nodes.filter((node) => node.id !== createdNodeId
+                && node.id !== `video-output-${pendingVideoJobId(createdNodeId)}`);
+              while (obstacles.some((node) => node.x < x + 800 && node.x + (node.displayWidth ?? 340) > x
+                && node.y < y + 640 && node.y + (node.displayHeight ?? 640) > y)) y += 680;
+            }
+            await api.saveBoard({ id: board.id,
+              nodes: board.nodes.map((node) => x === undefined ? node : node.id === createdNodeId
+                ? { ...node, x, y } : node.id === `video-output-${pendingVideoJobId(createdNodeId)}`
+                  ? { ...node, x: x + 436, y } : node),
+              connections: [...(board.connections ?? []), ...sources.flatMap((source) => {
+                const handles = [
+                  ...(source.imagePath === input.firstFramePath ? ["target-start-frame"] : []),
+                  ...(source.imagePath === input.lastFramePath ? ["target-end-frame"] : []),
+                  ...(input.referenceImagePaths.includes(source.imagePath) ? ["target-reference"] : [])
+                ];
+                return handles.map((targetHandle) => ({ id: crypto.randomUUID(), source: source.id,
+                  target: createdNodeId, kind: "reference" as const, sourceHandle: "source-right", targetHandle }));
+              })]
+            });
+          }
           emit({ type: "board-updated", boardId: targetBoardId,
             nodeIds: [`video-output-${pendingVideoJobId(createdNodeId)}`] });
         } else {

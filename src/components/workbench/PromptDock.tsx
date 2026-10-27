@@ -2077,7 +2077,8 @@ export function PromptDock({
           .slice(-12)
           .map(({ role, content, assistantContext }) => ({ role, content: assistantContext ?? content })),
         currentFields: buildCurrentAssistantFields(),
-        referenceImages: input.referenceImages.slice(0, 4).map(({ name, mimeType, dataBase64 }) => ({
+        referenceImages: input.referenceImages.slice(0, 4).map(({ name, mimeType, dataBase64, sourceNodeId }) => ({
+          sourceNodeId,
           name,
           mimeType,
           dataBase64

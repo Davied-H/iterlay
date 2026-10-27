@@ -15,6 +15,12 @@ describe("assistant request language boundary", () => {
     const system = String(buildSceneCollaborationMessages(validated)[0].content);
     expect(system).toContain(locale === "en-US" ? "must be written in natural English" : "所有面向用户的 message");
   });
+  it("retains managed reference identity for later video execution", () => {
+    const validated = validateSceneCollaborationRequest({ ...request,
+      referenceImages: [{ name: "comic.png", mimeType: "image/png", dataBase64: "YQ==",
+        imagePath: "/managed/comic.png", sourceNodeId: "comic-node" }] });
+    expect(validated.referenceImages[0]).toMatchObject({ imagePath: "/managed/comic.png", sourceNodeId: "comic-node" });
+  });
   it("keeps the default for older callers and rejects invalid locale values", () => {
     expect(validateSceneCollaborationRequest(request).locale).toBe("zh-CN");
     expect(() => validateSceneCollaborationRequest({ ...request, locale: "fr-FR" })).toThrow("界面语言");

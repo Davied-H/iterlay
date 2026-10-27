@@ -40,6 +40,7 @@ export function normalizeAssistantReferenceImage(
     );
   }
   return {
+    ...reference,
     name: reference.name,
     mimeType: encoded.mimeType,
     dataBase64: encoded.bytes.toString("base64")

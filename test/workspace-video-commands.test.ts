@@ -7,6 +7,28 @@ describe("typed workspace video commands", () => {
     expect(await f.commands.call("generate_video", { boardId: "board", prompt: "animate", firstFramePath: "/first.png", referenceVideoPaths: ["/reference.mp4"] })).toMatchObject({ videoGenerationId: "video" });
     expect(f.mocks.startVideoGeneration).toHaveBeenCalledWith(expect.objectContaining({ firstFramePath: "/first.png", referenceVideoPaths: ["/reference.mp4"], durationSeconds: 5 }));
   });
+  it("uses the latest board image and persists a nearby connected workflow", async () => {
+    const f = workspaceFixture();
+    const source = { id: "reference", imagePath: "/managed/latest.png", x: 900, y: 120, displayWidth: 300 };
+    let board = { id: "board", nodes: [source] as Array<Record<string, unknown>>, connections: [] };
+    f.mocks.getBoard.mockImplementation(async () => board);
+    f.mocks.appendBoardNodes.mockImplementation(async (_id, nodes) => {
+      board = { ...board, nodes: [...board.nodes, ...(nodes as Array<Record<string, unknown>>)] };
+    });
+    f.mocks.startVideoGeneration.mockResolvedValue({ id: "video", status: "completed" });
+    await f.commands.call("generate_video", { boardId: "board", prompt: "animate this", referenceImagePaths: [] });
+    expect(f.mocks.startVideoGeneration).toHaveBeenCalledWith(expect.objectContaining({ referenceImagePaths: [source.imagePath] }));
+    expect(f.mocks.saveBoard).toHaveBeenCalledWith(expect.objectContaining({
+      nodes: expect.arrayContaining([expect.objectContaining({ type: "video-generation", x: 1296, y: 120 })]),
+      connections: [expect.objectContaining({ source: "reference", kind: "reference", targetHandle: "target-reference" })]
+    }));
+  });
+  it("respects explicit text-only generation instead of guessing references", async () => {
+    const f = workspaceFixture();
+    f.mocks.startVideoGeneration.mockResolvedValue({ id: "video", status: "completed" });
+    await f.commands.call("generate_video", { boardId: "board", prompt: "landscape", referenceImagePaths: [], textOnly: true });
+    expect(f.mocks.startVideoGeneration).toHaveBeenCalledWith(expect.objectContaining({ referenceImagePaths: [] }));
+  });
   it("persists completed output once without duplicate board nodes", async () => {
     const f = workspaceFixture();
     f.mocks.getVideoJob.mockResolvedValue({ id: "video", status: "completed", input: { boardId: "board", mode: "generate" }, outputVideoPath: "/output.mp4", mimeType: "video/mp4" });

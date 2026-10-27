@@ -139,7 +139,9 @@ export function validateSceneCollaborationRequest(input: unknown): CollaborateSc
       throw new ProviderError("INVALID_REQUEST", `第 ${index + 1} 张参考图格式不受支持，请使用 JPEG、PNG、WebP 或 GIF。`);
     }
     assertSceneReferenceBase64(dataBase64, index);
-    return { name, mimeType, dataBase64 };
+    return { name, mimeType, dataBase64,
+      ...(typeof image.imagePath === "string" && image.imagePath.length <= 4096 ? { imagePath: image.imagePath } : {}),
+      ...(typeof image.sourceNodeId === "string" && image.sourceNodeId.length <= 256 ? { sourceNodeId: image.sourceNodeId } : {}) };
   });
 
   const instruction = request.instruction.trim();

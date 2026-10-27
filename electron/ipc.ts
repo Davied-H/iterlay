@@ -333,6 +333,8 @@ export function registerIpc({
     onAssetsChanged: () => invalidateAssetCatalog(),
     paidMediaQuotes
   });
+  // Resume persisted remote tasks even before the renderer has opened a board.
+  void videoIpc.recover().catch((error) => console.warn("恢复视频后台任务失败", error));
   const videoSequenceIpc = registerVideoSequenceIpc({
     store: videoSequences,
     templates: videoSequenceTemplates,
@@ -635,7 +637,9 @@ export function registerIpc({
         signal
       });
     }
-    return createIterlayAgentTools(app.getPath("userData"), { boardId, preserveView: request.creationWorkflow === true });
+    return createIterlayAgentTools(app.getPath("userData"), { boardId, preserveView: request.creationWorkflow === true,
+      referenceImagePaths: request.referenceImages.flatMap((reference) => reference.imagePath ? [reference.imagePath] : []),
+      referenceNodeIds: request.referenceImages.flatMap((reference) => reference.sourceNodeId ? [reference.sourceNodeId] : []) });
   };
   const getAssistantSkillRoots = () => ({
     builtInRoot: app.isPackaged

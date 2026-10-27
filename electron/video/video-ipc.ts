@@ -44,6 +44,7 @@ interface VideoIpcDependencies {
 }
 
 interface VideoIpcRegistration {
+  recover: () => Promise<VideoGenerationJob[]>;
   dispose: () => void;
   stopBoard: (boardId: string) => Promise<void>;
 }
@@ -169,7 +170,7 @@ export function registerVideoIpc({
     initialTask: VideoRemoteTask,
     config: RuntimeVideoProviderConfig,
     controller: AbortController
-  ): Promise<void> {
+  ): Promise<boolean> {
     let currentJob = initialJob;
     let updateChain = Promise.resolve();
     try {
@@ -185,13 +186,14 @@ export function registerVideoIpc({
             remoteResponseUrl: snapshot.responseUrl,
             remoteCancelUrl: snapshot.cancelUrl
           };
-          updateChain = updateChain.then(() => videoTasks.updateJob(currentJob));
+          const updatedJob = currentJob;
+          updateChain = updateChain.then(() => videoTasks.updateJob(updatedJob));
         }
       });
       await updateChain;
       if (task.status !== "succeeded") {
         await finishFailedJob(currentJob, task.error || (task.status === "expired" ? "视频任务已过期。" : "视频生成失败。"), task.status === "cancelled");
-        return;
+        return false;
       }
       const output = task.outputs?.find((candidate) => candidate.kind === "video");
       if (!output) throw new ProviderError("INVALID_RESPONSE", "火山方舟任务完成但没有返回视频地址。");
@@ -252,23 +254,40 @@ export function registerVideoIpc({
         const stopped = error.code === "POLLING_STOPPED";
         await videoTasks.updateJob({
           ...currentJob,
-          status: jobStatus(error.task.status),
+          status: stopped ? jobStatus(error.task.status) : "recovering",
           error: stopped ? undefined : error.message
         });
+        return !stopped && !controller.signal.aborted;
       } else {
         const normalized = normalizeProviderError(error);
         await finishFailedJob(currentJob, normalized.message);
       }
-    } finally {
-      if (activeRuns.get(initialJob.id)?.controller === controller) activeRuns.delete(initialJob.id);
     }
+    return false;
   }
 
   function startBackgroundRun(job: VideoGenerationJob, task: VideoRemoteTask, config: RuntimeVideoProviderConfig): void {
     if (activeRuns.has(job.id)) return;
     const controller = new AbortController();
-    const promise = runJob(job, task, config, controller)
-      .catch((error) => console.error("视频任务后台处理失败。", error));
+    const promise = (async () => {
+      let currentJob = job;
+      let currentTask = task;
+      while (!controller.signal.aborted) {
+        const retry = await runJob(currentJob, currentTask, config, controller);
+        if (!retry || controller.signal.aborted) break;
+        await new Promise<void>((resolve) => {
+          const done = () => { clearTimeout(timer); controller.signal.removeEventListener("abort", done); resolve(); };
+          const timer = setTimeout(done, 10_000);
+          controller.signal.addEventListener("abort", done, { once: true });
+        });
+        if (controller.signal.aborted) break;
+        const latest = await videoTasks.getJob(job.id);
+        if (!latest?.remoteTaskId || ["completed", "failed", "cancelled"].includes(latest.status)) break;
+        currentJob = latest;
+        currentTask = remoteTaskFromJob(latest);
+      }
+    })().catch((error) => console.error("视频任务后台处理失败。", error))
+      .finally(() => { if (activeRuns.get(job.id)?.controller === controller) activeRuns.delete(job.id); });
     activeRuns.set(job.id, { controller, promise });
   }
 
@@ -446,7 +465,7 @@ export function registerVideoIpc({
     if (key) pendingVideoStarts.set(key, promise);
     return promise;
   });
-  ipcMain.handle("video:recover", async () => {
+  const recoverJobs = async (): Promise<VideoGenerationJob[]> => {
     const allJobs = await videoTasks.listJobs();
     const reconciled: VideoGenerationJob[] = [];
     for (const job of allJobs) {
@@ -518,14 +537,26 @@ export function registerVideoIpc({
         resumed.push(job);
         continue;
       }
-      const resolved = providerConfig(job.input);
-      const recovering = { ...job, status: "recovering" as const, error: undefined };
-      await videoTasks.updateJob(recovering);
-      startBackgroundRun(recovering, remoteTaskFromJob(job), resolved.config);
-      resumed.push(recovering);
+      try {
+        const resolved = providerConfig({ ...job.input, providerId: job.providerId, model: job.model });
+        const recovering = { ...job, status: "recovering" as const, error: undefined };
+        await videoTasks.updateJob(recovering);
+        startBackgroundRun(recovering, remoteTaskFromJob(job), resolved.config);
+        resumed.push(recovering);
+      } catch (error) {
+        const recovering = { ...job, status: "recovering" as const, error: normalizeProviderError(error).message };
+        await videoTasks.updateJob(recovering);
+        resumed.push(recovering);
+      }
     }
     return resumed;
-  });
+  };
+  let recovery: Promise<VideoGenerationJob[]> | undefined;
+  const recover = (): Promise<VideoGenerationJob[]> => {
+    if (!recovery) recovery = recoverJobs().finally(() => { recovery = undefined; });
+    return recovery;
+  };
+  ipcMain.handle("video:recover", recover);
   ipcMain.handle("video:stopPolling", async (_event, jobId: string) => {
     const run = activeRuns.get(jobId);
     run?.controller.abort();
@@ -548,6 +579,7 @@ export function registerVideoIpc({
   });
 
   return {
+    recover,
     dispose: () => {
       for (const run of activeRuns.values()) run.controller.abort();
       activeRuns.clear();

@@ -1,3 +1,4 @@
+import { automaticVideoPlacement } from "@/lib/automatic-video-placement";
 import { connectTemplatePersistence, readPersistedTemplates } from "@/lib/template-persistence";
 import { CANVAS_STARTERS } from "@/components/code-canvas/model";
 import { OPEN_ASSISTANT_PERMISSIONS_EVENT } from "@shared/screen-access";
@@ -1823,7 +1824,7 @@ export default function App(): React.ReactElement {
       try {
         await flushBoardSave();
         let pending = await api.recoverVideoGenerations();
-        if (!active || pending.length === 0) return;
+        if (!active) return;
         await refreshHistory();
         const activeBoardId = activeBoardRef.current?.id;
         if (activeBoardId && pending.some((job) => job.input.boardId === activeBoardId)) {
@@ -1833,11 +1834,16 @@ export default function App(): React.ReactElement {
         syncRecoveredJobs(pending);
         pending = pending.filter((job) => !isTerminalVideoJob(job));
 
-        while (active && pending.length > 0) {
+        while (active) {
           await new Promise((resolve) => window.setTimeout(resolve, 2_000));
           if (!active) return;
-          const snapshots = (await Promise.all(pending.map((job) => api.getVideoJob(job.id))))
-            .filter((job): job is VideoGenerationJob => job !== null);
+          // Discover tasks created after startup as well as recovered ones. A task
+          // must not remain visually queued merely because it was not in the boot snapshot.
+          const jobs = await api.listVideoJobs().catch(() => null);
+          if (!active) return;
+          if (!jobs) continue;
+          const pendingIds = new Set(pending.map((job) => job.id));
+          const snapshots = jobs.filter((job) => !isTerminalVideoJob(job) || pendingIds.has(job.id));
           syncRecoveredJobs(snapshots);
           snapshots.forEach(notifyVideoJob);
           setVideoHistory((current) => {
@@ -2031,6 +2037,21 @@ export default function App(): React.ReactElement {
     }
   }
 
+  function nextAutomaticVideoPosition(): CanvasDropPoint {
+    const positions = canvasStateRef.current.positions;
+    return automaticVideoPlacement([
+      ...imagesRef.current.map((image) => {
+        const position = positions[image.id];
+        return { x: position?.x ?? 0, y: position?.y ?? 0, width: position?.width ?? IMAGE_NODE_WIDTH };
+      }),
+      ...workflowNodesRef.current.map((node) => {
+        const position = positions[node.id];
+        return { x: position?.x ?? node.x, y: position?.y ?? node.y,
+          width: position?.width ?? node.displayWidth ?? (node.type === "canvas" ? 680 : 340) };
+      })
+    ]);
+  }
+
   async function createFromChat(plan: CreationAssistantGenerationPlan): Promise<CreationAssistantResult> {
     const api = getWorkbenchApi();
     let createdBoardId: string | null = null;
@@ -2082,8 +2103,17 @@ export default function App(): React.ReactElement {
       if (plan.mediaType === "video" && videoProvider) {
         // Use the same durable board node + video task pipeline as the canvas.
         const nodeId = crypto.randomUUID();
+        const referencePaths = plan.referencePaths?.length ? plan.referencePaths
+          : imagesRef.current.slice(-1).flatMap((image) => image.path ? [image.path] : []);
+        const referenceSources = imagesRef.current.filter((image) => referencePaths.includes(image.path));
+        const source = referenceSources.at(-1);
+        const sourcePosition = source ? canvasStateRef.current.positions[source.id] : undefined;
+        const position = sourcePosition ? { x: sourcePosition.x,
+          y: sourcePosition.y + (source?.width && source.height
+            ? (sourcePosition.width ?? IMAGE_NODE_WIDTH) * source.height / source.width : 340) + 96 }
+          : nextAutomaticVideoPosition();
         const node: BoardVideoGenerationNode = {
-          id: nodeId, type: "video-generation", title: "视频生成", x: 80, y: 80,
+          id: nodeId, type: "video-generation", title: "视频生成", ...position,
           prompt, model: videoProvider.model, providerId: videoProvider.id,
           duration: plan.videoSettings?.durationSeconds ?? 5,
           aspectRatio: plan.videoSettings?.aspectRatio ?? "16:9",
@@ -2091,6 +2121,11 @@ export default function App(): React.ReactElement {
         };
         workflowNodesRef.current = [...workflowNodesRef.current, node];
         setWorkflowNodes(workflowNodesRef.current);
+        canvasStateRef.current.connections = [...canvasStateRef.current.connections, ...referenceSources.map((source) => ({
+          id: crypto.randomUUID(), source: source.id, target: nodeId, kind: "reference" as const,
+          sourceHandle: "source-right", targetHandle: "target-reference"
+        }))];
+        setCanvasConnectionsVersion((version) => version + 1);
         setSelectionTarget({ ids: [nodeId], nonce: Date.now() });
         scheduleBoardSave();
         await flushBoardSave();
@@ -2100,7 +2135,7 @@ export default function App(): React.ReactElement {
           durationSeconds: plan.videoSettings?.durationSeconds ?? 5,
           aspectRatio: plan.videoSettings?.aspectRatio ?? "16:9",
           resolution: plan.videoSettings?.resolution ?? "720p",
-          referenceImagePaths: plan.referencePaths ?? [], boardId: target.id, generationNodeId: nodeId
+          referenceImagePaths: referencePaths, boardId: target.id, generationNodeId: nodeId
         });
         if (activeBoardRef.current?.id === target.id) {
           await openBoard(target.id, undefined, { keepLibraryOpen: true, forceReload: true, suppressLoadingScreen: true });
@@ -5083,7 +5118,13 @@ export default function App(): React.ReactElement {
         const additions = sources.filter((source) => !imagesRef.current.some((image) => image.id === source.id));
         imagesRef.current = [...imagesRef.current, ...additions];
         setImages(imagesRef.current);
-        const nodeId = createWorkflowNode("video-generation", { x: 80, y: 80 }, {
+        const source = sources.at(-1);
+        const sourcePosition = source ? canvasStateRef.current.positions[source.id] : undefined;
+        const position = sourcePosition
+          ? { x: sourcePosition.x, y: sourcePosition.y + (source?.width && source.height
+            ? (sourcePosition.width ?? IMAGE_NODE_WIDTH) * source.height / source.width : 340) + 96 }
+          : nextAutomaticVideoPosition();
+        const nodeId = createWorkflowNode("video-generation", position, {
           prompt, model: provider.model, duration: request.videoSettings?.durationSeconds,
           aspectRatio: request.videoSettings?.aspectRatio, resolution: request.videoSettings?.resolution,
           focusOnCreate: true

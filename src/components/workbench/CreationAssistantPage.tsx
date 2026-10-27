@@ -390,10 +390,10 @@ export function CreationAssistantPage({
       artifacts, activeRunId }
     : null;
 
-  async function referencePayloads(): Promise<Array<{ id: string; name: string; mimeType: string; dataBase64: string; role: CreationReference["role"]; sourceNodeId?: string }>> {
-    if (!references.length) return [];
+  async function referencePayloads(sourceReferences = references): Promise<Array<{ id: string; name: string; mimeType: string; dataBase64: string; role: CreationReference["role"]; sourceNodeId?: string }>> {
+    if (!sourceReferences.length) return [];
     const api = getImageWorkbenchApi();
-    return Promise.all(references.filter((reference) => reference.kind !== "template").slice(0, 4).map(async (reference) => {
+    return Promise.all(sourceReferences.filter((reference) => reference.kind !== "template").slice(0, 4).map(async (reference) => {
       const dataUrl = reference.dataBase64
         ? `data:${reference.mimeType};base64,${reference.dataBase64}`
         : reference.imagePath ? await api.readAssetDataUrl(reference.imagePath) : "";
@@ -941,11 +941,15 @@ export function CreationAssistantPage({
     setInterpreting(true);
 
     try {
-      const preparedReferences = await referencePayloads();
+      const contextReferences = references.length ? references
+        : [...priorMessages].reverse().find((message): message is Extract<CreateChatMessage, { role: "user" }> => message.role === "user" && Boolean(message.references?.length))?.references ?? [];
+      const preparedReferences = await referencePayloads(contextReferences);
       const result = await onInterpret(
         {
           instruction,
-          referenceImages: preparedReferences.map(({ name, mimeType, dataBase64 }) => ({ name, mimeType, dataBase64 })),
+          referenceImages: preparedReferences.map(({ id, name, mimeType, dataBase64 }) => ({ name, mimeType, dataBase64,
+            imagePath: contextReferences.find((reference) => reference.id === id)?.imagePath,
+            sourceNodeId: contextReferences.find((reference) => reference.id === id)?.nodeId })),
           currentFields: [
             {
               label: "目标画板",
@@ -1231,8 +1235,12 @@ export function CreationAssistantPage({
         : "正在生成图片…",
     );
     try {
-      const preparedReferences = await referencePayloads();
-      const editTarget = references.find((reference) => reference.role === "edit-target" && reference.imagePath);
+      const messageIndex = messages.findIndex((candidate) => candidate.id === message.id);
+      const contextReferences = references.length ? references
+        : messages.slice(0, messageIndex < 0 ? undefined : messageIndex).reverse()
+          .find((candidate): candidate is Extract<CreateChatMessage, { role: "user" }> => candidate.role === "user" && Boolean(candidate.references?.length))?.references ?? [];
+      const preparedReferences = await referencePayloads(contextReferences);
+      const editTarget = contextReferences.find((reference) => reference.role === "edit-target" && reference.imagePath);
       const result = await onCreate({
         prompt: message.prompt,
         targetBoardId,
@@ -1243,7 +1251,7 @@ export function CreationAssistantPage({
         count: message.result.generationCount,
         videoSettings: message.result.videoSettings,
         references: preparedReferences,
-        referencePaths: references.flatMap((reference) => reference.imagePath && reference.kind !== "template" ? [reference.imagePath] : []),
+        referencePaths: contextReferences.flatMap((reference) => reference.imagePath && reference.kind !== "template" ? [reference.imagePath] : []),
         editSource: editTarget?.imagePath
           ? { boardId: editTarget.boardId, nodeId: editTarget.nodeId, imagePath: editTarget.imagePath }
           : undefined,

@@ -41,6 +41,8 @@ const SEQUENTIAL_TOOLS = new Set([
 export interface IterlayAgentToolOptions {
   boardId?: string;
   preserveView?: boolean;
+  referenceImagePaths?: string[];
+  referenceNodeIds?: string[];
 }
 
 export function createIterlayAgentTools(
@@ -61,7 +63,13 @@ export function createIterlayAgentTools(
       parameters: inputSchema as TSchema,
       executionMode: SEQUENTIAL_TOOLS.has(name) ? "sequential" : "parallel",
       execute: async (_toolCallId, rawArgs) => {
-        const args = isRecord(rawArgs) ? rawArgs : {};
+        let args = isRecord(rawArgs) ? rawArgs : {};
+        if (name === "generate_video" && args.textOnly !== true && !args.firstFramePath && !args.lastFramePath
+          && !(Array.isArray(args.referenceImagePaths) && args.referenceImagePaths.length)) {
+          args = { ...args,
+            ...(options.referenceImagePaths?.length ? { referenceImagePaths: options.referenceImagePaths } : {}),
+            ...(options.referenceNodeIds?.length ? { referenceNodeIds: options.referenceNodeIds } : {}) };
+        }
         assertBoardScope(name, args, options.boardId);
         const result = await callBridge(userDataPath, name, options.preserveView ? { ...args, preserveView: true } : args);
         return {
