@@ -273,3 +273,16 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 发布与公开核验：发布流程 https://github.com/Davied-H/iterlay/actions/runs/40286335617 成功，上传前逐包 SHA-256 校验通过；API 确认非草稿、非预发布、Latest=v0.1.68，标签 SHA 正确，四份安装包及校验文件公开可见。下载公开校验文件多次遇到 EOF / TLS 连接失败，因此未完成独立下载后的摘要对照。未做可见 App 安装测试或真实付费生成验收。
 - 边界：发布期间并行新增的自动视频节点避让代码及插件包变化未包含在发布提交内，保留在工作区。
 - 指标及采集日期：未采集。
+
+### APP-007 · Iterlay v0.1.69
+
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.69 。
+- 内容：修复助手视频节点布局与提交后聚焦、恢复普通助手模式切换、改进助手和视频任务反馈；官网更新日志支持 Markdown 配图，发布流程接入 Iterlay 版本配图生成。
+- 日期 / 时区：2026-10-28 15:16:25 / Asia/Shanghai。
+- 发布提交：`89b56fcd5e0397e82aaece106fc61d87bb0ee956`；源码、检查、安装包与标签固定为同一提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64、Windows ARM64 / x64 四份安装包及 SHA256SUMS.txt 已公开。
+- 本地验证：`pnpm check:all` 通过，2285 项测试通过、4 项媒体测试跳过；官网测试、构建及 40 页 SEO 检查通过。
+- 云端验证：Desktop/CLI checks 与网页冒烟通过；四平台打包工作流 `40648284978` 成功；正式发布工作流 `40648959455` 成功。
+- 发布与公开核验：GitHub API 确认 v0.1.69 非草稿、非预发布、Latest，标签目标提交正确，四份安装包及校验文件公开可见。
+- 配图：由 Iterlay 生成并随源码保存为 `website/public/release-images/0.1.69.png`；GitHub Release 正文可继续使用 Markdown 图片链接。
+- 指标及采集日期：未采集。
