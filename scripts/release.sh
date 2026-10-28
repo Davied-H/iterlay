@@ -24,6 +24,13 @@ case "$ARCH" in
 esac
 export CSC_IDENTITY_AUTO_DISCOVERY=false
 export ELECTRON_BUILDER_COMPRESSION_LEVEL=9
+if command -v iterlay >/dev/null 2>&1; then
+  VERSION=$(node -p "require('./package.json').version")
+  mkdir -p website/public/release-images
+  NOTES_FILE="docs/releases/$VERSION.md"
+  NOTES=$(test -f "$NOTES_FILE" && tr '\n' ' ' < "$NOTES_FILE" || echo "Iterlay desktop release $VERSION")
+  iterlay image generate --prompt "Iterlay software release graphic for version $VERSION. Visualize these product updates: $NOTES. Premium editorial product illustration, clear visual grouping, cobalt blue, warm coral and paper white, no readable text, wide 16:9 composition." --out "website/public/release-images/$VERSION.png" --json
+fi
 pnpm build
 for TARGET_ARCH in "${ARCHITECTURES[@]}"; do
   if [[ "$PLATFORM" == "mac" ]]; then

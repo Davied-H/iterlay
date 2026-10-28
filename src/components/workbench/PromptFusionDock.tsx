@@ -37,6 +37,8 @@ interface DockResizePointerHandlers {
 
 interface Props {
   assistantEnabled?: boolean;
+  assistantModeEnabled?: boolean;
+  onAssistantModeChange?: (enabled: boolean) => void;
   panelRef?: RefObject<HTMLDivElement | null>;
   panelStyle?: CSSProperties;
   dockSide?: "left" | "right" | null;
@@ -79,7 +81,11 @@ export function PromptFusionDock(props: Props): React.ReactElement {
 
   const width = useAssistantWidth();
   const assistantEnabled = props.assistantEnabled ?? true;
-  const mode = assistantEnabled ? "chat" : "generate";
+  // Keep the standalone component's historical default for callers that do
+  // not provide persisted mode state; the production dock passes this value
+  // explicitly so the user's setting controls the initial mode.
+  const assistantModeEnabled = assistantEnabled && (props.assistantModeEnabled ?? true);
+  const mode = assistantModeEnabled ? "chat" : "generate";
   const [dirty, setDirty] = useState(false);
   const [contextPrompt, setContextPrompt] = useState<string | null>(null);
   const [preview, setPreview] = useState<AiAssistantContextImage | null>(null);
@@ -93,10 +99,10 @@ export function PromptFusionDock(props: Props): React.ReactElement {
   const composerHeight = useRef<number | null>(null);
   const composerAnimation = useRef<Animation | null>(null);
   const restoreComposerFocus = useRef(false);
-  const hasConfirmation = assistantEnabled && Boolean(props.confirmation);
+  const hasConfirmation = assistantModeEnabled && Boolean(props.confirmation);
   const previousConfirmation = useRef(hasConfirmation);
   const conversationOpen =
-    assistantEnabled && (props.open || Boolean(props.dockSide));
+    assistantModeEnabled && (props.open || Boolean(props.dockSide));
   useLayoutEffect(() => {
     const composer = composerRef.current;
     if (!composer) return;
@@ -273,7 +279,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
       data-tour="prompt-card"
       aria-label={uiText("融合创作助手")}
     >
-      {!props.dockSide && (mode === "chat" || conversationOpen) ? (
+      {!props.dockSide && (assistantModeEnabled || conversationOpen) ? (
         <>
           <button
             type="button"
@@ -306,7 +312,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
           </button>
         </>
       ) : null}
-      {assistantEnabled ? (
+      {assistantModeEnabled ? (
         <div className="prompt-fusion-conversation" hidden={!conversationOpen}>
           {props.assistant}
         </div>
@@ -444,6 +450,25 @@ export function PromptFusionDock(props: Props): React.ReactElement {
                 </div>
               )}
               <AssistantComposerToolbar className="prompt-fusion-toolbar">
+                {assistantEnabled && props.onAssistantModeChange ? (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={assistantModeEnabled}
+                    aria-label={uiText(assistantModeEnabled ? "切换到普通" : "切换到 AI 对话")}
+                    title={uiText(assistantModeEnabled ? "切换到普通" : "切换到 AI 对话")}
+                    className="prompt-mode-switch"
+                    onClick={() => props.onAssistantModeChange?.(!assistantModeEnabled)}
+                  >
+                    <span className="prompt-mode-thumb" aria-hidden="true">
+                      <span className="prompt-mode-thumb-face" />
+                      <span className="prompt-mode-star">✦</span>
+                      <span className="prompt-mode-arrow"><ArrowUp /></span>
+                    </span>
+                    <span className="prompt-mode-word prompt-mode-ai">AI</span>
+                    <span className="prompt-mode-word prompt-mode-direct">{uiText("普通")}</span>
+                  </button>
+                ) : null}
                 <fieldset
                   disabled={props.busy}
                   className="prompt-fusion-controls"

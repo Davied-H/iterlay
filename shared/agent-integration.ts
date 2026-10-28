@@ -1,4 +1,4 @@
-export type CodingAgentId = "codex" | "claude-code";
+export type CodingAgentId = "codex" | "claude-code" | "workbuddy" | "cursor" | "windsurf" | "cline" | "roo-cline" | "gemini-cli" | "opencode";
 
 export interface CommentAgentHandoffInput {
   boardId: string;

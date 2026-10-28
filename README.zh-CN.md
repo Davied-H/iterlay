@@ -95,7 +95,7 @@ Iterlay 是免费开源的 AI 创作 App。生成图片、修改细节、制作�
 
 ### 也能交给 Agent，替你接着做
 
-通过 CLI 和 Skill，让 Codex、Claude Code 等 Coding Agent 生成图片、修改素材、制作视频、整理画板并导出文件。你可以在画布上查看和调整结果，也可以让 Agent 将素材导出到正在开发的项目。
+通过 CLI 和 Skill，让 Codex、Claude Code、WorkBuddy、Cursor、Windsurf、Cline、Roo Code、Gemini CLI、OpenCode 等 Coding Agent 生成图片、修改素材、制作视频、整理画板并导出文件。你可以在画布上查看和调整结果，也可以让 Agent 将素材导出到正在开发的项目。
 
 ### 工作区保存在本地，工具开源免费
 
@@ -149,7 +149,7 @@ Iterlay 是免费开源的 AI 创作 App。生成图片、修改细节、制作�
 
 #### Coding Agent 工具
 
-- [x] 随包 CLI，以及 Codex、Claude Code 的可安装 Skill。
+- [x] 随包 CLI，以及主流 Coding Agent 的可安装 Skill（含 WorkBuddy）。
 - [x] 复用 App 已保存的模型供应商与授权。
 - [x] 生成与编辑图片、生成与导入视频、查看任务状态。
 - [x] 读取画板、排列素材、切换版本、导出交付文件。

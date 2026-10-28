@@ -37,7 +37,7 @@ iterlay templates update <id> --prompt <rules>
 iterlay tools list                      完整操作目录及 JSON schema
 iterlay guard descriptor                离线输出 Guard 命令描述（不会安装或启用 Guard）
 iterlay call <operation> --input '<JSON>'  调用任意工作台操作
-iterlay add [--agent codex|claude-code]  安装 CLI Skill，迁移旧集成
+iterlay add [--agent <id>]              安装 CLI Skill，迁移旧集成
 iterlay remove --agent <id>             移除 Skill
 
 通用选项：--json --async --provider <id> --model <id> --board <id>
@@ -111,7 +111,8 @@ async function main(): Promise<void> {
   }
   if (group === "add" || group === "remove") {
     const agents = flags.agent as CodingAgentId[] | undefined;
-    if (agents?.some((a) => a !== "codex" && a !== "claude-code")) throw new Error("未知的 Coding Agent。");
+    const supported = new Set(["codex", "claude-code", "workbuddy", "cursor", "windsurf", "cline", "roo-cline", "gemini-cli", "opencode"]);
+    if (agents?.some((a) => !supported.has(a))) throw new Error("未知的 Coding Agent。");
     const options = { homeDir: get("home") ?? os.homedir(), userDataPath, agents: agents ?? null, bundledSkillPath: path.resolve(moduleDir, "../skills/using-iterlay") };
     output(await (group === "add" ? runAdd(options) : runRemove(options))); return;
   }

@@ -207,6 +207,7 @@ interface PromptDockProps {
   boardSmartSuggestionsEnabled: boolean;
   assistantEnabled: boolean;
   assistantAgentModeEnabled?: boolean;
+  onAssistantAgentModeEnabledChange?: (enabled: boolean) => void;
   assistantAwarenessEnabled: boolean;
   assistantIntentSuggestionsEnabled: boolean;
   assistantIntentSuggestionCount: AssistantIntentSuggestionCount;
@@ -297,6 +298,7 @@ export function PromptDock({
 
   assistantEnabled,
   assistantAgentModeEnabled = false,
+  onAssistantAgentModeEnabledChange,
   assistantAwarenessEnabled,
   assistantIntentSuggestionsEnabled,
   assistantIntentSuggestionCount,
@@ -347,7 +349,7 @@ export function PromptDock({
   const [promptHeight, setPromptHeight] = useState(DEFAULT_PROMPT_HEIGHT);
   const [maxPromptHeight, setMaxPromptHeight] = useState(360);
   const [scenePickerOpen, setScenePickerOpen] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(assistantEnabled && !comicDramaSnapshot);
+  const [assistantOpen, setAssistantOpen] = useState(assistantEnabled && assistantAgentModeEnabled && !comicDramaSnapshot);
   const [fusionPromptContext, setFusionPromptContext] = useState<string | null>(null);
   const autoOpenedComicBoardRef = useRef<string | undefined>(undefined);
   const assistantSession = useAssistantSessionState();
@@ -482,9 +484,9 @@ export function PromptDock({
   const assistantEffectActionsRef = useRef({ clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant });
   assistantEffectActionsRef.current = { clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant };
   useEffect(() => {
-    setAssistantOpen(assistantAvailable);
+    setAssistantOpen(assistantAvailable && assistantAgentModeEnabled);
     setFusionPromptContext(null);
-  }, [assistantAvailable, boardId, assistantSurface]);
+  }, [assistantAvailable, assistantAgentModeEnabled, boardId, assistantSurface]);
   const { guide: comicDramaGuide, context: comicDramaContext } = useComicAssistantContext(
     comicDramaActive, comicDramaSnapshot, comicDramaSelectedNodeIds
   );
@@ -2220,6 +2222,8 @@ export function PromptDock({
     <>
       <PromptFusionDock
         assistantEnabled={assistantAvailable}
+        assistantModeEnabled={assistantAgentModeEnabled}
+        onAssistantModeChange={onAssistantAgentModeEnabledChange}
         panelRef={assistantPanelRef}
         dockSide={assistantAvailable ? assistantDockSide : null}
         collapsed={assistantAvailable && assistantDockCollapsed}

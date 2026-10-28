@@ -61,6 +61,12 @@ export function ImageDetailsPanel({
   const references = version?.references ?? [];
   const versionLabel = versions.length > 1 ? `v${activeVersion + 1}` : undefined;
   const meta = useMemo(() => [version?.model, version?.size].filter(Boolean).join(" · "), [version]);
+  const generatedAt = useMemo(() => {
+    if (!version?.createdAt) return "";
+    const timestamp = Date.parse(version.createdAt);
+    if (!Number.isFinite(timestamp)) return "";
+    return new Date(timestamp).toLocaleString();
+  }, [version?.createdAt]);
 
   function copyPrompt(): void {
     if (!prompt) return;
@@ -141,6 +147,7 @@ export function ImageDetailsPanel({
               <div>
                 <h3 className="text-xs font-semibold">{uiText("提示词")}</h3>
                 {meta ? <p className="mt-0.5 text-[10px] text-muted-foreground">{meta}</p> : null}
+                {generatedAt ? <p className="mt-0.5 text-[10px] text-muted-foreground">{uiText("生成时间")}: {generatedAt}</p> : null}
               </div>
               <TooltipProvider delayDuration={150}>
                 <Tooltip>

@@ -1,5 +1,5 @@
 import type { CanvasNodeWriteInput, BoardCanvasNode } from "./contracts/board.js";
-import type { CodingAgentIntegrationStatus } from "./agent-integration.js";
+import type { CodingAgentId, CodingAgentIntegrationStatus } from "./agent-integration.js";
 import type { CreationSession } from "./creation-session.js";
 import type { CreationArtifact } from "./creation-session.js";
 import type { CreateModificationRequest, FinishModificationRequest, ModificationRequest, PublicModificationRequest, PreparedModificationRequest } from "./modification-requests.js";
@@ -296,8 +296,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
   }) => transport.invoke("mastergo:exportPsd", input) as Promise<{ ok: boolean; path?: string }>,
   renderMasterGoEditedHtml: (taskId: string, html: string) =>
     transport.invoke("mastergo:renderEditedHtml", taskId, html) as Promise<string>,
-  installAgentSkill: (client: "codex" | "claude-code") => transport.invoke("agent:skill:install", client) as Promise<CodingAgentIntegrationStatus>,
-  removeAgentSkill: (client: "codex" | "claude-code") => transport.invoke("agent:skill:remove", client) as Promise<CodingAgentIntegrationStatus>,
+  installAgentSkill: (client: CodingAgentId) => transport.invoke("agent:skill:install", client) as Promise<CodingAgentIntegrationStatus>,
+  removeAgentSkill: (client: CodingAgentId) => transport.invoke("agent:skill:remove", client) as Promise<CodingAgentIntegrationStatus>,
   clearAppCache: () => transport.invoke("app:clearCache") as Promise<{ ok: boolean }>,
   testSystemNotification: () =>
     transport.invoke("notification:test") as Promise<SystemNotificationDeliveryResult>,

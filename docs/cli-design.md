@@ -6,7 +6,7 @@
 
 1. 安装并首次打开正式 App，用户级 CLI 启动器自动安装。macOS 的 DMG 拖拽安装没有执行安装后脚本，因此安装时点是 App 首次运行。
 2. 配置一次图片/视频服务，CLI 通过本地 App 服务使用现有授权，凭据不会复制到 CLI 或 Skill。
-3. 设置 → Coding Agent：自动检测 Codex / Claude Code，每个 Agent 一键安装 Skill；安装操作同时确保 CLI 就绪。
+3. 设置 → Coding Agent：自动检测 Codex、Claude Code、WorkBuddy、Cursor、Windsurf、Cline、Roo Code、Gemini CLI 和 OpenCode，每个 Agent 一键安装 Skill；安装操作同时确保 CLI 就绪。
 4. 新开 Agent 会话，使用页面提供的试用提示词。Skill 指导 Agent 从 shell 调用 CLI。
 5. 缺少 CLI、图片服务或 Agent Skill 时，工作台显示可关闭的气泡并直达相应设置；同一原因关闭后不反复提示。
 

@@ -2106,12 +2106,10 @@ export default function App(): React.ReactElement {
         const referencePaths = plan.referencePaths?.length ? plan.referencePaths
           : imagesRef.current.slice(-1).flatMap((image) => image.path ? [image.path] : []);
         const referenceSources = imagesRef.current.filter((image) => referencePaths.includes(image.path));
-        const source = referenceSources.at(-1);
-        const sourcePosition = source ? canvasStateRef.current.positions[source.id] : undefined;
-        const position = sourcePosition ? { x: sourcePosition.x,
-          y: sourcePosition.y + (source?.width && source.height
-            ? (sourcePosition.width ?? IMAGE_NODE_WIDTH) * source.height / source.width : 340) + 96 }
-          : nextAutomaticVideoPosition();
+        // Assistant-created nodes must be placed against the complete board
+        // occupancy. Placing below the last reference image can collide with
+        // another card that happens to occupy that vertical band.
+        const position = nextAutomaticVideoPosition();
         const node: BoardVideoGenerationNode = {
           id: nodeId, type: "video-generation", title: "视频生成", ...position,
           prompt, model: videoProvider.model, providerId: videoProvider.id,
@@ -2139,7 +2137,11 @@ export default function App(): React.ReactElement {
         });
         if (activeBoardRef.current?.id === target.id) {
           await openBoard(target.id, undefined, { keepLibraryOpen: true, forceReload: true, suppressLoadingScreen: true });
-          setSelectionTarget({ ids: [`video-output-${job.id}`], nonce: Date.now() });
+          // Keep the viewport anchored to the generation node while the
+          // placeholder is being reconciled. The output node may not be in the
+          // React Flow store until the next render; selecting it here can make
+          // fitView jump to an invalid/empty area.
+          setSelectionTarget({ ids: [nodeId], nonce: Date.now() });
         }
         plan.onArtifact?.({ id: job.id, kind: "video", boardId: target.id, boardName: target.name,
           nodeId, jobId: job.id, prompt, status: "pending", createdAt: new Date().toISOString() });
@@ -5118,12 +5120,7 @@ export default function App(): React.ReactElement {
         const additions = sources.filter((source) => !imagesRef.current.some((image) => image.id === source.id));
         imagesRef.current = [...imagesRef.current, ...additions];
         setImages(imagesRef.current);
-        const source = sources.at(-1);
-        const sourcePosition = source ? canvasStateRef.current.positions[source.id] : undefined;
-        const position = sourcePosition
-          ? { x: sourcePosition.x, y: sourcePosition.y + (source?.width && source.height
-            ? (sourcePosition.width ?? IMAGE_NODE_WIDTH) * source.height / source.width : 340) + 96 }
-          : nextAutomaticVideoPosition();
+        const position = nextAutomaticVideoPosition();
         const nodeId = createWorkflowNode("video-generation", position, {
           prompt, model: provider.model, duration: request.videoSettings?.durationSeconds,
           aspectRatio: request.videoSettings?.aspectRatio, resolution: request.videoSettings?.resolution,
@@ -5795,6 +5792,7 @@ export default function App(): React.ReactElement {
            assistantAgentModeEnabled={
              boardAssistantAgentModeEnabled && canUseTextAgent(activeTextProvider, providerKeyStatus)
            }
+           onAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
           assistantAwarenessEnabled={boardAssistantEnabled && boardAssistantAwarenessEnabled}
           assistantIntentSuggestionsEnabled={boardAssistantEnabled && boardAssistantIntentSuggestionsEnabled}
           assistantIntentSuggestionCount={boardAssistantIntentSuggestionCount}

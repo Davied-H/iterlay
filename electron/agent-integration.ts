@@ -35,11 +35,7 @@ interface SkillSnapshot {
 }
 
 export async function getAgentIntegrationStatus(homeDir: string): Promise<AgentIntegrationStatus> {
-  const [codex, claudeCode] = await Promise.all([
-    readCodexStatus(homeDir),
-    readClaudeCodeStatus(homeDir)
-  ]);
-  return { clients: [codex, claudeCode] };
+  return { clients: await Promise.all(SUPPORTED_AGENT_IDS.map((client) => agentStatus(client, homeDir))) };
 }
 
 const AGENT_SKILL_NAMES = ["using-iterlay"] as const;
@@ -134,8 +130,7 @@ export async function readSkillAutoInstallPolicy(userDataPath: string): Promise<
     const parsed = JSON.parse(await readOptional(skillAutoInstallPolicyPath(userDataPath))) as unknown;
     if (isRecord(parsed) && isRecord(parsed.declined)) {
       const declined: Partial<Record<CodingAgentId, boolean>> = {};
-      if (parsed.declined.codex === true) declined.codex = true;
-      if (parsed.declined["claude-code"] === true) declined["claude-code"] = true;
+      for (const id of SUPPORTED_AGENT_IDS) if (parsed.declined[id] === true) declined[id] = true;
       return { schemaVersion: 1, declined };
     }
   } catch {
@@ -189,6 +184,7 @@ async function removeManagedWorkspaceSkill(client: CodingAgentId, homeDir: strin
 
 /** Migration only: remove Iterlay's old entry, preserving every unrelated server. */
 export async function removeLegacyIntegration(client: CodingAgentId, homeDir: string): Promise<void> {
+  if (client !== "codex" && client !== "claude-code") return;
   const configPath = path.join(homeDir, client === "codex" ? ".codex/config.toml" : ".claude.json");
   const current = await readOptional(configPath);
   if (!current.trim()) return;
@@ -207,7 +203,7 @@ export async function removeLegacyIntegration(client: CodingAgentId, homeDir: st
 }
 
 async function agentStatus(client: CodingAgentId, homeDir: string): Promise<CodingAgentStatus> {
-  const executable = client === "codex" ? "codex" : "claude";
+  const executable = AGENT_EXECUTABLES[client];
   const directories = [...(process.env.PATH ?? "").split(path.delimiter), path.join(homeDir, ".local/bin"), path.join(homeDir, ".npm-global/bin"), "/opt/homebrew/bin", "/usr/local/bin"];
   let executablePath: string | undefined;
   for (const directory of directories.filter(Boolean)) {
@@ -215,7 +211,7 @@ async function agentStatus(client: CodingAgentId, homeDir: string): Promise<Codi
     try { await access(candidate, 1); executablePath = candidate; break; } catch { /* Next known location. */ }
   }
   const desktop = client === "codex" && process.platform === "darwin" && (await pathExists("/Applications/Codex.app") || await pathExists(path.join(homeDir, "Applications/Codex.app")));
-  const configPath = path.join(homeDir, client === "codex" ? ".codex/config.toml" : ".claude.json");
+  const configPath = path.join(homeDir, client === "codex" ? ".codex/config.toml" : client === "claude-code" ? ".claude.json" : AGENT_CONFIG_PATHS[client]);
   const content = await readOptional(configPath);
   let legacyConfigured = false;
   if (client === "codex") legacyConfigured = /\[mcp_servers\.iterlay\]/u.test(content);
@@ -227,14 +223,12 @@ async function agentStatus(client: CodingAgentId, homeDir: string): Promise<Codi
   const detected = Boolean(executablePath || desktop);
   return { id: client, detected, detection: detected ? "installed" : content.trim() ? "config-only" : "not-found", executablePath, skillInstalled, skillManaged, skillPath, legacyConfigured };
 }
-async function readCodexStatus(homeDir: string): Promise<CodingAgentStatus> { return agentStatus("codex", homeDir); }
-async function readClaudeCodeStatus(homeDir: string): Promise<CodingAgentStatus> { return agentStatus("claude-code", homeDir); }
 
-function getSkillPath(client: CodingAgentId, homeDir: string, name: AgentSkillName = "using-iterlay"): string {
-  return client === "codex"
-    ? path.join(homeDir, ".codex", "skills", name)
-    : path.join(homeDir, ".claude", "skills", name);
-}
+const SUPPORTED_AGENT_IDS = ["codex", "claude-code", "workbuddy", "cursor", "windsurf", "cline", "roo-cline", "gemini-cli", "opencode"] as const;
+const AGENT_EXECUTABLES: Record<CodingAgentId, string> = { codex: "codex", "claude-code": "claude", workbuddy: "workbuddy", cursor: "cursor", windsurf: "windsurf", cline: "cline", "roo-cline": "roo", "gemini-cli": "gemini", opencode: "opencode" };
+const AGENT_SKILL_DIRS: Record<CodingAgentId, string> = { codex: ".codex/skills", "claude-code": ".claude/skills", workbuddy: ".workbuddy/skills", cursor: ".cursor/skills", windsurf: ".codeium/windsurf/skills", cline: ".cline/skills", "roo-cline": ".roo/skills", "gemini-cli": ".gemini/skills", opencode: ".config/opencode/skills" };
+const AGENT_CONFIG_PATHS: Record<Exclude<CodingAgentId, "codex" | "claude-code">, string> = { workbuddy: ".workbuddy/config.json", cursor: ".cursor/config.json", windsurf: ".codeium/windsurf/config.json", cline: ".cline/config.json", "roo-cline": ".roo/config.json", "gemini-cli": ".gemini/settings.json", opencode: ".config/opencode/config.json" };
+function getSkillPath(client: CodingAgentId, homeDir: string, name: AgentSkillName = "using-iterlay"): string { return path.join(homeDir, AGENT_SKILL_DIRS[client], name); }
 
 async function isSkillInstalled(skillPath: string, name: AgentSkillName = "using-iterlay"): Promise<boolean> {
   try {

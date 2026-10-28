@@ -12,6 +12,18 @@ async function fixture() {
   return { home, bundle, data: path.join(home, "data") };
 }
 describe("managed CLI Skills", () => {
+
+  it("installs WorkBuddy Skill 到其全局 skills 目录", async () => {
+    const f = await fixture();
+    await installAgentSkill("workbuddy", f.home, f.bundle);
+    const entry = path.join(f.home, ".workbuddy/skills/using-iterlay/SKILL.md");
+    expect(await readFile(entry, "utf8")).toContain("CLI v1");
+    expect((await getAgentIntegrationStatus(f.home)).clients.find((c) => c.id === "workbuddy"))
+      .toMatchObject({ skillInstalled: true, skillManaged: true, skillPath: path.dirname(entry) });
+    await uninstallAgentSkill("workbuddy", f.home);
+    await expect(readFile(entry)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it.each(["codex", "claude-code"] as const)("installs and removes the unified Skill for %s with explicit invocation policies intact", async (client) => {
     const f = await fixture();
     const bundle = path.resolve("resources/skills/using-iterlay");

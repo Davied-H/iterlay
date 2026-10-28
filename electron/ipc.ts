@@ -1108,7 +1108,7 @@ export function registerIpc({
     return { ok: true, path: destinationPath };
   });
   ipcMain.handle("agent:skill:install", async (_event, client: CodingAgentId) => {
-    if (client !== "codex" && client !== "claude-code") throw new Error("未知的 Coding Agent。");
+    if (!client) throw new Error("未知的 Coding Agent。");
     const cli = await installAppCli();
     if (cli.error) throw new Error(cli.error);
     await installAgentSkill(client, integrationHome, bundledSkillPath);
@@ -1117,7 +1117,7 @@ export function registerIpc({
     return readAgentStatus();
   });
   ipcMain.handle("agent:skill:remove", async (_event, client: CodingAgentId) => {
-    if (client !== "codex" && client !== "claude-code") throw new Error("未知的 Coding Agent。");
+    if (!client) throw new Error("未知的 Coding Agent。");
     await uninstallAgentSkill(client, integrationHome);
     await setSkillAutoInstallDeclined(app.getPath("userData"), client, true);
     return readAgentStatus();

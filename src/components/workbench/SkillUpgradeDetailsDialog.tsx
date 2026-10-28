@@ -13,7 +13,8 @@ interface SkillUpgradeDetailsDialogProps {
 
 const clientLabels: Record<AgentSkillUpgradeDetail["client"], string> = {
   codex: "Codex",
-  "claude-code": "Claude Code"
+  "claude-code": "Claude Code",
+  workbuddy: "WorkBuddy", cursor: "Cursor", windsurf: "Windsurf", cline: "Cline", "roo-cline": "Roo Code", "gemini-cli": "Gemini CLI", opencode: "OpenCode"
 };
 
 export function SkillUpgradeDetailsDialog({

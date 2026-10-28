@@ -2,10 +2,16 @@ export const repository = 'https://github.com/Davied-H/iterlay'
 export const releasesUrl = `${repository}/releases`
 // Preserve published text. Link only references that actually appear in the notes.
 export function releaseNoteParts(body) {
+  /** @type {Array<{text?: string, href?: string, image?: boolean, alt?: string, src?: string}>} */
   const parts = []
   let offset = 0
-  for (const match of body.matchAll(/https:\/\/github\.com\/[\w./#?=&%+-]+|(?<![\w/.-])#\d+\b/g)) {
+  for (const match of body.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)|https:\/\/github\.com\/[\w./#?=&%+-]+|(?<![\w/.-])#\d+\b/g)) {
     if (match.index > offset) parts.push({ text: body.slice(offset, match.index) })
+    if (match[0].startsWith('![')) {
+      parts.push({ image: true, alt: match[1], src: match[2] })
+      offset = match.index + match[0].length
+      continue
+    }
     const text = match[0].replace(/[.,]+$/, '')
     parts.push({ text, href: text.startsWith('#') ? `${repository}/issues/${text.slice(1)}` : text })
     offset = match.index + text.length

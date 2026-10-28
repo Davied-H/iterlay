@@ -2,7 +2,7 @@ import { detectCodingAgents, installAgentSkill, uninstallAgentSkill, removeLegac
 export class CliError extends Error {}
 export async function runAdd(options: { homeDir: string; userDataPath: string; bundledSkillPath: string; agents: CodingAgentId[] | null }): Promise<unknown> {
   const targets = options.agents ?? await detectCodingAgents(options.homeDir);
-  if (!targets.length) throw new CliError("未检测到 Coding Agent。使用 --agent codex 或 --agent claude-code 指定目标。");
+  if (!targets.length) throw new CliError("未检测到 Coding Agent。使用 --agent workbuddy 等指定目标。");
   const results = [];
   for (const client of targets) {
     await installAgentSkill(client, options.homeDir, options.bundledSkillPath);
