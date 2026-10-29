@@ -16,7 +16,7 @@ export function preferredSiteLanguage(languages: readonly string[], saved?: stri
 export function initialSitePath(path: string, search: string, hash: string, languages: readonly string[], saved?: string | null): string {
   const url = new URL(hash.startsWith('#/') ? hash.slice(1) : `${path}${search}${hash}`, 'https://local.invalid')
   if (/^\/(en|zh)(\/|$)/.test(url.pathname)) return `${url.pathname}${url.search}${url.hash}`
-  if (!/^\/(?:$|(?:download|wiki|help|agents|guides)\/?$|(?:guides|features)\/[^/]+\/?$)/.test(url.pathname)) return `${url.pathname}${url.search}${url.hash}`
+  if (!/^\/(?:$|(?:download|wiki|help|agents|tips|guides)\/?$|(?:guides|features)\/[^/]+\/?$)/.test(url.pathname)) return `${url.pathname}${url.search}${url.hash}`
   const requested = url.searchParams.get('lang')
   const language = requested === 'zh' || requested === 'en' ? requested : preferredSiteLanguage(languages, saved)
   return sitePath(`${url.pathname}${url.search}${url.hash}`, language)

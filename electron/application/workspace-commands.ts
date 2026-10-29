@@ -1,4 +1,5 @@
 import { calculateSliceGrid, validateCropRect, MAX_SLICE_COUNT } from "../../shared/image-slicing.js";
+import { parseInlineMediaDataUrl } from "../../shared/media-import.js";
 import { imageDimensionsFromHeader } from "../media/image-metadata.js";
 import type { ImageCropRect } from "../../shared/types.js";
 import { createHash } from "node:crypto";
@@ -30,7 +31,7 @@ interface CommandDependencies {
 }
 function string(value: unknown, fallback = ""): string {
   if (value === undefined) return fallback;
-  if (typeof value !== "string" || value.length > 100_000) throw new Error("工具参数必须是受限长度的字符串。");
+  if (typeof value !== "string" || value.length > 100_000) throw new Error("工具文本参数必须是字符串，且不能超过 100000 字符。");
   return value;
 }
 function strings(value: unknown, max = 1000): string[] {
@@ -211,19 +212,23 @@ export class WorkspaceCommands {
       });
       case "export_assets": return api.saveAssetsAsZip(strings(a.paths));
       case "open_iterlay": return true;
-      case "import_image": return mutate(async () => {
-        const image = await api.importUploadedImage(string(a.dataUrl));
-        if (boardId) await api.appendBoardNodes(boardId, [{ id: crypto.randomUUID(), imagePath: image.path, jobId: "import-" + crypto.randomUUID(), source: "upload" }]);
-        return image;
-      });
-      case "import_video": return mutate(async () => {
-        const match = /^data:(video\/(?:mp4|quicktime|webm));base64,([A-Za-z0-9+/]+={0,2})$/u.exec(string(a.dataUrl));
-        if (!match) throw new Error("仅支持 mp4、mov 或 webm 的视频 data URL。");
-        const bytes = Uint8Array.from(Buffer.from(match[2], "base64"));
-        const video = await api.importVideo(bytes.buffer, match[1]);
-        if (boardId) await api.appendBoardNodes(boardId, [{ id: crypto.randomUUID(), type: "video", videoPath: video.path, jobId: "import-" + crypto.randomUUID(), source: "upload", mimeType: video.mimeType }]);
-        return video;
-      });
+      case "import_image": {
+        const { dataUrl } = parseInlineMediaDataUrl(a.dataUrl, "image");
+        return mutate(async () => {
+          const image = await api.importUploadedImage(dataUrl);
+          if (boardId) await api.appendBoardNodes(boardId, [{ id: crypto.randomUUID(), imagePath: image.path, jobId: "import-" + crypto.randomUUID(), source: "upload" }]);
+          return image;
+        });
+      }
+      case "import_video": {
+        const { mimeType, dataBase64 } = parseInlineMediaDataUrl(a.dataUrl, "video");
+        return mutate(async () => {
+          const bytes = Uint8Array.from(Buffer.from(dataBase64, "base64"));
+          const video = await api.importVideo(bytes.buffer, mimeType);
+          if (boardId) await api.appendBoardNodes(boardId, [{ id: crypto.randomUUID(), type: "video", videoPath: video.path, jobId: "import-" + crypto.randomUUID(), source: "upload", mimeType: video.mimeType }]);
+          return video;
+        });
+      }
       case "generate_image": case "edit_image": return this.startGeneration(a, method === "edit_image");
       case "get_generation_status": return this.generationStatus(string(a.generationId));
       case "generate_video": {

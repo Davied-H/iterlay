@@ -38,6 +38,8 @@ Credentials are accepted through `--api-key-env <variable>` or piped `--api-key-
 
 `image generate` supports `--provider`, `--model`, `--size`, `--quality`, `--background`, `--style`, `--n`, repeatable `--reference`, `--board`, `--async`, `--request-id` and `--out`. Supported values depend on the App's provider adapter. `models list` returns saved configuration; it does not probe a remote catalogue.
 
+File imports (`--reference`, edit `--input`, and `assets import --input`) accept non-empty files up to 20 MiB (20,971,520 bytes) each. Image/video data URLs have a separate decoded-byte budget; their Base64 text does not use the prompt's 100,000-character allowance. Imports preserve the original bytes without automatic compression. Oversize errors identify the file and byte limit; reduce the file or import it through the App and pass its managed path with `iterlay call`. Provider-specific reference limits still apply. The App backend must include this fix; updating only the CLI cannot repair an older App's import validation.
+
 Task states `succeeded` (images) and `completed` (video) indicate a generated result; `failed`, `interrupted` and `cancelled` are unsuccessful terminal states. Poll uncertain tasks rather than resubmitting them. `stop_video_polling` stops this App session's polling only.
 
 `iterlay call` exposes the entire native workspace operation catalogue, including board CRUD and layout, image/video generation, references, media import, exports and recoverable image trash. Import image/video operations accept explicit data URLs; they are intended for programmatic callers. Prefer file-based CLI imports in an agent workflow so base64 does not enter the conversation.

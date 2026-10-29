@@ -265,7 +265,7 @@ export const InlinePromptEditor = forwardRef<HTMLDivElement, InlinePromptEditorP
 
       {currentPrompt ? (
         <TooltipProvider delayDuration={200}>
-          <div className="absolute -top-3 right-1.5 flex items-center gap-0.5">
+          <div data-prompt-editor-clear="" className="absolute -top-3 right-1.5 flex items-center gap-0.5">
             {structuredPrompt !== null ? (
               <Tooltip>
                 <TooltipTrigger asChild>

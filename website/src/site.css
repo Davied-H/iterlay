@@ -142,6 +142,7 @@ html { scrollbar-gutter: stable; }
   .public-nav .nav-download { padding-inline: 12px; gap: 6px; }
   .public-footer-inner { width: calc(100% - 40px); flex-direction: column; align-items: flex-start; justify-content: center; gap: 14px; padding-block: 24px; }
   .public-footer-inner > div { gap: 15px; }
+  .public-nav .nav-github { display: none; }
 }
 @media (max-width: 380px) {
   .public-header-inner { padding-inline: 12px; }

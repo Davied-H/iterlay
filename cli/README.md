@@ -18,6 +18,8 @@ iterlay tools list --json
 
 完整工作台操作使用 `iterlay call <operation> --input '<JSON>' --json`，操作与 schema 由 `tools list` 返回。
 
+`--reference`、`image edit --input` 和 `assets import --input` 按原始文件字节数校验：每个非空素材最多 20 MiB（20,971,520 字节）。Base64 编码后的数据使用独立的媒体校验，不占用提示词的 100,000 字符额度；CLI 会先导入原始素材，再把受管路径用于生成，不会自动压缩图片。超限错误会包含文件名、实际大小和上限；可压缩后重试，或先通过 App 导入，再用 `iterlay call` 传入受管路径。模型服务自身仍可能有更低的参考图限制。此修复需要更新 App 后台，仅更新 CLI 无法修复旧版 App 的导入校验。
+
 ## 配置视频与旁白模型
 
 配置命令通过 App 主进程原子保存，不会提交生成任务。视频支持现有的 `ark`、`fal`、`openrouter`、`minimax` 协议；`audio` 是新增的独立 OpenAI-compatible TTS 配置，目前仅保存配置，尚未提供语音生成命令、音乐或音效模型。

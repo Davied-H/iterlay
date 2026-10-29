@@ -104,6 +104,7 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   setCopyImageFormat,
   setBoardAssistantIntentSuggestionsEnabled,
   setBoardAssistantAwarenessEnabled,
+  boardAssistantEnabled,
   setBoardAssistantEnabled,
   providerKeyStatus,
   setBoardAssistantAgentModeEnabled,
@@ -301,6 +302,9 @@ function changeBoardAssistantEnabled(next: boolean): void {
 function changeBoardAssistantAgentModeEnabled(next: boolean): void {
     const enabled = next && canUseTextAgent(activeTextProvider, providerKeyStatus);
     setBoardAssistantAgentModeEnabled(enabled);
+    if (enabled && !boardAssistantEnabled) {
+      setBoardAssistantEnabled?.(true);
+    }
     persistSettingsPatch({
       assistantAgentModeEnabled: enabled,
       boardAssistantAgentModeEnabled: enabled

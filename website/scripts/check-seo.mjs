@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 const root = resolve('dist')
 const sitemap = await readFile(`${root}/sitemap.xml`, 'utf8')
 const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => m[1].replaceAll('&amp;', '&'))
-assert.equal(urls.length, 40, 'Expected 20 pages in each language; update deliberately when adding routes')
+assert.equal(urls.length, 42, 'Expected 21 pages in each language; update deliberately when adding routes')
 assert.equal(new Set(urls).size, urls.length, 'Duplicate sitemap URLs')
 const first = new URL(urls[0])
 const base = first.pathname.replace(/zh\/$/, '')

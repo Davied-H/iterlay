@@ -450,7 +450,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
                 </div>
               )}
               <AssistantComposerToolbar className="prompt-fusion-toolbar">
-                {assistantEnabled && props.onAssistantModeChange ? (
+                {props.onAssistantModeChange ? (
                   <button
                     type="button"
                     role="switch"

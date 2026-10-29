@@ -8,6 +8,7 @@ import { runAdd, runRemove } from "./commands.js";
 import { defaultUserDataPath } from "./paths.js";
 import { connect } from "./runtime.js";
 import { listWorkspaceTools } from "../../electron/workspace-tools.js";
+import { assertInlineMediaByteLength } from "../../shared/media-import.js";
 import type { CodingAgentId } from "../../shared/agent-integration.js";
 
 const HELP = `Iterlay CLI — 使用 App 保存的模型创作
@@ -70,8 +71,14 @@ async function importFile(call: Awaited<ReturnType<typeof connect>>, file: strin
   const mime: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm" };
   const mimeType = mime[path.extname(file).toLowerCase()];
   if (!mimeType) throw new Error("不支持的素材文件格式。");
-  if ((await stat(file)).size > 20 * 1024 * 1024) throw new Error("素材超过 20 MB，请先通过 App 导入。");
-  const result = await call(mimeType.startsWith("video/") ? "import_video" : "import_image", { dataUrl: `data:${mimeType};base64,${(await readFile(file)).toString("base64")}`, ...(boardId ? { boardId } : {}) });
+  const label = `素材「${path.basename(file)}」`;
+  const info = await stat(file);
+  if (!info.isFile()) throw new Error(`${label}不是普通文件。`);
+  assertInlineMediaByteLength(info.size, label);
+  const bytes = await readFile(file);
+  // Recheck after reading in case the file changed since stat().
+  assertInlineMediaByteLength(bytes.length, label);
+  const result = await call(mimeType.startsWith("video/") ? "import_video" : "import_image", { dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`, ...(boardId ? { boardId } : {}) });
   if (typeof result === "string") return result;
   const r = record(result);
   const managed = r.path ?? r.videoPath ?? r.imagePath;
