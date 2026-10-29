@@ -76,8 +76,8 @@ test('desktop product and coding agent integration have separate search identiti
     }
   }
   const productBody = server.render('/en/')
-  assert.match(productBody, /Explore the creative tools/)
-  assert.match(productBody, /Your coding agent handles the steps\./)
+  assert.match(productBody, /Let the assistant clarify it/)
+  assert.match(productBody, /Creative canvas/)
   assert.match(server.render('/en/agents/'), /Set up CLI \+ Skill/)
 })
 
@@ -94,9 +94,9 @@ test('every public page has matching language coverage and translated English bo
   }
   for (const lang of ['zh', 'en']) {
     const home = server.render(`/${lang}/`)
-    assert.equal((home.match(/class="showcase-case"/g) || []).length, 2)
-    assert.match(home, /class="showcase-scene-controls"/)
-    assert.match(home, /class="showcase-primary"/)
+    assert.equal((home.match(/class="landing-scenario"/g) || []).length, 3)
+    assert.match(home, /data-experience-key="hero"/)
+    assert.match(home, /class="landing-download"/)
   }
 })
 
@@ -120,7 +120,12 @@ test('published release translations match the exact source and retain platform 
 test('creative UI and case metadata cannot add untranslated Chinese copy', async () => {
   const ts = (await import('typescript')).default
   const { creativeCopy } = await vite.ssrLoadModule('/src/creative-copy.ts')
-  for (const name of ['HomePage.tsx', 'InteractiveWorkbench.tsx', 'FeaturePreview.tsx', 'demo-cases.ts']) {
+  const { homeCopy } = await vite.ssrLoadModule('/src/HomePage.tsx')
+  assert.deepEqual(Object.keys(homeCopy.zh).sort(), Object.keys(homeCopy.en).sort())
+  for (const [key, value] of Object.entries(homeCopy.en)) {
+    assert.ok(value && !/\p{Script=Han}/u.test(value), `HomePage.tsx: missing English copy for ${key}`)
+  }
+  for (const name of ['InteractiveWorkbench.tsx', 'FeaturePreview.tsx', 'demo-cases.ts']) {
     const text = await readFile(`src/${name}`, 'utf8')
     const file = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true, name.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
     const walk = node => {
