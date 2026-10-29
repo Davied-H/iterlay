@@ -1,5 +1,5 @@
 // Read-only post-deploy audit; never submits URLs or creates external accounts.
-import { writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { URL } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 const site = new URL(process.env.SEO_SITE_URL || 'https://davied-h.github.io/iterlay/')
@@ -22,7 +22,12 @@ try {
   const sitemap = await fetchText(new URL('sitemap.xml', site))
   if (sitemap.status !== 200) throw new Error(`Sitemap returned ${sitemap.status}; deploy the built website first`)
   const urls = [...sitemap.text.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => m[1].replaceAll('&amp;', '&'))
-  if (urls.length !== 40 || new Set(urls).size !== urls.length) report.issues.push(`Expected 40 unique sitemap URLs; got ${urls.length}`)
+  const builtSitemap = await readFile('dist/sitemap.xml', 'utf8')
+  const expectedPaths = [...builtSitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => new URL(m[1].replaceAll('&amp;', '&')).pathname)
+  const actualPaths = urls.map(address => new URL(address).pathname)
+  if (new Set(urls).size !== urls.length || expectedPaths.length !== actualPaths.length || expectedPaths.some(path => !actualPaths.includes(path))) {
+    report.issues.push(`Published sitemap does not match the ${expectedPaths.length} pages in this build; got ${urls.length} URLs`)
+  }
   for (const address of urls) {
     if (!address.startsWith(site.href)) { report.issues.push(`Sitemap URL outside configured site: ${address}`); continue }
     const page = await fetchText(address)
