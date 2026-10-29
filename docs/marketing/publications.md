@@ -286,3 +286,24 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 发布与公开核验：GitHub API 确认 v0.1.69 非草稿、非预发布、Latest，标签目标提交正确，四份安装包及校验文件公开可见。
 - 配图：由 Iterlay 生成并随源码保存为 `website/public/release-images/0.1.69.png`；GitHub Release 正文可继续使用 Markdown 图片链接。
 - 指标及采集日期：未采集。
+
+### APP-008 · Iterlay v0.1.70
+
+- 发布入口：https://github.com/Davied-H/iterlay/releases/tag/v0.1.70 。
+- 内容：修复 CLI 与工具的图片、视频导入限制及助手模式交互；更新官网首页并增加审核制双语技巧页，当前技巧仍为草稿。
+- 日期 / 时区：2026-10-29 15:22:38 / Asia/Shanghai。
+- 发布提交：`68ed26a44987b68dd2c1051123c2f0c4a5857f04`；源码、检查、四平台安装包与标签固定为同一提交。
+- 状态：已正式发布并设为 Latest；macOS ARM64 / x64、Windows ARM64 / x64 四份安装包及 SHA256SUMS.txt 已公开。
+- 本地验证：`pnpm check:all` 通过，2308 项测试通过、4 项媒体测试跳过；官网 13 项测试及 42 页 SEO 检查通过。
+- 云端验证：全量检查及隔离网页冒烟 https://github.com/Davied-H/iterlay/actions/runs/40834280955 成功；四平台打包和包审计 https://github.com/Davied-H/iterlay/actions/runs/40834313770 成功；发布 https://github.com/Davied-H/iterlay/actions/runs/40834965973 成功。
+- 发布核验：2026-10-29 GitHub API 确认非草稿、非预发布、Latest 及标签提交正确；下载公开 SHA256SUMS.txt，四项与附件 API 摘要一致。未进行可见 App 安装测试或真实付费生成验收。
+- 指标及采集日期：未采集。
+
+### WEB-007 · 官网首页与双语技巧页
+
+- 永久链接：https://davied-h.github.io/iterlay/ 。
+- 内容：更新首页并新增中英文技巧页；目前技巧条目保持草稿，公开页面不展示该条内容。
+- 日期 / 时区：2026-10-29 / Asia/Shanghai。
+- 来源：`68ed26a44987b68dd2c1051123c2f0c4a5857f04`。
+- 状态：已部署；2026-10-29 的 42 页线上 SEO 检查通过。首次部署后审计因固定的旧页面数量失败，修正后重新部署成功：https://github.com/Davied-H/iterlay/actions/runs/40834280966 。
+- 指标及采集日期：未采集。
