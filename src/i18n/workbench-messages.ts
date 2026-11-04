@@ -638,6 +638,7 @@ export const workbenchEnglish: Record<string, string> = {
   "切换到普通": "Switch to standard mode",
   "切换到 AI 对话": "Switch to AI chat",
   "普通": "Standard",
+  "输入模式": "Input mode",
   "使用 AI 最新提示词（替换当前草稿）": "Use the latest AI prompt (replaces your draft)",
   "调整助手大小": "Resize assistant",
   "调整助手侧栏宽度": "Resize assistant panel",

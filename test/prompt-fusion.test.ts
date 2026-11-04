@@ -10,6 +10,50 @@ import { ASSISTANT_WIDTH_KEY, ASSISTANT_WIDTHS, readAssistantWidth, setAssistant
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("production prompt fusion", () => {
+  it("switches with radio keyboard controls while retaining both drafts and reference actions", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const remove = vi.fn();
+    function Harness({ busy = false }: { busy?: boolean }) {
+      const [enabled, setEnabled] = useState(true);
+      const [draft, setDraft] = useState("AI 草稿");
+      return createElement(PromptFusionDock, {
+        assistantModeEnabled: enabled, onAssistantModeChange: setEnabled,
+        open: false, onOpenChange: vi.fn(), busy, inputDisabled: false,
+        assistant: null, value: draft, directValue: "普通草稿",
+        contextImages: [{ id: "ref", src: "reference.png", alt: "参考图片", role: "reference", onRemove: remove }],
+        controls: null, directEditor: createElement("textarea", { defaultValue: "普通草稿", "aria-label": "图片提示词" }), directAction: null,
+        onValueChange: setDraft, onDirectValueChange: vi.fn(), onPromptContextChange: vi.fn(),
+        onSubmit: vi.fn(), onStop: vi.fn(), onPasteImages: vi.fn(), onPasteCanvasReferences: vi.fn()
+      });
+    }
+    try {
+      await act(async () => root.render(createElement(Harness)));
+      const ai = container.querySelector<HTMLButtonElement>('[data-mode="ai"]')!;
+      const direct = container.querySelector<HTMLButtonElement>('[data-mode="direct"]')!;
+      expect(ai.getAttribute("aria-checked")).toBe("true");
+      await act(async () => ai.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true })));
+      expect(direct.getAttribute("aria-checked")).toBe("true");
+      expect(document.activeElement).toBe(direct);
+      expect(container.querySelector<HTMLTextAreaElement>('[aria-label="图片提示词"]')?.value).toBe("普通草稿");
+      expect(container.querySelector(".prompt-fusion-context img")).not.toBeNull();
+      await act(async () => direct.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true })));
+      expect(ai.getAttribute("aria-checked")).toBe("true");
+      expect(container.querySelector<HTMLTextAreaElement>('[aria-label="对话规划输入"]')?.value).toBe("AI 草稿");
+      await act(async () => root.render(createElement(Harness, { busy: true })));
+      const close = container.querySelector<HTMLButtonElement>(".prompt-fusion-image-remove")!;
+      await act(async () => close.click());
+      expect(remove).not.toHaveBeenCalled();
+      await act(async () => root.render(createElement(Harness)));
+      await act(async () => close.click());
+      expect(remove).toHaveBeenCalledOnce();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it("keeps the direct composer and draft when disabling planning, without a mode switch or assistant", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);

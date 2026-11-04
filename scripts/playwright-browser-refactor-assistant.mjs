@@ -14,12 +14,13 @@ let notifyHeld;
 const held = new Promise(resolve => { notifyHeld = resolve; });
 const provider = createServer((request, response) => {
   if (request.method !== "POST" || request.url !== "/v1/chat/completions") { response.writeHead(404).end(); return; }
-  request.resume();
+  let body = "";
+  request.on("data", chunk => { body += chunk; });
   request.on("end", () => {
     calls++;
     if (hold) { notifyHeld(); return; }
     if (fixtureMode === "error") { response.writeHead(400, { "content-type": "application/json" }); response.end(JSON.stringify({ error: { message: "离线测试：暂时无法处理请求" } })); return; }
-    const content = JSON.stringify(fixtureMode === "questions" ? {
+    let content = JSON.stringify(fixtureMode === "questions" ? {
       message: "分四步确认本次创作需求。", intent: "creative", commitment: "prepare_only", fields: [],
       interaction: { type: "form", title: "确认创作需求", fields: [
         { id: "style", label: "视觉风格", type: "select", required: true, options: [{ label: "自然质感", value: "natural" }, { label: "戏剧光影", value: "dramatic" }] },
@@ -34,6 +35,24 @@ const provider = createServer((request, response) => {
       message: "方案已整理好，保持自然光和简洁构图。", intent: "direct", commitment: "prepare_only", fields: [{ label: "提示词", value: "自然光下的咖啡器物，简洁构图与克制色彩" }],
       interaction: { type: "confirm", title: "应用创作方案？", confirmLabel: "应用方案", cancelLabel: "继续讨论" }
     } : { message: "离线助手已读取当前画板。", intent: "chat", goal: "explain", commitment: "advise_only", fields: [] });
+    const payload = JSON.parse(body);
+    const system = payload.messages?.[0]?.content ?? "";
+    if (system.includes("JSON 工具决策协议")) {
+      const result = JSON.parse(content);
+      const finish = system.includes('"name":"finish_assistant_result"');
+      content = JSON.stringify(finish
+        ? { toolCalls: [{ name: "finish_assistant_result", arguments: { result } }], text: "" }
+        : result.interaction
+          ? { toolCalls: [{ name: result.interaction.type === "form" ? "present_form" : "present_confirmation", arguments: result.interaction }], text: "" }
+          : { toolCalls: [], text: result.message });
+    }
+    // Structured planning can use a non-streaming completion; mirror the
+    // actual request rather than returning SSE to a JSON parser.
+    if (!JSON.parse(body).stream) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ choices: [{ message: { role: "assistant", content } }] }));
+      return;
+    }
     response.writeHead(200, { "content-type": "text/event-stream" });
     for (const part of [content.slice(0, 32), content.slice(32)]) {
       response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: part } }] })}\n\n`);
@@ -71,10 +90,48 @@ try {
     return { originalSettings, originalBoardId, boardId: board.id };
   }, `http://127.0.0.1:${provider.address().port}`));
   await page.reload(); await ready();
-  const mode = page.getByRole("switch", { name: "对话规划模式", exact: true });
+  const mode = page.getByRole("radio", { name: "AI", exact: true });
+  const directMode = page.getByRole("radio", { name: "普通", exact: true });
   await mode.waitFor();
   if (await mode.getAttribute("aria-checked") !== "true") await mode.click();
   const input = page.getByRole("textbox", { name: "对话规划输入", exact: true });
+  const fusion = page.locator(".prompt-fusion");
+  await mkdir("output/playwright/assistant-dock-production", { recursive: true });
+  if (await page.getByRole("button", { name: "收起创作助手", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "收起创作助手", exact: true }).click();
+  }
+  await page.waitForTimeout(350);
+  assert.equal(await fusion.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(240, 241, 243)");
+  assert.equal((await page.getByRole("radiogroup", { name: "输入模式" }).boundingBox()).width, 92);
+  const beforeMode = await mode.boundingBox();
+  await directMode.click(); await page.waitForTimeout(350);
+  assert.equal(await fusion.evaluate(el => getComputedStyle(el).backgroundColor), "rgba(0, 0, 0, 0)");
+  const afterMode = await mode.boundingBox();
+  assert(Math.abs(beforeMode.x - afterMode.x) < 1 && Math.abs(beforeMode.y - afterMode.y) < 1, "Switch must stay anchored");
+  await mode.click(); await page.waitForTimeout(350);
+  assert.equal(await fusion.getAttribute("data-fusion-expanded"), "false", "Returning to AI must preserve collapsed state");
+  const settings = page.getByRole("button", { name: "生成设置", exact: true });
+  assert.equal((await settings.boundingBox()).width, 32);
+  assert.equal((await settings.innerText()).trim(), "");
+  await settings.click(); await page.getByText("当前模型：", { exact: false }).waitFor(); await page.keyboard.press("Escape");
+  await page.getByText("当前模型：", { exact: false }).waitFor({ state: "hidden" });
+  await page.locator('[data-tour="dock-reference"]').click();
+  await page.getByLabel("上传本地图片", { exact: true }).setInputFiles(["demo-assets/lamp-studio.jpg", "demo-assets/lamp-sage.jpg"]);
+  await page.waitForFunction(() => document.querySelectorAll(".prompt-fusion-image").length === 2);
+  await page.keyboard.press("Escape");
+  const reference = page.locator(".prompt-fusion-image").first();
+  assert.equal((await reference.boundingBox()).width, 48);
+  await reference.hover();
+  await page.waitForTimeout(150);
+  assert.equal(await reference.locator(".prompt-fusion-image-remove").evaluate(el => getComputedStyle(el).opacity), "1");
+  await page.screenshot({ path: "output/playwright/assistant-dock-production/workbench-reference.png" });
+  await reference.locator(".prompt-fusion-image-remove").click();
+  await page.locator(".prompt-fusion-image").first().hover();
+  await page.locator(".prompt-fusion-image-remove").click();
+  await page.getByRole("button", { name: "展开创作助手", exact: true }).click(); await page.waitForTimeout(350);
+  assert.equal(await page.locator(".prompt-fusion-surface").evaluate(el => getComputedStyle(el).borderColor), "rgb(229, 229, 229)");
+  await page.screenshot({ path: "output/playwright/assistant-dock-production/workbench-expanded.png" });
+
   await input.fill("请只解释当前画板，不要生成。");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await page.getByText("离线助手已读取当前画板。", { exact: true }).waitFor();
@@ -92,13 +149,13 @@ try {
   await page.getByRole("button", { name: "停止", exact: true }).click();
   await page.getByRole("button", { name: "发送", exact: true }).waitFor();
   assert.equal(calls, 2);
-  await mode.click();
+  await directMode.click();
   await page.locator(".prompt-fusion-direct-editor").waitFor();
   await mode.click();
   await input.waitFor();
   await page.reload(); await ready();
   await page.locator(".react-flow").waitFor();
-  await page.getByRole("switch", { name: "对话规划模式", exact: true }).waitFor();
+  await page.getByRole("radio", { name: "AI", exact: true }).waitFor();
   const expand = page.getByRole("button", { name: "展开创作助手", exact: true });
   if (await expand.isVisible()) await expand.click();
   await page.getByText("离线助手已读取当前画板。", { exact: true }).waitFor();
@@ -200,6 +257,7 @@ try {
   await questionnaire.getByRole("button", { name: "提交回答", exact: true }).click();
   await input.waitFor({ state: "visible" });
   await page.waitForFunction(() => document.querySelectorAll(".assistant-chat [data-assistant-activity]").length === 0);
+  await page.getByText("离线助手已读取当前画板。", { exact: true }).waitFor();
   assert.equal(calls, beforeSubmit + 1, "All answers must be submitted together exactly once");
   await page.setViewportSize({ width: 1440, height: 1000 });
   fixtureMode = "confirm";
@@ -210,7 +268,7 @@ try {
   await page.screenshot({ path: "output/playwright/board-chat-confirmation.png" });
   await page.getByRole("button", { name: "应用方案", exact: true }).click();
   await page.locator(".prompt-fusion-original").waitFor({ state: "visible" });
-  await mode.click();
+  await directMode.click();
   await page.locator(".prompt-fusion-direct-editor").getByText("自然光下的咖啡器物，简洁构图与克制色彩", { exact: true }).waitFor();
   await mode.click();
   fixtureMode = "error";
@@ -220,7 +278,7 @@ try {
   await page.screenshot({ path: "output/playwright/board-chat-error.png" });
   assert.equal(await page.locator(".prompt-fusion").evaluate((node) => node.scrollWidth > node.clientWidth + 1), false);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ ok: true, verified: ["real PromptDock turn", "SSE chunks", "persisted conversation", "cancellation", "chat/direct modes", "reload without model resubmission", "history drawer", "pointer resize", "drag to dock", "keyboard dock resize", "dark theme", "question supplements", "multi-question draft retention", "single/multiple/text answers", "one final submission", "narrow questionnaire layout", "confirmation apply", "error recovery controls"], providerCalls: calls, rendererErrors: errors }, null, 2));
+  console.log(JSON.stringify({ ok: true, verified: ["approved mode/reference/settings visuals", "collapsed mode anchoring", "real PromptDock turn", "request-compatible JSON/SSE fixture", "persisted conversation", "cancellation", "chat/direct modes", "reload without model resubmission", "history drawer", "pointer resize", "drag to dock", "keyboard dock resize", "dark theme", "question supplements", "multi-question draft retention", "single/multiple/text answers", "one final submission", "narrow questionnaire layout", "confirmation apply", "error recovery controls"], providerCalls: calls, rendererErrors: errors }, null, 2));
 } catch (error) {
   console.error(await page.locator("body").innerText());
   throw error;

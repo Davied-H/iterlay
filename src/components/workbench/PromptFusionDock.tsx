@@ -18,6 +18,7 @@ import type {
   AiAssistantContextImage,
   AiAssistantResizeHandlers,
 } from "@/components/assistant/AiAssistant";
+import { PromptModeSwitch } from "./PromptModeSwitch";
 import { ImageZoomLightbox } from "./asset/ImageZoomLightbox";
 import { extractClipboardImageFiles } from "@/lib/clipboard-images";
 import { extractCanvasClipboardItems } from "@/components/canvas/canvas-clipboard";
@@ -237,7 +238,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
       return;
     const animation = dock.animate(
       [{ height: `${from}px` }, { height: `${height}px` }],
-      { duration: 300, easing: "cubic-bezier(.22,1,.36,1)" },
+      { duration: 280, easing: "cubic-bezier(.22,1,.36,1)" },
     );
     return () => {
       if (animation.playState === "running")
@@ -300,12 +301,12 @@ export function PromptFusionDock(props: Props): React.ReactElement {
           >
             <svg
               className="prompt-fusion-expand-arrow"
-              viewBox="0 0 64 16"
+              viewBox="0 0 32 14"
               fill="none"
               aria-hidden="true"
             >
               <path
-                d="M 8 12 L 28 5.5 Q 32 4 36 5.5 L 56 12"
+                d="M5 9.25 12.8 5.55Q16 4.05 19.2 5.55L27 9.25"
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
@@ -377,6 +378,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
                     {image.onRemove ? (
                       <button
                         type="button"
+                        className="prompt-fusion-image-remove"
                         onClick={image.onRemove}
                         disabled={props.busy}
                         aria-label={uiText("移除 {{ui:0}}", [image.alt])}
@@ -451,23 +453,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
               )}
               <AssistantComposerToolbar className="prompt-fusion-toolbar">
                 {props.onAssistantModeChange ? (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={assistantModeEnabled}
-                    aria-label={uiText(assistantModeEnabled ? "切换到普通" : "切换到 AI 对话")}
-                    title={uiText(assistantModeEnabled ? "切换到普通" : "切换到 AI 对话")}
-                    className="prompt-mode-switch"
-                    onClick={() => props.onAssistantModeChange?.(!assistantModeEnabled)}
-                  >
-                    <span className="prompt-mode-thumb" aria-hidden="true">
-                      <span className="prompt-mode-thumb-face" />
-                      <span className="prompt-mode-star">✦</span>
-                      <span className="prompt-mode-arrow"><ArrowUp /></span>
-                    </span>
-                    <span className="prompt-mode-word prompt-mode-ai">AI</span>
-                    <span className="prompt-mode-word prompt-mode-direct">{uiText("普通")}</span>
-                  </button>
+                  <PromptModeSwitch enabled={assistantModeEnabled} onChange={props.onAssistantModeChange} />
                 ) : null}
                 <fieldset
                   disabled={props.busy}

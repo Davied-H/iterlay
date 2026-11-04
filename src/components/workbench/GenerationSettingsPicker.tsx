@@ -62,8 +62,6 @@ export function GenerationSettingsPicker({
   const supportsTransparentBackground = providerSupportsTransparentBackground(provider);
   const supportsQuality = providerUsesImageQuality(provider);
   const summary = generationSettingsSummary({ model, size, quality, n: count, workflowMode }, provider);
-  const parameterSummary = `${uiText(summary.size)} · ${uiText(summary.quality)} · ${uiText("{{ui:0}} 张", [summary.count])}`;
-  const summaryLabel = `${uiText(summary.model)} · ${parameterSummary}`;
   const validation = validateGptImageSize(Number(w), Number(h));
   const custom = `${w}x${h}`;
   const canApplyCustom = supportsCustomSize && validation.ok && custom !== size;
@@ -85,18 +83,16 @@ export function GenerationSettingsPicker({
 
   return (
     <Popover open={open} onOpenChange={changeOpen}>
-      <ToolbarTooltip label={`${t("prompt.generationSettings")} · ${summaryLabel}`} disabled={open}>
+      <ToolbarTooltip label={t("prompt.generationSettings")} disabled={open}>
         <PopoverTrigger asChild>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             className="prompt-fusion-settings h-8 min-w-0 max-w-full shrink gap-1.5 px-2 text-xs text-muted-foreground"
-            aria-label={`${t("prompt.generationSettings")}：${summaryLabel}`}
+            aria-label={t("prompt.generationSettings")}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="prompt-fusion-settings-model min-w-0 max-w-28 truncate" title={summary.model}>{uiText(summary.model)}</span>
-            <span className="prompt-fusion-settings-parameters min-w-0 truncate tabular-nums">· {parameterSummary}</span>
           </Button>
         </PopoverTrigger>
       </ToolbarTooltip>

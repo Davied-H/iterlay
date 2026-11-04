@@ -483,8 +483,17 @@ export function PromptDock({
   // Effect lifetimes depend on context; action implementations read the latest render.
   const assistantEffectActionsRef = useRef({ clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant });
   assistantEffectActionsRef.current = { clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant };
+  const assistantOpenContext = useRef<{
+    available: boolean; boardId: typeof boardId; surface: typeof assistantSurface;
+  } | null>(null);
   useEffect(() => {
-    setAssistantOpen(assistantAvailable && assistantAgentModeEnabled);
+    const previous = assistantOpenContext.current;
+    // Mode changes retain the AI panel's expansion preference. Only a new
+    // workspace context resets it, avoiding a second layout change after switching.
+    if (!previous || previous.available !== assistantAvailable || previous.boardId !== boardId || previous.surface !== assistantSurface) {
+      setAssistantOpen(assistantAvailable && assistantAgentModeEnabled);
+      assistantOpenContext.current = { available: assistantAvailable, boardId, surface: assistantSurface };
+    }
     setFusionPromptContext(null);
   }, [assistantAvailable, assistantAgentModeEnabled, boardId, assistantSurface]);
   const { guide: comicDramaGuide, context: comicDramaContext } = useComicAssistantContext(
@@ -2231,14 +2240,14 @@ export function PromptDock({
         panelStyle={!assistantAvailable ? undefined : assistantDockSide ? { width: assistantDockWidth } : {
           ...(fusionAnchor ? {
             position: "fixed", left: fusionAnchor.left, bottom: fusionAnchor.bottom, top: "auto", transform: "none",
-            maxHeight: assistantOpen
+            maxHeight: assistantOpen && assistantAgentModeEnabled
               ? `calc(100dvh - ${fusionAnchor.bottom + ASSISTANT_VIEWPORT_MARGIN}px)`
               : `min(72dvh, calc(100dvh - ${fusionAnchor.bottom + ASSISTANT_VIEWPORT_MARGIN}px))`
           } : {}),
           ...(assistantSize ? {
             // 折叠态也沿用展开态的宽度，避免收起再展开时面板横向跳变。
             width: `${assistantSize.width}px`,
-            ...(assistantOpen ? { height: `${assistantSize.height}px` } : {})
+            ...(assistantOpen && assistantAgentModeEnabled ? { height: `${assistantSize.height}px` } : {})
           } : {})
         }}
         resizePointerHandlers={assistantDockSide ? undefined : {
