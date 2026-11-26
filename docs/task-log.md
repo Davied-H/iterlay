@@ -1057,3 +1057,11 @@
 - 注意：全项目 i18n 仍有原画布/视频组件 29 条缺失，本次新增文案无缺失；未调用模型或改正式配置。Hindsight 连接失败。
 - 产物：[方案与实现状态](cli-entry-guide-proposal-2026-11-26.md)；[验证记录](../outputs/cli-entry-guide-2026-11-26/implementation-verification.json)。
 - 下一步：用户验收后按需重新打包安装；保留其他任务未提交改动。
+
+## 2026-11-26 14:22｜当前改动提交与本机安装
+- 状态：本机安装完成；源码已提交为 dd4706a（main），推送随后执行。
+- 结果：构建渲染层、Electron 与 CLI，生成 macOS ARM64 应用并安装到 `/Applications/Iterlay.app`，重新启动成功，版本仍为 0.1.70；包含 CLI 引导、视频交互和多格式图片输出改动。
+- 验证：typecheck、完整 build、包体检查通过（App 350.23 MiB，ASAR 117.79 MiB）；本机临时签名严格验证通过，安装 ASAR 与 CLI 哈希匹配构建，CLI 版本与多格式输出帮助验证通过。未验收可见 App 交互或真实模型生成。
+- 检查：全量测试 2343 通过、3 失败、4 跳过；失败为 assistant-capabilities-settings 开关禁用断言、i18n-coverage 的 29 条文案缺失、license-library-entry 的旧侧栏顺序断言。lint 有 2 条错误，均在 build-assistant-dock-preview.mjs（console/Buffer 全局声明）；未修改这些问题。
+- 备份：旧版位于 `/Users/dong/Library/Caches/Iterlay-install-backups/20261126-142217/Iterlay.app`。Hindsight 连接失败。
+- 下一步：完成授权的推送；父仓库 main 分叉，普通推送预检被 non-fast-forward 拒绝，按技能规则不自动整合远端。
