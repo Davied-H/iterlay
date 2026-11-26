@@ -1,3 +1,4 @@
+import { imageOutputCapabilities, IMAGE_OUTPUT_LABELS } from "@shared/image-output";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,6 +29,10 @@ export function GenerationSettingsPicker({
   quality,
   model,
   workflowMode,
+  outputFormat = "png",
+  frameCount = 9,
+  frameDurationMs = 200,
+  onOutputChange,
   transparentBackground,
   maxCount,
   provider,
@@ -42,6 +47,10 @@ export function GenerationSettingsPicker({
   quality: GenerateImageInput["quality"];
   model: string;
   workflowMode: GenerateImageInput["workflowMode"];
+  outputFormat?: GenerateImageInput["outputFormat"];
+  frameCount?: number;
+  frameDurationMs?: number;
+  onOutputChange: (patch: Partial<GenerateImageInput>) => void;
   transparentBackground: boolean;
   maxCount: number;
   provider?: ProviderConfig;
@@ -57,9 +66,11 @@ export function GenerationSettingsPicker({
   const [open, setOpen] = useState(false);
   const [w, setW] = useState(() => parseSize(size).w);
   const [h, setH] = useState(() => parseSize(size).h);
-  const availablePresets = getProviderImageSizeOptions(provider);
-  const supportsCustomSize = providerSupportsCustomImageSize(provider);
-  const supportsTransparentBackground = providerSupportsTransparentBackground(provider);
+  const gif = outputFormat === "gif";
+  const outputCapabilities = imageOutputCapabilities(provider, model);
+  const availablePresets = gif ? [{ value: "512x512", ratio: "GIF · 1:1" }] : getProviderImageSizeOptions(provider);
+  const supportsCustomSize = !gif && providerSupportsCustomImageSize(provider);
+  const supportsTransparentBackground = ["png", "webp"].includes(outputFormat) && providerSupportsTransparentBackground(provider);
   const supportsQuality = providerUsesImageQuality(provider);
   const summary = generationSettingsSummary({ model, size, quality, n: count, workflowMode }, provider);
   const validation = validateGptImageSize(Number(w), Number(h));
@@ -96,9 +107,41 @@ export function GenerationSettingsPicker({
           </Button>
         </PopoverTrigger>
       </ToolbarTooltip>
-      <PopoverContent side="top" align="end" sideOffset={10} className="w-64 p-2.5">
+      <PopoverContent side="top" align="end" sideOffset={10} className="max-h-[80dvh] w-64 overflow-y-auto p-2.5">
         <p className="mb-2.5 text-sm font-semibold text-foreground">{t("prompt.generationSettings")}</p>
         <p className="mb-2.5 break-words px-2 text-xs text-muted-foreground">{uiText("当前模型：{{ui:0}}", [summary.model])}</p>
+        <label className="mb-3 block px-0.5 text-xs font-medium text-muted-foreground">
+          {uiText("输出格式")}
+          <select
+            aria-label={uiText("输出格式")}
+            className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={outputFormat}
+            onChange={(event) => {
+              const format = event.target.value as NonNullable<GenerateImageInput["outputFormat"]>;
+              onOutputChange({ outputFormat: format,
+                size: format === "gif" ? "512x512" : gif ? "auto" : size,
+                frameCount: format === "gif" ? 9 : undefined,
+                frameDurationMs: format === "gif" ? 200 : undefined,
+                background: ["svg", "gif", "jpeg"].includes(format) ? "auto" : transparentBackground ? "transparent" : "auto"
+              });
+            }}
+          >
+            {!outputCapabilities.outputFormats.includes(outputFormat) ? <option value={outputFormat} disabled>{IMAGE_OUTPUT_LABELS[outputFormat]} · {uiText("当前模型不支持")}</option> : null}
+            {outputCapabilities.outputFormats.map((format) => <option key={format} value={format}>{IMAGE_OUTPUT_LABELS[format]}</option>)}
+          </select>
+        </label>
+        {outputFormat === "svg" ? <p className="mb-3 text-xs leading-5 text-muted-foreground">{uiText("SVG 仅支持新作品生成，请先移除参考图。")}</p> : null}
+        {gif ? <fieldset className="mb-3 grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted-foreground">{uiText("帧数")}
+            <Input type="number" aria-label={uiText("GIF 帧数")} min={4} max={16} step={1} value={frameCount}
+              onChange={(event) => onOutputChange({ frameCount: Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : undefined })} className="mt-1 h-8 text-xs" />
+          </label>
+          <label className="text-xs text-muted-foreground">{uiText("每帧毫秒")}
+            <Input type="number" aria-label={uiText("GIF 每帧毫秒")} min={20} max={10000} step={10} value={frameDurationMs}
+              onChange={(event) => onOutputChange({ frameDurationMs: Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : undefined })} className="mt-1 h-8 text-xs" />
+          </label>
+          <p className="col-span-2 text-[11px] leading-5 text-muted-foreground">{uiText("4–16 帧，每帧 20–10000 毫秒，按 10 毫秒递增。")}</p>
+        </fieldset> : null}
         <div>
           <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">{t("prompt.imageSize")}</p>
           <div className="flex flex-col gap-0.5">

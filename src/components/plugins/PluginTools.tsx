@@ -1,13 +1,14 @@
 import { useUiText } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Puzzle, Plus, X, Settings2, Download, Trash2, Power, Clapperboard, Upload } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Puzzle, X, Settings2, Download, Trash2, Power, Clapperboard, Upload } from "lucide-react";
 import { SHORT_DRAMA_PLUGIN_ID, type InstalledPlugin, type PluginManifest } from "@shared/plugins";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
 import { PluginFrame, type PluginHostProps } from "./PluginFrame";
 import "./plugins.css";
 
 const permissionLabels: Record<string, string> = { "board:read": "读取当前画板", "board:write": "修改当前画板", storage: "保存独立配置与项目数据", "assistant:comic-drama": "调用短剧助手及媒体模型（可能产生费用）" };
-export function PluginTools({ workspace = false, onLaunchShortDrama, onShortDramaAvailabilityChange, ...host }: PluginHostProps & { workspace?: boolean; onLaunchShortDrama?: () => void; onShortDramaAvailabilityChange?: (available: boolean) => void }) {
+export function PluginTools({ workspace = false, launcherTarget, onLaunchShortDrama, onShortDramaAvailabilityChange, ...host }: PluginHostProps & { workspace?: boolean; launcherTarget?: HTMLElement | null; onLaunchShortDrama?: () => void; onShortDramaAvailabilityChange?: (available: boolean) => void }) {
   const uiText = useUiText();
   const [plugins, setPlugins] = useState<InstalledPlugin[]>([]);
   const [catalog, setCatalog] = useState<PluginManifest[]>([]);
@@ -44,12 +45,13 @@ export function PluginTools({ workspace = false, onLaunchShortDrama, onShortDram
     if (!workspace && plugin.manifest.id === SHORT_DRAMA_PLUGIN_ID) { onLaunchShortDrama?.(); return; }
     setView("tool"); setSelectedId(plugin.manifest.id);
   }
+  const launcher = <nav className={`plugin-launcher ${workspace ? "plugin-launcher--workspace" : ""}`} aria-label={uiText("插件工具")}>
+      {plugins.filter(p => p.enabled).map(p => <button key={p.manifest.id} title={p.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(p.manifest.name) : p.manifest.name} aria-label={p.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(p.manifest.name) : p.manifest.name} aria-pressed={selectedId === p.manifest.id} onClick={() => open(p)}>{p.manifest.id === SHORT_DRAMA_PLUGIN_ID ? <Clapperboard /> : <Puzzle />}</button>)}
+      <button title={uiText("插件市场")} aria-label={uiText("插件市场")} onClick={() => setManager(true)}><Puzzle aria-hidden="true" /></button>
+    </nav>;
   return <>
     {workspace && selected && selected.manifest.surface !== "workspace" && <div className="plugin-legacy-workspace-controls"><button onClick={host.onBack}>{uiText("返回主画板")}</button><span>{uiText("此工具有新版制作工作台")}</span><button onClick={() => setManager(true)}>{uiText("插件市场")}</button></div>}
-    <nav className={`plugin-launcher ${workspace ? "plugin-launcher--workspace" : ""}`} aria-label={uiText("插件工具")}>
-      {plugins.filter(p => p.enabled).map(p => <button key={p.manifest.id} title={p.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(p.manifest.name) : p.manifest.name} aria-label={p.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(p.manifest.name) : p.manifest.name} aria-pressed={selectedId === p.manifest.id} onClick={() => open(p)}>{p.manifest.id === SHORT_DRAMA_PLUGIN_ID ? <Clapperboard /> : <Puzzle />}</button>)}
-      <button title={uiText("插件市场")} aria-label={uiText("插件市场")} onClick={() => setManager(true)}><Plus /></button>
-    </nav>
+    {launcherTarget === undefined ? launcher : launcherTarget ? createPortal(launcher, launcherTarget) : null}
     {selected ? <aside className={`plugin-panel ${workspace ? "plugin-panel--workspace" : ""}`} aria-label={uiText("工具面板")}>
       <header><span><Clapperboard size={16} />{selected.manifest.id === SHORT_DRAMA_PLUGIN_ID ? uiText(selected.manifest.name) : selected.manifest.name}<small>v{selected.manifest.version}</small></span><div>
         {selected.manifest.settings && <button aria-label={view === "settings" ? uiText("返回工具") : uiText("工具设置")} title={view === "settings" ? uiText("返回工具") : uiText("工具设置")} onClick={() => setView(v => v === "tool" ? "settings" : "tool")}><Settings2 size={16} /></button>}

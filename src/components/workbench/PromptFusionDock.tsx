@@ -95,6 +95,14 @@ export function PromptFusionDock(props: Props): React.ReactElement {
   const dockRef = props.panelRef ?? localDockRef;
   const previousHeight = useRef<number | null>(null);
   const previousDragging = useRef(Boolean(props.dragging));
+  const panelAnimation = useRef<Animation | null>(null);
+  const paddingAnimation = useRef<Animation | null>(null);
+  const conversationAnimation = useRef<Animation | null>(null);
+  const previousPadding = useRef<string | null>(null);
+  const previousConversationHeight = useRef(0);
+  const previousExpanded = useRef(false);
+  const conversationRef = useRef<HTMLDivElement>(null);
+  const [conversationLeaving, setConversationLeaving] = useState(false);
   const composerRef = useRef<HTMLDivElement>(null);
   const replacementRef = useRef<HTMLDivElement>(null);
   const composerHeight = useRef<number | null>(null);
@@ -175,10 +183,15 @@ export function PromptFusionDock(props: Props): React.ReactElement {
       if (composerAnimation.current?.playState !== "running") {
         composerHeight.current = composer.getBoundingClientRect().height;
       }
+      const dock = dockRef.current;
+      if (dock && panelAnimation.current?.playState !== "running") {
+        previousHeight.current = dock.getBoundingClientRect().height;
+      }
     });
     observer.observe(composer);
+    if (dockRef.current) observer.observe(dockRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [dockRef]);
   const { open, dockSide, collapsed, dragging, onOpenChange } = props;
   useEffect(() => {
     if (!open || dockSide || collapsed || dragging) return;
@@ -221,31 +234,77 @@ export function PromptFusionDock(props: Props): React.ReactElement {
   useLayoutEffect(() => {
     const dock = dockRef.current;
     if (!dock) return;
+    const composer = dock.querySelector<HTMLElement>(".prompt-fusion-composer");
+    const conversation = conversationRef.current;
     const height = dock.getBoundingClientRect().height;
     const from = previousHeight.current;
-    previousHeight.current = height;
+    const padding = composer ? getComputedStyle(composer).padding : null;
+    const fromPadding = previousPadding.current;
+    const wasExpanded = previousExpanded.current;
     const wasDragging = previousDragging.current;
+    previousHeight.current = height;
+    previousPadding.current = padding;
+    previousExpanded.current = conversationOpen;
     previousDragging.current = Boolean(props.dragging);
+    if (conversationOpen && conversation) {
+      previousConversationHeight.current = conversation.getBoundingClientRect().height;
+    }
+    setConversationLeaving(false);
     if (
-      props.dragging ||
-      wasDragging ||
-      props.dockSide ||
-      from === null ||
-      from === height ||
-      !dock.animate ||
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
-    const animation = dock.animate(
-      [{ height: `${from}px` }, { height: `${height}px` }],
-      { duration: 280, easing: "cubic-bezier(.22,1,.36,1)" },
-    );
-    return () => {
-      if (animation.playState === "running")
+      props.dragging || wasDragging || props.dockSide || from === null ||
+      !dock.animate || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) return;
+
+    const duration = conversationOpen ? 360 : 240;
+    const easing = "cubic-bezier(.16,1,.3,1)";
+    const leaving = wasExpanded && !conversationOpen && assistantModeEnabled;
+    if (leaving) setConversationLeaving(true);
+    if (from !== height) {
+      dock.setAttribute("data-fusion-transition", conversationOpen ? "expand" : "collapse");
+      const animation = dock.animate(
+        [{ height: `${from}px` }, { height: `${height}px` }],
+        { duration, easing },
+      );
+      panelAnimation.current = animation;
+      animation.onfinish = () => {
+        if (panelAnimation.current !== animation) return;
+        dock.removeAttribute("data-fusion-transition");
         previousHeight.current = dock.getBoundingClientRect().height;
-      animation.cancel();
+        setConversationLeaving(false);
+      };
+    } else if (leaving) setConversationLeaving(false);
+    if (composer && padding && fromPadding && padding !== fromPadding) {
+      paddingAnimation.current = composer.animate(
+        [{ padding: fromPadding }, { padding }], { duration, easing },
+      );
+    }
+    if (conversation && conversationOpen !== wasExpanded) {
+      conversationAnimation.current = conversation.animate(
+        conversationOpen
+          ? [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "translateY(0)" }]
+          : [{ opacity: 1 }, { opacity: 0 }],
+        conversationOpen
+          ? { duration: 220, delay: 45, easing, fill: "backwards" }
+          : { duration: 100, easing, fill: "forwards" },
+      );
+    }
+    return () => {
+      // Sample visible values before cancelling so rapid reversals start in place.
+      if (panelAnimation.current?.playState === "running") {
+        previousHeight.current = dock.getBoundingClientRect().height;
+      }
+      if (composer && paddingAnimation.current?.playState === "running") {
+        previousPadding.current = getComputedStyle(composer).padding;
+      }
+      panelAnimation.current?.cancel();
+      paddingAnimation.current?.cancel();
+      conversationAnimation.current?.cancel();
+      panelAnimation.current = null;
+      paddingAnimation.current = null;
+      conversationAnimation.current = null;
+      dock.removeAttribute("data-fusion-transition");
     };
-  }, [props.open, mode, props.dockSide, props.dragging, dockRef]);
+  }, [conversationOpen, assistantModeEnabled, mode, props.dockSide, props.dragging, dockRef]);
   useEffect(() => {
     if (!inputRef.current) return;
     inputRef.current.style.height = "56px";
@@ -314,7 +373,15 @@ export function PromptFusionDock(props: Props): React.ReactElement {
         </>
       ) : null}
       {assistantModeEnabled ? (
-        <div className="prompt-fusion-conversation" hidden={!conversationOpen}>
+        <div
+          ref={conversationRef}
+          className="prompt-fusion-conversation"
+          hidden={!conversationOpen && !conversationLeaving}
+          data-leaving={conversationLeaving && !conversationOpen ? "" : undefined}
+          style={conversationLeaving && !conversationOpen ? { height: previousConversationHeight.current } : undefined}
+          inert={!conversationOpen}
+          aria-hidden={!conversationOpen || undefined}
+        >
           {props.assistant}
         </div>
       ) : null}

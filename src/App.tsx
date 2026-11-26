@@ -1,3 +1,4 @@
+import { isOriginalFormatImage } from "@shared/image-output";
 import { automaticVideoPlacement } from "@/lib/automatic-video-placement";
 import { connectTemplatePersistence, readPersistedTemplates } from "@/lib/template-persistence";
 import { CANVAS_STARTERS } from "@/components/code-canvas/model";
@@ -21,7 +22,7 @@ import { copyImageVersions,createDetachedVersionImage,extractImageVersion,separa
 import type { SliceSelection } from "@/components/canvas/ImageSliceDialog";
 import { ParticleBurst,type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
 import { getSliceResultCell } from "@/components/canvas/slice-result-layout";
-import { type GeneratedVideo } from "@/components/canvas/video-node-model";
+import { type GeneratedVideo, type VideoReferenceInput } from "@/components/canvas/video-node-model";
 import { useLicense } from "@/components/licensing/license-context";
 import type { TourDefinition } from "@/components/onboarding/FeatureTour";
 import { BOARD_TOUR,EDIT_TOUR,GALLERY_TOUR,LIBRARY_TOUR,TOUR_DEMO_IMAGE_ID,TOUR_DEMO_PROMPT } from "@/components/onboarding/tours";
@@ -60,7 +61,7 @@ import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
 import type { AssistantDockLayout } from "@/lib/assistant-panel-docking";
 import { BoardDetailCache } from "@/lib/board-detail-cache";
 import { createEmptyPromptSpec,resetBoardDraft } from "@/lib/board-draft";
-import { hydrateBoardNodeImageLayout,hydrateGeneratedImage,serializeGeneratedImage } from "@/lib/board-node-image";
+import { hydrateBoardNodeImageLayout,hydrateGeneratedImage } from "@/lib/board-node-image";
 import { requestPluginCapability } from "@/features/plugins/request-plugin-capability";
 import { SHORT_DRAMA_PLUGIN_ID } from "@shared/plugins";
 import { DataUrlLruCache } from "@/lib/data-url-lru-cache";
@@ -103,8 +104,6 @@ import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
 import type { AgentEditDraft } from "@shared/modification-requests";
 
 
-import { FieldChapterNavigation } from "@/components/workbench/FieldChapterNavigation";
-import type { FieldChapterTarget } from "@shared/field-chapters";
 import { restoreGenerationHistoryJob,reuseGenerationHistoryPrompt } from "@shared/generation-history";
 import type { ImageDeliveryRecipe } from "@shared/image-delivery";
 import { hasDeliveryReferencesToMovedVersions } from "@shared/image-delivery-references";
@@ -371,12 +370,9 @@ function GenerationConfirmationDialog({
             <div><dt className="text-muted-foreground">{uiText("模型")}</dt><dd className="mt-0.5 break-words font-medium">{confirmation.model}</dd></div>
             <div><dt className="text-muted-foreground">{uiText("任务数")}</dt><dd className="mt-0.5 font-medium">{confirmation.items.length}</dd></div>
             <div><dt className="text-muted-foreground">{uiText("总费用")}</dt><dd className="mt-0.5 font-medium">{uiText(confirmation.totalCostLabel)}</dd></div>
-            <div className="col-span-2"><dt className="text-muted-foreground">{uiText("报价有效期")}</dt><dd className="mt-0.5 font-medium">{
-              confirmation.items.some((item) => item.quoteExpiresAt)
-                ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(Math.min(...confirmation.items.flatMap((item) => item.quoteExpiresAt ? [Date.parse(item.quoteExpiresAt)] : []))))
-                : uiText("外部 Provider 未提供 Iterlay 报价有效期")
-            }</dd></div>
+            {confirmation.items.some((item) => item.quoteExpiresAt) ? <div className="col-span-2"><dt className="text-muted-foreground">{uiText("报价有效期")}</dt><dd className="mt-0.5 font-medium">{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(Math.min(...confirmation.items.flatMap((item) => item.quoteExpiresAt ? [Date.parse(item.quoteExpiresAt)] : []))))}</dd></div> : null}
           </dl>
+          {confirmation.costNote ? <p className="text-xs leading-relaxed text-muted-foreground">{uiText(confirmation.costNote)}</p> : null}
           <div className="divide-y divide-border border-y border-border" aria-label={uiText("生成确认任务")}>
             {confirmation.items.map((item) => <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 text-sm">
               <span className="min-w-0"><b className="block break-words">{item.label}</b><small className="mt-0.5 block break-words text-muted-foreground">{uiText(item.task)}{item.quoteId ? ` · Quote ${item.quoteId}` : ""}</small></span>
@@ -552,6 +548,7 @@ export default function App(): React.ReactElement {
   const [customScenes, setCustomScenes] = useState<SceneDefinition[]>(readCustomScenes);
   const [favoriteSceneIds, setFavoriteSceneIds] = useState<string[]>(readFavoriteSceneIds);
   const [videoHistory, setVideoHistory] = useState<VideoGenerationJob[]>([]);
+  const videoTaskStartedAt = useMemo(() => Object.fromEntries(videoHistory.map((job) => [job.id, job.createdAt])), [videoHistory]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [workflowNodes, setWorkflowNodes] = useState<CanvasPersistedNode[]>([]);
   const [canvasConnectionsVersion, setCanvasConnectionsVersion] = useState(0);
@@ -641,6 +638,7 @@ export default function App(): React.ReactElement {
   const boardNameById = useMemo(() => new Map(boards.map((board) => [board.id, board.name])), [boards]);
   const [activeBoard, setActiveBoard] = useState<ActiveBoard | null>(null);
   const [shortDramaAvailable, setShortDramaAvailable] = useState(false);
+  const [pluginToolbarTarget, setPluginToolbarTarget] = useState<HTMLDivElement | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(readLibraryOpenPref);
   // 素材库整批进场每次应用启动只播放一次；库页卸载后仍保留已播放状态。
   const assetLibraryEntrancePlayedRef = useRef(false);
@@ -1801,7 +1799,8 @@ export default function App(): React.ReactElement {
     const syncRecoveredJobs = (jobs: VideoGenerationJob[]): void => {
       const activeBoardId = activeBoardRef.current?.id;
       if (!activeBoardId) return;
-      const byId = new Map(jobs.filter((job) => job.input.boardId === activeBoardId).map((job) => [job.id, job]));
+      const byId = new Map(jobs.filter((job) => job.input.boardId === activeBoardId
+        && (!videoPollingStoppedRef.current.has(job.id) || isTerminalVideoJob(job))).map((job) => [job.id, job]));
       if (byId.size === 0) return;
       const reconciled = reconcileRecoveredVideoCanvas(
         workflowNodesRef.current,
@@ -2016,7 +2015,6 @@ export default function App(): React.ReactElement {
   setStatus,
   setWechatExportRequest,
   setQuickImageShareImages,
-  activeTextProvider,
   setEditSmartSuggestionsPreference
 });
 
@@ -2925,6 +2923,10 @@ export default function App(): React.ReactElement {
   }
 
   const enterEditSession = useCallback((image: GeneratedImage): void => {
+    if (isOriginalFormatImage(image.path)) {
+      toast.error(translateSourceText("SVG 与 GIF 暂不支持像素编辑，请下载原文件后编辑。"));
+      return;
+    }
     // 进入编辑：记住历史栏状态并收起，聚焦层不再被右侧历史挤占。
     historyOpenBeforeEditRef.current = historyOpen;
     setHistoryOpen(false);
@@ -3576,13 +3578,13 @@ export default function App(): React.ReactElement {
     return uploaded;
   }
 
-  async function addUploadedVideos(files: File[], dropPosition?: CanvasDropPoint): Promise<void> {
+  async function addUploadedVideos(files: File[], dropPosition?: CanvasDropPoint): Promise<VideoReferenceInput[]> {
     const videoFiles = files.filter((file) => file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name));
-    if (videoFiles.length === 0) return;
+    if (videoFiles.length === 0) return [];
     const originBoard = activeBoardRef.current;
     if (!originBoard) {
       toast.error(translateSourceText("请先打开一个画板。"));
-      return;
+      return [];
     }
     const api = getImageWorkbenchApi();
     const imported: Array<{ node: BoardVideoNode; url: string }> = [];
@@ -3614,7 +3616,7 @@ export default function App(): React.ReactElement {
         toast.error(getWorkbenchErrorMessage(error, `无法导入 ${file.name}`));
       }
     }
-    if (imported.length === 0) return;
+    if (imported.length === 0) return [];
     if (activeBoardRef.current?.id !== originBoard.id) {
       await api.appendBoardNodes(originBoard.id, imported.map(({ node }) => {
         // Coordinates belong to the current canvas; background append computes its own placement.
@@ -3624,7 +3626,7 @@ export default function App(): React.ReactElement {
       }));
       boardDetailCacheRef.current.delete(originBoard.id);
       toast.success(translateSourceText("已将 {{ui:0}} 个视频加入「{{ui:1}}」", [imported.length, originBoard.name]));
-      return;
+      return [];
     }
     setVideoUrls((current) => Object.fromEntries([
       ...Object.entries(current),
@@ -3637,12 +3639,14 @@ export default function App(): React.ReactElement {
     });
     scheduleBoardSave();
     toast.success(imported.length === 1 ? translateSourceText("视频已添加到画布") : translateSourceText("已添加 {{ui:0}} 个视频到画布", [imported.length]));
+    return imported.map(({ node, url }) => ({ id: node.id, path: node.videoPath, dataUrl: url, name: node.title || "视频", durationMs: node.durationMs }));
   }
 
   const addUploadedImagesRef = useRef(addUploadedImages);
   addUploadedImagesRef.current = addUploadedImages;
   const addUploadedVideosRef = useRef(addUploadedVideos);
   addUploadedVideosRef.current = addUploadedVideos;
+  const handleImportVideoReferences = useCallback((files: File[], position: CanvasDropPoint): Promise<VideoReferenceInput[]> => addUploadedVideosRef.current(files, position), []);
   const handleImportGenerationReferences = useCallback((
     files: File[],
     target: GenerationReferencePlacementTarget
@@ -5069,13 +5073,6 @@ export default function App(): React.ReactElement {
     imagesRef.current=updated;setImages(updated);
     void refreshBoards();
   }
-  function deliverFieldChapters(targets:FieldChapterTarget[]):void {
-    const roles=["hero","scene","campaign"];
-    if(targets.length!==3) return;
-    void openImageDelivery({id:crypto.randomUUID(),name:"FIELD 网站素材",updatedAt:new Date().toISOString(),items:targets.map((target,index)=>({
-      id:`field-${roles[index]}`,nodeId:target.nodeId,sourceVersion:{imagePath:target.imagePath,jobId:target.jobId},purpose:roles[index],relativePath:`assets/${roles[index]}.png`,format:"png"
-    }))});
-  }
 
   function getBlockedGenerateMessage(targetInput: GenerateImageInput = inputRef.current): string | null {
     if (bridgeError) return bridgeError;
@@ -5300,10 +5297,8 @@ export default function App(): React.ReactElement {
   function renderCanvasBoard(rightRailInset = effectiveRightRailCanvasInset): React.ReactElement {
     return (
       <>
-      {activeBoard ? <FieldChapterNavigation board={{id:activeBoard.id,name:activeBoard.name,nodes:[
-        ...images.filter(image=>!image.pending&&image.path).map(image=>serializeGeneratedImage(image,canvasStateRef.current.positions[image.id]??{x:0,y:0})),...workflowNodes
-      ]}} jobs={history} onLocate={target=>{switchImageVersion(target.nodeId,target.versionIndex);setFocusTarget(current=>({key:target.nodeId,nonce:(current?.nonce??0)+1}));}} onDeliver={deliverFieldChapters} /> : null}
       {activeBoard && activeBoard.kind !== "comic-drama" ? <PluginTools
+        launcherTarget={pluginToolbarTarget}
         context={{ boardId: activeBoard.id, selectedNodeIds: selectedCanvasNodeIds, theme: effectiveTheme, locale }}
         beforeRequest={flushBoardSave}
         onMutation={handleComicDramaAgentMutation}
@@ -5314,6 +5309,7 @@ export default function App(): React.ReactElement {
       /> : null}
       <MemoizedCanvasBoard
         key={activeBoard?.id ?? "empty"}
+        pluginLauncherRef={activeBoard && activeBoard.kind !== "comic-drama" ? setPluginToolbarTarget : undefined}
         images={images}
         workflowNodes={workflowNodes}
         videoUrls={videoUrls}
@@ -5343,6 +5339,8 @@ export default function App(): React.ReactElement {
         onExtractVideoFrame={extractVideoFrame}
         onRevealVideo={revealVideo}
         onChooseVideoReferenceAudio={handleChooseVideoReferenceAudio}
+        onImportVideoReferences={handleImportVideoReferences}
+        videoTaskStartedAt={videoTaskStartedAt}
         onRemoveVideoReferenceAudio={handleRemoveVideoReferenceAudio}
         onSelectVideoVersion={handleSelectVideoVersion}
         onCreateVideoIteration={handleCreateVideoIteration}
@@ -5789,9 +5787,7 @@ export default function App(): React.ReactElement {
           autoCollapse={promptDockAutoCollapse}
           boardSmartSuggestionsEnabled={boardSmartSuggestionsEnabled}
            assistantEnabled={boardAssistantEnabled}
-           assistantAgentModeEnabled={
-             boardAssistantAgentModeEnabled && canUseTextAgent(activeTextProvider, providerKeyStatus)
-           }
+           assistantAgentModeEnabled={boardAssistantAgentModeEnabled}
            onAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
           assistantAwarenessEnabled={boardAssistantEnabled && boardAssistantAwarenessEnabled}
           assistantIntentSuggestionsEnabled={boardAssistantEnabled && boardAssistantIntentSuggestionsEnabled}
@@ -6003,6 +5999,10 @@ export default function App(): React.ReactElement {
                 onLocateOnlineShare={(boardId, nodeIds) => void locateOnlineShare(boardId, nodeIds)}
                 onOpenReferralInvite={() => setReferralInviteOpen(true)}
                 onOpenSettings={() => setSettingsOpen(true)}
+                onOpenCliSettings={(section) => {
+                  setSettingsEntryPoint(section);
+                  setSettingsOpen(true);
+                }}
                 onClose={() => setLibraryOpen(false)}
               />
             </Suspense>

@@ -45,6 +45,7 @@ iterlay remove --agent <id>             移除 Skill
 --user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
 默认自动启动隐藏后台服务，不显示 App 窗口；--no-launch 仅连接已有服务。
 生成：--size auto --n 1 --quality high --background transparent
+格式：--output-format png|jpeg|webp|svg|gif；GIF 使用 --size 512x512 --frames 9 --frame-duration-ms 200
 未指定 --board 时使用设置中的 CLI 默认画板；未配置时使用「CLI 创作」。
 默认等待任务完成；Ctrl+C 只结束等待。已有输出文件不会覆盖，除非 --overwrite。`;
 
@@ -52,7 +53,7 @@ type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
   const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
-  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
+  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "output-format", "frames", "frame-duration-ms", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -232,6 +233,7 @@ async function main(): Promise<void> {
       boardId = String(record(await call("resolve_generation_board")).boardId);
     }
     const args: Record<string, unknown> = { templateId: get("template"), boardId, prompt: get("prompt"), providerId: get("provider"), model: get("model"), size: get("size"), quality: get("quality"), background: get("background"), style: get("style"), n: get("n") ? Number(get("n")) : 1 };
+    if (!video) { args.outputFormat = get("output-format"); args.frameCount = get("frames") ? Number(get("frames")) : undefined; args.frameDurationMs = get("frame-duration-ms") ? Number(get("frame-duration-ms")) : undefined; }
     if (flags.reference) args[video ? "referenceImagePaths" : "referencePaths"] = await Promise.all(flags.reference.map((file) => importFile(call, file, boardId)));
     if (action === "edit") { if (!get("input")) throw new Error("缺少 --input。"); args.sourcePath = await importFile(call, get("input")!, boardId); }
     if (video) { args.aspectRatio = get("ratio"); args.durationSeconds = get("duration") ? Number(get("duration")) : undefined; args.resolution = get("resolution"); }

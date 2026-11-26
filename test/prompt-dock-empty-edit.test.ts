@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
-import { createElement, type ComponentProps } from "react";
+import { act, createElement, type ComponentProps } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PromptDock } from "../src/components/workbench/PromptDock";
 import { I18nProvider } from "../src/i18n";
 import { COMMUNITY_IMAGE_PROVIDER } from "../shared/community-providers";
 import type { UiDesignBrief } from "../shared/types";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 describe("prompt dock empty edit lifecycle", () => {
-  it("renders a normal board before an edit target exists", () => {
+  it("renders a normal board and only opens AI conversations on explicit actions", async () => {
     localStorage.setItem("iterlay:language", "zh-CN");
     const noop = () => undefined;
     const props: ComponentProps<typeof PromptDock> = {
@@ -35,6 +39,29 @@ describe("prompt dock empty edit lifecycle", () => {
       expect(html).not.toContain('role="switch"');
       expect(html).not.toContain("prompt-dock-layer");
       expect(html).not.toContain("prompt-dock-assistant-button");
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      const render = async (boardId: string, aiMode = true) => {
+        await act(async () => root.render(createElement(I18nProvider, null, createElement(PromptDock, {
+          ...props, boardId, assistantEnabled: true, assistantAgentModeEnabled: aiMode
+        }))));
+      };
+      const expanded = () => container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-expanded");
+      try {
+        await render("one");
+        expect(expanded()).toBe("false");
+        await act(async () => container.querySelector<HTMLButtonElement>(".prompt-fusion-expand-handle")!.click());
+        expect(expanded()).toBe("true");
+        await render("two");
+        expect(expanded()).toBe("false");
+        await render("two", false);
+        await render("two");
+        expect(expanded()).toBe("false");
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+      }
     } finally { localStorage.removeItem("iterlay:language"); }
   });
 });

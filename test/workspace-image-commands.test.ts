@@ -29,6 +29,15 @@ describe("typed workspace image tasks", () => {
     }));
   });
 
+  it("forwards explicit GIF options and real references from AI tools", async () => {
+    const f = workspaceFixture();
+    const task = await f.commands.call("generate_image", { boardId: "board", prompt: "Animate the reference", model: "gpt-image-2.6-flare",
+      outputFormat: "gif", size: "512x512", frameCount: 8, frameDurationMs: 150, referencePaths: ["/managed/source.png"] }) as { generationId: string };
+    await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId })).toMatchObject({ status: "succeeded" }));
+    expect(f.mocks.generateImage).toHaveBeenCalledWith(expect.objectContaining({ outputFormat: "gif", size: "512x512", frameCount: 8, frameDurationMs: 150,
+      referenceImages: [expect.objectContaining({ mimeType: "image/png", dataBase64: "AA==" })] }));
+  });
+
   it("uses the configured default for raw generation calls and persists the images there", async () => {
     const f = workspaceFixture();
     f.mocks.getSettings.mockResolvedValue({ cliDefaultBoardId: "configured", activeProviderId: "custom", providers: [{ id: "custom", type: "openai-compatible", model: "fixture" }] });

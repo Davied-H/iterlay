@@ -15,6 +15,10 @@ export function assertGenerateImageInput(value: unknown): asserts value is Gener
   if (value.idempotencyKey !== undefined && !text(value.idempotencyKey, 1024)) throw new Error("请求标识无效。");
   if (value.boardId !== undefined && !text(value.boardId, 200)) throw new Error("画板标识无效。");
   if (value.background !== undefined && !["auto", "opaque", "transparent"].includes(String(value.background))) throw new Error("图片背景选项无效。");
+  if (value.outputFormat !== undefined && !["png", "jpeg", "webp", "svg", "gif"].includes(String(value.outputFormat))) throw new Error("图片输出格式无效。");
+  for (const key of ["frameCount", "frameDurationMs"]) {
+    if (value[key] !== undefined && (!Number.isInteger(value[key]) || Number(value[key]) <= 0)) throw new Error("GIF 动画参数无效。");
+  }
   if (value.quality !== undefined && !["auto", "low", "medium", "high"].includes(String(value.quality))) throw new Error("图片质量选项无效。");
   for (const image of value.referenceImages) {
     if (!record(image) || !text(image.id, 200) || !/^[a-zA-Z0-9_-]+$/u.test(image.id)

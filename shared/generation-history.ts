@@ -28,6 +28,8 @@ export function createGenerationInputSnapshot(
       style: input.style,
       background: input.background,
       outputFormat: input.outputFormat,
+      frameCount: input.frameCount,
+      frameDurationMs: input.frameDurationMs,
       boardId: input.boardId,
       generationNodeId: input.generationNodeId,
       assistantConversationId: input.assistantConversationId,
@@ -129,6 +131,8 @@ export async function restoreGenerationHistoryJob(
     style: original.style,
     background: original.background,
     outputFormat: original.outputFormat,
+    frameCount: original.frameCount,
+    frameDurationMs: original.frameDurationMs,
     providerId: restoredProviderId,
     historySourceJobId: job.id,
     editSource: workflowMode === "edit" && editReference ? {

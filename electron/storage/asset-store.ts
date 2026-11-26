@@ -384,6 +384,7 @@ export function extensionFromMime(mimeType: string): string {
   if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return ".jpg";
   if (mimeType.includes("webp")) return ".webp";
   if (mimeType.includes("gif")) return ".gif";
+  if (mimeType.includes("svg")) return ".svg";
   return ".png";
 }
 
@@ -392,6 +393,7 @@ export function mimeFromExtension(filePath: string): string {
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
   if (extension === ".webp") return "image/webp";
   if (extension === ".gif") return "image/gif";
+  if (extension === ".svg") return "image/svg+xml";
   return "image/png";
 }
 
@@ -437,7 +439,7 @@ export function managedAssetMimeFromExtension(filePath: string): string {
   const extension = path.extname(filePath).toLowerCase();
   if ([".mp4", ".webm", ".mov", ".m4v"].includes(extension)) return videoMimeFromExtension(filePath);
   if ([".mp3", ".wav", ".m4a", ".aac", ".ogg"].includes(extension)) return audioMimeFromExtension(filePath);
-  if ([".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(extension)) return mimeFromExtension(filePath);
+  if ([".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"].includes(extension)) return mimeFromExtension(filePath);
   return "application/octet-stream";
 }
 

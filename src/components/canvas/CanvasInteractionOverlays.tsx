@@ -191,7 +191,7 @@ export function CanvasZoomToolbar({
 }: CanvasZoomToolbarProps): React.ReactElement {
   const uiText = useUiText();
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const reduceMotion = Boolean(useReducedMotion());
   const boundedZoom = clamp(zoom, minZoom, maxZoom);
   const percentage = Math.round(boundedZoom * 100);

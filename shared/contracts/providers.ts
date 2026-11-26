@@ -1,3 +1,5 @@
+import type { ImageOutputFormat } from "./generation.js";
+
 export type ProviderType = "official" | "codex-oauth" | "openai-compatible" | "openrouter" | "bailian" | "ark" | "poe" | "fal";
 
 export type ProviderApiMode = "images" | "responses";
@@ -19,6 +21,8 @@ export interface ProviderConfig {
   models?: string[];
   model: string;
   supportsReferenceImages: boolean;
+  /** Per-model overrides for compatible Images APIs, matching Leru capabilities. */
+  imageCapabilities?: Record<string, { outputFormats: ImageOutputFormat[]; svgModel?: string }>;
   /** Codex 图片账号是否自动创建关联文本服务；删除该文本服务后设为 false。 */
   autoBindText?: boolean;
   /** 图生图/编辑模型 ID；当前用于 fal.ai，留空时沿用 model。 */

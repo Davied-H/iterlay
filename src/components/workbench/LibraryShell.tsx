@@ -13,6 +13,7 @@ import { BoardGenerationStatus } from "@/components/workbench/BoardGenerationSta
 import { BoardLibrary } from "@/components/workbench/BoardLibrary";
 import { BoardTrash } from "@/components/workbench/BoardTrash";
 import { CreationAssistantPage, type CreationAssistantGenerationPlan, type CreationAssistantResult } from "@/components/workbench/CreationAssistantPage";
+import { CliGettingStartedDialog } from "@/components/workbench/CliGettingStartedDialog";
 import { InspirationSources } from "@/components/workbench/InspirationSources";
 import { LibraryNavCanvasIcon, type LibraryNavIconKind } from "@/components/workbench/LibraryNavCanvasIcon";
 import { OnlineShareManagerDialog } from "@/components/workbench/OnlineShareManagerDialog";
@@ -64,6 +65,7 @@ import {
   RadioTower,
   RefreshCw,
   Settings,
+  Terminal,
   Trash2
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -135,6 +137,7 @@ interface LibraryShellProps {
   onLocateOnlineShare: (boardId: string, nodeIds: string[]) => void;
   onOpenReferralInvite?: () => void;
   onOpenSettings: () => void;
+  onOpenCliSettings?: (section: "coding-agent" | "model-management") => void;
   onClose: () => void;
 }
 
@@ -206,6 +209,8 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
   const [isDeletingSidebarBoard, setIsDeletingSidebarBoard] = useState(false);
   const [boardLibraryLocked, setBoardLibraryLocked] = useState(false);
   const [onlineShareManagerOpen, setOnlineShareManagerOpen] = useState(false);
+  const [cliGuideOpen, setCliGuideOpen] = useState(false);
+  const cliGuideEntryRef = useRef<HTMLButtonElement>(null);
   const [trashedBoards, setTrashedBoards] = useState<TrashedBoardSummary[]>([]);
   const [trashRetentionDays, setTrashRetentionDays] = useState<BoardTrashRetentionDays>(3);
   const [trashLoading, setTrashLoading] = useState(true);
@@ -789,6 +794,9 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           </CompactSidebarTooltip> : null}
           <SidebarUtilityEntries
             compact={compactSidebar}
+            cliGuideOpen={cliGuideOpen}
+            cliGuideEntryRef={cliGuideEntryRef}
+            onOpenCliGuide={() => setCliGuideOpen(true)}
             trashedBoardCount={trashedBoards.length}
             trashActive={tab === "trash"}
             onOpenTrash={() => setTab("trash")}
@@ -796,6 +804,15 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
           />
         </div>
       </motion.aside>
+
+      <CliGettingStartedDialog
+        open={cliGuideOpen}
+        onOpenChange={setCliGuideOpen}
+        returnFocusRef={cliGuideEntryRef}
+        onOpenSettings={(section) => props.onOpenCliSettings ? props.onOpenCliSettings(section) : onOpenSettings()}
+        onOpenBoard={(id) => onOpenBoard(id)}
+        onOpenBoards={() => setTab("boards")}
+      />
 
       <div className="relative z-40 w-0 shrink-0 self-stretch">
         <button
@@ -1265,12 +1282,18 @@ function CompactRecentBoards({
 
 function SidebarUtilityEntries({
   compact,
+  cliGuideOpen,
+  cliGuideEntryRef,
+  onOpenCliGuide,
   trashedBoardCount,
   trashActive,
   onOpenTrash,
   onOpenSettings
 }: {
   compact: boolean;
+  cliGuideOpen: boolean;
+  cliGuideEntryRef: React.RefObject<HTMLButtonElement | null>;
+  onOpenCliGuide: () => void;
   trashedBoardCount: number;
   trashActive: boolean;
   onOpenTrash: () => void;
@@ -1305,6 +1328,12 @@ function SidebarUtilityEntries({
   );
 
   return <>
+    <CompactSidebarTooltip compact={compact} label={uiText("CLI 与 Agent")}>
+      <button ref={cliGuideEntryRef} type="button" data-sidebar-utility aria-haspopup="dialog" aria-expanded={cliGuideOpen} aria-label={uiText("CLI 与 Agent")} onClick={onOpenCliGuide} className={utilityClass(cliGuideOpen)}>
+        <Terminal className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("CLI 与 Agent")}</span>
+      </button>
+    </CompactSidebarTooltip>
     <CompactSidebarTooltip compact={compact} label={uiText("回收站")}>
       <button type="button" data-sidebar-utility onClick={onOpenTrash} className={utilityClass(trashActive)}>
         <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />

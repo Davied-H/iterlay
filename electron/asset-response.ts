@@ -19,6 +19,10 @@ export async function createAssetResponse(
     "Cache-Control": "private, max-age=31536000, immutable",
     "Access-Control-Allow-Origin": "*"
   });
+  if (filePath.toLowerCase().endsWith(".svg")) {
+    headers.set("Content-Security-Policy", "default-src 'none'; style-src 'none'; sandbox");
+    headers.set("X-Content-Type-Options", "nosniff");
+  }
   const requestedRange = request.headers.get("range");
   const range = parseAssetByteRange(requestedRange, file.size);
   if (requestedRange && !range) {

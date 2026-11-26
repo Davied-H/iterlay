@@ -3,8 +3,6 @@ import { translateSourceText } from "@/i18n/ui-text";
 
 import { type GeneratedImage } from "@/components/canvas/image-node-model";
 
-import { canUseTextAgent } from "@/lib/text-provider-readiness";
-
 import { selectProviderModel } from "@shared/provider-models";
 import type {
   AppSettings,
@@ -40,7 +38,6 @@ export interface SettingsActionDependencies {
   setStatus: (message: string) => void;
   setWechatExportRequest: Dispatch<SetStateAction<{ images: GeneratedImage[]; mode: "personal" | "album"; } | null>>;
   setQuickImageShareImages: Dispatch<SetStateAction<GeneratedImage[] | null>>;
-  activeTextProvider: TextProviderConfig;
   setEditSmartSuggestionsPreference: Dispatch<SetStateAction<boolean | undefined>>;
 }
 export function createSettingsActions(dependencies: SettingsActionDependencies) {
@@ -56,7 +53,6 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   setStatus,
   setWechatExportRequest,
   setQuickImageShareImages,
-  activeTextProvider,
   setEditSmartSuggestionsPreference
 } = dependencies;
   const {
@@ -106,7 +102,6 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   setBoardAssistantAwarenessEnabled,
   boardAssistantEnabled,
   setBoardAssistantEnabled,
-  providerKeyStatus,
   setBoardAssistantAgentModeEnabled,
   setPiAgentBuiltinTools,
   setPiAgentIterlayTools,
@@ -300,14 +295,16 @@ function changeBoardAssistantEnabled(next: boolean): void {
   }
 
 function changeBoardAssistantAgentModeEnabled(next: boolean): void {
-    const enabled = next && canUseTextAgent(activeTextProvider, providerKeyStatus);
-    setBoardAssistantAgentModeEnabled(enabled);
-    if (enabled && !boardAssistantEnabled) {
+    // Input selection is a preference; model readiness is checked when sending.
+    setBoardAssistantAgentModeEnabled(next);
+    const enableAssistant = next && !boardAssistantEnabled;
+    if (enableAssistant) {
       setBoardAssistantEnabled?.(true);
     }
     persistSettingsPatch({
-      assistantAgentModeEnabled: enabled,
-      boardAssistantAgentModeEnabled: enabled
+      assistantAgentModeEnabled: next,
+      boardAssistantAgentModeEnabled: next,
+      ...(enableAssistant ? { boardAssistantEnabled: true } : {})
     });
   }
 

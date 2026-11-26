@@ -1,3 +1,4 @@
+import { readImageDimensions } from "./media/image-metadata.js";
 import { TemplateStore } from "./storage/template-store.js";
 import { continueWithScreenCapture } from "./application/screen-collaboration.js";
 import { createScreenAccessService } from "./application/screen-access.js";
@@ -820,6 +821,7 @@ export function registerIpc({
   }
 
   async function getAssetThumbnailUrl(sourcePath: string, requestedSize = 480): Promise<string> {
+    if (/\.(?:svg|gif)$/iu.test(sourcePath)) return assets.toAssetUrl(sourcePath);
     const maxSize = requestedSize <= 192 ? 192 : 480;
     return assets.getThumbnailUrl(
       sourcePath,
@@ -850,8 +852,11 @@ export function registerIpc({
 
   async function createGeneratedBoardNodes(imagePaths: string[], jobId: string) {
     return Promise.all(imagePaths.map(async (imagePath) => {
-      const image = await imageTasks.run(() => nativeImage.createFromPath(imagePath));
-      const { width, height } = image.isEmpty() ? { width: 0, height: 0 } : image.getSize();
+      const dimensions = await readImageDimensions(imagePath, async () => {
+        const image = await imageTasks.run(() => nativeImage.createFromPath(imagePath));
+        return image.isEmpty() ? null : image.getSize();
+      });
+      const { width, height } = dimensions ?? { width: 0, height: 0 };
       return {
         id: crypto.randomUUID(),
         imagePath,

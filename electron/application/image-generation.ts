@@ -1,3 +1,5 @@
+import { normalizeImageOutput } from "../../shared/image-output.js";
+import { normalizeGeneratedImage } from "../media/image-artifact.js";
 import { createHash } from "node:crypto";
 import { assertGenerateImageInput } from "../../shared/input-validation.js";
 import { imageProviderCapabilities } from "../../shared/provider-capabilities.js";
@@ -80,6 +82,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     if (!currentProvider) {
       throw new Error("请先在设置中添加并保存一个 Provider。");
     }
+    input = normalizeImageOutput(input, currentProvider);
     const capabilities = imageProviderCapabilities(currentProvider);
     if (input.n > capabilities.maxImageCount) throw new Error(`当前模型每次最多生成 ${capabilities.maxImageCount} 张图片。`);
     if (input.workflowMode === "edit" && !capabilities.editing) throw new Error("当前 Provider 不支持图片编辑。");
@@ -164,6 +167,8 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         style: input.style,
         background: effectiveBackground,
         outputFormat: input.outputFormat,
+        frameCount: input.frameCount,
+        frameDurationMs: input.frameDurationMs,
         sceneOnly: input.sceneOnly
       },
       inputSnapshot: createGenerationInputSnapshot({ ...input, model, providerId: currentProvider.id }, references),
@@ -188,6 +193,8 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         style: input.style,
         background: effectiveBackground,
         outputFormat: input.outputFormat,
+        frameCount: input.frameCount,
+        frameDurationMs: input.frameDurationMs,
         referenceImages: decodedReferences.map((image) => ({
           name: image.name,
           mimeType: image.mimeType,
@@ -204,6 +211,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         control.submitted = true;
         return selectedProvider.generate(providerInput, currentProvider, apiKey);
       }, { signal: control.abort.signal });
+      result.images = result.images.map((image) => normalizeGeneratedImage(image, input.outputFormat));
       const completedAt = new Date().toISOString();
       const sceneResults = input.sceneOnly
         ? await sceneMedia.saveGeneration(
@@ -228,7 +236,8 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         ...jobBase,
         status: "succeeded",
         completedAt,
-        outputImagePaths
+        outputImagePaths,
+        outputMetadata: result.images.map((image) => ({ mimeType: image.mimeType, width: image.width, height: image.height, frameCount: image.frameCount, frameDurationMs: image.frameDurationMs, animationDurationMs: image.animationDurationMs }))
       };
       if (!input.sceneOnly) await history.updateJob(completedJob);
       // The renderer may reload while the official request is in flight. Persisting its

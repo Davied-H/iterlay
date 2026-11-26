@@ -1,5 +1,5 @@
 import { useUiText } from "@/i18n";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check, Copy, ExternalLink, MessageSquareText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,6 @@ const NUDGE_KEY = "iterlay:feedback-incentive-nudge:v1";
 const WIDGET_HITBOX_WIDTH = 48;
 const WIDGET_HITBOX_HEIGHT = 56;
 const VIEWPORT_MARGIN = 16;
-const EDGE_SNAP_DISTANCE = 72;
-const DOCK_IDLE_DELAY_MS = 3_000;
 const HOVER_GUIDE_DELAY_MS = 220;
 const HOVER_GUIDE_CLOSE_DELAY_MS = 120;
 const NUDGE_IDLE_DELAY_MS = 60_000;
@@ -26,6 +24,7 @@ const NUDGE_COOLDOWN_MS = 10 * 60 * 1_000;
 interface WidgetPosition {
   x: number;
   y: number;
+  side?: DockSide;
 }
 
 type DockSide = "left" | "right";
@@ -45,6 +44,7 @@ interface DragState {
   startX: number;
   startY: number;
   origin: WidgetPosition;
+  latest: WidgetPosition;
   moved: boolean;
 }
 
@@ -75,43 +75,36 @@ function clampPosition(position: WidgetPosition): WidgetPosition {
 }
 
 function defaultPosition(): WidgetPosition {
-  return clampPosition({
-    x: window.innerWidth - WIDGET_HITBOX_WIDTH - 20,
+  return snapPositionToEdge({
+    x: window.innerWidth - WIDGET_HITBOX_WIDTH,
     y: window.innerHeight - WIDGET_HITBOX_HEIGHT - 20
-  });
+  }, "right");
 }
 
 function nearestDockSide(position: WidgetPosition): DockSide {
   return position.x + WIDGET_HITBOX_WIDTH / 2 < window.innerWidth / 2 ? "left" : "right";
 }
 
-function dockSideWithinRange(position: WidgetPosition): DockSide | null {
-  const clamped = clampPosition(position);
-  const leftDistance = clamped.x;
-  const rightDistance = window.innerWidth - WIDGET_HITBOX_WIDTH - clamped.x;
-  if (Math.min(leftDistance, rightDistance) > EDGE_SNAP_DISTANCE) return null;
-  return leftDistance <= rightDistance ? "left" : "right";
-}
-
 function snapPositionToEdge(position: WidgetPosition, side: DockSide): WidgetPosition {
   const clamped = clampPosition(position);
   return {
-    x: side === "left" ? 0 : window.innerWidth - WIDGET_HITBOX_WIDTH,
-    y: clamped.y
+    x: side === "left" ? 0 : Math.max(0, window.innerWidth - WIDGET_HITBOX_WIDTH),
+    y: clamped.y,
+    side
   };
 }
 
 function normalizePosition(position: WidgetPosition): WidgetPosition {
   const clamped = clampPosition(position);
-  const side = dockSideWithinRange(clamped);
-  return side ? snapPositionToEdge(clamped, side) : clamped;
+  return snapPositionToEdge(clamped, position.side ?? nearestDockSide(clamped));
 }
 
 function readWidgetPosition(): WidgetPosition {
   try {
     const parsed = JSON.parse(localStorage.getItem(POSITION_KEY) ?? "null") as Partial<WidgetPosition> | null;
     if (parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) {
-      return normalizePosition({ x: Number(parsed.x), y: Number(parsed.y) });
+      return normalizePosition({ x: Number(parsed.x), y: Number(parsed.y),
+        side: parsed.side === "left" || parsed.side === "right" ? parsed.side : undefined });
     }
   } catch {
     // A malformed local preference should never block the feedback entry point.
@@ -187,9 +180,8 @@ export function FeedbackWidget({
   const [nudgeOpen, setNudgeOpen] = useState(false);
   const [hoverGuideOpen, setHoverGuideOpen] = useState(false);
   const [nudgeVariant, setNudgeVariant] = useState(() => readNudgeMemory()?.nextVariant ?? 0);
-  const [docked, setDocked] = useState(false);
+  const [docked, setDocked] = useState(true);
   const drag = useRef<DragState | null>(null);
-  const dockTimer = useRef<number | null>(null);
   const hoverGuideTimer = useRef<number | null>(null);
   const hoverGuideCloseTimer = useRef<number | null>(null);
   const nudgeDismissTimer = useRef<number | null>(null);
@@ -237,7 +229,6 @@ export function FeedbackWidget({
 
   useEffect(() => () => {
     if (nudgeDismissTimer.current !== null) window.clearTimeout(nudgeDismissTimer.current);
-    if (dockTimer.current !== null) window.clearTimeout(dockTimer.current);
     if (hoverGuideTimer.current !== null) window.clearTimeout(hoverGuideTimer.current);
     if (hoverGuideCloseTimer.current !== null) window.clearTimeout(hoverGuideCloseTimer.current);
   }, []);
@@ -251,30 +242,14 @@ export function FeedbackWidget({
     }
   }, [content, kind]);
 
-  function persistPosition(next: WidgetPosition): void {
-    setPosition(next);
+  useEffect(() => {
+    if (drag.current) return;
     try {
-      localStorage.setItem(POSITION_KEY, JSON.stringify(next));
+      localStorage.setItem(POSITION_KEY, JSON.stringify(position));
     } catch {
       // Position persistence is best-effort.
     }
-  }
-
-  const clearDockTimer = useCallback((): void => {
-    if (dockTimer.current !== null) window.clearTimeout(dockTimer.current);
-    dockTimer.current = null;
-  }, []);
-
-  const scheduleDocking = useCallback((): void => {
-    clearDockTimer();
-    if (open || nudgeOpen || drag.current || !dockSideWithinRange(position)) return;
-    dockTimer.current = window.setTimeout(() => setDocked(true), DOCK_IDLE_DELAY_MS);
-  }, [clearDockTimer, nudgeOpen, open, position]);
-
-  const wakeWidget = useCallback((): void => {
-    setDocked(false);
-    scheduleDocking();
-  }, [scheduleDocking]);
+  }, [position]);
 
   function clearHoverGuideTimers(): void {
     if (hoverGuideTimer.current !== null) window.clearTimeout(hoverGuideTimer.current);
@@ -284,7 +259,6 @@ export function FeedbackWidget({
   }
 
   function showHoverGuide(): void {
-    wakeWidget();
     if (nudgeOpen || hoverGuideOpen) return;
     if (hoverGuideTimer.current !== null) window.clearTimeout(hoverGuideTimer.current);
     if (hoverGuideCloseTimer.current !== null) window.clearTimeout(hoverGuideCloseTimer.current);
@@ -299,7 +273,6 @@ export function FeedbackWidget({
     if (hoverGuideTimer.current !== null) window.clearTimeout(hoverGuideTimer.current);
     hoverGuideTimer.current = null;
     if (!hoverGuideOpen) {
-      scheduleDocking();
       return;
     }
     if (hoverGuideCloseTimer.current !== null) return;
@@ -309,22 +282,11 @@ export function FeedbackWidget({
     }, HOVER_GUIDE_CLOSE_DELAY_MS);
   }
 
-  useEffect(() => {
-    if (open || nudgeOpen || hoverGuideOpen) {
-      clearDockTimer();
-      setDocked(false);
-      return;
-    }
-    scheduleDocking();
-    return clearDockTimer;
-  }, [clearDockTimer, hoverGuideOpen, nudgeOpen, open, scheduleDocking, wakeWidget]);
-
   function openForm(): void {
     if (nudgeDismissTimer.current !== null) window.clearTimeout(nudgeDismissTimer.current);
     setNudgeOpen(false);
     clearHoverGuideTimers();
     setHoverGuideOpen(false);
-    wakeWidget();
     setError("");
     setOpen(true);
   }
@@ -337,9 +299,8 @@ export function FeedbackWidget({
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>): void {
-    if (event.button !== 0) return;
-    wakeWidget();
-    clearDockTimer();
+    if (event.button !== 0 || event.isPrimary === false || drag.current) return;
+    setDocked(false);
     clearHoverGuideTimers();
     setHoverGuideOpen(false);
     drag.current = {
@@ -347,6 +308,7 @@ export function FeedbackWidget({
       startX: event.clientX,
       startY: event.clientY,
       origin: position,
+      latest: position,
       moved: false
     };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -358,30 +320,25 @@ export function FeedbackWidget({
     const dx = event.clientX - current.startX;
     const dy = event.clientY - current.startY;
     const moved = current.moved || Math.abs(dx) + Math.abs(dy) > 5;
-    drag.current = { ...current, moved };
-    if (moved) setPosition(clampPosition({ x: current.origin.x + dx, y: current.origin.y + dy }));
+    const latest = moved ? clampPosition({ x: current.origin.x + dx, y: current.origin.y + dy }) : current.latest;
+    drag.current = { ...current, moved, latest };
+    if (moved) setPosition(latest);
   }
 
   function finishPointer(event: PointerEvent<HTMLButtonElement>, cancelled = false): void {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     drag.current = null;
+    setDocked(true);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (current.moved) {
-      const releasedPosition = clampPosition({
+      const releasedPosition = cancelled ? current.latest : clampPosition({
         x: current.origin.x + event.clientX - current.startX,
         y: current.origin.y + event.clientY - current.startY
       });
-      const nextDockSide = dockSideWithinRange(releasedPosition);
-      const nextPosition = nextDockSide
-        ? snapPositionToEdge(releasedPosition, nextDockSide)
-        : releasedPosition;
-      persistPosition(nextPosition);
-      setDocked(nextDockSide !== null);
-      if (!nextDockSide) clearDockTimer();
+      setPosition(snapPositionToEdge(releasedPosition, nearestDockSide(releasedPosition)));
     }
     else if (!cancelled) openForm();
-    else scheduleDocking();
   }
 
   function handleKeyboard(event: KeyboardEvent<HTMLButtonElement>): void {
@@ -393,10 +350,11 @@ export function FeedbackWidget({
     if (!event.altKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     const step = event.shiftKey ? 32 : 12;
-    persistPosition(clampPosition({
-      x: position.x + (event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0),
+    const side = event.key === "ArrowLeft" ? "left" : event.key === "ArrowRight" ? "right" : position.side ?? nearestDockSide(position);
+    setPosition(snapPositionToEdge({
+      x: position.x,
       y: position.y + (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0)
-    }));
+    }, side));
   }
 
   function handleKindKeyboard(event: KeyboardEvent<HTMLButtonElement>, optionIndex: number): void {
@@ -435,7 +393,7 @@ export function FeedbackWidget({
 
   const selectedKindIndex = kindOptions.findIndex((option) => option.value === kind);
   const activeNudge = feedbackNudges[nudgeVariant % feedbackNudges.length];
-  const dockSide = nearestDockSide(position);
+  const dockSide = position.side ?? nearestDockSide(position);
   const expandedControlClipPath = "inset(8px 4px round 999px)";
   const dockedControlClipPath = dockSide === "left"
     ? "inset(0 20px 0 0 round 0 8px 8px 0)"
@@ -472,12 +430,12 @@ export function FeedbackWidget({
                 : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             onPointerEnter={showHoverGuide}
             onPointerLeave={deferCloseHoverGuide}
-            onFocus={wakeWidget}
             onBlur={deferCloseHoverGuide}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={(event) => finishPointer(event)}
             onPointerCancel={(event) => finishPointer(event, true)}
+            onLostPointerCapture={(event) => finishPointer(event, true)}
             onKeyDown={handleKeyboard}
           >
             <motion.span

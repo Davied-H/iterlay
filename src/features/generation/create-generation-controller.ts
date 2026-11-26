@@ -150,7 +150,7 @@ export function createImageGenerationController(dependencies: GenerationControll
         ? (imagesRef.current.find((image) => image.id === targetNodeId) ?? null)
         : null;
     if (!providerSupportsTransparentBackground(activeProvider)) {
-      generationInput = { ...generationInput, background: "auto", outputFormat: "png" };
+      generationInput = { ...generationInput, background: "auto" };
     }
 
     const submittedPrompt = generationInput.prompt.trim();
@@ -371,7 +371,7 @@ export function createImageGenerationController(dependencies: GenerationControll
         model: options?.preserveModelOverride || (generationInput.historySourceJobId && generationInput.providerId === activeProviderId)
           ? generationInput.model
           : activeProvider.model || generationInput.model,
-        size: parseGptImageSize(generationInput.size),
+        size: generationInput.outputFormat === "gif" ? generationInput.size : parseGptImageSize(generationInput.size),
         background: generationInput.background,
         outputFormat: generationInput.outputFormat,
         boardId: originBoard.id,

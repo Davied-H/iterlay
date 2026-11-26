@@ -52,11 +52,11 @@ describe("FeedbackWidget", () => {
     await renderWidget({ view: "board" });
 
     const entry = document.body.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]');
-    expect(entry?.dataset.feedbackDocked).toBe("false");
+    expect(entry?.dataset.feedbackDocked).toBe("true");
     await act(async () => { vi.advanceTimersByTime(3_000); });
     expect(entry?.dataset.feedbackDocked).toBe("true");
     await act(async () => { vi.advanceTimersByTime(57_000); });
-    expect(entry?.dataset.feedbackDocked).toBe("false");
+    expect(entry?.dataset.feedbackDocked).toBe("true");
 
     expect(document.body.textContent).toContain("哪一步不顺手？");
     expect(document.body.textContent).toContain("在 GitHub Issues 告诉我们");
@@ -76,7 +76,7 @@ describe("FeedbackWidget", () => {
     expect(document.body.textContent).toContain("提交点子");
   });
 
-  it("redocks three seconds after a brief hover that never opens the guide", async () => {
+  it("stays docked during a brief hover that never opens the guide", async () => {
     vi.useFakeTimers();
     await renderWidget({ view: "board" });
     const entry = document.body.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]')!;
@@ -86,15 +86,15 @@ describe("FeedbackWidget", () => {
     await act(async () => entry.dispatchEvent(new MouseEvent("pointerover", { bubbles: true })));
     await act(async () => { vi.advanceTimersByTime(100); });
     await act(async () => entry.dispatchEvent(new MouseEvent("pointerout", { bubbles: true })));
-    expect(entry.dataset.feedbackDocked).toBe("false");
+    expect(entry.dataset.feedbackDocked).toBe("true");
     await act(async () => { vi.advanceTimersByTime(2_999); });
-    expect(entry.dataset.feedbackDocked).toBe("false");
+    expect(entry.dataset.feedbackDocked).toBe("true");
     await act(async () => { vi.advanceTimersByTime(1); });
     expect(entry.dataset.feedbackDocked).toBe("true");
     expect(document.body.textContent).not.toContain("哪一步不顺手？");
   });
 
-  it("redocks after the hover guide closes", async () => {
+  it("stays docked while the hover guide opens and closes", async () => {
     vi.useFakeTimers();
     await renderWidget({ view: "board" });
     const entry = document.body.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]')!;
@@ -104,12 +104,12 @@ describe("FeedbackWidget", () => {
     await act(async () => entry.dispatchEvent(new MouseEvent("pointerout", { bubbles: true })));
     await act(async () => { vi.advanceTimersByTime(120); });
     await act(async () => { vi.advanceTimersByTime(2_999); });
-    expect(entry.dataset.feedbackDocked).toBe("false");
+    expect(entry.dataset.feedbackDocked).toBe("true");
     await act(async () => { vi.advanceTimersByTime(1); });
     expect(entry.dataset.feedbackDocked).toBe("true");
   });
 
-  it("snaps and immediately docks a manually dragged entry only within the edge range", async () => {
+  it("snaps and immediately docks a manually dragged entry at the left edge", async () => {
     vi.useFakeTimers();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_000 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
@@ -130,7 +130,7 @@ describe("FeedbackWidget", () => {
 
     expect(entry.style.left).toBe("0px");
     expect(entry.dataset.feedbackDockSide).toBe("left");
-    expect(localStorage.getItem("iterlay:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 0, y: 304 }));
+    expect(localStorage.getItem("iterlay:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 0, y: 304, side: "left" }));
     expect(entry.dataset.feedbackDocked).toBe("true");
     expect(entry.dataset.feedbackDockSide).toBe("left");
     expect(entry.querySelector("[data-feedback-edge-label]")?.className).toContain("left-0");
@@ -138,10 +138,10 @@ describe("FeedbackWidget", () => {
 
     await act(async () => entry.dispatchEvent(new MouseEvent("pointerover", { bubbles: true })));
     expect(entry.style.left).toBe("0px");
-    expect(entry.dataset.feedbackDocked).toBe("false");
+    expect(entry.dataset.feedbackDocked).toBe("true");
   });
 
-  it("keeps a manually dragged entry free when it is outside the edge range", async () => {
+  it.each([[300, 0, "left"], [700, 952, "right"]] as const)("snaps an entry released at x=%s to the nearest edge", async (releaseX, expectedX, side) => {
     vi.useFakeTimers();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1_000 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
@@ -157,14 +157,76 @@ describe("FeedbackWidget", () => {
     });
 
     await dispatchPointer(entry, "pointerdown", { pointerId: 1, clientX: 956, clientY: 720, button: 0 });
-    await dispatchPointer(entry, "pointermove", { pointerId: 1, clientX: 500, clientY: 300, button: 0 });
-    await dispatchPointer(entry, "pointerup", { pointerId: 1, clientX: 500, clientY: 300, button: 0 });
+    await dispatchPointer(entry, "pointermove", { pointerId: 1, clientX: releaseX, clientY: 300, button: 0 });
+    await dispatchPointer(entry, "pointerup", { pointerId: 1, clientX: releaseX, clientY: 300, button: 0 });
 
-    expect(entry.style.left).toBe("476px");
-    expect(entry.dataset.feedbackDocked).toBe("false");
-    expect(localStorage.getItem("iterlay:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 476, y: 304 }));
+    expect(entry.style.left).toBe(`${expectedX}px`);
+    expect(entry.dataset.feedbackDockSide).toBe(side);
+    expect(entry.dataset.feedbackDocked).toBe("true");
+    expect(localStorage.getItem("iterlay:feedback-widget-position:v1")).toBe(JSON.stringify({ x: expectedX, y: 304, side }));
     await act(async () => { vi.advanceTimersByTime(2_000); });
+    expect(entry.dataset.feedbackDocked).toBe("true");
+  });
+
+  it.each([[250, 0, "left"], [750, 952, "right"]] as const)("migrates a legacy floating position at x=%s onto its nearest side", async (x, expectedX, side) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1000 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    localStorage.setItem("iterlay:feedback-widget-position:v1", JSON.stringify({ x, y: 320 }));
+    await renderWidget({ view: "board" });
+    const entry = document.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]')!;
+    expect(entry.style.left).toBe(`${expectedX}px`);
+    expect(entry.dataset.feedbackDocked).toBe("true");
+    expect(JSON.parse(localStorage.getItem("iterlay:feedback-widget-position:v1")!)).toEqual({ x: expectedX, y: 320, side });
+  });
+
+  it("retains its chosen edge through resize, remount and keyboard repositioning", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1000 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    await renderWidget({ view: "board" });
+    let entry = document.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]')!;
+    expect(entry.style.left).toBe("952px");
+    await act(async () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 2400 });
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(entry.style.left).toBe("2352px");
+    expect(entry.dataset.feedbackDockSide).toBe("right");
+    await act(async () => entry.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true })));
+    expect(entry.style.left).toBe("0px");
+    const previousY = Number.parseFloat(entry.style.top);
+    await act(async () => entry.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, bubbles: true })));
+    expect(Number.parseFloat(entry.style.top)).toBe(previousY - 12);
+    await act(async () => root?.unmount());
+    container?.remove();
+    await renderWidget({ view: "board" });
+    entry = document.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]')!;
+    expect(entry.style.left).toBe("0px");
+    expect(entry.dataset.feedbackDockSide).toBe("left");
+    await act(async () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: 420 });
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(entry.style.left).toBe("0px");
+    expect(Number.parseFloat(entry.style.top)).toBeLessThanOrEqual(420 - 56 - 16);
+  });
+
+  it.each(["pointercancel", "lostpointercapture"])("snaps the latest dragged position when %s interrupts a drag", async (eventType) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1000 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    await renderWidget({ view: "board" });
+    const entry = document.querySelector<HTMLButtonElement>('[aria-label="提交反馈"]')!;
+    Object.defineProperties(entry, {
+      setPointerCapture: { value: vi.fn() }, hasPointerCapture: { value: () => true }, releasePointerCapture: { value: vi.fn() }
+    });
+    await dispatchPointer(entry, "pointerdown", { pointerId: 1, clientX: 976, clientY: 740, button: 0 });
+    await dispatchPointer(entry, "pointermove", { pointerId: 1, clientX: 250, clientY: 340, button: 0 });
     expect(entry.dataset.feedbackDocked).toBe("false");
+    await dispatchPointer(entry, eventType, { pointerId: 1, clientX: 0, clientY: 0, button: 0 });
+    expect(entry.style.left).toBe("0px");
+    expect(entry.style.top).toBe("324px");
+    expect(entry.dataset.feedbackDocked).toBe("true");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it("uses a compact, explicit feedback control without shrinking its hit target", async () => {

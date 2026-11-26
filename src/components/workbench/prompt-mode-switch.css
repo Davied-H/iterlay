@@ -1,100 +1,91 @@
 .prompt-mode-switch {
-  --mode-time: 280ms;
-  --mode-ease: cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   flex: none;
-  width: 92px;
-  height: 32px;
-  padding: 3px;
-  border: 1px solid #e3e6e4;
-  border-radius: 999px;
-  background: #f2f3f2;
-}
-.prompt-mode-labels,
-.prompt-mode-thumb-labels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   align-items: center;
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1;
-  text-align: center;
-  pointer-events: none;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--chat-subtle, #f4f4f4);
+  color: var(--chat-secondary, #676767);
 }
-.prompt-mode-labels {
+.prompt-mode-indicator {
   position: absolute;
-  inset: 3px;
-  color: #686e69;
-}
-.prompt-mode-thumb {
-  position: absolute;
-  z-index: 1;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / 2);
-  overflow: hidden;
-  border-radius: 999px;
-  background: #3b3d3c;
-  box-shadow: 0 1px 2px #00000014;
+  z-index: 0;
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 8px) / 2);
+  border-radius: 7px;
+  background: var(--chat-surface, #fff);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
   pointer-events: none;
   transform: translateX(0);
-  transition: transform var(--mode-time) var(--mode-ease);
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.prompt-mode-thumb-labels {
-  width: 200%;
-  height: 100%;
-  color: #fff;
-  transform: translateX(0);
-  transition: transform var(--mode-time) var(--mode-ease);
-}
-.prompt-mode-switch[data-active="direct"] .prompt-mode-thumb {
-  transform: translateX(100%);
-}
-.prompt-mode-switch[data-active="direct"] .prompt-mode-thumb-labels {
-  transform: translateX(-50%);
+.prompt-mode-switch[data-active="direct"] .prompt-mode-indicator {
+  transform: translateX(calc(100% + 2px));
 }
 .prompt-mode-switch button {
   position: relative;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  font-size: 12px;
-  line-height: 1;
-  border-radius: 999px;
-  color: transparent;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 62px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.prompt-mode-switch button:hover {
+  background: var(--chat-hover, #ececec);
+  color: var(--chat-ink, #0d0d0d);
+}
+.prompt-mode-switch button[aria-checked="true"] {
+  background: transparent;
+  color: var(--chat-ink, #0d0d0d);
+}
+.prompt-mode-switch button[data-mode="ai"][aria-checked="true"] {
+  color: #087f75;
+}
+.dark .prompt-mode-switch button[data-mode="ai"][aria-checked="true"] {
+  color: #78d9cb;
+}
+.prompt-mode-switch svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .prompt-mode-switch button:focus-visible {
-  outline: 2px solid #3b3d3c;
-  outline-offset: 3px;
+  outline: 2px solid hsl(var(--focus-accent));
+  outline-offset: 2px;
 }
-
-.prompt-mode-switch[data-locale="en-US"] {
-  width: 124px;
-}
-.dark .prompt-mode-switch {
-  background: #2f3130;
-  border-color: #424644;
-}
-.dark .prompt-mode-labels {
-  color: #b4b8b5;
-}
-.dark .prompt-mode-thumb {
-  background: #555a57;
-}
-@container (max-width:380px) {
-  .prompt-mode-switch:not([data-locale="en-US"]) {
-    width: 88px;
+@container (max-width: 380px) {
+  .prompt-mode-switch button {
+    min-width: 32px;
+    min-height: 32px;
+    padding-inline: 8px;
+  }
+  .prompt-mode-switch button span {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .prompt-mode-thumb,
-  .prompt-mode-thumb-labels {
-    transition: none !important;
+  .prompt-mode-switch button,
+  .prompt-mode-indicator {
+    transition: none;
   }
 }

@@ -27,6 +27,25 @@ afterEach(async () => {
 });
 
 describe("BoardLibrary layout", () => {
+  it("keeps library shortcuts inactive while a dialog owns keyboard focus", async () => {
+    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    const onClose = vi.fn();
+    await act(async () => root?.render(createElement(BoardLibrary, {
+      boards: [], onOpenBoard: vi.fn(), onPrefetchBoard: vi.fn(), onCreateBoard: vi.fn(),
+      onRenameBoard: vi.fn(), onDuplicateBoard: vi.fn(), onDeleteBoard: vi.fn(async () => undefined),
+      onExportBoard: vi.fn(), onImportBoard: vi.fn(async () => undefined), onImportBoardFiles: vi.fn(async () => undefined), onClose
+    })));
+    const dialog = document.createElement("section"); dialog.setAttribute("role", "dialog"); document.body.append(dialog);
+    try {
+      await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+      expect(onClose).not.toHaveBeenCalled();
+      await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })));
+      expect(document.activeElement).not.toBe(container?.querySelector("input"));
+    } finally { dialog.remove(); }
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("places board filters in the secondary toolbar", async () => {
     const board: BoardSummary = {
       id: "board-1",

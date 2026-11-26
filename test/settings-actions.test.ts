@@ -4,32 +4,40 @@ import {
   type SettingsActionDependencies
 } from "../src/features/settings/create-settings-actions";
 describe("community text Agent settings", () => {
-  it.each([true, false])("uses actual provider readiness when key configured=%s", async (configured) => {
-    const setEnabled = vi.fn(),
-      updateSettings = vi.fn(async () => ({ ok: true }));
+  it.each([true, false])("persists AI selection independently of text key readiness=%s", async (configured) => {
+    const setEnabled = vi.fn(), updateSettings = vi.fn(async () => ({ ok: true }));
     const actions = createSettingsActions({
-      settings: {
-        providerKeyStatus: configured ? { text: true } : {},
-        setBoardAssistantAgentModeEnabled: setEnabled,
-        setSetupComplete: vi.fn()
-      },
-      activeTextProvider: {
-        id: "text",
-        type: "openai-compatible",
-        baseUrl: "https://fixture.invalid",
-        model: "fixture"
-      },
-      getWorkbenchApi: () => ({ updateSettings }),
-      reportWorkbenchError: vi.fn()
+      settings: { boardAssistantEnabled: true, providerKeyStatus: configured ? { text: true } : {},
+        setBoardAssistantAgentModeEnabled: setEnabled, setSetupComplete: vi.fn() },
+      activeTextProvider: { id: "text", type: "openai-compatible", baseUrl: "https://fixture.invalid", model: "fixture" },
+      getWorkbenchApi: () => ({ updateSettings }), reportWorkbenchError: vi.fn()
     } as unknown as SettingsActionDependencies);
     actions.changeBoardAssistantAgentModeEnabled(true);
-    expect(setEnabled).toHaveBeenCalledWith(configured);
-    await vi.waitFor(() =>
-      expect(updateSettings).toHaveBeenCalledWith({
-        assistantAgentModeEnabled: configured,
-        boardAssistantAgentModeEnabled: configured
-      })
-    );
+    expect(setEnabled).toHaveBeenLastCalledWith(true);
+    await vi.waitFor(() => expect(updateSettings).toHaveBeenLastCalledWith({
+      assistantAgentModeEnabled: true, boardAssistantAgentModeEnabled: true
+    }));
+    actions.changeBoardAssistantAgentModeEnabled(false);
+    expect(setEnabled).toHaveBeenLastCalledWith(false);
+    await vi.waitFor(() => expect(updateSettings).toHaveBeenLastCalledWith({
+      assistantAgentModeEnabled: false, boardAssistantAgentModeEnabled: false
+    }));
+  });
+
+  it("also persists assistant availability when selecting AI from a disabled assistant", async () => {
+    const setMode = vi.fn(), setAssistant = vi.fn(), updateSettings = vi.fn(async () => ({}));
+    const actions = createSettingsActions({
+      settings: { boardAssistantEnabled: false, providerKeyStatus: {}, setBoardAssistantAgentModeEnabled: setMode,
+        setBoardAssistantEnabled: setAssistant, setSetupComplete: vi.fn() },
+      activeTextProvider: undefined,
+      getWorkbenchApi: () => ({ updateSettings }), reportWorkbenchError: vi.fn()
+    } as unknown as SettingsActionDependencies);
+    actions.changeBoardAssistantAgentModeEnabled(true);
+    expect(setMode).toHaveBeenCalledWith(true);
+    expect(setAssistant).toHaveBeenCalledWith(true);
+    await vi.waitFor(() => expect(updateSettings).toHaveBeenCalledWith({
+      assistantAgentModeEnabled: true, boardAssistantAgentModeEnabled: true, boardAssistantEnabled: true
+    }));
   });
 });
 

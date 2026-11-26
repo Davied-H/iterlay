@@ -2,7 +2,7 @@
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { ReactFlow, type Node, type NodeTypes } from "@xyflow/react";
+import { ReactFlow, type Node, type NodeTypes, type OnNodesChange } from "@xyflow/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { VideoGenerationNode, type VideoGenerationNodeData } from "@/components/canvas/VideoGenerationNode";
 import {
@@ -18,6 +18,7 @@ import { NODE_INPUT_COMMIT_DELAY_MS } from "@/components/canvas/use-debounced-no
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 Object.defineProperty(window, "DOMMatrixReadOnly", { configurable: true, value: class { m22 = 1; } });
+HTMLElement.prototype.scrollIntoView = vi.fn();
 globalThis.ResizeObserver = class ResizeObserver {
   observe(): void {}
   unobserve(): void {}
@@ -34,13 +35,13 @@ afterEach(async () => {
   container = null;
 });
 
-function renderCanvasNode(node: Node, nodeTypes: NodeTypes, selectionCount = 1): void {
+function renderCanvasNode(node: Node, nodeTypes: NodeTypes, selectionCount = 1, onNodesChange?: OnNodesChange): void {
   container = document.createElement("div");
   container.style.width = "900px";
   container.style.height = "760px";
   document.body.append(container);
   root = createRoot(container);
-  act(() => root?.render(createElement(CanvasSelectionCountContext.Provider, { value: selectionCount }, createElement(ReactFlow, { nodes: [node], edges: [], nodeTypes }))));
+  act(() => root?.render(createElement(CanvasSelectionCountContext.Provider, { value: selectionCount }, createElement(ReactFlow, { nodes: [node], edges: [], nodeTypes, onNodesChange }))));
 }
 
 function buttonByLabel(label: string): HTMLButtonElement {
@@ -142,10 +143,13 @@ describe("video canvas node UI", () => {
     };
     renderCanvasNode({ id: "generator", type: "videoGenerationNode", position: { x: 0, y: 0 },
       data: data as unknown as Record<string, unknown> }, { videoGenerationNode: VideoGenerationNode });
-    expect(document.body.textContent).toContain("4s");
-    expect(document.body.textContent).toContain("6s");
-    expect(document.body.textContent).toContain("8s");
-    expect(document.body.textContent).not.toContain("10s");
+    await act(async () => {
+      buttonByLabel("时长").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    expect(Array.from(document.querySelectorAll('[role="option"]')).map((option) => option.textContent)).toEqual(["4s", "6s", "8s"]);
+    await act(async () => {
+      document.querySelector('[role="listbox"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(document.body.textContent).not.toContain("480p");
     expect(onChange).toHaveBeenCalledWith("generator", expect.objectContaining({
       duration: 8, aspectRatio: "16:9", resolution: "720p"
@@ -153,6 +157,34 @@ describe("video canvas node UI", () => {
     const retry = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("重试"));
     await act(async () => retry!.click());
     expect(onRetry).toHaveBeenCalledWith("generator", expect.objectContaining({ duration: 8, aspectRatio: "16:9", resolution: "720p" }));
+  });
+
+  it("uses Select keyboard navigation without moving the selected canvas node", async () => {
+    const changes = vi.fn<OnNodesChange>();
+    const data: VideoGenerationNodeData = {
+      prompt: "海边日落", providerId: "ark", model: "doubao-seedance-1-5-pro-250528",
+      providerOptions: [{ id: "ark", name: "Ark", type: "ark", baseUrl: "https://fixture.invalid", model: "doubao-seedance-1-5-pro-250528",
+        modelOptions: [{ id: "doubao-seedance-1-5-pro-250528", supportedDurations: [4, 5, 6], supportedRatios: ["16:9", "9:16"], supportedResolutions: ["720p", "1080p"] }] }],
+      duration: 5, aspectRatio: "16:9", resolution: "720p", generateAudio: false
+    };
+    renderCanvasNode({ id: "generator", type: "videoGenerationNode", selected: true, position: { x: 0, y: 0 },
+      data: data as unknown as Record<string, unknown> }, { videoGenerationNode: VideoGenerationNode }, 1, changes);
+    const positions = () => changes.mock.calls.flatMap(([updates]) => updates).filter((change) => change.type === "position");
+    changes.mockClear();
+    await act(async () => {
+      buttonByLabel("时长").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    expect(document.querySelector('[role="listbox"]')).not.toBeNull();
+    expect(positions()).toHaveLength(0);
+    await act(async () => {
+      document.querySelector('[role="option"][aria-selected="true"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    });
+    expect(positions()).toHaveLength(0);
+    await act(async () => {
+      document.querySelector('[role="listbox"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      document.querySelector('.react-flow__node')!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    expect(positions().length).toBeGreaterThan(0);
   });
 
   it("reveals semantic video targets while an image connection is active", () => {

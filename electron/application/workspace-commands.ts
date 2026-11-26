@@ -1,3 +1,5 @@
+import { IMAGE_OUTPUT_FORMATS, imageOutputCapabilities } from "../../shared/image-output.js";
+import { imageProviderCapabilities } from "../../shared/provider-capabilities.js";
 import { calculateSliceGrid, validateCropRect, MAX_SLICE_COUNT } from "../../shared/image-slicing.js";
 import { parseInlineMediaDataUrl } from "../../shared/media-import.js";
 import { imageDimensionsFromHeader } from "../media/image-metadata.js";
@@ -88,14 +90,14 @@ export class WorkspaceCommands {
         return kinds.flatMap((kind) => {
           const providers = kind === "image" ? settings.providers : kind === "video" ? settings.videoProviders ?? [] : kind === "audio" ? settings.audioProviders ?? [] : settings.textProviders ?? [];
           const activeId = kind === "image" ? settings.activeProviderId : kind === "video" ? settings.activeVideoProviderId : kind === "audio" ? settings.activeAudioProviderId : settings.activeTextProviderId;
-          return providers.filter((p) => p.type !== "official").map((p) => ({ id: p.id, name: p.name, kind, type: p.type, model: p.model, isDefault: p.id === activeId, authConfigured: Boolean(safe.providerKeyStatus?.[p.id] || safe.codexAuthStatusByProviderId?.[p.id]?.connected) }));
+          return providers.filter((p) => p.type !== "official").map((p) => ({ id: p.id, name: p.name, kind, type: p.type, model: p.model, ...(kind === "image" ? { capabilities: imageProviderCapabilities(p as import("../../shared/types.js").ProviderConfig) } : {}), isDefault: p.id === activeId, authConfigured: Boolean(safe.providerKeyStatus?.[p.id] || safe.codexAuthStatusByProviderId?.[p.id]?.connected) }));
         });
       }
       case "list_models": {
         const settings = await api.getSettings();
         const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? []), ...(settings.audioProviders ?? [])].find((p) => p.id === string(a.providerId));
         if (!provider) throw new Error("Provider 不存在。");
-        return { providerId: provider.id, defaultModel: provider.model, models: [...new Set([provider.model, ...("models" in provider && Array.isArray(provider.models) ? provider.models : [])])].filter(Boolean), source: "saved" };
+        return { providerId: provider.id, defaultModel: provider.model, models: [...new Set([provider.model, ...("models" in provider && Array.isArray(provider.models) ? provider.models : [])])].filter(Boolean), source: "saved", ...("supportsReferenceImages" in provider ? { imageCapabilities: Object.fromEntries([provider.model, ...(provider.models ?? [])].map((model) => [model, imageOutputCapabilities(provider, model)])) } : {}) };
       }
       case "read_asset": return { dataUrl: await api.readAssetDataUrl(string(a.path)) };
       case "list_tasks": return api.listHistory();
@@ -461,7 +463,10 @@ export class WorkspaceCommands {
       workflowMode: edit ? "edit" : "generate", creationMode: "general", promptSpec: { primaryRequest: prompt },
       prompt, model: string(a.model, provider.model), size: string(a.size, "auto"),
       n: count, quality: choice(a.quality, ["auto", "low", "medium", "high"] as const, "high"),
-      style: string(a.style, "natural"), background: choice(a.background, ["auto", "opaque", "transparent"] as const, "auto"), outputFormat: "png",
+      style: string(a.style, "natural"), background: choice(a.background, ["auto", "opaque", "transparent"] as const, "auto"),
+      outputFormat: choice(a.outputFormat, IMAGE_OUTPUT_FORMATS, "png"),
+      frameCount: a.frameCount === undefined ? undefined : number(a.frameCount),
+      frameDurationMs: a.frameDurationMs === undefined ? undefined : number(a.frameDurationMs),
       boardId, providerId: provider.id, referenceImages: []
     };
     const record: GenerationRecord = { requestHash, generationId: requestId, status: "running", boardId, prompt, createdAt: new Date().toISOString() };

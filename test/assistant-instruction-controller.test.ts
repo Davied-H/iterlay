@@ -18,6 +18,16 @@ function options(patch: Partial<Options> = {}): Options {
   } as Options;
 }
 describe("assistant instruction execution", () => {
+  it.each(["unconfigured", "checking", "unavailable"] as const)("keeps the AI draft without sending when model readiness is %s", async (readiness) => {
+    start.mockClear();
+    const deps = options({ supportsPromptEnhancement: false, promptEnhancementUnavailableReason: readiness });
+    await createAssistantInstructionSender(deps)("保留我的 AI 草稿");
+    expect(start).not.toHaveBeenCalled();
+    expect(deps.setAssistantValue).not.toHaveBeenCalled();
+    expect(deps.setAssistantMessages).not.toHaveBeenCalled();
+    expect(deps.onOpenSettings).toHaveBeenCalledTimes(readiness === "unconfigured" ? 1 : 0);
+  });
+
   it("preserves request context, bounded references and settled conversation history", async () => {
     start.mockClear();
     const deps = options();

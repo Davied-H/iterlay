@@ -349,7 +349,7 @@ export function PromptDock({
   const [promptHeight, setPromptHeight] = useState(DEFAULT_PROMPT_HEIGHT);
   const [maxPromptHeight, setMaxPromptHeight] = useState(360);
   const [scenePickerOpen, setScenePickerOpen] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(assistantEnabled && assistantAgentModeEnabled && !comicDramaSnapshot);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [fusionPromptContext, setFusionPromptContext] = useState<string | null>(null);
   const autoOpenedComicBoardRef = useRef<string | undefined>(undefined);
   const assistantSession = useAssistantSessionState();
@@ -469,7 +469,7 @@ export function PromptDock({
     assistantDockWidth,
     collapseDockedAssistant,
     expandDockedAssistant
-  } = useAssistantPanelLayout({ boardId, assistantSurface, assistantOpen, assistantAvailable, rightRailOpen, setAssistantOpen, onAssistantDockLayoutChange });
+  } = useAssistantPanelLayout({ boardId, assistantSurface, assistantOpen, assistantAvailable, rightRailOpen, onAssistantDockLayoutChange });
   const {
     setAssistantHistory,
     assistantHistory,
@@ -491,7 +491,7 @@ export function PromptDock({
     // Mode changes retain the AI panel's expansion preference. Only a new
     // workspace context resets it, avoiding a second layout change after switching.
     if (!previous || previous.available !== assistantAvailable || previous.boardId !== boardId || previous.surface !== assistantSurface) {
-      setAssistantOpen(assistantAvailable && assistantAgentModeEnabled);
+      setAssistantOpen(false);
       assistantOpenContext.current = { available: assistantAvailable, boardId, surface: assistantSurface };
     }
     setFusionPromptContext(null);
@@ -2398,10 +2398,10 @@ export function PromptDock({
           {providers.length ? <ProviderPicker providers={providers} activeProviderId={activeProviderId}
             creditStatus={creditStatus} creditLoading={creditLoading} requiredCredits={officialRequiredCredits}
             showLabel={false} reduceMotion={Boolean(reduceMotion)} onSelect={onSelectProvider} onManage={onOpenModelManagement} /> : null}
-          <GenerationSettingsPicker size={input.size} count={input.n} quality={input.quality} model={input.model} workflowMode={input.workflowMode} transparentBackground={input.background === "transparent"}
+          <GenerationSettingsPicker outputFormat={input.outputFormat} frameCount={input.frameCount} frameDurationMs={input.frameDurationMs} onOutputChange={onInputChange} size={input.size} count={input.n} quality={input.quality} model={input.model} workflowMode={input.workflowMode} transparentBackground={input.background === "transparent"}
             maxCount={maxImageCount} provider={activeProvider} onSizeChange={(size) => onInputChange({ size })}
             onQualityChange={(quality) => onInputChange({ quality })}
-            onCountChange={(n) => onInputChange({ n })} onTransparentBackgroundChange={(enabled) => onInputChange({ background: enabled ? "transparent" : "auto", outputFormat: "png" })}
+            onCountChange={(n) => onInputChange({ n })} onTransparentBackgroundChange={(enabled) => onInputChange({ background: enabled ? "transparent" : "auto" })}
           />
           {!editTarget && input.workflowMode === "generate" ? <DropdownMenu>
             <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={uiText("创作模式")}><LayoutTemplate /></Button></DropdownMenuTrigger>

@@ -146,6 +146,7 @@ export function BoardLibrary({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
+      if (event.defaultPrevented || document.querySelector('[role="dialog"], [role="menu"][data-state="open"]')) return;
       if (
         (event.metaKey || event.ctrlKey)
         && event.key.toLocaleLowerCase() === "k"

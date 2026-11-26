@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-workbench-api";
+import { CODING_AGENT_NAMES } from "@/lib/cli-getting-started";
 import { useUiText } from "@/i18n";
 import type { CodingAgentId, CodingAgentIntegrationStatus } from "@shared/agent-integration";
 import { SettingsGroup, SettingsPageHeader, SettingsRow } from "./SettingsPrimitives";
@@ -159,7 +160,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
         <div className="coding-agent-panel-heading coding-agent-section-heading"><div><h3>{uiText("选择你的 Coding Agent")}</h3><p>{uiText("安装一个即可开始，也可以同时配置多个。")}</p></div><Button variant="ghost" size="sm" disabled={locked} onClick={() => void perform("refresh", () => getImageWorkbenchApi().getCodingAgentStatus())}>{busy === "refresh" ? <Loader2 className="animate-spin" /> : <RefreshCw />}{uiText("重新检测")}</Button></div>
         {!status && !error ? <div className="coding-agent-loading"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div> : null}
         {status?.clients.map((agent) => {
-          const title = agent.id === "codex" ? "Codex" : "Claude Code";
+          const title = CODING_AGENT_NAMES[agent.id];
           const installing = busy === `install:${agent.id}`;
           const migrated = agent.legacyConfigured;
           const installed = agent.skillInstalled && !migrated;
@@ -172,7 +173,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
         })}
       </> : <>
         <div className="coding-agent-panel-heading"><h3>{uiText("从准备检查，到第一份交付")}</h3><p>{uiText("新开 Agent 会话，选择一项任务。安装 Skill 不代表该会话已加载它。")}</p><p>{uiText("Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。")}</p></div>
-        {installedAgents.length ? <div className="coding-agent-ready"><CheckCircle2 className="size-4" aria-hidden="true" /><span>{installedAgents.map((agent) => agent.id === "codex" ? "Codex" : "Claude Code").join(" / ")} · {uiText("Skill 已安装")}</span></div> : <p className="coding-agent-guidance">{uiText("先完成 Skill 安装，再在新会话中尝试。")}</p>}
+        {installedAgents.length ? <div className="coding-agent-ready"><CheckCircle2 className="size-4" aria-hidden="true" /><span>{installedAgents.map((agent) => CODING_AGENT_NAMES[agent.id]).join(" / ")} · {uiText("Skill 已安装")}</span></div> : <p className="coding-agent-guidance">{uiText("先完成 Skill 安装，再在新会话中尝试。")}</p>}
         {!providerReady ? <div className="coding-agent-provider"><p>{uiText("还没有可用的图片服务。配置后即可开始生成。")}</p><Button variant="outline" size="sm" disabled={locked} onClick={onOpenModels}>{uiText("配置图片服务")}</Button></div> : null}
         <AgentStarterGuide disabled={locked} defaultAgent={defaultAgent ?? installedAgents[0]?.id ?? "codex"} onCopy={copy} copied={copied} onImportBoard={onImportBoard} onOpenBoards={onOpenBoards} />
         <p className="coding-agent-command-label">{uiText("也可以直接在终端运行")}</p>
@@ -192,7 +193,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
     <details className="coding-agent-details"><summary>{uiText("命令、安装位置与维护")}</summary><div className="coding-agent-detail-content">
       <p>{uiText("CLI 与 Skill 共用 App 的模型配置；安装 Skill 不会发起生成请求。")}</p>
       {status?.cli.path ? <div><strong>{uiText("CLI 位置")}</strong><code>{status.cli.path}</code><Button size="sm" variant="outline" onClick={() => void copy(status.cli.path, "path")}>{uiText(copied === "path" ? "已复制" : "复制路径")}</Button></div> : null}
-      {status?.clients.map((agent) => <div key={agent.id}><strong>{agent.id === "codex" ? "Codex" : "Claude Code"}</strong><code>{agent.skillPath}</code><div className="coding-agent-detail-actions"><Button size="sm" variant="outline" disabled={locked} onClick={() => void perform(`install:${agent.id}`, () => getImageWorkbenchApi().installAgentSkill(agent.id))}>{uiText("重新安装 Skill")}</Button>{agent.skillInstalled && agent.skillManaged ? <Button size="sm" variant="ghost" disabled={locked} onClick={() => { if (window.confirm(uiText("移除此 Agent 的 Iterlay Skill？之后不会再自动安装，可随时重新安装。"))) void perform(`remove:${agent.id}`, () => getImageWorkbenchApi().removeAgentSkill(agent.id)); }}><Trash2 />{uiText("移除 Skill")}</Button> : null}</div></div>)}
+      {status?.clients.map((agent) => <div key={agent.id}><strong>{CODING_AGENT_NAMES[agent.id]}</strong><code>{agent.skillPath}</code><div className="coding-agent-detail-actions"><Button size="sm" variant="outline" disabled={locked} onClick={() => void perform(`install:${agent.id}`, () => getImageWorkbenchApi().installAgentSkill(agent.id))}>{uiText("重新安装 Skill")}</Button>{agent.skillInstalled && agent.skillManaged ? <Button size="sm" variant="ghost" disabled={locked} onClick={() => { if (window.confirm(uiText("移除此 Agent 的 Iterlay Skill？之后不会再自动安装，可随时重新安装。"))) void perform(`remove:${agent.id}`, () => getImageWorkbenchApi().removeAgentSkill(agent.id)); }}><Trash2 />{uiText("移除 Skill")}</Button> : null}</div></div>)}
     </div></details>
     </div>
   </div>;

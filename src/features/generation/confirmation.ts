@@ -12,6 +12,7 @@ export interface GenerationConfirmationRequest {
   providerLabel: string;
   model: string;
   totalCostLabel: string;
+  costNote?: string;
   items: GenerationConfirmationItem[];
   confirmLabel: string;
 }

@@ -11,7 +11,7 @@
   pointer-events: auto;
 }
 .prompt-fusion[data-fusion-expanded="true"] {
-  height: min(720px, 80dvh);
+  height: min(560px, 70dvh);
   max-height: calc(100dvh - 80px);
 }
 .prompt-fusion[data-fusion-mode="generate"] {
@@ -40,6 +40,12 @@
 }
 .prompt-fusion-conversation[hidden] {
   display: none;
+}
+.prompt-fusion-conversation[data-leaving] {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  pointer-events: none;
 }
 .prompt-fusion-collapsed {
   display: flex;
@@ -144,7 +150,6 @@
 .prompt-fusion-composer {
   flex: none;
   margin-top: auto;
-  transition: padding 260ms cubic-bezier(0.22, 1, 0.36, 1);
   flex-shrink: 0;
   padding: 8px 16px 16px;
   background: var(--chat-surface);
@@ -155,7 +160,6 @@
   transition:
     background-color 260ms,
     border-color 260ms,
-    border-width 260ms,
     border-radius 260ms,
     box-shadow 260ms;
   border: 1px solid var(--chat-border);
@@ -175,8 +179,8 @@
     border-color 180ms ease,
     box-shadow 180ms ease;
   border: 1px solid var(--chat-border);
-  border-radius: 26px;
-  padding: 8px 10px 9px;
+  border-radius: 16px;
+  padding: 10px 12px;
   background: var(--chat-surface);
   box-shadow: 0 3px 12px rgb(0 0 0 / 0.035);
 }
@@ -348,6 +352,8 @@
   min-inline-size: 0;
   flex: 1;
   flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .prompt-fusion-controls > * {
   flex: none;
@@ -361,6 +367,7 @@
 /* Reserve the mode and submit controls; only the middle settings track may shrink. */
 .prompt-fusion-toolbar {
   display: flex;
+  flex-wrap: nowrap;
   min-height: 40px;
   gap: 6px;
   padding-top: 4px;
@@ -801,10 +808,10 @@
 }
 /* Approved: gray shell while collapsed; one continuous white surface when expanded. */
 .prompt-fusion[data-fusion-expanded="false"] {
-  border: 1px solid var(--fusion-shell-border);
-  border-radius: 22px;
-  background: var(--fusion-shell);
-  box-shadow: 0 8px 32px rgb(0 0 0 / 0.08);
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  box-shadow: none;
 }
 .prompt-fusion[data-fusion-mode="generate"][data-fusion-expanded="false"] {
   background: transparent;
@@ -812,7 +819,7 @@
   box-shadow: none;
 }
 .prompt-fusion[data-fusion-expanded="false"] .prompt-fusion-composer {
-  padding: 4px 10px 10px;
+  padding: 4px 0 0;
   background: transparent;
 }
 .prompt-fusion[data-fusion-mode="generate"][data-fusion-expanded="false"]::before {
@@ -831,18 +838,6 @@
 .prompt-fusion textarea::placeholder {
   animation: none;
   transition: none;
-}
-.prompt-fusion[data-mode-changing] .prompt-fusion-action > button {
-  animation: prompt-mode-action-in 220ms ease-out;
-}
-@keyframes prompt-mode-action-in {
-  0%,
-  25% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
 }
 .prompt-fusion[data-fusion-expanded="true"] {
   background: var(--chat-surface);

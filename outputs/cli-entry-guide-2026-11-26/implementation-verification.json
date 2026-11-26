@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-26T14:14:42.512274+08:00",
+  "scope": "CLI 与 Agent 侧栏入口及真实引导弹窗",
+  "tests": {
+    "files": 5,
+    "passed": 33,
+    "typecheck": "passed",
+    "target_eslint": "passed",
+    "renderer_build": "passed",
+    "impeccable": "no findings"
+  },
+  "manual": [
+    "真实隔离 CLI 安装",
+    "真实隔离 Codex Skill 安装",
+    "CLI status ok",
+    "复制命令及任务文本检查",
+    "设置入口跳转",
+    "默认画板保存与打开",
+    "Esc 保留底层画板库并归还焦点",
+    "中文和英文",
+    "浅色和深色",
+    "390px 和 320px 无横向溢出"
+  ],
+  "a11y": {
+    "dark_narrow": {
+      "violations": 0,
+      "incomplete": 0
+    },
+    "light_english_narrow": {
+      "violations": 0,
+      "incomplete": 1,
+      "note": "描述文字背景无法由自动工具确定，人工检查其灰字白底"
+    }
+  },
+  "known_existing_failure": "i18n-coverage: 原画布/视频组件 29 条文案缺少英文；本次新增文案无缺失",
+  "not_performed": [
+    "模型生成或付费调用",
+    "正式 CLI/Agent 配置写入",
+    "桌面 App 重新打包或安装",
+    "提交或发布"
+  ]
+}

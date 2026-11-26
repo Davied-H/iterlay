@@ -283,7 +283,7 @@ export function PiAgentSettingsPanel({
             <p id={`${modeId}-description`}>{uiText("关闭时只进行对话；开启后，助手可以使用你允许的操作完成任务。")}</p>
           </div>
           <span className="pi-agent-mode-status">{uiText(!available ? "待配置" : enabled ? "已开启" : "仅对话")}</span>
-          <Switch id={modeId} checked={enabled} disabled={!available} onCheckedChange={onEnabledChange}
+          <Switch id={modeId} checked={enabled} disabled={!available && !enabled} onCheckedChange={onEnabledChange}
             aria-labelledby={`${modeId}-title`} aria-describedby={`${modeId}-description ${modeId}-readiness`} />
         </div>
         <div id={`${modeId}-readiness`} className="pi-agent-mode-readiness" role="status">

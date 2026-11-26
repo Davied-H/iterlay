@@ -43,6 +43,7 @@ const previewCreationMode = new URLSearchParams(window.location.search).get("cre
   : "ui-design";
 
 function Preview(): React.ReactElement {
+  const [assistantModeEnabled, setAssistantModeEnabled] = useState(true);
   const [activeProviderId, setActiveProviderId] = useState(providers[1].id);
   const activeProvider = providers.find((provider) => provider.id === activeProviderId) ?? providers[0];
   const [input, setInput] = useState<GenerateImageInput>({
@@ -102,6 +103,8 @@ function Preview(): React.ReactElement {
         autoCollapse
         boardSmartSuggestionsEnabled={false}
         assistantEnabled
+        assistantAgentModeEnabled={assistantModeEnabled}
+        onAssistantAgentModeEnabledChange={setAssistantModeEnabled}
         assistantAwarenessEnabled={false}
         assistantIntentSuggestionsEnabled={false}
         assistantIntentSuggestionCount={3}

@@ -12,6 +12,8 @@ import type { ImageWorkbenchApi } from "@shared/workbench-client";
 import type { ActiveBoard, CanvasLayoutState, CanvasPersistedNode } from "@/features/boards/types";
 import type { BoardDetailCache } from "@/lib/board-detail-cache";
 import type { GenerationConfirmationRequest } from "./confirmation";
+import { findVideoProviderModelOption } from "@shared/video-provider-models";
+import { videoCostEstimate } from "@/components/canvas/video-generation-presentation";
 
 export function isTerminalVideoJob(job: VideoGenerationJob): boolean {
   return job.status === "completed" || job.status === "failed" || job.status === "cancelled";
@@ -91,7 +93,8 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
     }
     if (paidSubmissionInFlightRef.current.has(node.id)) return;
     const metadata: Partial<VideoGenerationInput> = {};
-    const videoCostLabel = metadata.priceSnapshot?.amount ? metadata.priceSnapshot.amount + " 金豆" : "由 Provider 计费";
+    const estimate = videoCostEstimate(findVideoProviderModelOption(selectedVideoProvider.modelOptions, node.model?.trim() || selectedVideoProvider.model), node.duration ?? 5);
+    const videoCostLabel = estimate ?? "费用未知，由服务商结算";
     const confirmed = await requestGenerationConfirmation({
       title: "确认生成视频",
       providerLabel: selectedVideoProvider.name,
@@ -100,11 +103,12 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
       items: [{
         id: node.id,
         label: node.title || "片段视频",
-        task: `生成 ${node.duration ?? 5} 秒视频`,
+        task: `${node.duration ?? 5} 秒 · ${node.resolution || "720p"} · ${node.aspectRatio || "16:9"} · ${node.generateAudio ? "生成声音" : "无生成声音"}`,
         costLabel: videoCostLabel,
         quoteId: metadata.quoteId,
         quoteExpiresAt: metadata.quoteExpiresAt
       }],
+      costNote: estimate ? "根据模型目录的每秒单价估算，参考素材等附加费用不包含在内，最终以服务商账单为准。" : "服务商未提供可计算的价格，提交后可能产生费用，请以服务商账单为准。",
       confirmLabel: "确认并生成视频"
     });
     if (!confirmed || activeBoardRef.current?.id !== boardId) return;
@@ -248,8 +252,20 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
       void refreshHistory();
       for (let attempt = 0; attempt < 300 && !isTerminalVideoJob(job) && !videoPollingStoppedRef.current.has(job.id); attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 2_000));
-        const latest = await api.getVideoJob(job.id);
-        if (!latest) break;
+        let latest: VideoGenerationJob | null;
+        try {
+          latest = await api.getVideoJob(job.id);
+          if (!latest) throw new Error("暂时无法读取任务状态");
+        } catch {
+          if (videoPollingStoppedRef.current.has(job.id)) break;
+          if (activeBoardRef.current?.id === boardId) updateWorkflowNode(node.id, {
+            status: "recovering", lastGenerationId: job.id,
+            error: "连接暂时中断，正在重新查询原任务，请勿重复提交。"
+          });
+          syncPlaceholder({ ...job, status: "recovering", error: "正在恢复任务查询" });
+          continue;
+        }
+        if (videoPollingStoppedRef.current.has(job.id)) break;
         job = latest;
         if (activeBoardRef.current?.id === boardId) {
           updateWorkflowNode(node.id, {
@@ -270,10 +286,11 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
       void refreshHistory();
     } catch (error) {
       const message = getWorkbenchErrorMessage(error, "视频生成失败。");
-      if (activeBoardRef.current?.id === boardId) updateWorkflowNode(node.id, { status: "failed", error: message });
+      const status = submittedJobId === pendingJobId ? "failed" : "recovering";
+      if (activeBoardRef.current?.id === boardId) updateWorkflowNode(node.id, { status, error: message });
       syncPlaceholder({
         id: submittedJobId,
-        status: "failed",
+        status,
         outputVideoPath: undefined,
         outputPosterPath: undefined,
         error: message
@@ -312,16 +329,18 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
     const boardId = activeBoardRef.current?.id;
     if (!node?.lastGenerationId || !boardId) return;
     try {
+      const api = getWorkbenchApi();
+      if (!api) throw new Error(missingImageWorkbenchMessage);
       videoPollingStoppedRef.current.delete(node.lastGenerationId);
       await new Promise((resolve) => setTimeout(resolve, 50));
-      const recovered = await getImageWorkbenchApi().recoverVideoGenerations();
+      const recovered = await api.recoverVideoGenerations();
       let job = recovered.find((candidate) => candidate.id === node.lastGenerationId)
-        ?? await getImageWorkbenchApi().getVideoJob(node.lastGenerationId);
+        ?? await api.getVideoJob(node.lastGenerationId);
       if (!job) throw new Error("视频任务已不存在。");
       if (activeBoardRef.current?.id === boardId) updateWorkflowNode(nodeId, { status: job.status, error: undefined });
       for (let attempt = 0; attempt < 300 && !isTerminalVideoJob(job) && !videoPollingStoppedRef.current.has(job.id); attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 2_000));
-        const latest = await getImageWorkbenchApi().getVideoJob(job.id);
+        const latest = await api.getVideoJob(job.id);
         if (!latest) break;
         job = latest;
         if (activeBoardRef.current?.id === boardId) updateWorkflowNode(nodeId, { status: job.status, error: job.error });

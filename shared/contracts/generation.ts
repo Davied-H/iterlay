@@ -35,7 +35,7 @@ export type ImageQuality = "auto" | "low" | "medium" | "high";
 
 export type ImageBackground = "auto" | "opaque" | "transparent";
 
-export type ImageOutputFormat = "png";
+export type ImageOutputFormat = "png" | "jpeg" | "webp" | "svg" | "gif";
 
 export type ReferenceImageRole = "reference" | "edit-target" | "style-reference" | "subject" | "base-scene";
 
@@ -94,6 +94,8 @@ export interface GenerateImageInput {
   /** GPT Image output background. Transparent output is encoded as PNG. */
   background?: ImageBackground;
   outputFormat?: ImageOutputFormat;
+  frameCount?: number;
+  frameDurationMs?: number;
   referenceImages: ReferenceImagePayload[];
   /** 发起生成时所在的画板；结果和历史都归属到它。 */
   boardId?: string;
@@ -132,6 +134,7 @@ export interface GenerationJob {
   useCase?: GptImageUseCase;
   referenceImagePaths: string[];
   outputImagePaths: string[];
+  outputMetadata?: Array<Omit<ProviderImageResult, "bytes">>;
   error?: string;
   /** 归属画板；旧数据在首次迁移时统一挂到默认画板。 */
   boardId?: string;
@@ -167,6 +170,8 @@ export interface ProviderGenerateInput {
   style?: string;
   background?: ImageBackground;
   outputFormat?: ImageOutputFormat;
+  frameCount?: number;
+  frameDurationMs?: number;
   referenceImages: Array<{
     name: string;
     mimeType: string;
@@ -178,6 +183,11 @@ export interface ProviderGenerateInput {
 export interface ProviderImageResult {
   bytes: Buffer;
   mimeType: string;
+  width?: number;
+  height?: number;
+  frameCount?: number;
+  frameDurationMs?: number;
+  animationDurationMs?: number;
 }
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "unknown";

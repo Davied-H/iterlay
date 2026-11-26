@@ -118,6 +118,11 @@ describe("canvas interaction overlays", () => {
       miniMapOpen: true
     }));
 
+    expect(host.querySelector('[data-canvas-zoom-toolbar]')?.getAttribute("data-collapsed")).toBe("true");
+    expect(host.querySelector('[aria-label="画布缩放"]')).toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="展开缩放工具栏"]')!.click());
+    await waitForAssertion(() => expect(host.querySelector('[aria-label="画布缩放"]')).not.toBeNull());
+
     await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="放大"]')?.click());
     expect(onZoomChange).toHaveBeenLastCalledWith(4);
     const slider = host.querySelector<HTMLInputElement>('[aria-label="画布缩放"]');

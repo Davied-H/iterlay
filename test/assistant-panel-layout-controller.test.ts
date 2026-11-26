@@ -10,11 +10,13 @@ import { ASSISTANT_DOCK_LAYOUT_STORAGE_KEY } from "../src/lib/assistant-panel-do
 afterEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
 async function setup() {
   let layout!: ReturnType<typeof useAssistantPanelLayout>;
+  let openAssistant!: () => void;
   const onChange = vi.fn(async () => null);
   const root = createRoot(document.createElement("div"));
   function Harness({ boardId }: { boardId: string }) {
     const [open, setOpen] = useState(false);
-    layout = useAssistantPanelLayout({ boardId, assistantSurface: "canvas-prompt", assistantAvailable: true, assistantOpen: open, setAssistantOpen: setOpen, rightRailOpen: false, onAssistantDockLayoutChange: onChange });
+    openAssistant = () => setOpen(true);
+    layout = useAssistantPanelLayout({ boardId, assistantSurface: "canvas-prompt", assistantAvailable: true, assistantOpen: open, rightRailOpen: false, onAssistantDockLayoutChange: onChange });
     return createElement("div", { ref: layout.assistantPanelRef });
   }
   const render = async (boardId: string) => { await act(async () => root.render(createElement(Harness, { boardId }))); };
@@ -23,7 +25,7 @@ async function setup() {
   const target = document.createElement("button");
   target.setPointerCapture = vi.fn(); target.hasPointerCapture = () => true; target.releasePointerCapture = vi.fn();
   const event = (x: number, y: number, id = 1) => ({ button: 0, isPrimary: true, pointerId: id, clientX: x, clientY: y, currentTarget: target, target, preventDefault: vi.fn(), stopPropagation: vi.fn() }) as unknown as React.PointerEvent<HTMLButtonElement>;
-  return { layout: () => layout, render, onChange, event, target, unmount: async () => { await act(async () => root.unmount()); } };
+  return { layout: () => layout, render, onChange, event, target, open: async () => { await act(async () => openAssistant()); }, unmount: async () => { await act(async () => root.unmount()); } };
 }
 describe("assistant panel layout controller", () => {
   it("resizes the floating panel, persists its dimensions, and releases pointer capture", async () => {
@@ -51,6 +53,9 @@ describe("assistant panel layout controller", () => {
     localStorage.setItem(ASSISTANT_DOCK_LAYOUT_STORAGE_KEY, JSON.stringify({ side: "left", width: 360 }));
     const harness = await setup();
     try {
+      expect(harness.layout().assistantDockSide).toBeNull();
+      expect(harness.onChange).toHaveBeenLastCalledWith(null);
+      await harness.open();
       expect(harness.layout().assistantDockSide).toBe("left");
       await act(async () => harness.layout().handleAssistantDockResizeKeyDown({ key: "ArrowRight", shiftKey: false, preventDefault: vi.fn() } as unknown as React.KeyboardEvent<HTMLButtonElement>));
       expect(harness.layout().assistantDockWidth).toBe(376);

@@ -1,3 +1,4 @@
+import { imageOutputCapabilities, IMAGE_OUTPUT_FORMATS, IMAGE_OUTPUT_LABELS } from "@shared/image-output";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -630,6 +631,7 @@ export function AiModelsSettings({
         .includes(query.trim().toLowerCase())
   );
   const image = draft?.kind === "image" ? (draft.provider as ProviderConfig) : null;
+  const imageOutput = image ? imageOutputCapabilities(image) : null;
   const text = draft?.kind === "text" ? (draft.provider as TextProviderConfig) : null;
   const video = draft?.kind === "video" ? (draft.provider as VideoProviderConfig) : null;
   const codex = draft?.provider.type === "codex-oauth";
@@ -1254,6 +1256,27 @@ export function AiModelsSettings({
                         </Field>
                       </>
                     )}
+                    {image.type === "openai-compatible" && image.apiMode !== "responses" && !/\/responses\/?$/u.test(image.generationEndpoint) && imageOutput ? (
+                      <fieldset className="col-span-full space-y-3">
+                        <legend className="text-sm font-medium">{uiText("当前模型支持的输出格式")}</legend>
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                          {IMAGE_OUTPUT_FORMATS.map((format) => <label key={format} className="flex items-center gap-2 text-xs">
+                            <input type="checkbox" checked={imageOutput.outputFormats.includes(format)}
+                              onChange={(event) => {
+                                const outputFormats = event.target.checked ? [...imageOutput.outputFormats, format] : imageOutput.outputFormats.filter((value) => value !== format);
+                                if (!outputFormats.length) return;
+                                patch({ imageCapabilities: { ...image.imageCapabilities, [image.model]: { outputFormats, svgModel: imageOutput.svgModel ?? "gpt-6.1-sol" } } });
+                              }} />
+                            {uiText(IMAGE_OUTPUT_LABELS[format])}
+                          </label>)}
+                        </div>
+                        <p className="model-field-note">{uiText("仅勾选此上游模型实际支持的格式。")}</p>
+                        {imageOutput.outputFormats.includes("svg") ? <Field label={uiText("SVG 作者模型")}>
+                          <Input aria-label={uiText("SVG 作者模型")} value={imageOutput.svgModel ?? ""}
+                            onChange={(event) => patch({ imageCapabilities: { ...image.imageCapabilities, [image.model]: { ...imageOutput, svgModel: event.target.value } } })} />
+                        </Field> : null}
+                      </fieldset>
+                    ) : null}
                     <label className="model-switch-field">
                       <span>{uiText("支持参考图与图片编辑")}</span>
                       <Switch

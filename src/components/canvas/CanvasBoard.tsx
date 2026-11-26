@@ -70,6 +70,8 @@ import type { GenerationReferencePlacementTarget } from "./generation-reference-
 import type { VideoNodeData } from "./VideoNode";
 import type { AudioReferenceInput, GeneratedVideo, VideoReferenceInput } from "./video-node-model";
 import type { VideoGenerationNodeConfig } from "./VideoGenerationNode";
+import type { VideoImageRole } from "./video-generation-presentation";
+import { connectVideoImages } from "./video-reference-connections";
 import { useCanvasNodeLayoutInteractions } from "./use-canvas-node-layout-interactions";
 import { useCanvasNodeBindings } from "./use-canvas-node-bindings";
 import { useCanvasWorkflowNodeActions } from "./use-canvas-workflow-node-actions";
@@ -248,6 +250,7 @@ export function preventMiddleMouseAutoScroll(event: MiddleMouseEvent): void {
 }
 
 interface CanvasBoardProps {
+  pluginLauncherRef?: (element: HTMLDivElement | null) => void;
   images: GeneratedImage[];
   workflowNodes?: CanvasWorkflowNode[];
   videoUrls?: Record<string, string>;
@@ -314,6 +317,8 @@ interface CanvasBoardProps {
   onExtractVideoFrame?: (video: GeneratedVideo, frameDataUrl: string) => Promise<void> | void;
   onRevealVideo?: (video: GeneratedVideo) => Promise<void> | void;
   onChooseVideoReferenceAudio?: (nodeId: string) => void;
+  onImportVideoReferences?: (files: File[], position: CanvasDropPoint) => Promise<VideoReferenceInput[]>;
+  videoTaskStartedAt?: Record<string, string>;
   onRemoveVideoReferenceAudio?: (nodeId: string, audioPath: string) => void;
   onSelectVideoVersion?: (nodeId: string, versionIndex: number) => void;
   onCreateVideoIteration?: (nodeId: string, mode: "extend" | "remix") => void;
@@ -420,6 +425,7 @@ interface CanvasBoardProps {
 }
 
 export function CanvasBoard({
+  pluginLauncherRef,
   images,
   workflowNodes = [],
   videoUrls = {},
@@ -447,6 +453,8 @@ export function CanvasBoard({
   onExtractVideoFrame,
   onRevealVideo,
   onChooseVideoReferenceAudio,
+  onImportVideoReferences,
+  videoTaskStartedAt,
   onRemoveVideoReferenceAudio,
   onSelectVideoVersion,
   onCreateVideoIteration,
@@ -640,6 +648,40 @@ export function CanvasBoard({
     }
   }, [onImportGenerationReferences, recordCanvasChange, scheduleCanvasReport, setEdges]);
   const getViewportZoom = useCallback((): number => getViewport().zoom, [getViewport]);
+  const updateVideoReferences = useCallback((updater: (edges: Edge[]) => Edge[]): void => {
+    recordCanvasChange();
+    setEdges((current) => { const next = updater(current); edgesRef.current = next; return next; });
+    scheduleCanvasReport();
+  }, [recordCanvasChange, scheduleCanvasReport, setEdges]);
+  const selectVideoImage = useCallback((nodeId: string, role: VideoImageRole, image: GeneratedImage): void => {
+    updateVideoReferences((current) => connectVideoImages(current, nodeId, role, [image]));
+  }, [updateVideoReferences]);
+  const uploadVideoImages = useCallback(async (nodeId: string, role: VideoImageRole, files: File[]): Promise<void> => {
+    const target = nodesRef.current.find((candidate) => candidate.id === nodeId);
+    if (!target || !onImportGenerationReferences) return;
+    const selected = files.filter((file) => file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg|avif|bmp)$/i.test(file.name));
+    if (!selected.length) throw new Error(translateSourceText("请选择图片文件。"));
+    recordCanvasChange();
+    const imported = await onImportGenerationReferences(role === "reference" ? selected : selected.slice(0, 1), {
+      x: target.position.x, y: target.position.y, width: nodeRenderedWidth(target), height: nodeRenderedHeight(target)
+    });
+    if (!imported.length || !nodesRef.current.some((candidate) => candidate.id === nodeId)) return;
+    setEdges((current) => { const next = connectVideoImages(current, nodeId, role, imported); edgesRef.current = next; return next; });
+    scheduleCanvasReport();
+  }, [onImportGenerationReferences, recordCanvasChange, scheduleCanvasReport, setEdges]);
+  const selectVideoReference = useCallback((nodeId: string, video: VideoReferenceInput): void => {
+    updateVideoReferences((current) => current.some((edge) => edge.target === nodeId && edge.source === video.id && edge.targetHandle === "target-video-reference") ? current : [...current, edgeFromConnection({
+      id: crypto.randomUUID(), source: video.id, target: nodeId, sourceHandle: "source-right", targetHandle: "target-video-reference", kind: "reference", label: "参考视频"
+    })]);
+  }, [updateVideoReferences]);
+  const uploadVideoReferences = useCallback(async (nodeId: string, files: File[]): Promise<void> => {
+    const target = nodesRef.current.find((candidate) => candidate.id === nodeId);
+    if (!target || !onImportVideoReferences) return;
+    recordCanvasChange();
+    const imported = await onImportVideoReferences(files, { x: target.position.x - 220, y: target.position.y });
+    if (!nodesRef.current.some((candidate) => candidate.id === nodeId)) return;
+    imported.forEach((video) => selectVideoReference(nodeId, video));
+  }, [onImportVideoReferences, recordCanvasChange, selectVideoReference]);
   const getCanvasNodes = useCallback((): Node[] => nodesRef.current, []);
   const getCanvasEdges = useCallback((): Edge[] => edgesRef.current, []);
   const updateCanvasNodes = useCallback((updater: (current: readonly Node[]) => Node[]): void => {
@@ -1153,6 +1195,7 @@ export function CanvasBoard({
         status: workflowNode.status ?? "draft",
         error: workflowNode.error,
         lastGenerationId: workflowNode.lastGenerationId,
+        taskStartedAt: workflowNode.lastGenerationId ? videoTaskStartedAt?.[workflowNode.lastGenerationId] : undefined,
         startFrame: resolved.startFrame,
         endFrame: resolved.endFrame,
         referenceImages: resolved.referenceImages,
@@ -1167,6 +1210,32 @@ export function CanvasBoard({
           name: workflowNode.referenceAudioNames?.[path] || path.split(/[\\/]/).pop() || `参考音频 ${index + 1}`,
           path
         })),
+        availableImages: nodesRef.current.filter((candidate) => candidate.type === "imageNode").map(nodeImage).filter((image): image is GeneratedImage => Boolean(image?.path && !image.pending)),
+        availableVideos: nodesRef.current.filter((candidate) => candidate.type === "videoNode"
+          && !edgesRef.current.some((edge) => edge.source === workflowNode.id && edge.target === candidate.id))
+          .flatMap((candidate) => {
+            const video = (candidate.data as unknown as VideoNodeData).video;
+            return video?.path ? [{ id: candidate.id, path: video.path, name: video.title || video.path.split(/[\\/]/).pop() || "视频", dataUrl: video.dataUrl, posterDataUrl: video.posterDataUrl, durationMs: video.durationMs }] : [];
+          }),
+        onSelectImage: selectVideoImage,
+        onUploadImages: onImportGenerationReferences ? uploadVideoImages : undefined,
+        onRemoveImage: (nodeId, role, image) => updateVideoReferences((current) => {
+          const byId = new Map(nodesRef.current.map((node) => [node.id, node]));
+          return current.filter((edge) => {
+            if (edge.target !== nodeId || edge.targetHandle !== `target-${role}`) return true;
+            if (role !== "reference") return false;
+            const source = byId.get(edge.source);
+            const selected = source?.type === "imageNode" ? nodeImage(source) : source?.type === "generationNode" ? resolveGenerationOutputImage(source, byId, current, edge) : undefined;
+            return selected?.id !== image.id && selected?.path !== image.path;
+          });
+        }),
+        onSelectVideo: selectVideoReference,
+        onUploadVideos: onImportVideoReferences ? uploadVideoReferences : undefined,
+        onRemoveVideo: (nodeId, video) => {
+          updateVideoReferences((current) => current.filter((edge) => edge.target !== nodeId || edge.targetHandle !== "target-video-reference"
+            || !nodesRef.current.some((source) => source.id === edge.source && source.type === "videoNode" && (source.data as unknown as VideoNodeData).video.path === video.path)));
+          onUpdateWorkflowNode?.(nodeId, { referenceVideoPaths: (workflowNode.referenceVideoPaths ?? []).filter((path) => path !== video.path) });
+        },
         onBeforeChange: recordCanvasChange,
         onChange: onUpdateWorkflowNode,
         onRun: run,
@@ -1203,6 +1272,14 @@ export function CanvasBoard({
     onExtractVideoFrame,
     onRevealVideo,
     onChooseVideoReferenceAudio,
+    onImportGenerationReferences,
+    onImportVideoReferences,
+    videoTaskStartedAt,
+    selectVideoImage,
+    uploadVideoImages,
+    selectVideoReference,
+    uploadVideoReferences,
+    updateVideoReferences,
     onRemoveVideoReferenceAudio,
     onRetryComicCharacter,
     onSelectVideoVersion,
@@ -1629,6 +1706,10 @@ export function CanvasBoard({
             <button type="button" onClick={() => createWorkflowNode("comic-segment-script")}><Video />{uiText("添加片段卡")}</button>
           </> : null}
         </div></details> : null}
+        {pluginLauncherRef ? <>
+          <span className="canvas-tool-divider" />
+          <div ref={pluginLauncherRef} />
+        </> : null}
       </div>
       </CanvasToolHintProvider>
       <CanvasSurface

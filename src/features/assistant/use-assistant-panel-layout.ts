@@ -63,10 +63,9 @@ interface AssistantPanelLayoutOptions {
   assistantOpen: boolean;
   assistantAvailable: boolean;
   rightRailOpen: boolean;
-  setAssistantOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onAssistantDockLayoutChange?: (layout: AssistantDockLayout | null) => Promise<AssistantDockLayout | null>;
 }
-export function useAssistantPanelLayout({ boardId, assistantSurface, assistantOpen, assistantAvailable, rightRailOpen, setAssistantOpen, onAssistantDockLayoutChange }: AssistantPanelLayoutOptions) {
+export function useAssistantPanelLayout({ boardId, assistantSurface, assistantOpen, assistantAvailable, rightRailOpen, onAssistantDockLayoutChange }: AssistantPanelLayoutOptions) {
 
   const [assistantOffset, setAssistantOffset] = useState({ x: 0, y: 0 });
 
@@ -201,10 +200,6 @@ export function useAssistantPanelLayout({ boardId, assistantSurface, assistantOp
     setAssistantDockCollapsed(false);
   }, [assistantDockCollapsed, assistantDockSide]);
 
-  useEffect(() => {
-    if (assistantDockSide && !assistantOpen) setAssistantOpen(true);
-  }, [assistantDockSide, assistantOpen, setAssistantOpen]);
-
   const restoreAssistantDockPreference = useCallback((): void => {
     if (
       !assistantDockPreference
@@ -224,13 +219,14 @@ export function useAssistantPanelLayout({ boardId, assistantSurface, assistantOp
   }, [assistantDockPreference, rightRailOpen, onAssistantDockLayoutChange]);
 
   useEffect(() => {
-    if (assistantAvailable) restoreAssistantDockPreference();
+    // A saved dock position must never open the conversation on entry.
+    if (assistantAvailable && assistantOpen) restoreAssistantDockPreference();
     else {
       setAssistantDockSide(null);
       setAssistantDockCollapsed(false);
       void onAssistantDockLayoutChange?.(null);
     }
-  }, [assistantAvailable, restoreAssistantDockPreference, onAssistantDockLayoutChange]);
+  }, [assistantAvailable, assistantOpen, restoreAssistantDockPreference, onAssistantDockLayoutChange]);
 
   function startAssistantDrag(event: React.PointerEvent<HTMLElement>): void {
     if (event.button !== 0 || event.isPrimary === false || assistantDragRef.current ||

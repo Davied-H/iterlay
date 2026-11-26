@@ -35,6 +35,8 @@ export function resetBoardDraft(input: GenerateImageInput): GenerateImageInput {
     style: input.style,
     background: input.background,
     outputFormat: input.outputFormat,
+    frameCount: input.frameCount,
+    frameDurationMs: input.frameDurationMs,
     referenceImages: []
   };
 }

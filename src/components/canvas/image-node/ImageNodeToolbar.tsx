@@ -1,3 +1,4 @@
+import { isOriginalFormatImage } from "@shared/image-output";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { useEffect, useState, type PointerEventHandler, type ReactNode } from "react";
@@ -158,7 +159,7 @@ export function ImageNodeToolbar({
         onPointerEnter={hoverEnabled ? onPointerEnter : undefined}
         onPointerLeave={hoverEnabled ? onPointerLeave : undefined}
       >
-        {onEdit && canEdit ? (
+        {onEdit && canEdit && !isOriginalFormatImage(image.path) ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <button type="button" onClick={(event) => { event.stopPropagation(); onEdit(image); }} aria-label={uiText("编辑图片")} className={primaryEditButtonClass}>
@@ -280,7 +281,7 @@ export function ImageNodeToolbar({
                       <Download aria-hidden className="h-3.5 w-3.5 text-muted-foreground" />{uiText("下载原图")}<Shortcut>D</Shortcut>
                     </button>
                   ) : null}
-                  {onRemoveBackground && image.path ? (
+                  {onRemoveBackground && image.path && !isOriginalFormatImage(image.path) ? (
                     <Popover
                       open={removeBackgroundNoticeOpen}
                       onOpenChange={(open) => {

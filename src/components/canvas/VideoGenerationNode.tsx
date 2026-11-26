@@ -14,6 +14,7 @@ import {
   Play,
   Plus,
   RotateCcw,
+  RefreshCw,
   Square,
   Video,
   X
@@ -23,6 +24,7 @@ import type { VideoProviderConfig } from "@shared/types";
 import { getProviderModels } from "@shared/provider-models";
 import { findVideoProviderModelOption, resolveVideoModelCapability, resolveVideoParameters, validateVideoParameters } from "@shared/video-provider-models";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +40,8 @@ import { resolveVideoGenerationAspectRatio } from "./video-generation-image-inpu
 import { useDebouncedNodeCommit } from "./use-debounced-node-commit";
 import { useCanvasThumbnail } from "./use-canvas-thumbnail";
 import type { ConnectionTargetPresentation } from "./connection-target-presentation";
+import { VideoReferencePicker } from "./VideoReferencePicker";
+import { videoCostEstimate, videoModelDisplayName, type VideoImageRole } from "./video-generation-presentation";
 import {
   VIDEO_MAX_REFERENCE_IMAGES,
   formatVideoDuration,
@@ -95,6 +99,15 @@ export interface VideoGenerationNodeData extends Omit<VideoGenerationNodeConfig,
   referenceImages?: GeneratedImage[];
   referenceVideos?: VideoReferenceInput[];
   referenceAudios?: AudioReferenceInput[];
+  availableImages?: GeneratedImage[];
+  availableVideos?: VideoReferenceInput[];
+  taskStartedAt?: string;
+  onSelectImage?: (nodeId: string, role: VideoImageRole, image: GeneratedImage) => void;
+  onRemoveImage?: (nodeId: string, role: VideoImageRole, image: GeneratedImage) => void;
+  onUploadImages?: (nodeId: string, role: VideoImageRole, files: File[]) => Promise<void>;
+  onSelectVideo?: (nodeId: string, video: VideoReferenceInput) => void;
+  onRemoveVideo?: (nodeId: string, video: VideoReferenceInput) => void;
+  onUploadVideos?: (nodeId: string, files: File[]) => Promise<void>;
   onBeforeChange?: () => void;
   onChange?: (nodeId: string, patch: Partial<VideoGenerationNodeConfig>) => void;
   onRun?: (nodeId: string, config: VideoGenerationNodeConfig) => void;
@@ -179,6 +192,15 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
   referenceImages = [],
   referenceVideos = [],
   referenceAudios = [],
+  availableImages = [],
+  availableVideos = [],
+  taskStartedAt,
+  onSelectImage,
+  onRemoveImage,
+  onUploadImages,
+  onSelectVideo,
+  onRemoveVideo,
+  onUploadVideos,
   providerOptions = [],
   requiresFirstLastFrame = false,
   goldBeanBalance,
@@ -233,7 +255,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
       ? "当前模型的首尾帧能力未知，请切换模型或检查 Provider 配置。"
       : "当前模型不支持首尾帧生成，请切换模型。"
     : undefined;
-  const hasSourceVideo = Boolean(sourceVideoPath || referenceVideos.length);
+  const hasSourceVideo = Boolean(sourceVideoPath || (draft.mode !== "generate" && referenceVideos.length));
   const modePresentation = MODE_PRESENTATION[draft.mode];
   const showAdvancedModeControls = advancedVideoModesEnabled || draft.mode !== "generate";
   const modeUnavailableReason = videoModeUnavailableReason(draft.mode, hasSourceVideo, selectedProvider);
@@ -289,8 +311,14 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
     resolution
   ]);
 
+  const [parameterNotice, setParameterNotice] = useState("");
   function update(patch: Partial<VideoGenerationNodeConfig>): void {
-    const next = configFromData({ ...draftRef.current, ...patch }, providerOptions);
+    const requested = { ...draftRef.current, ...patch };
+    const next = configFromData(requested, providerOptions);
+    if (patch.model !== undefined || patch.providerId !== undefined) {
+      const adjusted = [next.duration !== requested.duration ? "时长" : "", next.aspectRatio !== requested.aspectRatio ? "画幅" : "", next.resolution !== requested.resolution ? "清晰度" : "", next.generateAudio !== requested.generateAudio ? "声音" : ""].filter(Boolean);
+      setParameterNotice(adjusted.length ? uiText("已按新模型调整：{{ui:0}}", [adjusted.map((label) => uiText(label)).join("、")]) : "");
+    }
     draftRef.current = next;
     setDraft(next);
     schedule(next);
@@ -319,6 +347,14 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
     && referenceImages.length <= VIDEO_MAX_REFERENCE_IMAGES
     && (Boolean(draft.prompt.trim()) || Boolean(startFrame || endFrame || referenceImages.length || referenceVideos.length));
   const retryable = status === "failed" && Boolean(onRetry);
+  const maxImages = Math.min(VIDEO_MAX_REFERENCE_IMAGES, constraints.maxInputs?.images ?? VIDEO_MAX_REFERENCE_IMAGES);
+  const imageCount = referenceImages.length + Number(Boolean(startFrame)) + Number(Boolean(endFrame));
+  const providerBlock = !providerOptions.length ? uiText("请先在设置中配置视频服务")
+    : !selectedProvider || !getProviderModels(selectedProvider).includes(draft.model.trim()) ? uiText("请选择可用的视频模型") : undefined;
+  const blockedReason = promptBlock || parameterError || modeUnavailableReason || capabilityBlock || providerBlock;
+  const displayStatus = status === "draft" || status === "ready" || status === "blocked" ? canRun ? "ready" : status === "blocked" ? "blocked" : "draft" : status;
+  const costEstimate = videoCostEstimate(modelOption, draft.duration);
+  const materialProps = { availableImages, disabled: busy, onPreview: (image: GeneratedImage, src: string, alt: string) => setImagePreview({ image, src, alt }) };
 
   return (
     <section
@@ -331,7 +367,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
         "canvas-node-card canvas-workflow-node video-generation-node group relative flex w-[340px] cursor-grab flex-col overflow-visible active:cursor-grabbing",
         selected && "canvas-workflow-node--selected"
       )}
-      aria-label={uiText("{{ui:0}}节点，{{ui:1}}", [title, videoGenerationStatusLabel(status)])}
+      aria-label={uiText("{{ui:0}}节点，{{ui:1}}", [title, videoGenerationStatusLabel(displayStatus)])}
     >
       <VideoGenerationHandles
         connectionTargetActive={connectionTargetActive}
@@ -341,12 +377,23 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
       <header className="canvas-workflow-node__header">
         <span className="canvas-workflow-node__icon canvas-workflow-node__icon--generation"><Video aria-hidden /></span>
         <span className="canvas-workflow-node__title">{title}</span>
-        <span className={cn("canvas-generation-status", `video-generation-status--${status}`)} role="status" aria-live="polite">
-          <GenerationStatusIcon status={status} />{videoGenerationStatusLabel(status)}
+        <span className={cn("canvas-generation-status", `video-generation-status--${displayStatus}`)} role="status" aria-live="polite">
+          <GenerationStatusIcon status={displayStatus} />{uiText(videoGenerationStatusLabel(displayStatus))}
         </span>
       </header>
 
       <div className="nodrag video-generation-body" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="video-generation-model-section">
+          <VideoProviderPicker providerId={draft.providerId} model={draft.model} providers={providerOptions} requiresFirstLastFrame={requiresFirstLastFrame} disabled={busy}
+            goldBeanBalance={goldBeanBalance} goldBeanLoading={goldBeanLoading} requiredGoldBeans={Math.max(1, draft.duration) * (videoGoldBeanCostPerSecond ?? 1)}
+            videoGoldBeanCostPerSecond={videoGoldBeanCostPerSecond} resolution={draft.resolution}
+            onSelect={(selectedProviderId, selectedModel) => update({ providerId: selectedProviderId, model: selectedModel })} />
+          <div className="video-generation-model-capabilities">
+            <span>{selectedProvider?.name || uiText("未选择服务")}</span>
+            <span>{constraints.modes?.map((value) => ({ "text-to-video": "文生视频", "image-to-video": "图生视频", "first-last-frame": "首尾帧", "multi-reference": "多参考", remix: "改编", extend: "续写" })[value]).filter(Boolean).map((label) => uiText(label)).join(" · ") || uiText("能力以服务商配置为准")}</span>
+          </div>
+          {parameterNotice ? <p className="video-generation-parameter-notice" role="status">{parameterNotice}</p> : null}
+        </div>
         {capabilityBlock ? (
           <div id={`video-capability-${id}`} className="video-generation-mode-detail is-blocked" role="alert">
             <CircleAlert aria-hidden />
@@ -379,23 +426,32 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
           </>
         ) : null}
         <div className="video-generation-section">
-          <div className="video-generation-section-title"><span>{hasSourceVideo ? uiText("源视频与参考") : uiText("画面参考")}</span><small>{referenceImages.length}/{VIDEO_MAX_REFERENCE_IMAGES} {uiText("参考图")}</small></div>
+          <div className="video-generation-section-title"><span>{hasSourceVideo ? uiText("源视频与参考") : uiText("画面参考")}</span><small>{imageCount}/{maxImages} {uiText("图片")}</small></div>
           <div className="video-generation-frame-grid">
-            <FrameSlot label={uiText("首帧")} image={startFrame} required onPreview={(image, src, alt) => setImagePreview({ image, src, alt })} />
-            <FrameSlot label={uiText("尾帧")} image={endFrame} onPreview={(image, src, alt) => setImagePreview({ image, src, alt })} />
+            {(["start-frame", "end-frame"] as const).map((role) => <FrameSlot key={role} {...materialProps} label={uiText(role === "start-frame" ? "首帧" : "尾帧")} image={role === "start-frame" ? startFrame : endFrame}
+              required={requiresFirstLastFrame} disabled={busy || maxImages === 0 || Boolean(constraints.supportedFrameImages && !constraints.supportedFrameImages.includes(role === "start-frame" ? "first_frame" : "last_frame"))}
+              onChoose={onSelectImage ? (image) => onSelectImage(id, role, image) : undefined}
+              onUpload={onUploadImages ? (files) => onUploadImages(id, role, files) : undefined}
+              onRemove={onRemoveImage ? (image) => onRemoveImage(id, role, image) : undefined} />)}
           </div>
           {referenceImages.length ? (
             <div className="video-generation-references" aria-label={uiText("视频参考图")}>
               {referenceImages.slice(0, VIDEO_MAX_REFERENCE_IMAGES).map((image, index) => (
-                <CanvasThumbnailImage
+                <div key={image.id} className="video-generation-reference-item"><CanvasThumbnailImage
                   key={image.id}
                   image={image}
                   alt={uiText("参考图 {{ui:0}}", [index + 1])}
                   onPreview={(src, alt) => setImagePreview({ image, src, alt })}
-                />
+                />{onRemoveImage ? <button type="button" className="video-generation-remove" disabled={busy} aria-label={uiText("移除参考图 {{ui:0}}", [index + 1])} onClick={() => onRemoveImage(id, "reference", image)}><X aria-hidden /></button> : null}</div>
               ))}
             </div>
           ) : null}
+          <div className="video-generation-material-actions">
+            {onSelectImage ? <VideoReferencePicker label={uiText("添加参考图")} className="video-generation-material-add" disabled={busy || imageCount >= maxImages} images={availableImages} selectedIds={referenceImages.map((image) => image.id)} multiple
+              onChooseImage={(image) => onSelectImage(id, "reference", image)} onUpload={onUploadImages ? (files) => onUploadImages(id, "reference", files) : undefined}><Plus aria-hidden />{uiText("参考图")}</VideoReferencePicker> : null}
+            {onSelectVideo ? <VideoReferencePicker label={uiText("添加参考视频")} className="video-generation-material-add" disabled={busy || constraints.maxInputs?.videos === 0} videos={availableVideos} selectedIds={referenceVideos.map((video) => video.id)}
+              onChooseVideo={(video) => onSelectVideo(id, video)} onUpload={onUploadVideos ? (files) => onUploadVideos(id, files) : undefined}><Plus aria-hidden />{uiText("参考视频")}</VideoReferencePicker> : null}
+          </div>
           {referenceImages.length > VIDEO_MAX_REFERENCE_IMAGES ? (
             <p className="video-generation-input-error" role="alert">
               {uiText("当前模型最多接收 ")}{VIDEO_MAX_REFERENCE_IMAGES} {uiText("张参考图，请移除 ")}{referenceImages.length - VIDEO_MAX_REFERENCE_IMAGES} {uiText("张后生成。")}</p>
@@ -411,6 +467,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
                     <strong>{video.name}</strong>
                     <small>{video.path === sourceVideoPath || (!sourceVideoPath && draft.mode !== "generate" && index === 0) ? uiText("源视频") : uiText("参考视频")} · {formatVideoDuration(video.durationMs)}</small>
                   </span>
+                  {onRemoveVideo && video.path !== sourceVideoPath ? <button type="button" className="video-generation-remove-video" disabled={busy} aria-label={uiText("移除参考视频 {{ui:0}}", [video.name])} onClick={() => onRemoveVideo(id, video)}><X aria-hidden /></button> : null}
                 </div>
               ))}
             </div>
@@ -427,7 +484,7 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
               </span>
             ))}
             {onChooseAudio ? (
-              <button type="button" className="video-generation-audio-add" disabled={busy} onClick={() => onChooseAudio(id)}><Plus aria-hidden />{uiText("参考音频")}</button>
+              <button type="button" className="video-generation-audio-add" disabled={busy || constraints.maxInputs?.audios === 0} title={constraints.maxInputs?.audios === 0 ? uiText("当前模型不支持参考音频") : undefined} onClick={() => onChooseAudio(id)}><Plus aria-hidden />{uiText("参考音频")}</button>
             ) : null}
           </div>
         </div>
@@ -459,25 +516,15 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
         </div>
 
         <div className="video-generation-settings">
-          <VideoProviderPicker
-            providerId={draft.providerId}
-            model={draft.model}
-            providers={providerOptions}
-            requiresFirstLastFrame={requiresFirstLastFrame}
-            disabled={busy}
-            goldBeanBalance={goldBeanBalance}
-            goldBeanLoading={goldBeanLoading}
-            requiredGoldBeans={Math.max(1, draft.duration) * (videoGoldBeanCostPerSecond ?? 1)}
-            videoGoldBeanCostPerSecond={videoGoldBeanCostPerSecond}
-            resolution={draft.resolution}
-            onSelect={(selectedProviderId, selectedModel) => update({ providerId: selectedProviderId, model: selectedModel })}
-          />
+          <div className="video-generation-section-title"><span>{uiText("输出设置")}</span><small>{costEstimate || uiText("费用由服务商结算")}</small></div>
           {(!parameterOptions.durations || !parameterOptions.ratios || !parameterOptions.resolutions) ? <small className="text-muted-foreground">{uiText("模型未提供完整参数约束，请按服务商要求填写。")}</small> : null}
-          <OptionRow label={uiText("时长")} options={parameterOptions.durations?.map(String)} value={String(draft.duration)} suffix="s" disabled={busy} onChange={(value) => update({ duration: Number(value) })} />
-          <OptionRow label={uiText("画幅")} options={parameterOptions.ratios} value={draft.aspectRatio} disabled={busy} onChange={(value) => update({ aspectRatio: value })} />
-          <OptionRow label={uiText("清晰度")} options={parameterOptions.resolutions} value={draft.resolution} disabled={busy} onChange={(value) => update({ resolution: value })} />
+          <div className="video-generation-parameters">
+          <OptionRow control="select" label={uiText("时长")} options={parameterOptions.durations?.map(String)} value={String(draft.duration)} suffix="s" disabled={busy} onChange={(value) => update({ duration: Number(value) })} />
+          <OptionRow control="select" label={uiText("画幅")} options={parameterOptions.ratios} value={draft.aspectRatio} disabled={busy} onChange={(value) => update({ aspectRatio: value })} />
+          <OptionRow control="select" label={uiText("清晰度")} options={parameterOptions.resolutions} value={draft.resolution} disabled={busy} onChange={(value) => update({ resolution: value })} />
+          </div>
           <div className="video-generation-audio">
-            <span><strong>{uiText("生成声音")}</strong><small>{uiText("模型支持时同步生成环境音")}</small></span>
+            <span><strong>{uiText("生成声音")}</strong><small>{uiText(constraints.supportsGeneratedAudio === false ? "当前模型不支持生成声音" : "同步生成环境音或对白")}</small></span>
             <button
               type="button"
               role="switch"
@@ -499,18 +546,18 @@ function VideoGenerationNodeComponent({ id, data, selected }: NodeProps): React.
           className={cn(promptBlock && "video-generation-prompt-hint", status === "failed" && !promptBlock && "text-destructive")}
           role={status === "failed" && !promptBlock ? "alert" : undefined}
           aria-live="polite"
-          title={promptBlock ?? error}
+          title={blockedReason ?? error}
         >
-          {promptBlock ? <>
+          {busy ? <VideoTaskStatus status={status} startedAt={taskStartedAt} error={error} /> : promptBlock ? <>
             <Info aria-hidden="true" />
             <span aria-hidden="true">{uiText("先填写视频描述")}</span>
             <span className="sr-only">{promptBlock}</span>
-          </> : (parameterError ? uiText(parameterError) : undefined) ?? (status === "failed"
+          </> : (blockedReason ? uiText(blockedReason) : undefined) ?? (status === "failed"
             ? error || uiText("任务失败，配置已保留")
             : status === "polling_stopped"
               ? error || uiText("仅停止本地等待，远端可能继续并计费")
               : status === "recovering" && error ? error
-                : generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length))}
+                : canRun ? uiText("准备就绪") : uiText(generationSummary(startFrame, endFrame, referenceImages.length, referenceVideos.length, referenceAudios.length)))}
         </span>
         <button type="button" aria-describedby={capabilityBlock ? `video-capability-${id}` : undefined} disabled={busy ? !onStopPolling || !lastGenerationId : status === "polling_stopped" ? !onResumePolling || !lastGenerationId : !canRun} className="canvas-generation-run" onClick={() => {
           if (busy) {
@@ -595,12 +642,22 @@ function FrameSlot({
   label,
   image,
   required = false,
-  onPreview
+  onPreview,
+  availableImages,
+  disabled,
+  onChoose,
+  onUpload,
+  onRemove
 }: {
   label: string;
   image?: GeneratedImage;
   required?: boolean;
   onPreview: (image: GeneratedImage, src: string, alt: string) => void;
+  availableImages: GeneratedImage[];
+  disabled: boolean;
+  onChoose?: (image: GeneratedImage) => void;
+  onUpload?: (files: File[]) => Promise<void>;
+  onRemove?: (image: GeneratedImage) => void;
 }): React.ReactElement {
   const uiText = useUiText();
 
@@ -613,29 +670,41 @@ function FrameSlot({
           onPreview={(src, alt) => onPreview(image, src, alt)}
         />
       ) : <ImageIcon aria-hidden />}
-      <span>{label}{required ? <small>{uiText("建议")}</small> : null}</span>
+      <span>{label}<small>{uiText(required ? "必需" : "可选")}</small></span>
     </>
   );
 
   if (image) {
-    return <div className="video-generation-frame-slot is-filled">{content}</div>;
+    return <div className="video-generation-frame-slot is-filled">{content}
+      <div className="video-generation-frame-actions">
+        {onChoose ? <VideoReferencePicker label={uiText("替换{{ui:0}}", [label])} className="video-generation-frame-replace" images={availableImages} disabled={disabled} onChooseImage={onChoose} onUpload={onUpload}><RefreshCw aria-hidden /></VideoReferencePicker> : null}
+        {onRemove ? <button type="button" disabled={disabled} aria-label={uiText("移除{{ui:0}}", [label])} onClick={() => onRemove(image)}><X aria-hidden /></button> : null}
+      </div>
+    </div>;
   }
   return (
-    <div className="video-generation-frame-slot">{content}</div>
+    onChoose ? <VideoReferencePicker label={uiText("添加{{ui:0}}", [label])} className="video-generation-frame-slot" disabled={disabled} images={availableImages} onChooseImage={onChoose} onUpload={onUpload}>{content}<small className="video-generation-frame-empty-hint">{uiText(disabled ? "模型不支持" : "点击选择")}</small></VideoReferencePicker> : <div className="video-generation-frame-slot">{content}</div>
   );
 }
 
-function OptionRow({ label, options, value, suffix = "", disabled, onChange }: { label: string; options?: string[]; value: string; suffix?: string; disabled: boolean; onChange: (value: string) => void }): React.ReactElement {
+function OptionRow({ label, options, value, suffix = "", control = "buttons", disabled, onChange }: { label: string; options?: string[]; value: string; suffix?: string; control?: "select" | "buttons"; disabled: boolean; onChange: (value: string) => void }): React.ReactElement {
   return (
     <div className="video-generation-option-row">
       <span>{label}</span>
       <div role="group" aria-label={label}>{!options ? (
         <input aria-label={label} type={suffix === "s" ? "number" : "text"} min={suffix === "s" ? 1 : undefined} value={value} disabled={disabled}
           onChange={(event) => { if (event.target.value && (suffix !== "s" || Number(event.target.value) > 0)) onChange(event.target.value); }} />
-      ) : options.length > 6 ? (
-        <select aria-label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
-          {options.map((option) => <option key={option} value={option}>{option}{suffix}</option>)}
-        </select>
+      ) : control === "select" || options.length > 6 ? (
+        <Select value={value} disabled={disabled} onValueChange={onChange}>
+          <SelectTrigger aria-label={label} className="h-8 min-w-0" onKeyDown={(event) => event.stopPropagation()}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="nodrag nopan" align="end" onKeyDown={(event) => event.stopPropagation()}>
+            <SelectGroup>
+              {options.map((option) => <SelectItem key={option} value={option}>{option}{suffix}</SelectItem>)}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       ) : options.map((option) => (
         <button key={option} type="button" disabled={disabled} aria-pressed={value === option} onClick={() => onChange(option)}>{option}{suffix}</button>
       ))}</div>
@@ -690,6 +759,7 @@ function VideoProviderPicker({
             type="button"
             aria-label={uiText("选择视频模型")}
             aria-expanded={open}
+            onKeyDown={(event) => event.stopPropagation()}
             disabled={disabled || providers.length === 0}
             className={cn("video-generation-model-trigger", (unavailable || modelUnavailable) && "is-unavailable")}
           >
@@ -697,92 +767,30 @@ function VideoProviderPicker({
             <ChevronDown aria-hidden />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          side="top"
-          align="end"
-          sideOffset={8}
-          collisionPadding={8}
-          className="nodrag nopan nowheel w-60 max-w-[calc(100vw-1rem)] shadow-md"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
+        <DropdownMenuContent side="bottom" align="start" sideOffset={8} collisionPadding={8}
+          className="video-generation-model-menu nodrag nopan nowheel"
+          onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           {providers.map((provider) => {
-            const models = getProviderModels(provider);
-            const activeProvider = provider.id === providerId;
+            const models = getProviderModels(provider).filter((value) => !requiresFirstLastFrame || resolveVideoModelCapability(findVideoProviderModelOption(provider.modelOptions, value), "first-last-frame") === "supported");
             const official = provider.type === "official";
-            const insufficientGoldBeans = official
-              && goldBeanBalance !== undefined
-              && goldBeanBalance < requiredGoldBeans;
-            return (
-              <DropdownMenuSub key={provider.id}>
-                <DropdownMenuSubTrigger className={cn("min-h-12 py-1.5", activeProvider && "bg-accent/60")}>
-                  <span className="flex min-w-0 flex-1 flex-col text-left">
-                    <span className="truncate text-xs font-medium text-foreground" title={provider.name || uiText("未命名视频服务")}>
-                      {provider.name || uiText("未命名视频服务")}
-                    </span>
-                    <span className="mt-0.5 truncate text-[11px] text-muted-foreground" title={provider.model}>
-                      {provider.model || uiText("未配置模型")}
-                    </span>
+            return <DropdownMenuSub key={provider.id}>
+              <DropdownMenuSubTrigger className="video-generation-model-menu__provider"><span>{provider.name || uiText("未命名视频服务")}</span>{official ? <span>{uiText("余额 ")}{goldBeanLoading ? "--" : goldBeanBalance ?? "--"}</span> : null}</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent aria-label={uiText("{{ui:0}}的视频模型", [provider.name || "未命名视频服务"])} className="video-generation-model-menu__submenu nodrag nopan nowheel" onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+              {models.map((providerModel) => {
+                const option = findVideoProviderModelOption(provider.modelOptions, providerModel);
+                const active = provider.id === providerId && providerModel === model;
+                const pricing = provider.type === "openrouter" ? formatModelPricing(option?.pricing, locale) : undefined;
+                return <DropdownMenuItem key={providerModel} title={providerModel} onSelect={() => choose(provider.id, providerModel)} className="video-generation-model-menu__item">
+                  <span><strong>{videoModelDisplayName(providerModel)}</strong><small>{providerModel}</small>{pricing ? <small>{pricing.usd}{pricing.cny ? ` · ${pricing.cny}` : ""}</small> : null}</span>
+                  <span className={cn("video-generation-model-menu__rate", official && goldBeanBalance !== undefined && goldBeanBalance < requiredGoldBeans && "text-destructive")}>
+                    {!pricing ? official ? uiText("{{ui:0}} 金豆/秒", [videoGoldBeanCostPerSecond ?? 1]) : provider.type === "minimax" ? minimaxVideoPriceLabel(providerModel, resolution) : option?.pricingLabel || uiText("服务商计费") : null}
+                    {active ? <Check aria-hidden /> : null}
                   </span>
-                  {official ? (
-                    <span className={cn(
-                      "shrink-0 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground",
-                      insufficientGoldBeans && "text-destructive"
-                    )}>
-                      {uiText("余额 ")}{goldBeanLoading ? "--" : goldBeanBalance ?? "--"}
-                    </span>
-                  ) : null}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent
-                  aria-label={uiText("{{ui:0}}的视频模型", [provider.name || "未命名视频服务"])}
-                  className="nodrag nopan nowheel w-80 max-w-[calc(100vw-1rem)] shadow-md"
-                  onPointerDown={(event) => event.stopPropagation()}
-                >
-                  {models.filter((providerModel) => !requiresFirstLastFrame || resolveVideoModelCapability(
-                    findVideoProviderModelOption(provider.modelOptions, providerModel),
-                    "first-last-frame"
-                  ) === "supported").map((providerModel) => {
-                    const active = activeProvider && providerModel === model;
-                    const openRouterPrice = provider.type === "openrouter"
-                      ? formatModelPricing(findVideoProviderModelOption(provider.modelOptions, providerModel)?.pricing, locale)
-                      : undefined;
-                    return (
-                      <DropdownMenuItem
-                        key={providerModel}
-                        title={providerModel}
-                        onSelect={() => choose(provider.id, providerModel)}
-                        className={cn("min-h-9 text-xs", active && "bg-accent/60")}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate">{providerModel}</span>
-                          {provider.type === "openrouter" ? (
-                            <span className="mt-1 block break-words text-[11px] leading-5 tabular-nums text-muted-foreground">
-                              <span className="block">{openRouterPrice?.usd ?? (locale === "zh-CN" ? "价格未提供" : "Price unavailable")}</span>
-                              {openRouterPrice?.cny ? <span className="block">{openRouterPrice.cny}</span> : null}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="flex shrink-0 items-center gap-2">
-                          {provider.type !== "openrouter" ? <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                            {official
-                              ? uiText("{{ui:0}} 金豆/秒", [videoGoldBeanCostPerSecond ?? 1])
-                              : provider.type === "minimax"
-                                ? minimaxVideoPriceLabel(providerModel, resolution)
-                                : findVideoProviderModelOption(provider.modelOptions, providerModel)?.pricingLabel || uiText("供应商计费")}
-                          </span> : null}
-                          <span className="flex h-3.5 w-3.5 items-center justify-center">
-                            {active ? <Check className="h-3.5 w-3.5 text-primary" aria-hidden /> : null}
-                          </span>
-                        </span>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                  {models.filter((providerModel) => !requiresFirstLastFrame || resolveVideoModelCapability(
-                    findVideoProviderModelOption(provider.modelOptions, providerModel),
-                    "first-last-frame"
-                  ) === "supported").length === 0 ? <p className="px-2 py-1.5 text-xs text-muted-foreground">{requiresFirstLastFrame ? uiText("没有明确支持首尾帧的模型，请检查 Provider 配置") : uiText("未配置模型")}</p> : null}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            );
+                </DropdownMenuItem>;
+              })}
+              {!models.length ? <p className="p-2 text-xs text-muted-foreground">{uiText(requiresFirstLastFrame ? "没有明确支持首尾帧的模型，请检查 Provider 配置" : "未配置模型")}</p> : null}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>;
           })}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -797,6 +805,19 @@ function minimaxVideoPriceLabel(model: string, resolution: string): string {
   if (is2K) return "官方 ¥0.88/秒";
   if (is480P) return "官方 ¥0.34/秒";
   return "官方 ¥0.54/秒";
+}
+
+function VideoTaskStatus({ status, startedAt, error }: { status: VideoGenerationNodeStatus; startedAt?: string; error?: string }): React.ReactElement {
+  const uiText = useUiText();
+  const [mountedAt] = useState(Date.now);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  const parsed = startedAt ? Date.parse(startedAt) : mountedAt;
+  const seconds = Math.max(0, Math.floor((now - (Number.isFinite(parsed) ? parsed : mountedAt)) / 1000));
+  return <span className="video-generation-task-status" title={error}>
+    <span>{uiText(status === "recovering" ? "正在恢复原任务查询" : status === "post_processing" ? "已生成，正在保存" : videoGenerationStatusLabel(status))}</span>
+    <small>{uiText("已等待 {{ui:0}}", [`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`])}</small>
+  </span>;
 }
 
 function GenerationStatusIcon({ status }: { status: VideoGenerationNodeStatus }): React.ReactElement {

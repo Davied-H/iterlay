@@ -131,6 +131,8 @@ export function useImageNodeSource(
   useThumbnailPreview: boolean
 ): { displayUrl: string; imageLoadFailed: boolean; zoomTier: CanvasZoomTier } {
   const zoomTier = useCanvasZoomTier();
+  // Native thumbnails rasterize SVG and freeze GIF; keep the actual artifact visible.
+  useThumbnailPreview = useThumbnailPreview && !/\.(?:svg|gif)$/iu.test(path);
   const thumbnailSize: CanvasThumbnailSize = zoomTier === "low" ? 192 : 480;
   const thumbnailUrl = useCanvasThumbnail(
     path,

@@ -1,3 +1,4 @@
+import { svgDimensions } from "./svg-artifact.js";
 import { open } from "node:fs/promises";
 export interface ImageDimensions { width: number; height: number }
 const JPEG_SOF = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
@@ -32,6 +33,12 @@ export function imageDimensionsFromHeader(bytes: Buffer): ImageDimensions | null
     } else if (chunk === "VP8L" && bytes[20] === 0x2f) {
       const bits = bytes.readUInt32LE(21); width = (bits & 0x3fff) + 1; height = ((bits >>> 14) & 0x3fff) + 1;
     }
+  }
+  if (!width && /<svg(?:\s|>)/u.test(bytes.toString("utf8", 0, 4096))) {
+    const tag = /<svg\s([^>]+)>/u.exec(bytes.toString("utf8", 0, 256 * 1024));
+    const attributes: Record<string, string> = {};
+    for (const match of tag?.[1].matchAll(/(width|height|viewBox)\s*=\s*["']([^"']+)["']/gu) ?? []) attributes[match[1]] = match[2];
+    return svgDimensions(attributes);
   }
   return width > 0 && height > 0 && width <= 100_000 && height <= 100_000 ? { width, height } : null;
 }

@@ -1,3 +1,4 @@
+import { imageOutputCapabilities } from "./image-output.js";
 import { OFFICIAL_MAX_IMAGE_COUNT, type ProviderConfig } from "./types.js";
 
 const CUSTOM_PROVIDER_MAX_IMAGE_COUNT = 99;
@@ -66,6 +67,7 @@ export function providerSupportsGenerateReferences(provider: ProviderConfig): bo
 
 export function imageProviderCapabilities(provider: ProviderConfig) {
   return {
+    ...imageOutputCapabilities(provider),
     maxImageCount: getProviderMaxImageCount(provider),
     transparentBackground: providerSupportsTransparentBackground(provider),
     generationReferences: providerSupportsGenerateReferences(provider),

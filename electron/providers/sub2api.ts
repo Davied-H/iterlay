@@ -1,3 +1,5 @@
+import { imageOutputRequestFields } from "../../shared/image-output.js";
+import { detectGeneratedImageMime } from "../media/image-artifact.js";
 import type {
   GenerationResult,
   ProviderConfig,
@@ -77,7 +79,7 @@ export class Sub2ApiImageProvider {
         quality: input.quality || undefined,
         style: input.style || undefined,
         background: input.background === "auto" ? undefined : input.background,
-        output_format: input.outputFormat ?? "png",
+        ...imageOutputRequestFields(input, config),
         response_format: config.compatResponseFormat || undefined
       })
     });
@@ -131,7 +133,9 @@ export class Sub2ApiImageProvider {
     if (input.quality) form.append("quality", input.quality);
     if (input.style) form.append("style", input.style);
     if (input.background && input.background !== "auto") form.append("background", input.background);
-    form.append("output_format", input.outputFormat ?? "png");
+    for (const [key, value] of Object.entries(imageOutputRequestFields(input, config))) {
+      form.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+    }
 
     for (const [index, image] of input.referenceImages.entries()) {
       const blob = new Blob([new Uint8Array(image.bytes)], { type: image.mimeType });
@@ -167,7 +171,7 @@ export class Sub2ApiImageProvider {
         n: input.n,
         quality: input.quality || undefined,
         background: input.background === "auto" ? undefined : input.background,
-        output_format: input.outputFormat ?? "png",
+        ...imageOutputRequestFields(input, config),
         input_references: input.referenceImages.map((image) => ({
           type: "image_url",
           image_url: { url: `data:${image.mimeType};base64,${image.bytes.toString("base64")}` }
@@ -271,10 +275,8 @@ export async function parseOpenAIImageResponse(
     const images = await Promise.all(
       imageItems.map(async (item): Promise<{ bytes: Buffer; mimeType: string }> => {
         if (item.b64_json) {
-          return {
-            bytes: Buffer.from(item.b64_json, "base64"),
-            mimeType: "image/png"
-          };
+          const bytes = Buffer.from(item.b64_json, "base64");
+          return { bytes, mimeType: detectGeneratedImageMime(bytes) ?? "image/png" };
         }
 
         if (item.url) {
@@ -286,7 +288,7 @@ export async function parseOpenAIImageResponse(
           const buffer = Buffer.from(await imageResponse.arrayBuffer());
           return {
             bytes: buffer,
-            mimeType: imageResponse.headers.get("content-type") || "image/png"
+            mimeType: detectGeneratedImageMime(buffer) ?? imageResponse.headers.get("content-type") ?? "image/png"
           };
         }
 
