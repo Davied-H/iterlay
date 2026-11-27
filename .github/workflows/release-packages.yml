@@ -17,7 +17,7 @@ jobs:
       matrix:
         platform: ${{ fromJSON(inputs.platform == 'all' && '["mac","win"]' || format('["{0}"]', inputs.platform)) }}
         arch: [arm64, x64]
-    runs-on: ${{ matrix.platform == 'mac' && 'macos-14' || 'windows-latest' }}
+    runs-on: ${{ matrix.platform == 'mac' && 'macos-15' || 'windows-latest' }}
     timeout-minutes: 40
     defaults:
       run:

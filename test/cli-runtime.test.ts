@@ -8,6 +8,7 @@ import path from "node:path";
 import { build } from "esbuild";
 const exec = promisify(execFile);
 let directory: string, script: string;
+let runtimeArgs: string[];
 let generated = 0;
 let lastGenerationArgs: Record<string, unknown>;
 let resolvedBoards = 0;
@@ -38,6 +39,9 @@ const server = createServer(async (request, response) => {
 beforeAll(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'iterlay-cli-runtime-'));
   script = path.join(directory, 'main.mjs');
+  // This fixture serves the App protocol; do not infer standalone mode from
+  // whether the test host happens to have a real desktop App installed.
+  runtimeArgs = [script, "--app-path", directory];
   await build({ entryPoints: ['cli/src/main.ts'], bundle: true, platform: 'node', format: 'esm', outfile: script });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as { port: number };
@@ -47,77 +51,77 @@ afterAll(async () => { await new Promise<void>((resolve) => server.close(() => r
 describe('CLI subprocess workflow', () => {
   it('refuses local delivery on an older backend before resolving a board or submitting a paid request', async () => {
     const before = generated, boards = resolvedBoards;
-    await expect(exec(process.execPath, [script, 'image', 'generate', '--prompt', 'never submit', '--delivery-format', 'jpeg', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('未提交生成请求') });
+    await expect(exec(process.execPath, [...runtimeArgs, 'image', 'generate', '--prompt', 'never submit', '--delivery-format', 'jpeg', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('未提交生成请求') });
     expect(generated).toBe(before);
     expect(resolvedBoards).toBe(boards);
   });
   it('routes local slicing and exports PNGs without submitting generation', async () => {
     const before = generated;
     const target = path.join(directory, 'slices');
-    const run = await exec(process.execPath, [script, 'image', 'slice', '--path', '/managed/sheet.png', '--board', 'board', '--rows', '3', '--columns', '4', '--out', target, '--user-data-path', directory, '--json']);
+    const run = await exec(process.execPath, [...runtimeArgs, 'image', 'slice', '--path', '/managed/sheet.png', '--board', 'board', '--rows', '3', '--columns', '4', '--out', target, '--user-data-path', directory, '--json']);
     expect(lastSliceArgs).toEqual({ sourcePath: '/managed/sheet.png', boardId: 'board', rows: 3, columns: 4 });
     const result = JSON.parse(run.stdout).data;
     expect(result.exportedPaths).toEqual([path.join(target, '1-slice.png')]);
     expect(await readFile(result.exportedPaths[0], 'utf8')).toBe('image');
-    await expect(exec(process.execPath, [script, 'image', 'slice', '--path', '/managed/sheet.png', '--board', 'board', '--rows', '3', '--columns', '4', '--out', target, '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('切图已保存到画板') });
+    await expect(exec(process.execPath, [...runtimeArgs, 'image', 'slice', '--path', '/managed/sheet.png', '--board', 'board', '--rows', '3', '--columns', '4', '--out', target, '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('切图已保存到画板') });
     const crops = [{ x: 10, y: 20, width: 30, height: 40 }];
-    await exec(process.execPath, [script, 'image', 'slice', '--node', 'node', '--board', 'board', '--crops', JSON.stringify(crops), '--user-data-path', directory, '--json']);
+    await exec(process.execPath, [...runtimeArgs, 'image', 'slice', '--node', 'node', '--board', 'board', '--crops', JSON.stringify(crops), '--user-data-path', directory, '--json']);
     expect(lastSliceArgs).toEqual({ nodeId: 'node', boardId: 'board', crops });
     expect(generated).toBe(before);
   });
   it('configures video and TTS via environment or stdin without printing credentials', async () => {
-    const args = [script, 'providers', 'set', '--kind', 'video', '--provider', 'video', '--type', 'openrouter', '--base-url', 'https://openrouter.ai/api', '--model', 'vendor/video', '--saved-model', 'other', '--default', '--api-key-env', 'ITERLAY_TEST_SECRET', '--user-data-path', directory, '--json'];
+    const args = [...runtimeArgs, 'providers', 'set', '--kind', 'video', '--provider', 'video', '--type', 'openrouter', '--base-url', 'https://openrouter.ai/api', '--model', 'vendor/video', '--saved-model', 'other', '--default', '--api-key-env', 'ITERLAY_TEST_SECRET', '--user-data-path', directory, '--json'];
     const run = await exec(process.execPath, args, { env: { ...process.env, ITERLAY_TEST_SECRET: 'env-secret-value' } });
     expect(configurations.at(-1)).toMatchObject({ kind: 'video', model: 'vendor/video', models: ['other'], setDefault: true, apiKey: 'env-secret-value' });
     expect(run.stdout + run.stderr).not.toContain('env-secret-value');
-    const pending = exec(process.execPath, [script, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', '--base-url', 'https://api.example.com', '--model', 'tts-1', '--voice', 'nova', '--api-key-stdin', '--user-data-path', directory, '--json']);
+    const pending = exec(process.execPath, [...runtimeArgs, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', '--base-url', 'https://api.example.com', '--model', 'tts-1', '--voice', 'nova', '--api-key-stdin', '--user-data-path', directory, '--json']);
     pending.child.stdin!.end('stdin-secret-value\n');
     const tts = await pending;
     expect(configurations.at(-1)).toMatchObject({ kind: 'audio', voice: 'nova', apiKey: 'stdin-secret-value' });
     expect(tts.stdout + tts.stderr).not.toContain('stdin-secret-value');
-    await exec(process.execPath, [script, 'models', 'set', '--kind', 'audio', '--provider', 'tts', '--model', 'tts-2', '--user-data-path', directory, '--json']);
+    await exec(process.execPath, [...runtimeArgs, 'models', 'set', '--kind', 'audio', '--provider', 'tts', '--model', 'tts-2', '--user-data-path', directory, '--json']);
     expect(configurations.at(-1)).toEqual({ kind: 'audio', action: 'upsert', providerId: 'tts', model: 'tts-2' });
   });
   it('routes show/default/remove and rejects invalid key sources before mutation', async () => {
     const common = ['--user-data-path', directory, '--json'];
-    const shown = await exec(process.execPath, [script, 'providers', 'show', 'tts', ...common]);
+    const shown = await exec(process.execPath, [...runtimeArgs, 'providers', 'show', 'tts', ...common]);
     expect(JSON.parse(shown.stdout).data).toMatchObject({ id: 'tts', voice: 'nova' });
     for (const action of ['default', 'remove']) {
-      await exec(process.execPath, [script, 'providers', action, 'tts', '--kind', 'audio', ...common]);
+      await exec(process.execPath, [...runtimeArgs, 'providers', action, 'tts', '--kind', 'audio', ...common]);
       expect(configurations.at(-1)).toEqual({ kind: 'audio', action, providerId: 'tts' });
     }
     const count = configurations.length;
     for (const invalid of [['--api-key-env', 'ITERLAY_MISSING_TEST_KEY'], ['--api-key-stdin', '--clear-api-key']]) {
-      await expect(exec(process.execPath, [script, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', ...invalid, ...common])).rejects.toMatchObject({ stdout: expect.stringContaining('ok":false') });
+      await expect(exec(process.execPath, [...runtimeArgs, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', ...invalid, ...common])).rejects.toMatchObject({ stdout: expect.stringContaining('ok":false') });
     }
     expect(configurations).toHaveLength(count);
   });
   it('waits for generation and exports to a local file, never overwriting by default', async () => {
     const target = path.join(directory, 'output.png');
-    const run = await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'test', '--out', target, '--user-data-path', directory, '--json']);
+    const run = await exec(process.execPath, [...runtimeArgs, 'image', 'generate', '--prompt', 'test', '--out', target, '--user-data-path', directory, '--json']);
     expect(JSON.parse(run.stdout)).toMatchObject({ ok: true, data: { generationId: 'task', exportedPaths: [target] } });
     expect(await readFile(target, 'utf8')).toBe('image'); expect(generated).toBe(1);
     expect(lastGenerationArgs.boardId).toBe('configured-default');
-    await expect(exec(process.execPath, [script, 'tasks', 'wait', 'task', '--out', target, '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('导出失败') });
+    await expect(exec(process.execPath, [...runtimeArgs, 'tasks', 'wait', 'task', '--out', target, '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('导出失败') });
     expect(generated).toBe(1);
   });
   it('honors an explicit board without resolving the default', async () => {
     const before = resolvedBoards;
-    await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'override', '--board', 'explicit', '--async', '--user-data-path', directory, '--json']);
+    await exec(process.execPath, [...runtimeArgs, 'image', 'generate', '--prompt', 'override', '--board', 'explicit', '--async', '--user-data-path', directory, '--json']);
     expect(lastGenerationArgs.boardId).toBe('explicit');
     expect(resolvedBoards).toBe(before);
   });
   it('returns a structured business error without resubmitting the operation', async () => {
-    await expect(exec(process.execPath, [script, 'providers', 'list', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('unsupported operation') });
+    await expect(exec(process.execPath, [...runtimeArgs, 'providers', 'list', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('unsupported operation') });
   });
   it('stops waiting on an unknown remote outcome without exporting or resubmitting', async () => {
     const before = generated;
-    await expect(exec(process.execPath, [script, 'tasks', 'wait', 'unknown-task', '--user-data-path', directory, '--json'], { timeout: 5000 }))
+    await expect(exec(process.execPath, [...runtimeArgs, 'tasks', 'wait', 'unknown-task', '--user-data-path', directory, '--json'], { timeout: 5000 }))
       .rejects.toMatchObject({ stdout: expect.stringContaining('远端结果与费用状态待确认') });
     expect(generated).toBe(before);
   });
   it('reports validation errors without exposing a local credential file', async () => {
-    const run = await exec(process.execPath, [script, 'tools', 'list', '--json']);
+    const run = await exec(process.execPath, [...runtimeArgs, 'tools', 'list', '--json']);
     const names = JSON.parse(run.stdout).data.map((tool: { name: string }) => tool.name);
     expect(names).toContain('generate_image'); expect(names).toContain('list_providers');
     expect(run.stdout).not.toContain('a'.repeat(32));
@@ -126,7 +130,7 @@ describe('CLI subprocess workflow', () => {
     const before = generated;
     deliveryVersion = 1;
     try {
-      const run = await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'local delivery', '--board', 'board', '--delivery-format', 'jpeg', '--delivery-size', '1200x2000', '--delivery-quality', '88', '--fit', 'contain', '--async', '--user-data-path', directory, '--json']);
+      const run = await exec(process.execPath, [...runtimeArgs, 'image', 'generate', '--prompt', 'local delivery', '--board', 'board', '--delivery-format', 'jpeg', '--delivery-size', '1200x2000', '--delivery-quality', '88', '--fit', 'contain', '--async', '--user-data-path', directory, '--json']);
       expect(JSON.parse(run.stdout).data.status).toBe('running');
       expect(lastGenerationArgs.delivery).toEqual({ format: 'jpeg', size: '1200x2000', quality: 88, fit: 'contain' });
       expect(generated).toBe(before + 1);

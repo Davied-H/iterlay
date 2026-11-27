@@ -28,7 +28,7 @@ jobs:
       - run: pnpm setup:subprojects
       - run: pnpm check:all
   browser-smoke:
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       ITERLAY_BROWSER_DEV_USER_DATA: ${{ github.workspace }}/tmp/iterlay-ci-user-data
     steps:
@@ -61,7 +61,7 @@ jobs:
             ${{ runner.temp }}/iterlay-browser-dev.log
   desktop-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.run_desktop_smoke
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

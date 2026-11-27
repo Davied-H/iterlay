@@ -45,7 +45,7 @@ const pngBytes = Buffer.concat([
 ]);
 
 async function runCli(...args: string[]) {
-  return exec(process.execPath, [script, ...args, "--user-data-path", userDataPath, "--json"]);
+  return exec(process.execPath, [script, ...args, "--app-path", directory, "--user-data-path", userDataPath, "--json"]);
 }
 
 beforeAll(async () => {
