@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { AudioProviderConfig, VideoProviderConfig } from "../shared/types.js";
-import type { SettingsStore } from "./storage/settings-store.js";
+import { IMAGE_OUTPUT_FORMATS, imageOutputCapabilities } from "../shared/image-output.js";
+import type { AudioProviderConfig, VideoProviderConfig, ProviderConfig } from "../shared/types.js";
+import type { SettingsStore } from "./storage/settings-store-core.js";
 
 function text(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim() || value.length > 4096) throw new Error(`${label} 必须是非空字符串（最多 4096 字符）。`);
@@ -10,17 +11,21 @@ function text(value: unknown, label: string): string {
 /** 在同一事务内读取最新设置并修改，避免 CLI 并发更新覆盖其它 Provider。 */
 export async function configureProvider(store: SettingsStore, input: Record<string, unknown>) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("配置参数必须是对象。");
-  const allowed = new Set(["kind", "action", "providerId", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "apiKey", "setDefault"]);
+  const allowed = new Set(["kind", "action", "providerId", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "apiKey", "setDefault", "apiMode", "generationEndpoint", "referenceEndpoint", "imageControlMode", "outputFormats", "svgModel", "svgMode"]);
   if (Object.keys(input).some((key) => !allowed.has(key))) throw new Error("未知 Provider 配置字段。");
-  if (input.kind !== "video" && input.kind !== "audio") throw new Error("配置 kind 必须为 video 或 audio。");
+  if (input.kind !== "image" && input.kind !== "video" && input.kind !== "audio") throw new Error("配置 kind 必须为 image、video 或 audio。");
   const kind = input.kind;
+  if (kind !== "image" && (input.outputFormats !== undefined || input.svgModel !== undefined || input.svgMode !== undefined)) throw new Error("输出格式仅用于图片连接。");
+  if (input.svgMode !== undefined && !["native", "author"].includes(String(input.svgMode))) throw new Error("SVG 生成方式须为 native 或 author。");
+  if (input.imageControlMode !== undefined && (kind !== "image" || !["native", "automatic"].includes(String(input.imageControlMode)))) throw new Error("图片控制方式须为 native 或 automatic，且仅用于图片连接。");
+  if (kind !== "image" && ["apiMode", "generationEndpoint", "referenceEndpoint"].some((key) => input[key] !== undefined)) throw new Error("图片接口字段仅用于 image。");
   const action = input.action ?? "upsert";
   if (typeof action !== "string" || !["upsert", "default", "remove"].includes(action)) throw new Error("未知 Provider 配置操作。");
   if (input.setDefault !== undefined && typeof input.setDefault !== "boolean") throw new Error("setDefault 必须为布尔值。");
   if (input.apiKey !== undefined && (typeof input.apiKey !== "string" || input.apiKey.length > 100_000)) throw new Error("API Key 格式无效。");
   return store.transaction(() => {
     const settings = store.getSettings();
-    const list = kind === "video" ? settings.videoProviders : settings.audioProviders ?? [];
+    const list = kind === "image" ? settings.providers : kind === "video" ? settings.videoProviders : settings.audioProviders ?? [];
     const id = input.providerId === undefined ? `${kind}-${randomUUID()}` : text(input.providerId, "Provider ID");
     if (!/^[\w.-]+$/u.test(id)) throw new Error("Provider ID 只能包含字母、数字、下划线、点和连字符。");
     const previous = list.find((p) => p.id === id);
@@ -28,10 +33,10 @@ export async function configureProvider(store: SettingsStore, input: Record<stri
     if (!previous && all.some((p) => p.id === id)) throw new Error("Provider ID 已用于其它类型。");
     if (previous?.type === "official") throw new Error("不能修改内置官方 Provider。");
     if (action !== "upsert" && !previous) throw new Error("Provider 不存在。");
-    let config: VideoProviderConfig | AudioProviderConfig | undefined = previous;
+    let config: VideoProviderConfig | AudioProviderConfig | ProviderConfig | undefined = previous;
     if (action === "upsert") {
-      const type = input.type ?? previous?.type ?? (kind === "audio" ? "openai-compatible" : undefined);
-      if (!(kind === "audio" ? ["openai-compatible"] : ["ark", "fal", "openrouter", "minimax"]).includes(String(type))) throw new Error("Provider 类型无效。");
+      const type = input.type ?? previous?.type ?? (kind !== "video" ? "openai-compatible" : undefined);
+      if (!(kind === "image" ? ["openai-compatible", "ark", "fal", "bailian", "openrouter", "poe"] : kind === "audio" ? ["openai-compatible"] : ["ark", "fal", "openrouter", "minimax"]).includes(String(type))) throw new Error("Provider 类型无效。");
       if (previous && type !== previous.type) throw new Error("不能更改已有 Provider 的协议类型，请新增 Provider。");
       const baseUrl = text(input.baseUrl ?? previous?.baseUrl, "baseUrl");
       let url: URL;
@@ -41,8 +46,32 @@ export async function configureProvider(store: SettingsStore, input: Record<stri
       const models = input.models ?? previous?.models ?? [];
       if (!Array.isArray(models) || models.length > 1000) throw new Error("models 必须是最多 1000 项的数组。");
       config = { ...previous, id, name: text(input.name ?? previous?.name ?? id, "name"), type, baseUrl, model,
-        models: [...new Set([model, ...models.map((m) => text(m, "model"))])] } as VideoProviderConfig | AudioProviderConfig;
-      if (kind === "audio") {
+        models: [...new Set([model, ...models.map((m) => text(m, "model"))])] } as VideoProviderConfig | AudioProviderConfig | ProviderConfig;
+      if (kind === "image" && input.imageControlMode !== undefined) (config as ProviderConfig).imageControlMode = input.imageControlMode as ProviderConfig["imageControlMode"];
+      if (kind === "image") {
+        if (["voice", "speechEndpoint", "connectionProviderId"].some((key) => input[key] !== undefined)) throw new Error("图片 Provider 不支持音频或连接复用字段。");
+        const old = previous as ProviderConfig | undefined;
+        const apiMode = input.apiMode ?? old?.apiMode ?? "images";
+        if (!["images", "responses"].includes(String(apiMode))) throw new Error("apiMode 必须是 images 或 responses。");
+        const endpoint = (value: unknown, fallback: string) => {
+          if (value === undefined) return fallback;
+          if (typeof value !== "string" || !/^\/(?!\/)[^?#\\\s]*$/u.test(value) || value.includes("..")) throw new Error("图片接口必须是相对路径。");
+          return value;
+        };
+        config = { ...config, type: type as ProviderConfig["type"], apiMode: apiMode as ProviderConfig["apiMode"],
+          generationEndpoint: endpoint(input.generationEndpoint, old?.generationEndpoint || (type === "ark" ? "/images/generations" : type === "bailian" ? "/api/v1/services/aigc/multimodal-generation/generation" : apiMode === "responses" ? "/v1/responses" : "/v1/images/generations")),
+          referenceEndpoint: endpoint(input.referenceEndpoint, old?.referenceEndpoint || "/v1/images/edits"),
+          supportsReferenceImages: old?.supportsReferenceImages ?? true } as ProviderConfig;
+        if (input.outputFormats !== undefined || input.svgModel !== undefined || input.svgMode !== undefined) {
+          const image = config as ProviderConfig;
+          const formats = input.outputFormats ?? imageOutputCapabilities(image).outputFormats;
+          if (!Array.isArray(formats) || !formats.length || formats.some((format) => !IMAGE_OUTPUT_FORMATS.includes(format))) throw new Error("输出格式配置无效。");
+          const svgModel = input.svgModel === undefined ? imageOutputCapabilities(image).svgModel : text(input.svgModel, "svgModel");
+          if (formats.includes("svg") && !svgModel) throw new Error("SVG 输出需要配置作者模型。");
+          image.imageCapabilities = { ...image.imageCapabilities, [model]: { outputFormats: [...new Set(formats)], svgModel,
+            svgMode: input.svgMode as "native" | "author" | undefined ?? imageOutputCapabilities(image).svgMode } };
+        }
+      } else if (kind === "audio") {
         if (input.connectionProviderId !== undefined) throw new Error("音频 Provider 不支持复用图片连接。");
         const old = previous as AudioProviderConfig | undefined;
         const endpoint = text(input.speechEndpoint ?? old?.speechEndpoint ?? "/v1/audio/speech", "speechEndpoint");
@@ -56,12 +85,13 @@ export async function configureProvider(store: SettingsStore, input: Record<stri
         if (ownerId && input.apiKey !== undefined) throw new Error("此视频 Provider 复用图片凭证；请先清空 connectionProviderId 再设置独立密钥。");
       }
     } else if (Object.keys(input).some((key) => !["kind", "action", "providerId"].includes(key))) throw new Error("默认/删除操作不接受其它配置字段。");
-    const next: Array<VideoProviderConfig | AudioProviderConfig> = action === "remove"
+    const next: Array<VideoProviderConfig | AudioProviderConfig | ProviderConfig> = action === "remove"
       ? list.filter((p) => p.id !== id)
       : previous ? list.map((p) => p.id === id ? config! : p) : [...list, config!];
-    const active = kind === "video" ? settings.activeVideoProviderId : settings.activeAudioProviderId;
+    const active = kind === "image" ? settings.activeProviderId : kind === "video" ? settings.activeVideoProviderId : settings.activeAudioProviderId;
     const activeId = action === "default" || input.setDefault === true || !active ? id : active;
-    store.updateSettings(kind === "video"
+    store.updateSettings(kind === "image"
+      ? { providers: next as ProviderConfig[], activeProviderId: activeId } : kind === "video"
       ? { videoProviders: next as VideoProviderConfig[], activeVideoProviderId: activeId }
       : { audioProviders: next as AudioProviderConfig[], activeAudioProviderId: activeId });
     if (action === "upsert" && typeof input.apiKey === "string") store.setApiKey(id, input.apiKey);

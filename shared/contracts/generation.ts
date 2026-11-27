@@ -37,6 +37,26 @@ export type ImageBackground = "auto" | "opaque" | "transparent";
 
 export type ImageOutputFormat = "png" | "jpeg" | "webp" | "svg" | "gif";
 
+export interface ImageDeliveryOptions {
+  format?: "png" | "jpeg" | "webp";
+  /** Local delivery pixels, independent of the provider's native size request. */
+  size?: string;
+  fit?: "scale" | "cover" | "contain";
+  quality?: number;
+}
+
+export interface ImageDeliveryState {
+  status: "processing" | "succeeded" | "failed";
+  options: ImageDeliveryOptions;
+  completedAt?: string;
+  error?: string;
+}
+
+export interface RetryImageDeliveryInput {
+  jobId: string;
+  delivery?: ImageDeliveryOptions;
+}
+
 export type ReferenceImageRole = "reference" | "edit-target" | "style-reference" | "subject" | "base-scene";
 
 export interface PromptSpec {
@@ -94,6 +114,8 @@ export interface GenerateImageInput {
   /** GPT Image output background. Transparent output is encoded as PNG. */
   background?: ImageBackground;
   outputFormat?: ImageOutputFormat;
+  /** Local format/size conversion; never promises native model resolution. */
+  delivery?: ImageDeliveryOptions;
   frameCount?: number;
   frameDurationMs?: number;
   referenceImages: ReferenceImagePayload[];
@@ -109,6 +131,7 @@ export interface GenerateImageInput {
 
 export interface GenerationResult {
   images: ProviderImageResult[];
+  execution?: { mode: "svg-author"; model: string };
   /** 非致命问题（如 n 张里有部分失败、Provider 返回张数不足），由 UI 以警告形式展示。 */
   warnings?: string[];
   /** 官方 Provider 返回的扣费后余额；自定义 Provider 不设置。 */
@@ -116,6 +139,7 @@ export interface GenerationResult {
 }
 
 export interface GenerationJob {
+  execution?: { mode: "svg-author"; model: string };
   /** Server-computed binding for durable idempotent requests. */
   requestHash?: string;
   id: string;
@@ -134,6 +158,13 @@ export interface GenerationJob {
   useCase?: GptImageUseCase;
   referenceImagePaths: string[];
   outputImagePaths: string[];
+  /** Original provider artifacts remain recoverable after local delivery or failure. */
+  originalImagePaths?: string[];
+  originalOutputMetadata?: Array<Omit<ProviderImageResult, "bytes">>;
+  delivery?: ImageDeliveryState;
+  /** Provider warnings are retained independently of retryable delivery warnings. */
+  generationWarnings?: string[];
+  warnings?: string[];
   outputMetadata?: Array<Omit<ProviderImageResult, "bytes">>;
   error?: string;
   /** 归属画板；旧数据在首次迁移时统一挂到默认画板。 */
@@ -152,6 +183,7 @@ export interface GenerateResponse {
     path: string;
     /** 受控协议 URL；字段名为兼容旧渲染层保留。 */
     dataUrl: string;
+    original?: { path: string; dataUrl: string; width?: number; height?: number };
   }>;
   warnings?: string[];
   /** 仅官方 Provider 返回，便于 UI 在生成完成后立即刷新余额。 */

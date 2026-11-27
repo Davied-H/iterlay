@@ -1,3 +1,4 @@
+import { deliveryNodeIndex } from "@shared/image-output-delivery";
 import { isOriginalFormatImage } from "@shared/image-output";
 import { automaticVideoPlacement } from "@/lib/automatic-video-placement";
 import { connectTemplatePersistence, readPersistedTemplates } from "@/lib/template-persistence";
@@ -5679,6 +5680,33 @@ export default function App(): React.ReactElement {
                 thumbnailFor={getImageThumbnail}
                 loadThumbnail={loadHistoryThumbnail}
                 onFocusJob={focusJob}
+                onRetryDelivery={async (job, delivery) => {
+                  const api = getWorkbenchApi();
+                  if (!api) throw new Error(translateSourceText("工作台连接不可用。"));
+                  await flushBoardSave();
+                  const result = await api.retryImageDelivery({ jobId: job.id, delivery });
+                  if (result.job.delivery?.status === "succeeded" && job.boardId) {
+                    const board = await api.getBoard(job.boardId);
+                    for (const node of board?.nodes ?? []) {
+                      if (!isBoardImageNode(node) || node.jobId !== job.id) continue;
+                      const index = deliveryNodeIndex(job, node);
+                      const output = result.images[index];
+                      if (!output || output.path === node.imagePath) continue;
+                      const dimensions = result.job.outputMetadata?.[index];
+                      const version = { path: output.path, dataUrl: output.dataUrl, jobId: job.id, width: dimensions?.width, height: dimensions?.height };
+                      await api.appendBoardNodeVersions(job.boardId, node.id, [{ imagePath: output.path, jobId: job.id, width: version.width, height: version.height }]);
+                      boardDetailCacheRef.current.delete(job.boardId);
+                      if (activeBoardRef.current?.id === job.boardId) setImages((current) => current.map((image) => {
+                        if (image.id !== node.id || image.path !== node.imagePath) return image;
+                        const versions = [...(image.versions ?? [{ path: image.path, dataUrl: image.dataUrl, jobId: image.jobId, width: image.width, height: image.height }]), version];
+                        return { ...image, ...version, versions, activeVersion: versions.length - 1 };
+                      }));
+                    }
+                  }
+                  await refreshHistory();
+                  if (result.job.delivery?.status === "failed") toast.error(translateSourceText("原图已保留，请调整交付规格后重试。"));
+                  else toast.success(translateSourceText("本地交付已完成，未调用模型。"));
+                }}
                 activeTasks={activeBoardGenerations.filter(task=>task.boardId===activeBoard?.id)}
                 onReuseJob={reuseJob}
                 onReusePrompt={(job) => {

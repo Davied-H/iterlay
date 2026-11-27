@@ -1,4 +1,4 @@
-import { imageOutputCapabilities } from "./image-output.js";
+import { automaticImageControls, imageOutputCapabilities, imageOutputCapabilityEvidence } from "./image-output.js";
 import { OFFICIAL_MAX_IMAGE_COUNT, type ProviderConfig } from "./types.js";
 
 const CUSTOM_PROVIDER_MAX_IMAGE_COUNT = 99;
@@ -38,15 +38,16 @@ const EXTENDED_IMAGE_SIZES: readonly ProviderImageSizeOption[] = [
 
 /** 返回当前图片 Provider 可在生成界面直接选择的尺寸。 */
 export function getProviderImageSizeOptions(
-  provider?: Pick<ProviderConfig, "type">
+  provider?: Pick<ProviderConfig, "type" | "imageControlMode">
 ): readonly ProviderImageSizeOption[] {
+  if (automaticImageControls(provider)) return STANDARD_IMAGE_SIZES.slice(0, 1);
   return provider?.type === "official" ? STANDARD_IMAGE_SIZES : EXTENDED_IMAGE_SIZES;
 }
 
 export function providerSupportsCustomImageSize(
-  provider?: Pick<ProviderConfig, "type">
+  provider?: Pick<ProviderConfig, "type" | "imageControlMode">
 ): boolean {
-  return provider?.type !== "official";
+  return provider?.type !== "official" && !automaticImageControls(provider);
 }
 
 export function providerSupportsTransparentBackground(provider?: ProviderConfig): boolean {
@@ -68,6 +69,9 @@ export function providerSupportsGenerateReferences(provider: ProviderConfig): bo
 export function imageProviderCapabilities(provider: ProviderConfig) {
   return {
     ...imageOutputCapabilities(provider),
+    ...imageOutputCapabilityEvidence(provider),
+    nativeControls: automaticImageControls(provider) ? "automatic" : "requested",
+    deliveryFormats: ["png", "jpeg", "webp"],
     maxImageCount: getProviderMaxImageCount(provider),
     transparentBackground: providerSupportsTransparentBackground(provider),
     generationReferences: providerSupportsGenerateReferences(provider),

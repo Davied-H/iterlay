@@ -14,6 +14,7 @@ export interface ImageDeliveryItem {
   width?: number;
   height?: number;
   quality?: number;
+  fit?: "scale" | "cover" | "contain";
 }
 export interface ImageDeliveryRecipe {
   id: string;
@@ -90,6 +91,7 @@ export function validateImageDeliveryRecipe(value: unknown): ImageDeliveryRecipe
     for (const size of [item.width, item.height]) if (size !== undefined && (!Number.isInteger(size) || size < 1 || size > 16384)) throw new Error("导出宽高须为 1–16384 的整数。");
     if ((item.width ?? 1) * (item.height ?? 1) > 32_000_000) throw new Error("单张导出图片不能超过 3200 万像素。");
     if (item.quality !== undefined && (!Number.isInteger(item.quality) || item.quality < 1 || item.quality > 100)) throw new Error("导出质量须为 1–100 的整数。");
+    if (item.fit !== undefined && !["scale", "cover", "contain"].includes(item.fit)) throw new Error("交付尺寸适配方式无效。");
   }
   return structuredClone(recipe);
 }

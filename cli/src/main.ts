@@ -5,25 +5,26 @@ import path from "node:path";
 import os from "node:os";
 import { randomUUID } from "node:crypto";
 import { runAdd, runRemove } from "./commands.js";
-import { defaultUserDataPath } from "./paths.js";
+import { defaultUserDataPath, standaloneUserDataPath, resolveIterlayApp } from "./paths.js";
 import { connect } from "./runtime.js";
 import { listWorkspaceTools } from "../../electron/workspace-tools.js";
 import { assertInlineMediaByteLength } from "../../shared/media-import.js";
 import type { CodingAgentId } from "../../shared/agent-integration.js";
 
-const HELP = `Iterlay CLI — 使用 App 保存的模型创作
+const HELP = `Iterlay CLI — 图片、视频与画板；支持 App 和独立 Node 运行时
 
 iterlay status                         工作区状态
 iterlay providers list [--kind image]   已保存的模型服务（不包含密钥）
 iterlay providers show <id>             查看配置（不包含密钥）
-iterlay providers set --kind video|audio --provider <id> --model <id> [配置选项]
-iterlay providers default|remove <id> --kind video|audio
+iterlay providers set --kind image|video|audio --provider <id> --model <id> [配置选项]
+iterlay providers default|remove <id> --kind image|video|audio
 iterlay models list --provider <id>     服务已保存的模型
-iterlay models set --kind video|audio --provider <id> --model <id> [--saved-model <id>]
+iterlay models set --kind image|video|audio --provider <id> --model <id> [--saved-model <id>]
 配置：--type --name --base-url --voice --speech-endpoint --connection-provider
       --saved-model <id>（可重复） --default --api-key-env <变量名> | --api-key-stdin
       --clear-api-key 清除密钥；省略密钥参数则保留原凭证。audio 为独立 TTS 配置。
 iterlay image generate --prompt <text> [--reference <file>] [--out <file>]
+iterlay image deliver --job <id> [--delivery-format jpeg] [--delivery-size 1200x2000] [--fit scale|cover|contain] [--out <file>]
 iterlay image slice --path <managed-path> --rows 3 --columns 4 [--out <directory>]
 iterlay image edit --input <file> --prompt <text> [--out <file>]
 iterlay video generate --prompt <text> [--board <id>]
@@ -41,19 +42,25 @@ iterlay call <operation> --input '<JSON>'  调用任意工作台操作
 iterlay add [--agent <id>]              安装 CLI Skill，迁移旧集成
 iterlay remove --agent <id>             移除 Skill
 
+iterlay serve                          前台运行独立后台（供 systemd / Docker 托管）
+iterlay server stop                    停止独立后台
+
 通用选项：--json --async --provider <id> --model <id> --board <id>
---user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
-默认自动启动隐藏后台服务，不显示 App 窗口；--no-launch 仅连接已有服务。
+--standalone --user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
+有 App 时默认连接 App；未安装时自动使用独立 Node 后台。--standalone 强制独立工作区。
+--no-launch 仅连接已有服务。图片接口：--api-mode images|responses --generation-endpoint <path> --reference-endpoint <path>。
 生成：--size auto --n 1 --quality high --background transparent
 格式：--output-format png|jpeg|webp|svg|gif；GIF 使用 --size 512x512 --frames 9 --frame-duration-ms 200
+本地交付：--delivery-format png|jpeg|webp --delivery-size WxH --fit scale|cover|contain --delivery-quality 1..100
+ChatGPT OAuth 中转：providers set --kind image --provider <id> --image-control-mode automatic
 未指定 --board 时使用设置中的 CLI 默认画板；未配置时使用「CLI 创作」。
 默认等待任务完成；Ctrl+C 只结束等待。已有输出文件不会覆盖，除非 --overwrite。`;
 
 type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
-  const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
-  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "output-format", "frames", "frame-duration-ms", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
+  const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key", "standalone"]);
+  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "output-format", "frames", "frame-duration-ms", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node", "api-mode", "generation-endpoint", "reference-endpoint", "job", "delivery-format", "delivery-size", "delivery-quality", "fit", "image-control-mode"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -110,7 +117,9 @@ async function main(): Promise<void> {
   }
   const timeout = Number(get("timeout") ?? "600");
   if (!Number.isFinite(timeout) || timeout <= 0) throw new Error("--timeout 必须是正数。");
-  const userDataPath = get("user-data-path") ?? process.env.ITERLAY_USER_DATA_PATH ?? defaultUserDataPath();
+  if (flags.standalone && get("app-path")) throw new Error("--standalone 与 --app-path 不能同时使用。");
+  const standalone = Boolean(flags.standalone) || words[0] === "serve" || (!get("app-path") && !await resolveIterlayApp());
+  const userDataPath = get("user-data-path") ?? process.env.ITERLAY_USER_DATA_PATH ?? (standalone ? standaloneUserDataPath() : defaultUserDataPath());
   const [group, action, id] = words;
   const output = (data: unknown) => process.stdout.write(JSON.stringify(flags.json ? { schemaVersion: 1, ok: true, data } : data, (key, value: unknown) => key === "previewImageDataUrls" ? undefined : value, 2) + "\n");
   if (group === "guard" && action === "descriptor") {
@@ -125,15 +134,50 @@ async function main(): Promise<void> {
     output(await (group === "add" ? runAdd(options) : runRemove(options))); return;
   }
   if (group === "tools" && action === "list") { output(listWorkspaceTools()); return; }
-  const call = await connect({ userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.ITERLAY_USER_DATA_PATH) || Boolean(get("user-data-path")) });
+  if (group === "serve") {
+    const { startNodeServer } = await import("./server.js");
+    const server = await startNodeServer(userDataPath);
+    const stop = () => { void server.close(); };
+    process.once("SIGTERM", stop); process.once("SIGINT", stop);
+    output({ runtime: "node", userDataPath: server.directory, listening: "127.0.0.1" });
+    await server.closed;
+    process.removeListener("SIGTERM", stop); process.removeListener("SIGINT", stop);
+    return;
+  }
+  const deliveryOptions = () => {
+    const value = { format: get("delivery-format"), size: get("delivery-size"), fit: get("fit"), quality: get("delivery-quality") === undefined ? undefined : Number(get("delivery-quality")) };
+    return Object.values(value).some((item) => item !== undefined) ? value : undefined;
+  };
+  const runtimeCall = await connect({ userDataPath, appRoot: get("app-path"), standalone, noLaunch: Boolean(flags["no-launch"]) || (!standalone && (Boolean(process.env.ITERLAY_USER_DATA_PATH) || Boolean(get("user-data-path")))) || group === "server" });
+  let deliverySupported: Promise<boolean> | undefined;
+  const requireDelivery = async () => {
+    deliverySupported ??= runtimeCall("status").then((status) => record(status).imageDeliveryVersion === 1);
+    if (!await deliverySupported) throw new Error("当前后台尚不支持本地交付，请升级 App 或使用 --standalone；未提交生成请求。");
+  };
+  const call = async (method: string, args: Record<string, unknown> = {}) => {
+    if (method === "retry_image_delivery" || ["generate_image", "edit_image"].includes(method) && args.delivery !== undefined) {
+      await requireDelivery();
+    }
+    return runtimeCall(method, args);
+  };
+  if (group === "server" && action === "stop") { output(await call("shutdown")); return; }
   if (group === "status" || group === "doctor") { output(await call("status")); return; }
+  if (group === "image" && action === "deliver") {
+    const jobId = get("job") ?? id;
+    if (!jobId) throw new Error("缺少 --job；请使用 tasks get 返回的 job.id。");
+    const result = record(await call("retry_image_delivery", { jobId, delivery: deliveryOptions() }));
+    if (get("out") && record(record(result.job).delivery).status !== "failed") {
+      result.exportedPaths = await exportFiles(call, (result.images as Array<{ path: string }> ?? []).map((image) => image.path), get("out")!, Boolean(flags.overwrite));
+    }
+    output(result); if (record(record(result.job).delivery).status === "failed") process.exitCode = 1; return;
+  }
   if (group === "providers" && action === "list") { output(await call("list_providers", get("kind") ? { kind: get("kind") } : {})); return; }
   if (group === "providers" && action === "show") { output(await call("get_provider", { providerId: id ?? get("provider") })); return; }
   if ((group === "providers" && ["set", "default", "remove"].includes(action)) || (group === "models" && action === "set")) {
-    if (!["video", "audio"].includes(get("kind") ?? "")) throw new Error("配置必须指定 --kind video 或 audio。");
+    if (!["image", "video", "audio"].includes(get("kind") ?? "")) throw new Error("配置必须指定 --kind image、video 或 audio。");
     const input: Record<string, unknown> = { kind: get("kind"), action: action === "set" ? "upsert" : action, providerId: id ?? get("provider") };
     if (action !== "set" && !input.providerId) throw new Error("缺少 Provider ID。");
-    const fields: Record<string, string> = { name: "name", type: "type", "base-url": "baseUrl", model: "model", voice: "voice", "speech-endpoint": "speechEndpoint", "connection-provider": "connectionProviderId" };
+    const fields: Record<string, string> = { name: "name", type: "type", "base-url": "baseUrl", model: "model", voice: "voice", "speech-endpoint": "speechEndpoint", "connection-provider": "connectionProviderId", "api-mode": "apiMode", "generation-endpoint": "generationEndpoint", "reference-endpoint": "referenceEndpoint", "image-control-mode": "imageControlMode" };
     for (const [flag, field] of Object.entries(fields)) if (get(flag) !== undefined) input[field] = get(flag) === "none" && flag === "connection-provider" ? "" : get(flag);
     if (flags["saved-model"]) input.models = flags["saved-model"];
     if (flags.default) input.setDefault = true;
@@ -225,15 +269,17 @@ async function main(): Promise<void> {
     result = await call(video ? "get_video_generation_status" : "get_generation_status", video ? { videoGenerationId: id } : { generationId: id });
     if (action === "get") { const r = record(result); delete r.previewImageDataUrls; output(r); return; }
   } else if ((group === "image" && (action === "generate" || action === "edit")) || (group === "video" && action === "generate")) {
+    if (video && deliveryOptions()) throw new Error("本地图片交付参数仅用于图片生成与编辑。");
     if (video && get("template")) throw new Error("--template 目前只支持图片生成和编辑。");
     if (!get("prompt")?.trim()) throw new Error("缺少 --prompt。");
     if (action === "edit" && !get("input")) throw new Error("缺少 --input。");
+    if (!video && deliveryOptions()) await requireDelivery();
     let boardId = get("board");
     if (!boardId) {
       boardId = String(record(await call("resolve_generation_board")).boardId);
     }
     const args: Record<string, unknown> = { templateId: get("template"), boardId, prompt: get("prompt"), providerId: get("provider"), model: get("model"), size: get("size"), quality: get("quality"), background: get("background"), style: get("style"), n: get("n") ? Number(get("n")) : 1 };
-    if (!video) { args.outputFormat = get("output-format"); args.frameCount = get("frames") ? Number(get("frames")) : undefined; args.frameDurationMs = get("frame-duration-ms") ? Number(get("frame-duration-ms")) : undefined; }
+    if (!video) { args.delivery = deliveryOptions(); args.outputFormat = get("output-format"); args.frameCount = get("frames") ? Number(get("frames")) : undefined; args.frameDurationMs = get("frame-duration-ms") ? Number(get("frame-duration-ms")) : undefined; }
     if (flags.reference) args[video ? "referenceImagePaths" : "referencePaths"] = await Promise.all(flags.reference.map((file) => importFile(call, file, boardId)));
     if (action === "edit") { if (!get("input")) throw new Error("缺少 --input。"); args.sourcePath = await importFile(call, get("input")!, boardId); }
     if (video) { args.aspectRatio = get("ratio"); args.durationSeconds = get("duration") ? Number(get("duration")) : undefined; args.resolution = get("resolution"); }
@@ -255,7 +301,11 @@ async function main(): Promise<void> {
   }
   delete task.previewImageDataUrls;
   if (["failed", "cancelled", "interrupted", "unknown"].includes(String(task.status))) throw new Error(`任务 ${taskId}：${String(task.error ?? task.status)}`);
-  if (get("out")) {
+  if (!video && record(record(task.job).delivery).status === "failed") {
+    process.exitCode = 1;
+    process.stderr.write(`原图已生成并保留，本地交付未完成。使用 image deliver --job ${String(record(task.job).id)} 重试，不会再次调用模型。\n`);
+  }
+  if (get("out") && (video || record(record(task.job).delivery).status !== "failed")) {
     const paths = video ? [String(record(task.video).path)] : (task.images as Array<{ path: string }> ?? []).map((image) => image.path);
     try { task.exportedPaths = await exportFiles(call, paths, get("out")!, Boolean(flags.overwrite)); }
     catch (error) { throw new Error(`生成已完成，任务 ${taskId}；导出失败：${error instanceof Error ? error.message : String(error)}。可再次 tasks wait 导出。`); }

@@ -1,4 +1,5 @@
-import { imageOutputCapabilities, IMAGE_OUTPUT_LABELS } from "@shared/image-output";
+import { automaticImageControls, imageOutputCapabilities, IMAGE_OUTPUT_LABELS } from "@shared/image-output";
+import { ImageDeliverySettings } from "./ImageDeliverySettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,6 +33,7 @@ export function GenerationSettingsPicker({
   outputFormat = "png",
   frameCount = 9,
   frameDurationMs = 200,
+  delivery,
   onOutputChange,
   transparentBackground,
   maxCount,
@@ -50,6 +52,7 @@ export function GenerationSettingsPicker({
   outputFormat?: GenerateImageInput["outputFormat"];
   frameCount?: number;
   frameDurationMs?: number;
+  delivery?: GenerateImageInput["delivery"];
   onOutputChange: (patch: Partial<GenerateImageInput>) => void;
   transparentBackground: boolean;
   maxCount: number;
@@ -110,15 +113,17 @@ export function GenerationSettingsPicker({
       <PopoverContent side="top" align="end" sideOffset={10} className="max-h-[80dvh] w-64 overflow-y-auto p-2.5">
         <p className="mb-2.5 text-sm font-semibold text-foreground">{t("prompt.generationSettings")}</p>
         <p className="mb-2.5 break-words px-2 text-xs text-muted-foreground">{uiText("当前模型：{{ui:0}}", [summary.model])}</p>
+        {automaticImageControls(provider) ? <p className="mb-3 text-xs leading-5 text-muted-foreground">{uiText("上游自动决定原生尺寸与质量；精确像素请设置本地交付。")}</p> : null}
         <label className="mb-3 block px-0.5 text-xs font-medium text-muted-foreground">
-          {uiText("输出格式")}
+          {uiText("原生输出格式")}
           <select
-            aria-label={uiText("输出格式")}
+            aria-label={uiText("原生输出格式")}
             className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={outputFormat}
             onChange={(event) => {
               const format = event.target.value as NonNullable<GenerateImageInput["outputFormat"]>;
               onOutputChange({ outputFormat: format,
+                delivery: ["svg", "gif"].includes(format) ? undefined : delivery,
                 size: format === "gif" ? "512x512" : gif ? "auto" : size,
                 frameCount: format === "gif" ? 9 : undefined,
                 frameDurationMs: format === "gif" ? 200 : undefined,
@@ -130,6 +135,8 @@ export function GenerationSettingsPicker({
             {outputCapabilities.outputFormats.map((format) => <option key={format} value={format}>{IMAGE_OUTPUT_LABELS[format]}</option>)}
           </select>
         </label>
+        <p className="mb-3 text-xs leading-5 text-muted-foreground">{uiText("格式和尺寸是上游请求，实际输出会重新校验并保留原图。")}</p>
+        {!["svg", "gif"].includes(outputFormat) ? <ImageDeliverySettings value={delivery} onChange={(value) => onOutputChange({ delivery: value })} /> : null}
         {outputFormat === "svg" ? <p className="mb-3 text-xs leading-5 text-muted-foreground">{uiText("SVG 仅支持新作品生成，请先移除参考图。")}</p> : null}
         {gif ? <fieldset className="mb-3 grid grid-cols-2 gap-2">
           <label className="text-xs text-muted-foreground">{uiText("帧数")}

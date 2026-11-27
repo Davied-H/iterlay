@@ -49,6 +49,17 @@ async function makeFixture(): Promise<{ board: BoardData; jobs: GenerationJob[] 
 }
 
 describe("board archive (.itb)", () => {
+  it("archives the retained provider original even when only the delivered file is on the board", async () => {
+    const { board, jobs } = await makeFixture();
+    const raw = path.join(path.dirname(jobs[0].outputImagePaths[0]), "provider-original.png");
+    await writeFile(raw, Buffer.from("untouched-provider-original"));
+    jobs[0].originalImagePaths = [raw];
+    const parsed = await parseBoardArchive(await buildBoardArchive(board, jobs, "0.1.1"));
+    const restored = parsed.jobs[0].originalImagePaths![0];
+    expect(restored.startsWith("images/")).toBe(true);
+    expect(parsed.images.get(restored)).toEqual(Buffer.from("untouched-provider-original"));
+    expect(restored).not.toBe(parsed.jobs[0].outputImagePaths[0]);
+  });
   it("keeps historical edit sources and semantic reference snapshots portable", async () => {
     const { board, jobs } = await makeFixture();
     const source = board.nodes.filter(isBoardImageNode)[1].imagePath;

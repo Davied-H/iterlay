@@ -45,7 +45,8 @@
     "plugins:build": "pnpm exec tsc -p packages/plugin-sdk/tsconfig.json && node scripts/build-plugins.mjs && node scripts/build-code-sandbox.mjs",
     "predev": "pnpm plugins:build",
     "predev:web": "pnpm plugins:build",
-    "test:browser:plugins": "node scripts/playwright-browser-plugins.mjs"
+    "test:browser:plugins": "node scripts/playwright-browser-plugins.mjs",
+    "test:cli:standalone": "node scripts/cli-standalone-smoke.mjs"
   },
   "devDependencies": {
     "@babel/standalone": "^8.0.8",
@@ -125,6 +126,7 @@
     "wait-on": "^8.0.4"
   },
   "build": {
+    "afterPack": "scripts/package-cli-runtime.mjs",
     "appId": "dev.dong.iterlay",
     "productName": "Iterlay",
     "protocols": [
@@ -187,6 +189,7 @@
         "to": "cli",
         "filter": [
           "dist/main.js",
+          "dist/server.js",
           "guard/**",
           "package.json",
           "skills/**"

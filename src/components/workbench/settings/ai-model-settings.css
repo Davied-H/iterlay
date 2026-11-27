@@ -226,6 +226,9 @@
   .model-search { width: 180px; }
 }
 @container (max-width: 640px) {
+  .model-connection-check { flex-direction: column; }
+  .model-connection-check-copy { width: 100%; }
+  .model-check-actions { width: 100%; order: -1; }
   .model-page-header { padding-left: 22px; }
   .model-page-header .model-page-intro p { display: none; }
   .model-overview, .model-platform-picker, .model-editor { padding-left: 22px; padding-right: 22px; }

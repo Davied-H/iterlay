@@ -14,7 +14,8 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import type { GenerationJob, JobStatus, ProviderConfig, VideoGenerationJob } from "@shared/types";
+import type { GenerationJob, ImageDeliveryOptions, JobStatus, ProviderConfig, VideoGenerationJob } from "@shared/types";
+import { ImageDeliverySettings } from "./ImageDeliverySettings";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -74,6 +75,7 @@ interface HistoryRailProps {
   onFocusJob: (job: GenerationJob) => void;
   onReuseJob: (job: GenerationJob) => void;
   onReusePrompt?: (job: GenerationJob) => void;
+  onRetryDelivery?: (job: GenerationJob, options: ImageDeliveryOptions) => Promise<void>;
   activeTasks?: ActiveBoardGeneration[];
   totalHistoryCount?: number;
   hasMore?: boolean;
@@ -84,6 +86,7 @@ interface HistoryRailProps {
 }
 
 interface HistoryItemProps {
+  compactDetails?: boolean;
   job: GenerationJob;
   providers: ProviderConfig[];
   thumbnail?: string | null;
@@ -95,6 +98,7 @@ interface HistoryItemProps {
   onFocusJob: (job: GenerationJob) => void;
   onReuseJob: (job: GenerationJob) => void;
   onReusePrompt?: (job: GenerationJob) => void;
+  onRetryDelivery?: (job: GenerationJob, options: ImageDeliveryOptions) => Promise<void>;
 }
 
 function formatDuration(job: GenerationJob): string | null {
@@ -132,6 +136,7 @@ function providerNameFor(job: GenerationJob, providers: ProviderConfig[]): strin
 }
 
 function HistoryItem({
+  compactDetails = false,
   job,
   providers,
   thumbnail,
@@ -142,12 +147,21 @@ function HistoryItem({
   onCloseDetails,
   onFocusJob,
   onReuseJob,
-  onReusePrompt
+  onReusePrompt,
+  onRetryDelivery
 }: HistoryItemProps): React.ReactElement {
   const uiText = useUiText();
+  const [retryOptions, setRetryOptions] = useState<ImageDeliveryOptions>(job.delivery?.options ?? {});
+  const [retrying, setRetrying] = useState(false);
+  const [deliveryError, setDeliveryError] = useState("");
 
   const closeTimerRef = useRef<number | null>(null);
-  const meta = statusMeta[job.status] ?? statusMeta.queued;
+  const meta = job.delivery?.status === "failed"
+    ? { label: "已生成 · 交付待处理", icon: AlertCircle, className: "text-amber-700 dark:text-amber-300" }
+    : job.delivery?.status === "processing"
+      ? { label: "已生成 · 本地处理中", icon: LoaderCircle, className: "text-muted-foreground" }
+      : statusMeta[job.status] ?? statusMeta.queued;
+  const visibleWarnings = job.delivery?.status === "failed" ? job.generationWarnings : job.warnings;
   const StatusIcon = meta.icon;
   const duration = formatDuration(job);
   const providerName = providerNameFor(job, providers);
@@ -212,12 +226,12 @@ function HistoryItem({
               {job.prompt || uiText("无提示词")}
             </span>
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
-              <span className={cn("inline-flex shrink-0 items-center gap-1", meta.className)}>
+              <span className={cn("inline-flex min-w-0 items-center gap-1", meta.className)}>
                 <StatusIcon
                   className={cn("h-3 w-3", job.status === "running" && "animate-spin motion-reduce:animate-none")}
                   aria-hidden
                 />
-                <span>{uiText(meta.label)}</span>
+                <span className="truncate">{uiText(meta.label)}</span>
               </span>
               <span aria-hidden>·</span>
               <time className="min-w-0 truncate tabular-nums" dateTime={job.createdAt} title={FULL_TIME_FORMATTER.format(new Date(job.createdAt))}>
@@ -235,14 +249,14 @@ function HistoryItem({
       </PopoverAnchor>
 
       <PopoverContent
-        side="left"
-        align="start"
+        side={compactDetails ? "bottom" : "left"}
+        align={compactDetails ? "end" : "start"}
         sideOffset={10}
         collisionPadding={16}
         onOpenAutoFocus={(event) => event.preventDefault()}
         onMouseEnter={clearCloseTimer}
         onMouseLeave={scheduleClose}
-        className="w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-xl p-0 shadow-[0_2px_8px_hsl(0_0%_0%/0.14)] data-[state=closed]:!animate-none motion-reduce:!animate-none"
+        className="max-h-[min(calc(100dvh-2rem),var(--radix-popper-available-height))] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-xl p-0 shadow-[0_2px_8px_hsl(0_0%_0%/0.14)] data-[state=closed]:!animate-none motion-reduce:!animate-none"
       >
         <div className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2.5">
           <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium", meta.className)}>
@@ -267,6 +281,26 @@ function HistoryItem({
               {job.error}
             </div>
           ) : null}
+
+          {job.originalOutputMetadata?.length ? <div className="space-y-1 text-xs leading-5 text-muted-foreground">
+            <p>{uiText("模型原图：{{ui:0}}", [job.originalOutputMetadata.map((image) => `${image.width ?? "?"}×${image.height ?? "?"} · ${image.mimeType.replace("image/", "").toUpperCase()}`).join(" / ")])}</p>
+            {job.delivery?.status === "succeeded" ? <p>{uiText("交付文件：{{ui:0}}", [job.outputMetadata?.map((image) => `${image.width ?? "?"}×${image.height ?? "?"} · ${image.mimeType.replace("image/", "").toUpperCase()}`).join(" / ") ?? ""] )}</p> : null}
+          </div> : null}
+          {job.delivery?.status === "failed" ? <div className="space-y-2">
+            <p role="status" className="text-xs leading-5 text-amber-700 dark:text-amber-300">{uiText("生成已完成，原图已保留，本地交付待处理。")}</p>
+            <p className="break-words text-xs leading-5 text-muted-foreground">{job.delivery.error}</p>
+            {onRetryDelivery ? <>
+              <ImageDeliverySettings value={retryOptions} showToggle={false} onChange={(options) => setRetryOptions(options ?? {})} />
+              <Button size="sm" variant="outline" disabled={retrying} onClick={async () => {
+                setRetrying(true); setDeliveryError("");
+                try { await onRetryDelivery(job, retryOptions); }
+                catch (error) { setDeliveryError(error instanceof Error ? error.message : String(error)); }
+                finally { setRetrying(false); }
+              }}>{uiText(retrying ? "正在本地处理…" : "重试本地交付")}</Button>
+              {deliveryError ? <p role="alert" className="text-xs text-destructive">{deliveryError}</p> : null}
+            </> : null}
+          </div> : null}
+          {visibleWarnings?.length ? <p className="break-words text-xs leading-5 text-muted-foreground">{visibleWarnings.join(" ")}</p> : null}
 
           <dl className="grid grid-cols-[44px_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs leading-5">
             <dt className="text-muted-foreground">{uiText("来源")}</dt>
@@ -346,6 +380,7 @@ export function HistoryRail({
   onFocusJob,
   onReuseJob,
   onReusePrompt,
+  onRetryDelivery,
   activeTasks = [],
   onClear,
   onClose,
@@ -355,6 +390,14 @@ export function HistoryRail({
   onLoadMore
 }: HistoryRailProps): React.ReactElement {
   const uiText = useUiText();
+  const [compactDetails, setCompactDetails] = useState(() => window.innerWidth < 720);
+  useEffect(() => {
+    const query = window.matchMedia?.("(max-width: 719px)");
+    if (!query) return;
+    const update = () => setCompactDetails(query.matches);
+    update(); query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   const reduceMotion = useReducedMotion();
   const [loadedThumbnails, setLoadedThumbnails] = useState<Record<string, string | null>>({});
@@ -488,6 +531,7 @@ export function HistoryRail({
                   const thumbnail = outputPath ? thumbnailFor(outputPath) ?? loadedThumbnails[outputPath] : undefined;
                   return (
                     <HistoryItem
+                      compactDetails={compactDetails}
                       key={job.id}
                       job={job}
                       providers={providers}
@@ -500,6 +544,7 @@ export function HistoryRail({
                       onFocusJob={onFocusJob}
                       onReuseJob={onReuseJob}
                       onReusePrompt={onReusePrompt}
+                      onRetryDelivery={onRetryDelivery}
                     />
                   );
                 })}

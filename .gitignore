@@ -26,3 +26,6 @@ resources/native/.build-stamp
 
 # Generated offline code sandbox runtime
 /public/code-sandbox/
+
+# Generated standalone CLI documentation
+cli/docs/

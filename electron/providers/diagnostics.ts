@@ -2,6 +2,9 @@ import type {
   GenerationResult, ProviderCheck, ProviderConfig, ProviderGenerateInput,
   ProviderTestResult, TextProviderConfig, VideoProviderConfig
 } from "../../shared/types.js";
+import { imageOutputCapabilities, imageOutputConfigurationKey } from "../../shared/image-output.js";
+import { normalizeGeneratedImage } from "../media/image-artifact.js";
+import type { ImageOutputFormat, ProviderImageResult } from "../../shared/types.js";
 import { imageDimensionsFromHeader } from "../media/image-metadata.js";
 import { openRouterVideoApiRoot } from "./video-openrouter.js";
 
@@ -122,7 +125,8 @@ function connectionProbe(config: DiagnosticConfig, kind: "image" | "text" | "vid
 export async function checkImageGeneration(
   config: ProviderConfig,
   acknowledged: boolean,
-  generate: (input: ProviderGenerateInput) => Promise<GenerationResult>
+  generate: (input: ProviderGenerateInput) => Promise<GenerationResult>,
+  options: { outputFormat?: ImageOutputFormat; save?: (images: ProviderImageResult[], input: ProviderGenerateInput) => Promise<string[]> } = {}
 ): Promise<ProviderTestResult> {
   const result = newProviderTestResult();
   result.mode = "generation";
@@ -130,24 +134,52 @@ export async function checkImageGeneration(
     result.message = "请先确认：生成测试图片可能产生服务商费用。";
     return result;
   }
+  const format = options.outputFormat ?? "png";
+  result.outputFormat = format;
+  const capabilities = imageOutputCapabilities(config);
+  if (options.outputFormat && (!capabilities.outputFormats.includes(format) || format === "svg" && !capabilities.svgModel?.trim())) {
+    result.message = "请先配置该输出格式及 SVG 作者模型。";
+    return result;
+  }
   result.billing = { generationSubmitted: true, mayHaveIncurredCharge: true };
   result.checks.generation = { status: "unknown", message: "已开始提交测试；即使连接中断或超时，也可能已产生费用。" };
   try {
-    const generated = await generate({
+    const request: ProviderGenerateInput = {
       workflowMode: "generate", model: config.model,
-      prompt: "A simple blue circle on a plain white background, no text.",
-      size: "1024x1024", n: 1, outputFormat: "png", referenceImages: []
-    });
-    const image = generated.images[0];
-    if (!image?.bytes.length || !/^image\/(png|jpeg|webp)$/.test(image.mimeType) || !imageDimensionsFromHeader(image.bytes)) throw new Error("服务未返回可查看的测试图片。");
-    result.ok = true;
-    result.message = "已收到 1 张测试图片；文生图能力已验证。参考图、编辑和工具调用尚未验证，服务商可能已计费。";
+      prompt: format === "svg" ? "Return a simple blue circle as a standalone SVG vector, no embedded images or scripts."
+        : format === "gif" ? "A blue circle moving left to right, animated in multiple frames, no text."
+        : "A simple blue circle on a plain white background, no text.",
+      size: format === "gif" ? "512x512" : "1024x1024", n: 1, outputFormat: format, referenceImages: [],
+      ...(format === "gif" ? { frameCount: 9, frameDurationMs: 200 } : {})
+    };
+    const generated = await generate(request);
+    result.execution = generated.execution;
     result.checks.network = { status: "passed", message: "已收到生成响应。" };
     result.checks.authentication = { status: "passed", message: "生成接口接受了凭据。" };
+    // Save recognized originals before enforcing the requested format.
+    const originals = generated.images.map((image) => normalizeGeneratedImage(image));
+    if (options.save && originals.length) result.outputPaths = await options.save(originals, request);
+    const image = originals[0];
+    if (image) result.outputVerification = { status: "failed", configurationKey: imageOutputConfigurationKey(config), checkedAt: new Date().toISOString(), actualMimeType: image.mimeType, message: "输出格式尚未通过验收。" };
+    if (!image?.bytes.length) throw new Error("服务未返回可查看的测试图片。");
+    normalizeGeneratedImage(image, format);
+    if (!["svg", "gif"].includes(format) && !imageDimensionsFromHeader(image.bytes)) throw new Error("服务未返回可查看的测试图片。");
+    result.outputVerification = { status: "passed", configurationKey: imageOutputConfigurationKey(config), checkedAt: new Date().toISOString(), actualMimeType: image.mimeType, message: `${format.toUpperCase()} 实际输出已通过验收。` };
+    result.ok = true;
+    result.message = "已收到 1 张测试图片；文生图能力已验证。参考图、编辑和工具调用尚未验证，服务商可能已计费。";
     result.checks.capability = { status: "passed", message: "已验证文生图；参考图、编辑及工具调用未验证。" };
     result.checks.generation = { status: "passed", message: "测试图片已返回，不自动保存到画板。" };
+    if (options.outputFormat) {
+      result.message = `${format.toUpperCase()} 实际输出已验证；仅适用于当前连接和模型配置。服务商可能已计费。`;
+      result.checks.capability = { status: "passed", message: result.message };
+    }
     if (image.bytes.length <= 8 * 1024 * 1024) result.previewDataUrl = `data:${image.mimeType};base64,${image.bytes.toString("base64")}`;
   } catch (error) {
+    if (result.outputVerification) {
+      result.outputVerification.message = error instanceof Error ? error.message : "输出验收失败。";
+      result.checks.capability = { status: "failed", message: result.outputVerification.message };
+      result.checks.generation = { status: "passed", message: "已收到结果，但请求的格式未通过验收；原图已保留。" };
+    }
     result.message = `${error instanceof Error ? error.message : "生成测试失败。"} 请求可能已到达服务商并产生费用；未自动重试。`;
   }
   return result;

@@ -1,4 +1,6 @@
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { Buffer } from "node:buffer";
+import console from "node:console";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { build } from "esbuild";

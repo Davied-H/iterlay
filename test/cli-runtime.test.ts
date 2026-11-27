@@ -11,6 +11,7 @@ let directory: string, script: string;
 let generated = 0;
 let lastGenerationArgs: Record<string, unknown>;
 let resolvedBoards = 0;
+let deliveryVersion = 0;
 let lastSliceArgs: Record<string, unknown>;
 const configurations: Record<string, unknown>[] = [];
 const server = createServer(async (request, response) => {
@@ -19,7 +20,7 @@ const server = createServer(async (request, response) => {
   const { method, args } = JSON.parse(content);
   let result: unknown;
   switch (method) {
-    case 'status': result = { protocolVersion: 1 }; break;
+    case 'status': result = { protocolVersion: 1, imageDeliveryVersion: deliveryVersion }; break;
     case 'resolve_generation_board': resolvedBoards++; result = { boardId: 'configured-default' }; break;
     case 'configure_provider': configurations.push(args); result = { providerId: args.providerId, kind: args.kind, authConfigured: Boolean(args.apiKey) }; break;
     case 'get_provider': result = { id: args.providerId, voice: 'nova' }; break;
@@ -44,6 +45,12 @@ beforeAll(async () => {
 });
 afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); });
 describe('CLI subprocess workflow', () => {
+  it('refuses local delivery on an older backend before resolving a board or submitting a paid request', async () => {
+    const before = generated, boards = resolvedBoards;
+    await expect(exec(process.execPath, [script, 'image', 'generate', '--prompt', 'never submit', '--delivery-format', 'jpeg', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('未提交生成请求') });
+    expect(generated).toBe(before);
+    expect(resolvedBoards).toBe(boards);
+  });
   it('routes local slicing and exports PNGs without submitting generation', async () => {
     const before = generated;
     const target = path.join(directory, 'slices');
@@ -114,5 +121,15 @@ describe('CLI subprocess workflow', () => {
     const names = JSON.parse(run.stdout).data.map((tool: { name: string }) => tool.name);
     expect(names).toContain('generate_image'); expect(names).toContain('list_providers');
     expect(run.stdout).not.toContain('a'.repeat(32));
+  });
+  it('forwards explicit local delivery specifications when the backend advertises support', async () => {
+    const before = generated;
+    deliveryVersion = 1;
+    try {
+      const run = await exec(process.execPath, [script, 'image', 'generate', '--prompt', 'local delivery', '--board', 'board', '--delivery-format', 'jpeg', '--delivery-size', '1200x2000', '--delivery-quality', '88', '--fit', 'contain', '--async', '--user-data-path', directory, '--json']);
+      expect(JSON.parse(run.stdout).data.status).toBe('running');
+      expect(lastGenerationArgs.delivery).toEqual({ format: 'jpeg', size: '1200x2000', quality: 88, fit: 'contain' });
+      expect(generated).toBe(before + 1);
+    } finally { deliveryVersion = 0; }
   });
 });

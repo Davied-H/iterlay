@@ -1,4 +1,5 @@
-import { imageOutputRequestFields } from "../../shared/image-output.js";
+import { imageOutputCapabilities, imageOutputRequestFields } from "../../shared/image-output.js";
+import { sanitizeSvg } from "../media/svg-artifact.js";
 import { detectGeneratedImageMime } from "../media/image-artifact.js";
 import type {
   GenerationResult,
@@ -41,6 +42,9 @@ export class Sub2ApiImageProvider {
   ) {}
 
   async generate(input: ProviderGenerateInput, config: ProviderConfig, apiKey: string): Promise<GenerationResult> {
+    if (input.outputFormat === "svg" && imageOutputCapabilities(config, input.model || config.model).svgMode === "author") {
+      return this.generateWithSvgAuthor(input, config, apiKey);
+    }
     if (input.referenceImages.length > 0) {
       if (!config.supportsReferenceImages) {
         throw new ProviderError("REFERENCE_UNSUPPORTED", "当前 Provider 未声明支持参考图。");
@@ -85,6 +89,38 @@ export class Sub2ApiImageProvider {
     });
 
     return withRequestedCountWarning(await this.parseResponse(response), input.n);
+  }
+
+  private async generateWithSvgAuthor(input: ProviderGenerateInput, config: ProviderConfig, apiKey: string): Promise<GenerationResult> {
+    if (input.workflowMode !== "generate" || input.referenceImages.length) throw new ProviderError("SVG_REFERENCE_UNSUPPORTED", "SVG 作者模式仅支持无参考图的新作品生成。");
+    const model = imageOutputCapabilities(config, input.model || config.model).svgModel?.trim();
+    if (!model) throw new ProviderError("SVG_AUTHOR_REQUIRED", "SVG 作者模式需要配置作者模型。");
+    const base = config.baseUrl.trim().replace(/\/+$/u, "");
+    const endpoint = `${base}${/\/v\d+$/u.test(base) ? "" : "/v1"}/chat/completions`;
+    const count = Math.max(1, input.n);
+    const attempts = await mapWithConcurrency(Array.from({ length: count }), 2, async () => {
+      const response = await this.fetchWithTimeout(endpoint, {
+        method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, stream: false, messages: [
+          { role: "system", content: "You are an SVG vector designer. Return exactly one standalone SVG document, with a valid xmlns and numeric width/height or viewBox. Use native SVG shapes, paths and text. Do not embed raster images, scripts, foreignObject, external links, stylesheets or animation. Use explicit attributes. No explanations or Markdown. Include visible vector artwork. Use the requested canvas size; for auto choose suitable dimensions." },
+          { role: "user", content: `Canvas size: ${input.size}.\n${input.prompt}` }
+        ] })
+      });
+      if (!response.ok) await throwProviderError(response);
+      const payload = await response.json() as { choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }> };
+      const content = payload.choices?.[0]?.message?.content;
+      const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((part) => part.text ?? "").join("") : "";
+      const source = text.trim().replace(/^```(?:svg|xml)?\s*\n?([\s\S]*?)\n?```$/iu, "$1").trim();
+      const artifact = sanitizeSvg(Buffer.from(source));
+      if (!/<(?:path|rect|circle|ellipse|line|polyline|polygon|text|use)(?:\s|>)/u.test(artifact.bytes.toString())) throw new ProviderError("EMPTY_SVG", "作者模型未返回可用的矢量图形。");
+      return { ...artifact, mimeType: "image/svg+xml" };
+    });
+    const images = attempts.flatMap((attempt) => attempt.status === "fulfilled" ? [attempt.value] : []);
+    if (!images.length) throw (attempts.find((attempt) => attempt.status === "rejected") as PromiseRejectedResult | undefined)?.reason ?? new ProviderError("EMPTY_RESPONSE", "SVG 作者模型未返回作品。");
+    return { images, execution: { mode: "svg-author", model }, warnings: [
+      `SVG 由当前 Provider 的作者模型 ${model} 生成。`,
+      ...(images.length < count ? [`请求 ${count} 张 SVG，其中 ${count - images.length} 张作者生成失败；未自动重试。`] : [])
+    ] };
   }
 
   async testConnection(config: ProviderConfig, apiKey: string): Promise<void> {

@@ -13,6 +13,8 @@ export interface ProviderConfig {
   name: string;
   type: ProviderType;
   apiMode?: ProviderApiMode;
+  /** OAuth-like upstreams may choose native dimensions/quality regardless of API fields. */
+  imageControlMode?: "native" | "automatic";
   compatResponseFormat?: "b64_json";
   baseUrl: string;
   generationEndpoint: string;
@@ -22,7 +24,11 @@ export interface ProviderConfig {
   model: string;
   supportsReferenceImages: boolean;
   /** Per-model overrides for compatible Images APIs, matching Leru capabilities. */
-  imageCapabilities?: Record<string, { outputFormats: ImageOutputFormat[]; svgModel?: string }>;
+  imageCapabilities?: Record<string, { outputFormats: ImageOutputFormat[]; svgModel?: string; svgMode?: "native" | "author" }>;
+  /** Real output checks, bound to the exact connection and model configuration. */
+  imageOutputVerifications?: Record<string, Partial<Record<ImageOutputFormat, ImageOutputVerification>>>;
+  /** Rotated when saved credentials change; never derived from the secret. */
+  credentialRevision?: string;
   /** Codex 图片账号是否自动创建关联文本服务；删除该文本服务后设为 false。 */
   autoBindText?: boolean;
   /** 图生图/编辑模型 ID；当前用于 fal.ai，留空时沿用 model。 */
@@ -168,6 +174,14 @@ export interface ProviderTestOptions {
   mode: "connection" | "generation";
   /** 只有用户明确确认可能产生服务商费用后，才可提交真实图片请求。 */
   acknowledgeCharges?: boolean;
+  outputFormat?: ImageOutputFormat;
+}
+export interface ImageOutputVerification {
+  status: "passed" | "failed";
+  configurationKey: string;
+  checkedAt: string;
+  actualMimeType?: string;
+  message: string;
 }
 export interface ProviderTestResult {
   ok: boolean;
@@ -176,8 +190,14 @@ export interface ProviderTestResult {
   /** 目录中出现模型，只证明可见性，不证明生图、编辑或工具调用能力。 */
   checks?: Record<ProviderCheckName, ProviderCheck>;
   billing?: { generationSubmitted: boolean; mayHaveIncurredCharge: boolean };
-  /** 测试图仅供查看，不自动加入画板或历史。 */
+  /** 测试图预览；正式验证入口另保留原图和历史，不自动加入画板。 */
   previewDataUrl?: string;
+  outputFormat?: ImageOutputFormat;
+  outputVerification?: ImageOutputVerification;
+  execution?: { mode: "svg-author"; model: string };
+  /** Managed originals retained even when format validation fails. */
+  outputPaths?: string[];
+  credentialRevision?: string;
   /** 原生 OpenAI Chat Completions tools/tool_calls 协议探测结果。 */
   functionCalling?: "supported" | "unsupported" | "unknown";
 }

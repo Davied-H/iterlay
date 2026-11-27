@@ -1,5 +1,6 @@
 import type { GenerateImageInput } from "./contracts/generation.js";
 import type { BoardSavePayload } from "./contracts/board.js";
+import { normalizeImageDelivery } from "./image-output-delivery.js";
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -16,6 +17,8 @@ export function assertGenerateImageInput(value: unknown): asserts value is Gener
   if (value.boardId !== undefined && !text(value.boardId, 200)) throw new Error("画板标识无效。");
   if (value.background !== undefined && !["auto", "opaque", "transparent"].includes(String(value.background))) throw new Error("图片背景选项无效。");
   if (value.outputFormat !== undefined && !["png", "jpeg", "webp", "svg", "gif"].includes(String(value.outputFormat))) throw new Error("图片输出格式无效。");
+  normalizeImageDelivery(value.delivery);
+  if (value.delivery !== undefined && ["svg", "gif"].includes(String(value.outputFormat))) throw new Error("SVG/GIF 请保留原始格式，暂不支持本地位图交付参数。");
   for (const key of ["frameCount", "frameDurationMs"]) {
     if (value[key] !== undefined && (!Number.isInteger(value[key]) || Number(value[key]) <= 0)) throw new Error("GIF 动画参数无效。");
   }

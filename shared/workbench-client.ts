@@ -52,6 +52,7 @@ import type {
   FalModelCategory,
   FalModelOption,
   GenerateImageInput,
+  RetryImageDeliveryInput,
   GenerateResponse,
   GenerationJob,
   GiftActivationOverview,
@@ -353,6 +354,7 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("codexAuth:signOut", providerId) as Promise<CodexAuthStatus>,
   quotePaidMedia: (input: PaidMediaQuoteRequest) => transport.invoke("media:quote", input) as Promise<PaidMediaQuote>,
   generateImage: (input: GenerateImageInput) => transport.invoke(WORKBENCH_COMMANDS.generateImage, input) as Promise<GenerateResponse>,
+  retryImageDelivery: (input: RetryImageDeliveryInput) => transport.invoke(WORKBENCH_COMMANDS.retryImageDelivery, input) as Promise<GenerateResponse>,
   enhancePrompt: (req: EnhancePromptRequest) => transport.invoke("prompt:enhance", req) as Promise<EnhancePromptResult>,
   collaborateScene: (req: CollaborateSceneRequest) =>
     transport.invoke("scene:collaborate", req) as Promise<CollaborateSceneResult>,

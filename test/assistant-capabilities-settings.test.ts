@@ -23,7 +23,7 @@ describe("understandable assistant capabilities", () => {
     try {
       await act(async () => root.render(createElement(PiAgentSettingsPanel, input)));
       const toggle = container.querySelector<HTMLButtonElement>('.pi-agent-mode [role="switch"]')!;
-      expect(toggle.disabled).toBe(true);
+      expect(toggle.disabled).toBe(false);
       expect(toggle.getAttribute("aria-checked")).toBe("true");
       expect(container.querySelector(`label[for="${toggle.id}"]`)?.textContent).toBe("允许助手执行操作");
       expect(container.querySelector(".settings-page-header [role='switch']")).toBeNull();
@@ -32,6 +32,8 @@ describe("understandable assistant capabilities", () => {
       const configure = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "配置对话模型")!;
       await act(async () => configure.click());
       expect(input.onConfigureModel).toHaveBeenCalledOnce();
+      await act(async () => toggle.click());
+      expect(input.onEnabledChange).toHaveBeenCalledWith(false);
     } finally { await act(async () => root.unmount()); }
   });
 

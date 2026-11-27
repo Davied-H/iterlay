@@ -7,6 +7,10 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export function listWorkspaceTools(): JsonObject[] {
   const outputProperties = {
+    delivery: { type: "object", description: "Local delivery after generation; originals retained. Does not call a model.", properties: {
+      format: { type: "string", enum: ["png", "jpeg", "webp"] }, size: { type: "string", description: "Final local pixels, e.g. 1200x2000; not native model resolution" },
+      fit: { type: "string", enum: ["scale", "cover", "contain"] }, quality: { type: "integer", minimum: 1, maximum: 100 }
+    }, additionalProperties: false },
     outputFormat: { type: "string", enum: [...IMAGE_OUTPUT_FORMATS], description: "Explicit artifact format. Check list_providers/list_models capabilities first; never substitute PNG for SVG/GIF." },
     frameCount: { type: "integer", minimum: 4, maximum: 16, description: "GIF only; default 9" },
     frameDurationMs: { type: "integer", minimum: 20, maximum: 10000, multipleOf: 10, description: "GIF only; milliseconds per frame, default 200" },
@@ -14,20 +18,28 @@ export function listWorkspaceTools(): JsonObject[] {
   };
   return [
         tool("status", "Read local workspace status and protocol version."),
-        tool("list_providers", "List saved providers without credentials.", { kind: { type: "string", enum: ["image", "video", "text", "audio"] } }),
+        tool("retry_image_delivery", "Retry only local image conversion/resize using saved originals. Never calls a provider. Returns job.delivery.status and retained originalImagePaths.", { jobId: stringField("Generation job ID, from task.job.id"), delivery: outputProperties.delivery }, ["jobId"]),
+        tool("list_providers", "List local provider declarations and per-format verification evidence without credentials. Only verifiedOutputFormats have passed a real output check.", { kind: { type: "string", enum: ["image", "video", "text", "audio"] } }),
         tool("get_provider", "Read saved Provider configuration without credentials.", { providerId: stringField("Provider ID") }, ["providerId"]),
-        tool("configure_provider", "Atomically configure a video or TTS provider. Does not submit generation. Omitted fields and credentials are preserved; empty apiKey clears it.", {
-          kind: { type: "string", enum: ["video", "audio"] },
+        tool("configure_provider", "Atomically configure an image, video or TTS provider. Does not submit generation. Omitted fields and credentials are preserved; empty apiKey clears it.", {
+          kind: { type: "string", enum: ["image", "video", "audio"] },
+          apiMode: { type: "string", enum: ["images", "responses"] },
+          imageControlMode: { type: "string", enum: ["native", "automatic"], description: "Use automatic for OAuth relays that choose native size/quality; exact delivery is local" },
+          generationEndpoint: { type: "string" }, referenceEndpoint: { type: "string" },
+          outputFormats: { type: "array", items: { type: "string", enum: [...IMAGE_OUTPUT_FORMATS] }, minItems: 1 },
+          svgModel: stringField("SVG author model; required when declaring SVG"),
+          svgMode: { type: "string", enum: ["native", "author"], description: "native requests SVG from the Images API; author generates actual SVG source with the configured author model on the same provider" },
           action: { type: "string", enum: ["upsert", "default", "remove"] },
           providerId: stringField("Existing ID or optional new ID"), name: stringField("Display name"),
-          type: { type: "string", enum: ["ark", "fal", "openrouter", "minimax", "openai-compatible"] },
+          type: { type: "string", enum: ["ark", "fal", "openrouter", "minimax", "openai-compatible", "bailian", "poe"] },
           baseUrl: stringField("HTTP(S) service URL"), model: stringField("Default model"),
           models: stringArrayField("Saved models", 0), voice: stringField("TTS voice ID"),
           speechEndpoint: stringField("TTS relative endpoint; defaults to /v1/audio/speech"),
           connectionProviderId: stringField("Video image connection ID; empty detaches"),
           apiKey: stringField("Credential to encrypt; empty clears; never returned"), setDefault: { type: "boolean" }
         }, ["kind"]),
-        tool("list_models", "Read saved models for a provider.", { providerId: stringField("Provider ID") }, ["providerId"]),
+        tool("list_models", "Read saved models, declared output formats and configuration-bound output verification. Declarations alone are not proof of upstream support.", { providerId: stringField("Provider ID") }, ["providerId"]),
+        tool("verify_image_output", "Generate exactly one test artifact and validate its actual format. This may incur provider charges; requires explicit user authorization and acknowledgeCharges=true. Saves recognized originals and verification evidence. No automatic retries. SVG/GIF generation requires a passed verification for the same connection and model configuration.", { providerId: stringField("Provider ID"), model: stringField("Optional model ID"), outputFormat: { type: "string", enum: [...IMAGE_OUTPUT_FORMATS] }, acknowledgeCharges: { type: "boolean" } }, ["providerId", "outputFormat", "acknowledgeCharges"]),
         tool("list_tasks", "Read generation history."),
         tool("cancel_generation", "Cancel a locally queued image task before provider submission. Running requests are not cancelled and remote billing cannot be stopped or confirmed. Ctrl+C in the CLI only stops waiting.", {generationId:stringField("Image client task/generation ID")}, ["generationId"]),
         tool("list_modification_requests", "Read saved annotation/mask edit briefs. No generation is submitted. Only ready requests may be claimed.", {boardId:stringField("Optional board ID")}),

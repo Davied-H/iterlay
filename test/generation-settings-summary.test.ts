@@ -17,6 +17,7 @@ describe("generation settings summary", () => {
       model: fal.referenceModel, size: "自动尺寸", quality: "服务商默认质量", count: 1
     });
     expect(providerUsesImageQuality(fal)).toBe(false);
-    expect(providerUsesImageQuality({ ...provider, type: "codex-oauth" })).toBe(true);
+    expect(providerUsesImageQuality({ ...provider, type: "codex-oauth" })).toBe(false);
+    expect(providerUsesImageQuality({ ...provider, imageControlMode: "automatic" })).toBe(false);
   });
 });

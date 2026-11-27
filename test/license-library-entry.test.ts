@@ -157,7 +157,8 @@ describe("LibraryShell license entry", () => {
 
     const footer = container.querySelector<HTMLElement>(".library-sidebar-footer");
     const footerButtons = [...(footer?.querySelectorAll<HTMLButtonElement>(":scope > button") ?? [])];
-    expect(footerButtons[0]?.textContent?.trim()).toBe("回收站");
+    expect(footerButtons[0]?.textContent?.trim()).toBe("CLI 与 Agent");
+    expect(footerButtons.some((button) => button.textContent?.trim() === "回收站")).toBe(true);
     expect(footer?.textContent).not.toContain("在线分享管理");
     expect(footer?.querySelector('button[aria-label^="授权："]')).toBeNull();
     expect(footerButtons.some((button) => button.textContent?.trim() === "更多")).toBe(false);

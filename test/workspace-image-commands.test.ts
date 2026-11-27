@@ -6,6 +6,22 @@ import { WorkspaceCommands } from "../electron/application/workspace-commands";
 import type { WorkspaceApi } from "../electron/application/workbench-api";
 import { workspaceFixture } from "./helpers/workspace-fixture";
 describe("typed workspace image tasks", () => {
+  it("waits for accepted image tasks to persist before releasing the runtime", async () => {
+    const f = workspaceFixture();
+    let finish!: (result: unknown) => void;
+    f.mocks.generateImage.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const task = await f.commands.call("generate_image", { boardId: "board", prompt: "drain", requestId: "shutdown-image" });
+    await vi.waitFor(() => expect(f.mocks.generateImage).toHaveBeenCalledOnce());
+    let stopped = false;
+    const stopping = f.commands.dispose().then(() => { stopped = true; });
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+    finish({ job: { id: "job", status: "succeeded", outputImagePaths: ["/managed/result.png"] }, images: [{ path: "/managed/result.png" }] });
+    await stopping;
+    expect(await f.commands.call("get_generation_status", { generationId: (task as { generationId: string }).generationId })).toMatchObject({ status: "succeeded" });
+    expect(f.mocks.appendBoardNodes).toHaveBeenCalledOnce();
+  });
+
   it("generates with user-owned provider and stores results outside the renderer", async () => {
     const f = workspaceFixture();
     const task = await f.commands.call("generate_image", { boardId: "board", prompt: "test" }) as { generationId: string; status: string };

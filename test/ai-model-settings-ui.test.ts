@@ -92,15 +92,15 @@ afterEach(async () => {
 describe("focused model service details", () => {
   it("requires a separate fee confirmation before submitting an image generation test", async () => {
     await render();
-    await act(async () => button("生成测试图（可能收费）").click());
+    await act(async () => button("验证所选格式（可能收费）").click());
     expect(document.body.textContent).toContain("可能产生服务商费用");
     expect(mocks.testProvider).not.toHaveBeenCalled();
     await act(async () => button("取消").click());
     expect(mocks.testProvider).not.toHaveBeenCalled();
-    await act(async () => button("生成测试图（可能收费）").click());
+    await act(async () => button("验证所选格式（可能收费）").click());
     await act(async () => button("确认并生成 1 张").click());
     expect(mocks.testProvider).toHaveBeenCalledWith(expect.objectContaining({ id: account.id }), undefined, {
-      mode: "generation", acknowledgeCharges: true
+      mode: "generation", outputFormat: "png", acknowledgeCharges: true
     });
   });
   it("uses the non-generating check by default and shows evidence separately", async () => {

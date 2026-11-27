@@ -1,4 +1,5 @@
-import { imageOutputCapabilities, IMAGE_OUTPUT_FORMATS, IMAGE_OUTPUT_LABELS } from "@shared/image-output";
+import { imageOutputVerification, imageOutputCapabilities, IMAGE_OUTPUT_FORMATS, IMAGE_OUTPUT_LABELS } from "@shared/image-output";
+import type { ImageOutputFormat } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -166,7 +167,7 @@ type Draft = ModelService & { isNew: boolean; key: string; original: string };
 type TestResult = ProviderTestResult & { checkedAt?: number };
 
 function diagnosticLabel(result: TestResult): string {
-  if (result.mode === "generation") return result.ok ? "文生图已验证" : "生成测试未确认成功";
+  if (result.mode === "generation") return result.ok ? (result.outputFormat ? "输出格式已验证" : "文生图已验证") : result.outputVerification?.status === "failed" ? "输出格式验证失败" : "生成测试未确认成功";
   if (!result.ok) return "检查未通过或未能确认";
   return result.checks?.authentication.status === "unknown" ? "仅确认本地凭据" : "基础检查完成";
 }
@@ -515,7 +516,7 @@ export function AiModelsSettings({
     }
   }
 
-  async function testDraft(mode: "connection" | "generation" = "connection"): Promise<void> {
+  async function testDraft(mode: "connection" | "generation" = "connection", outputFormat?: ImageOutputFormat): Promise<void> {
     if (!draft || locked) return;
     const invalid = validateDraft();
     if (invalid) {
@@ -532,12 +533,22 @@ export function AiModelsSettings({
       const result =
         draft.kind === "image"
           ? await api.testProvider(draft.provider as ProviderConfig, override, {
-              mode, ...(mode === "generation" ? { acknowledgeCharges: true } : {})
+              mode, outputFormat, ...(mode === "generation" ? { acknowledgeCharges: true } : {})
             })
           : draft.kind === "text"
             ? await api.testTextProvider(draft.provider as TextProviderConfig, override)
             : await api.testVideoProvider(draft.provider as VideoProviderConfig, override);
-      if (mounted.current && revision.current === token) setTestResult({ ...result, checkedAt: Date.now() });
+      if (mounted.current && revision.current === token) {
+        setTestResult({ ...result, checkedAt: Date.now() });
+        if (draft.kind === "image" && !draft.key.trim() && result.outputVerification && result.outputFormat) {
+          const receipt = result.outputVerification, format = result.outputFormat;
+          setDraft((current) => current?.kind !== "image" ? current : ({ ...current, provider: {
+            ...current.provider, credentialRevision: result.credentialRevision,
+            imageOutputVerifications: { ...(current.provider as ProviderConfig).imageOutputVerifications,
+              [current.provider.model]: { ...(current.provider as ProviderConfig).imageOutputVerifications?.[current.provider.model], [format]: receipt } }
+          } }));
+        }
+      }
     } catch (cause) {
       if (mounted.current && revision.current === token)
         setTestResult({
@@ -1127,7 +1138,9 @@ export function AiModelsSettings({
                       configured={Boolean(draftConnectionState?.ready)}
                       disabled={locked}
                       onTest={() => void testDraft()}
-                      onGenerateTest={draft.kind === "image" ? () => void testDraft("generation") : undefined}
+                      onGenerateTest={draft.kind === "image" ? (format) => void testDraft("generation", format) : undefined}
+                      imageProvider={image ?? undefined}
+                      unsavedKey={Boolean(draft.key.trim())}
                     />
                   ) : null}
                 </div>
@@ -1256,7 +1269,12 @@ export function AiModelsSettings({
                         </Field>
                       </>
                     )}
-                    {image.type === "openai-compatible" && image.apiMode !== "responses" && !/\/responses\/?$/u.test(image.generationEndpoint) && imageOutput ? (
+                    {image.type === "openai-compatible" ? <label className="model-switch-field col-span-full">
+                      <span>{uiText("上游自动决定尺寸与质量")}</span>
+                      <Switch checked={image.imageControlMode === "automatic"} onCheckedChange={(enabled) => patch({ imageControlMode: enabled ? "automatic" : "native" })} />
+                    </label> : null}
+                    {image.imageControlMode === "automatic" ? <p className="model-field-note col-span-full">{uiText("适用于 ChatGPT OAuth 中转；原生尺寸与质量使用自动，精确规格在本地交付中设置。")}</p> : null}
+                    {image.type === "openai-compatible" && image.imageControlMode !== "automatic" && image.apiMode !== "responses" && !/\/responses\/?$/u.test(image.generationEndpoint) && imageOutput ? (
                       <fieldset className="col-span-full space-y-3">
                         <legend className="text-sm font-medium">{uiText("当前模型支持的输出格式")}</legend>
                         <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -1265,16 +1283,27 @@ export function AiModelsSettings({
                               onChange={(event) => {
                                 const outputFormats = event.target.checked ? [...imageOutput.outputFormats, format] : imageOutput.outputFormats.filter((value) => value !== format);
                                 if (!outputFormats.length) return;
-                                patch({ imageCapabilities: { ...image.imageCapabilities, [image.model]: { outputFormats, svgModel: imageOutput.svgModel ?? "gpt-6.1-sol" } } });
+                                patch({ imageCapabilities: { ...image.imageCapabilities, [image.model]: { ...imageOutput, outputFormats, svgModel: imageOutput.svgModel ?? "gpt-6.1-sol" } } });
                               }} />
                             {uiText(IMAGE_OUTPUT_LABELS[format])}
                           </label>)}
                         </div>
-                        <p className="model-field-note">{uiText("仅勾选此上游模型实际支持的格式。")}</p>
-                        {imageOutput.outputFormats.includes("svg") ? <Field label={uiText("SVG 作者模型")}>
+                        <p className="model-field-note">{uiText("勾选仅声明格式；SVG/GIF 须生成验证通过后才能使用。")}</p>
+                        {imageOutput.outputFormats.includes("svg") ? <>
+                        <Field label={uiText("SVG 生成方式")}>
+                          <Select value={imageOutput.svgMode ?? "native"} onValueChange={(value) => patch({ imageCapabilities: { ...image.imageCapabilities, [image.model]: { ...imageOutput, svgMode: value as "native" | "author" } } })}>
+                            <SelectTrigger aria-label={uiText("SVG 生成方式")}><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="native">{uiText("原生 SVG 接口")}</SelectItem>
+                              <SelectItem value="author">{uiText("作者模型生成")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="model-field-note">{uiText("作者模式使用同一服务的作者模型生成 SVG 源码；原生模式由图片接口返回 SVG。")}</p>
+                        </Field>
+                        <Field label={uiText("SVG 作者模型")}>
                           <Input aria-label={uiText("SVG 作者模型")} value={imageOutput.svgModel ?? ""}
                             onChange={(event) => patch({ imageCapabilities: { ...image.imageCapabilities, [image.model]: { ...imageOutput, svgModel: event.target.value } } })} />
-                        </Field> : null}
+                        </Field></> : null}
                       </fieldset>
                     ) : null}
                     <label className="model-switch-field">
@@ -1671,17 +1700,24 @@ function ConnectionVerification({
   configured,
   disabled,
   onTest,
-  onGenerateTest
+  onGenerateTest,
+  imageProvider,
+  unsavedKey
 }: {
   result: TestResult | null;
   testing: boolean;
   configured: boolean;
   disabled: boolean;
   onTest: () => void;
-  onGenerateTest?: () => void;
+  onGenerateTest?: (format: ImageOutputFormat) => void;
+  imageProvider?: ProviderConfig;
+  unsavedKey?: boolean;
 }): React.ReactElement {
   const uiText = useUiText();
   const [confirmGeneration, setConfirmGeneration] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<ImageOutputFormat>("png");
+  const availableFormats = imageProvider ? imageOutputCapabilities(imageProvider).outputFormats : ["png" as const];
+  const testFormat = availableFormats.includes(selectedFormat) ? selectedFormat : availableFormats[0];
   const checkLabels = { network: "联网", authentication: "鉴权", model: "模型目录", capability: "实际能力", generation: "主动生成" } as const;
   const statusLabels = { passed: "已确认", failed: "未通过", unknown: "未确认", "not-tested": "未测试" } as const;
   return (
@@ -1732,17 +1768,25 @@ function ConnectionVerification({
         <Button type="button" variant="outline" size="sm" disabled={disabled || !configured} onClick={onTest}>
           {uiText(testing ? "检查中…" : "检查连接（不生成）")}
         </Button>
-        {onGenerateTest ? <Button type="button" variant="ghost" size="sm" disabled={disabled || !configured} onClick={() => setConfirmGeneration(true)}>
-          {uiText("生成测试图（可能收费）")}
+        {onGenerateTest && imageProvider ? <div className="flex flex-wrap items-center gap-2">
+          <Select value={testFormat} onValueChange={(value) => setSelectedFormat(value as ImageOutputFormat)}>
+            <SelectTrigger aria-label={uiText("验证输出格式")}><SelectValue /></SelectTrigger>
+            <SelectContent>{availableFormats.map((format) => <SelectItem key={format} value={format}>{uiText(IMAGE_OUTPUT_LABELS[format])}</SelectItem>)}</SelectContent>
+          </Select>
+          <span className="text-xs">{uiText(imageOutputVerification(imageProvider, testFormat)?.status === "passed" ? "当前格式已验证" : imageOutputVerification(imageProvider, testFormat)?.status === "failed" ? "当前格式验证失败" : "当前格式尚未验证")}</span>
+        </div> : null}
+        {onGenerateTest ? <Button type="button" variant="ghost" size="sm" disabled={disabled || !configured || unsavedKey} onClick={() => setConfirmGeneration(true)}>
+          {uiText("验证所选格式（可能收费）")}
         </Button> : null}
       </div>
+      {unsavedKey && onGenerateTest ? <p className="model-field-note">{uiText("请先保存 API Key，再验证输出格式。")}</p> : null}
       <Dialog open={confirmGeneration} onOpenChange={setConfirmGeneration}>
         <DialogContent>
           <DialogTitle>{uiText("生成 1 张测试图片？")}</DialogTitle>
-          <DialogDescription>{uiText("这会向当前模型提交一次真实文生图请求，可能产生服务商费用或消耗账号额度。测试图仅在此显示，不加入画板。连接中断或超时也可能已计费，系统不会自动重试。")}</DialogDescription>
+          <DialogDescription>{uiText("这会向当前模型提交一次真实文生图请求，可能产生服务商费用或消耗账号额度。测试原图保存在历史中，不加入画板。连接中断或超时也可能已计费，系统不会自动重试。")}</DialogDescription>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setConfirmGeneration(false)}>{uiText("取消")}</Button>
-            <Button disabled={disabled || !configured} onClick={() => { setConfirmGeneration(false); onGenerateTest?.(); }}>{uiText("确认并生成 1 张")}</Button>
+            <Button disabled={disabled || !configured} onClick={() => { setConfirmGeneration(false); onGenerateTest?.(testFormat); }}>{uiText("确认并生成 1 张")}</Button>
           </div>
         </DialogContent>
       </Dialog>

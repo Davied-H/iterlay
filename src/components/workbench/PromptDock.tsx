@@ -2398,7 +2398,7 @@ export function PromptDock({
           {providers.length ? <ProviderPicker providers={providers} activeProviderId={activeProviderId}
             creditStatus={creditStatus} creditLoading={creditLoading} requiredCredits={officialRequiredCredits}
             showLabel={false} reduceMotion={Boolean(reduceMotion)} onSelect={onSelectProvider} onManage={onOpenModelManagement} /> : null}
-          <GenerationSettingsPicker outputFormat={input.outputFormat} frameCount={input.frameCount} frameDurationMs={input.frameDurationMs} onOutputChange={onInputChange} size={input.size} count={input.n} quality={input.quality} model={input.model} workflowMode={input.workflowMode} transparentBackground={input.background === "transparent"}
+          <GenerationSettingsPicker delivery={input.delivery} outputFormat={input.outputFormat} frameCount={input.frameCount} frameDurationMs={input.frameDurationMs} onOutputChange={onInputChange} size={input.size} count={input.n} quality={input.quality} model={input.model} workflowMode={input.workflowMode} transparentBackground={input.background === "transparent"}
             maxCount={maxImageCount} provider={activeProvider} onSizeChange={(size) => onInputChange({ size })}
             onQualityChange={(quality) => onInputChange({ quality })}
             onCountChange={(n) => onInputChange({ n })} onTransparentBackgroundChange={(enabled) => onInputChange({ background: enabled ? "transparent" : "auto" })}

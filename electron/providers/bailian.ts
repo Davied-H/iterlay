@@ -5,7 +5,6 @@ import type {
 } from "../../shared/types.js";
 import { ProviderError } from "./errors.js";
 import { Semaphore } from "./concurrency.js";
-import { Sub2ApiImageProvider } from "./sub2api.js";
 
 type FetchLike = typeof fetch;
 
@@ -14,14 +13,10 @@ const DEFAULT_GENERATION_ENDPOINT = "/api/v1/services/aigc/multimodal-generation
 const networkSemaphore = new Semaphore(4);
 
 export class BailianImageProvider {
-  private readonly compatibleProvider: Sub2ApiImageProvider;
-
   constructor(
     private readonly fetchImpl: FetchLike = fetch,
     private readonly timeoutMs = 10 * 60 * 1000
-  ) {
-    this.compatibleProvider = new Sub2ApiImageProvider(fetchImpl, timeoutMs);
-  }
+  ) {}
 
   async generate(input: ProviderGenerateInput, config: ProviderConfig, apiKey: string): Promise<GenerationResult> {
     assertApiKey(apiKey);

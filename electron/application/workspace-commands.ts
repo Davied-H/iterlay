@@ -1,4 +1,5 @@
-import { IMAGE_OUTPUT_FORMATS, imageOutputCapabilities } from "../../shared/image-output.js";
+import { deliveryBoardVersions, deliveryNodeIndex, normalizeImageDelivery } from "../../shared/image-output-delivery.js";
+import { IMAGE_OUTPUT_FORMATS, imageOutputCapabilities, imageOutputCapabilityEvidence } from "../../shared/image-output.js";
 import { imageProviderCapabilities } from "../../shared/provider-capabilities.js";
 import { calculateSliceGrid, validateCropRect, MAX_SLICE_COUNT } from "../../shared/image-slicing.js";
 import { parseInlineMediaDataUrl } from "../../shared/media-import.js";
@@ -58,6 +59,12 @@ export class WorkspaceCommands {
   private readonly tasks = new Map<string, GenerationRecord>();
   private readonly submissions = new Map<string, { hash: string; promise: Promise<GenerationRecord> }>();
   private defaultBoardResolution?: Promise<string>;
+  private readonly backgroundTasks = new Set<Promise<void>>();
+  private disposed = false;
+  async dispose(): Promise<void> {
+    this.disposed = true;
+    while (this.backgroundTasks.size) await Promise.allSettled([...this.backgroundTasks]);
+  }
   constructor(private readonly dependencies: CommandDependencies) {}
   async call(method: string, a: Record<string, unknown>): Promise<unknown> {
     const { api } = this.dependencies;
@@ -73,14 +80,14 @@ export class WorkspaceCommands {
     switch (method) {
       case "status": {
         const settings = await api.getSettings();
-        return { protocolVersion: 1, activeProviderId: settings.activeProviderId, boardCount: (await api.listBoards()).length };
+        return { protocolVersion: 1, imageDeliveryVersion: 1, activeProviderId: settings.activeProviderId, boardCount: (await api.listBoards()).length };
       }
       case "configure_provider": return api.configureProvider(a);
       case "get_provider": {
         const settings = await api.getSettings();
         const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? []), ...(settings.audioProviders ?? [])].find((p) => p.id === string(a.providerId));
         if (!provider) throw new Error("Provider 不存在。");
-        const fields = new Set(["id", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "authProviderId", "generationEndpoint", "referenceEndpoint", "apiMode", "supportsReferenceImages"]);
+        const fields = new Set(["id", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "authProviderId", "generationEndpoint", "referenceEndpoint", "apiMode", "imageControlMode", "supportsReferenceImages"]);
         return { ...Object.fromEntries(Object.entries(provider).filter(([key]) => fields.has(key))), authConfigured: Boolean(settings.providerKeyStatus?.[provider.id]) };
       }
       case "list_providers": {
@@ -97,10 +104,40 @@ export class WorkspaceCommands {
         const settings = await api.getSettings();
         const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? []), ...(settings.audioProviders ?? [])].find((p) => p.id === string(a.providerId));
         if (!provider) throw new Error("Provider 不存在。");
-        return { providerId: provider.id, defaultModel: provider.model, models: [...new Set([provider.model, ...("models" in provider && Array.isArray(provider.models) ? provider.models : [])])].filter(Boolean), source: "saved", ...("supportsReferenceImages" in provider ? { imageCapabilities: Object.fromEntries([provider.model, ...(provider.models ?? [])].map((model) => [model, imageOutputCapabilities(provider, model)])) } : {}) };
+        return { providerId: provider.id, defaultModel: provider.model, models: [...new Set([provider.model, ...("models" in provider && Array.isArray(provider.models) ? provider.models : [])])].filter(Boolean), source: "saved", ...("supportsReferenceImages" in provider ? { imageCapabilities: Object.fromEntries([provider.model, ...(provider.models ?? [])].map((model) => [model, { ...imageOutputCapabilities(provider, model), ...imageOutputCapabilityEvidence(provider, model) }])) } : {}) };
+      }
+      case "verify_image_output": {
+        if (a.acknowledgeCharges !== true) throw new Error("格式验证会生成 1 张测试图片，请明确确认可能产生费用。");
+        const settings = await api.getSettings();
+        const provider = settings.providers.find((p) => p.id === string(a.providerId));
+        if (!provider) throw new Error("Provider 不存在。");
+        const model = typeof a.model === "string" && a.model.trim() ? a.model.trim() : provider.model;
+        const outputFormat = choice(a.outputFormat, IMAGE_OUTPUT_FORMATS, "png");
+        return api.testProvider({ ...provider, model }, undefined, { mode: "generation", outputFormat, acknowledgeCharges: true });
       }
       case "read_asset": return { dataUrl: await api.readAssetDataUrl(string(a.path)) };
       case "list_tasks": return api.listHistory();
+      case "retry_image_delivery": {
+        const jobId = string(a.jobId);
+        const previous = (await api.listHistory()).find((job) => job.id === jobId);
+        const result = await api.retryImageDelivery({ jobId, delivery: a.delivery as import("../../shared/types.js").ImageDeliveryOptions | undefined });
+        if (result.job.delivery?.status === "succeeded" && result.job.boardId) {
+          const updated: string[] = [];
+          try {
+            const board = await api.getBoard(result.job.boardId);
+            for (const node of board?.nodes ?? []) {
+              if (!isBoardImageNode(node) || node.jobId !== jobId) continue;
+              const index = previous ? deliveryNodeIndex(previous, node) : -1;
+              const image = result.images[index];
+              if (!image || image.path === node.imagePath) continue;
+              await api.appendBoardNodeVersions(result.job.boardId, node.id, [{ imagePath: image.path, jobId, width: result.job.outputMetadata?.[index]?.width, height: result.job.outputMetadata?.[index]?.height }]);
+              updated.push(node.id);
+            }
+          } catch (error) { result.warnings = [...(result.warnings ?? []), `交付文件已保存，画板同步未完成：${error instanceof Error ? error.message : String(error)}`]; }
+          emit({ type: "board-updated", boardId: result.job.boardId, nodeIds: updated, preserveView: true });
+        }
+        return result;
+      }
       case "cancel_generation": return api.cancelImageGeneration(string(a.generationId));
       case "list_modification_requests": return api.listModificationRequests(boardId || undefined);
       case "get_modification_request": return api.getModificationRequest(string(a.requestId));
@@ -375,12 +412,16 @@ export class WorkspaceCommands {
 
   /** Canvas visibility must not depend on the assistant remembering to poll. */
   private watchVideoJob(id: string, preserveView: boolean): void {
+    if (this.disposed) return;
     const timer = setTimeout(() => {
-      void this.call("get_video_generation_status", { videoGenerationId: id, preserveView })
+      if (this.disposed) return;
+      const background = this.call("get_video_generation_status", { videoGenerationId: id, preserveView })
         .then((result) => {
           const status = (result as { status?: string } | null)?.status;
           if (status && !["completed", "failed", "cancelled"].includes(status)) this.watchVideoJob(id, preserveView);
         }).catch(() => { /* Explicit status queries and persisted task recovery remain available. */ });
+      this.backgroundTasks.add(background);
+      void background.finally(() => this.backgroundTasks.delete(background)).catch(() => undefined);
     }, 2_000);
     timer.unref();
   }
@@ -465,6 +506,7 @@ export class WorkspaceCommands {
       n: count, quality: choice(a.quality, ["auto", "low", "medium", "high"] as const, "high"),
       style: string(a.style, "natural"), background: choice(a.background, ["auto", "opaque", "transparent"] as const, "auto"),
       outputFormat: choice(a.outputFormat, IMAGE_OUTPUT_FORMATS, "png"),
+      delivery: normalizeImageDelivery(a.delivery),
       frameCount: a.frameCount === undefined ? undefined : number(a.frameCount),
       frameDurationMs: a.frameDurationMs === undefined ? undefined : number(a.frameDurationMs),
       boardId, providerId: provider.id, referenceImages: []
@@ -473,7 +515,7 @@ export class WorkspaceCommands {
     await this.remember(record);
     emit({ type: "generation-started", operationId: record.generationId, boardId, prompt, count: input.n, size: input.size, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
     let submittedToBackend = false;
-    void (async () => {
+    const background = (async () => {
       const referenceImages: ReferenceImagePayload[] = await Promise.all(references.map(async (file) => {
         const url = await api.readAssetDataUrl(file);
         const match = /^data:([^;]+);base64,(.+)$/u.exec(url);
@@ -483,8 +525,8 @@ export class WorkspaceCommands {
       submittedToBackend = true;
       const result = await api.generateImage({ ...input, referenceImages });
       await this.dependencies.flush();
-      if (edit && target && !prepared) await api.appendBoardNodeVersions(boardId, target.id, result.images.map((image) => ({ imagePath: image.path, jobId: result.job.id, width: "width" in target ? target.width : undefined, height: "height" in target ? target.height : undefined })));
-      else if (!prepared) await api.appendBoardNodes(boardId, result.images.map((image) => ({ id: crypto.randomUUID(), imagePath: image.path, jobId: result.job.id, source: "generated" })));
+      if (edit && target && !prepared) await api.appendBoardNodeVersions(boardId, target.id, result.images.flatMap((image, index) => deliveryBoardVersions(result.job, index) ?? [{ imagePath: image.path, jobId: result.job.id, width: result.job.outputMetadata?.[index]?.width ?? ("width" in target ? target.width : undefined), height: result.job.outputMetadata?.[index]?.height ?? ("height" in target ? target.height : undefined) }]));
+      else if (!prepared) await api.appendBoardNodes(boardId, result.images.map((image, index) => { const versions = deliveryBoardVersions(result.job, index); return { id: crypto.randomUUID(), imagePath: image.path, jobId: result.job.id, source: "generated", ...(versions ? { versions, activeVersion: versions.length - 1 } : {}) }; }));
       await this.remember({ ...record, status: "succeeded", completedAt: new Date().toISOString(), job: result.job,
         images: result.images.map((image) => ({ ...image, dataUrl: "" })), warnings: result.warnings });
       emit({ type: "board-updated", boardId, operationId: record.generationId });
@@ -496,6 +538,8 @@ export class WorkspaceCommands {
       await this.remember({ ...record, status, completedAt: new Date().toISOString(), error: message }).catch(() => undefined);
       emit({ type: "generation-finished", boardId, operationId: record.generationId, error: message, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
     });
+    this.backgroundTasks.add(background);
+    void background.finally(() => this.backgroundTasks.delete(background)).catch(() => undefined);
     return record;
   }
 
@@ -505,6 +549,10 @@ export class WorkspaceCommands {
     if (!task && this.dependencies.taskDirectory) {
       try { task = JSON.parse(await readFile(path.join(this.dependencies.taskDirectory, id + ".json"), "utf8")) as GenerationRecord; }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    }
+    if (task?.status === "succeeded" && task.job) {
+      const latest = (await this.dependencies.api.listHistory()).find((job) => job.id === task!.job!.id);
+      if (latest) task = { ...task, job: latest, warnings: latest.warnings, images: latest.outputImagePaths.map((file) => ({ path: file, dataUrl: "" })) };
     }
     if (task?.status === "running" && !this.tasks.has(id)) {
       task = { ...task, status: "unknown", error: "应用已重启，远端结果与费用状态待确认。请检查 Provider 和生成历史，勿直接重复提交。" };

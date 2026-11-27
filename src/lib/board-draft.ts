@@ -35,6 +35,7 @@ export function resetBoardDraft(input: GenerateImageInput): GenerateImageInput {
     style: input.style,
     background: input.background,
     outputFormat: input.outputFormat,
+    delivery: input.delivery ? structuredClone(input.delivery) : undefined,
     frameCount: input.frameCount,
     frameDurationMs: input.frameDurationMs,
     referenceImages: []

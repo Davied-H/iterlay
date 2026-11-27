@@ -210,6 +210,7 @@ export async function importBoardBuffer(buffer: Buffer, dependencies: BoardImpor
         id: jobIdMap.get(job.id) ?? crypto.randomUUID(),
         boardId: newBoardId,
         outputImagePaths: job.outputImagePaths.map((p) => pathMap.get(p) ?? p),
+        originalImagePaths: job.originalImagePaths?.map((p) => pathMap.get(p) ?? p),
         inputSnapshot: remapGenerationHistorySnapshot(job.inputSnapshot,p=>pathMap.get(p)??p,{boardId:newBoardId,nodeIds:nodeIdMap,jobIds:jobIdMap}),
         input: {...job.input,boardId:newBoardId,editSource:job.input.editSource ? {...job.input.editSource,boardId:newBoardId,imagePath:pathMap.get(job.input.editSource.imagePath)??job.input.editSource.imagePath,nodeId:job.input.editSource.nodeId?nodeIdMap.get(job.input.editSource.nodeId)??job.input.editSource.nodeId:undefined,jobId:job.input.editSource.jobId?jobIdMap.get(job.input.editSource.jobId)??job.input.editSource.jobId:undefined}:undefined},
         referenceImagePaths: job.referenceImagePaths.map((p) => pathMap.get(p) ?? p)

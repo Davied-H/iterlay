@@ -112,6 +112,8 @@ export async function buildBoardArchive(
 
   // 引用图/源图也一并打包，导入端才能还原"引用图 + 血缘"。
   for (const job of jobs) {
+    for (const originalPath of job.originalImagePaths ?? []) await addImage(originalPath);
+    for (const outputPath of job.outputImagePaths) await addImage(outputPath);
     for (const referencePath of job.referenceImagePaths) {
       await addImage(referencePath);
     }
@@ -208,6 +210,7 @@ export async function buildBoardArchive(
     ...job,
     inputSnapshot: remapGenerationHistorySnapshot(job.inputSnapshot, (p) => pathMap.get(p) ?? path.basename(p)),
     outputImagePaths: job.outputImagePaths.map((p) => pathMap.get(p) ?? path.basename(p)),
+    originalImagePaths: job.originalImagePaths?.map((p) => pathMap.get(p) ?? path.basename(p)),
     // 引用图打包成功则用包内相对路径（导入端可重映射），否则退回文件名。
     referenceImagePaths: job.referenceImagePaths.map((p) => pathMap.get(p) ?? path.basename(p))
   }));

@@ -36,6 +36,15 @@ describe("CLI service connection", () => {
     expect(mocks.call.mock.calls.filter((args) => args[1] === "generate_image")).toHaveLength(1);
   });
 
+  it("keeps explicit standalone clients away from a running desktop workspace", async () => {
+    mocks.call.mockResolvedValue({ protocolVersion: 1 });
+    await expect(connect({ userDataPath: "/workspace", standalone: true })).rejects.toThrow("App 后台");
+    expect(mocks.spawn).not.toHaveBeenCalled();
+    mocks.call.mockResolvedValue({ runtime: "node" });
+    await connect({ userDataPath: "/workspace", standalone: true });
+    expect(mocks.spawn).not.toHaveBeenCalled();
+  });
+
   it("honors no-launch for an unavailable workspace", async () => {
     mocks.call.mockRejectedValue(new Error("not running"));
     await expect(connect({ userDataPath: "/workspace", noLaunch: true })).rejects.toThrow("not running");

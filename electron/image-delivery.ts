@@ -7,6 +7,7 @@ import { resolveDeliverySource, validateImageDeliveryRecipe, type ImageDeliveryI
 import { buildNamedArchive } from "./asset-archive.js";
 import { imageDimensionsFromHeader } from "./media/image-metadata.js";
 import { detectRemoteImageMime } from "./remote-image.js";
+import { deliveryGeometry } from "../shared/image-output-delivery.js";
 
 export interface DeliveryEncodedImage { bytes: Buffer; mimeType: string; width: number; height: number }
 export interface DeliveryEncoderDependencies {
@@ -18,6 +19,8 @@ export interface DeliveryEncoderDependencies {
 
 /** 缩放真实像素并编码；扩展名、尺寸和 MIME 均从实际输出再次核验。 */
 export async function encodeDeliveryImage(bytes: Buffer, item: ImageDeliveryItem, deps: DeliveryEncoderDependencies): Promise<DeliveryEncodedImage> {
+  const header = imageDimensionsFromHeader(bytes);
+  if (!header || header.width > 16384 || header.height > 16384 || header.width * header.height > 32_000_000) throw new Error("交付源图片超出本地处理限制，已保留原图。");
   let image = deps.createImage(bytes);
   if (image.isEmpty() && deps.decodeToPng) image = deps.createImage(await deps.decodeToPng(bytes));
   if (image.isEmpty()) throw new Error("交付源文件不是可解码的图片。");
@@ -25,7 +28,15 @@ export async function encodeDeliveryImage(bytes: Buffer, item: ImageDeliveryItem
   const width = item.width ?? (item.height ? Math.max(1, Math.round(source.width * item.height / source.height)) : source.width);
   const height = item.height ?? (item.width ? Math.max(1, Math.round(source.height * item.width / source.width)) : source.height);
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 16384 || height > 16384 || width * height > 32_000_000) throw new Error("目标尺寸无效，单张交付最多 3200 万像素。");
-  if (source.width !== width || source.height !== height) image = image.resize({ width, height, quality: "best" });
+  const geometry = deliveryGeometry(source, { width, height }, item.fit ?? "scale");
+  if (geometry.crop.width !== source.width || geometry.crop.height !== source.height) image = image.crop(geometry.crop);
+  if (image.getSize().width !== geometry.resizeWidth || image.getSize().height !== geometry.resizeHeight) image = image.resize({ width: geometry.resizeWidth, height: geometry.resizeHeight, quality: "best" });
+  if (geometry.resizeWidth !== width || geometry.resizeHeight !== height) {
+    const pixels = image.toBitmap({ scaleFactor: 1 });
+    const canvas = Buffer.alloc(width * height * 4);
+    for (let row = 0; row < geometry.resizeHeight; row++) pixels.copy(canvas, ((row + geometry.offsetY) * width + geometry.offsetX) * 4, row * geometry.resizeWidth * 4, (row + 1) * geometry.resizeWidth * 4);
+    image = deps.createBitmap(canvas, { width, height });
+  }
   if (image.getSize().width !== width || image.getSize().height !== height) throw new Error("图片缩放未得到指定尺寸，已取消导出。");
   if (item.format === "jpeg") {
     // JPEG 不支持透明度；明确铺白底，避免透明区域变黑。

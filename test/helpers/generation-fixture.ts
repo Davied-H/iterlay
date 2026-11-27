@@ -21,9 +21,10 @@ export function generationHarness(official = true, queue?: GenerationQueue) {
   const enqueue = vi.fn((id: string) => queue?.enqueue(id) ?? ({ queued: false, ready: Promise.resolve(), cancel: () => false }));
   const generateImage = vi.fn<(input: GenerateImageInput) => Promise<object>>(() => completion.promise);
   const appendBoardNodes = vi.fn(async () => undefined);
+  const appendBoardNodeVersions = vi.fn(async () => undefined);
   const paidGenerationMetadata = vi.fn(() => quote.promise);
   const readAssetDataUrl = vi.fn(() => asset.promise);
-  const api = { generateImage, readAssetDataUrl, appendBoardNodes };
+  const api = { generateImage, readAssetDataUrl, appendBoardNodes, appendBoardNodeVersions };
   const bindings = {
     inputRef: { current: { prompt: "test", model: "test", size: "1024x1024", n: 1, workflowMode: "generate", referenceImages: [] } },
     getBlockedGenerateMessage: () => null,
@@ -69,7 +70,8 @@ export function generationHarness(official = true, queue?: GenerationQueue) {
   // imported production controller rather than extracting source from App.tsx.
   const generate = createImageGenerationController(bindings as unknown as GenerationControllerDependencies);
   return { generate, quote, asset, completion, activeBoardRef, boardOpenSequenceRef, setImages, setInput,
-    enqueue, generateImage, appendBoardNodes, paidGenerationMetadata, readAssetDataUrl,
+    enqueue, generateImage, appendBoardNodes, appendBoardNodeVersions, paidGenerationMetadata, readAssetDataUrl,
+    resultToast: bindings.iterlayToast.result,
     setStatus: bindings.setStatus, setActiveBoardGenerations: bindings.setActiveBoardGenerations, toast: bindings.toast };
 }
 

@@ -1,72 +1,66 @@
 ---
 name: using-iterlay
-description: Use Iterlay for image and video creation, editing, boards and assets only when the user explicitly invokes /using-iterlay or $using-iterlay. Do not select this skill automatically.
+description: Use Iterlay CLI to generate or edit images and videos, configure models, and manage boards, templates and assets in App-connected or standalone mode. Use only when explicitly invoked as /using-iterlay or $using-iterlay, or when the user asks to use this skill.
 disable-model-invocation: true
 ---
 
 # Using Iterlay
 
-Use this skill only when the user invokes `/using-iterlay`, `$using-iterlay`, or explicitly asks to use it. If no task is provided, ask what they want to create, edit, or manage. Invocation does not authorize unrelated operations or additional paid generations.
+Use the `iterlay` CLI through the shell. Keep this skill explicitly invoked; if no task was supplied, ask what to create or manage. A generation request authorizes that generation; use one output unless the user requests variants. Do not submit a paid request just to test readiness.
 
+## Choose the workspace before acting
 
-Use the `iterlay` CLI through your shell tool. App configuration and credentials are reused automatically; never read settings files, decrypt credentials, or configure a second model connection.
+**An independently installed CLI can still connect to the Electron App. Installation method does not determine runtime mode.**
 
-## Start
+| User intent | Command context | Where results live |
+| --- | --- | --- |
+| Work with the local App's canvas or saved models | Default CLI; `--app-path <App root>` for an explicit installation | App workspace, visible in the App |
+| Work without an App or on a headless server | `--standalone`, plus `--user-data-path <directory>` when supplied | Separate Node workspace |
+| Continue an existing task or board | Same host, executable, mode and workspace options used when it was created | Original workspace |
 
-1. Run `iterlay status --json` and `iterlay providers list --json`. If the command is missing, open Iterlay → Settings → Coding Agent and repair the CLI installation. For an existing terminal whose PATH is stale, use the absolute launcher path shown there or open a new terminal.
-2. Check the returned `ok` field and process exit code. Provider metadata reports saved configuration, not a guarantee that its remote service is available. If no usable image provider exists, guide the user to App model settings.
-3. Run `iterlay tools list --json` for the exact operation schemas. All workspace operations are accessible through `iterlay call <operation> --input '<JSON>' --json`. Read [references/cli.md](references/cli.md) for examples.
+Without explicit mode, a discoverable App is preferred; otherwise the CLI selects Node. Preserve the user's selection across **every** command, including discovery, polling, raw calls and exports. Do not add `--standalone` merely because CLI was installed via npm. Installing an App later can change the default; pin the mode/path when continuing standalone work.
 
-## Create and edit
+App and standalone workspaces do not automatically synchronize boards, tasks, templates or credentials. The desktop App does not attach to a remote Node workspace. Never point standalone mode at the App data directory to simulate sharing. For remote work, execute CLI on the requested host; distinguish remote exports from files delivered to the user's machine.
 
-- A user request to generate authorizes that generation. Use one output unless variants were requested. Do not generate images merely to test a connection.
-- Use `iterlay image generate --prompt "…" --out ./result.png --json`. Omit `--provider` to use the App default; use IDs from provider discovery for an explicit selection. `iterlay models list --provider <id> --json` lists the saved models.
-- Pass local references as repeated `--reference <file>` options. The CLI imports them as managed assets. Edit with `iterlay image edit --input <file> --prompt "…" --out <new-file> --json`; preserve the original.
-- Use explicit `--board <id>` for an existing board named by the user. Inspect its contents first. Without --board, image and video commands use the default board configured in Settings → Coding Agent. When unset, they reuse or create CLI 创作. A deleted default board must be reselected before generating.
-- Normal image and video commands wait for completion. `--async` returns task acceptance only; follow with `iterlay tasks wait <id> --json` (add `--kind video` for videos). Ctrl+C or timeout ends waiting, not the provider task.
-- Never blindly resubmit an operation after a lost response. Use a stable `--request-id` for image generation and query it as a task ID. Report interrupted or uncertain remote state instead of creating another paid task.
-- When generation succeeds but export fails, reuse `tasks wait <id> --out …`; do not regenerate. Existing export files are protected unless the user explicitly requests replacement with `--overwrite`.
+For non-default paths, first-time setup, server lifecycle or connection errors, read [runtime.md](references/runtime.md).
 
-## Slice contact sheets and sprite grids
+## Check readiness in that context
 
-Use Iterlay's local `image slice` / `slice_image` operation for cutting existing images; do not write Python, Pillow, ImageMagick or other agent-side cropping scripts. This operation reuses the App slicer without a model call, preserves the original, saves managed PNGs and adds the results to the target board.
+1. Read `iterlay help` when the installed CLI's capabilities are unclear. Run `iterlay status --json` and `iterlay providers list --json` with the selected context. Check exit code and `ok`. Standalone status reports `data.runtime: "node"` and its workspace path; older App status may omit these fields. Omission is not a capability or health guarantee.
+2. Inspect `models list --provider <id>` for the chosen service. Saved configuration and credential presence do not prove remote availability. Reuse existing model connections; when configuration is needed, follow [runtime.md](references/runtime.md) and [cli.md](references/cli.md). Never read settings files or decrypt credentials.
+3. Use `iterlay tools list --json` for operation schemas. This list is bundled with the CLI and readable offline; it does not prove the connected backend supports every operation. An unsupported-operation error requires checking backend compatibility, not switching workspaces or resubmitting generation.
 
-- Inspect the source and confirm its actual row/column layout. For the 12-avatar example (3 rows × 4 columns): `iterlay image slice --path <managed-path> --board <id> --rows 3 --columns 4 --out ./avatars --json`.
-- Use `--node <id>` for an existing board image, or `--input <local-file>` to import and slice a local source. Supply exactly one source option. Omit `--board` to use the configured CLI default board.
-- `--margin` trims the outside edges and `--gap` excludes equal gutters, measured in source pixels. Rows and columns are each limited to 1–8. Results follow reading order; odd dimensions can produce cells differing by one pixel.
-- For uneven layouts or a single crop, pass `--crops '[{"x":10,"y":20,"width":300,"height":300}]'` instead of grid flags. Coordinates are original-image pixels; at most 64 regions. Review boundaries for clipped subjects before cutting.
-- Slicing does not resize pixels, remove backgrounds or detect subjects automatically. Do not claim uniform dimensions or transparency unless verified. If requested cuts cannot preserve the subjects, adjust regions with the user instead of generating replacements.
-- Return the managed paths/node IDs and optional exportedPaths. Export failure leaves slices on the board; recover with `assets export`, without slicing again. For ZIP delivery call `export_assets` with only the returned slice paths.
+Examples below omit context flags for readability; retain the selected flags or explicit environment in actual commands. Construct argument arrays or use proper shell quoting for prompts and JSON; never interpolate untrusted text into shell code.
 
-## Boards, video and assets
+## Generate, edit and recover
 
-- `iterlay boards list|show|create|open`, `iterlay assets list|import|export`, and `iterlay video generate` cover common paths. See CLI help for arguments.
-- Use the exact `tools list` schemas through `iterlay call` for move, resize, arrange, duplicate, version selection, recoverable trash/restore, video remix/extend and stopping video polling. These operations retain the App's validation rules.
-- Import files with `iterlay assets import --input <file> --board <id> --json`. Advanced operations require returned managed paths; never substitute arbitrary filesystem paths.
-- Video completion requires a managed local output path. Provider URLs are temporary and are not deliverables. Stopping local polling does not cancel a remote job or its billing.
-- Export only requested results. Return task ID, board ID, managed and exported paths, warnings and validation limits; never expose tokens or provider credentials.
+- Generate: `iterlay image generate --prompt "…" --out ./result.png --json`. Use a provider ID from discovery, or the selected workspace's default. For requested formats, inspect discovered capabilities; `--output-format` is not universally supported.
+- Edit a local image: `iterlay image edit --input ./source.png --prompt "…" --out ./edited.png --json`. Repeated `--reference <file>` imports reference files. Preserve originals. For an existing board node, use its managed path through `call edit_image` to retain its version chain; see [cli.md](references/cli.md).
+- Use `--board <id>` for a user-specified board and inspect it first. Otherwise the backend uses its configured CLI default or reuses/creates `CLI 创作`. If a configured board is deleted, provide a valid board rather than falling back silently.
+- Commands normally wait. `--async` returns acceptance only; finish with `tasks wait <id>` (add `--kind video` for videos). Ctrl+C and timeout stop waiting, not the remote job or its billing.
+- Use a stable `--request-id` for an image submission and query that ID after a lost response. Reusing it with changed parameters conflicts. `unknown` means outcome and fees are uncertain; inspect history/provider state before any new submission.
+- A successful task whose export failed is recoverable with `tasks wait <id> --out …`. Do not generate again. Output files are protected unless the user authorizes replacement with `--overwrite`.
+- `tasks cancel <id>` cancels images only before provider submission. Stopping video polling does not cancel a remote video task. Do not stop the shared backend merely because this CLI command has finished.
 
-## Video and narration configuration
+## Manage the workspace
 
-When the user asks to configure models, use `providers list --kind video|audio`, `providers show <id>` and `models list --provider <id>` for discovery. Use `providers set --kind video|audio --provider <id>` for incremental changes, `models set --kind video|audio --provider <id> --model <id>` for the saved default model, and `providers default <id> --kind video|audio` for the default service. These commands save configuration without generating media. Read [references/cli.md](references/cli.md) for examples.
+Use `boards list|show|create`, `assets list|import|export`, `templates list|show|create|update`, or `call <operation> --input '<JSON>'`. See [cli.md](references/cli.md) for configuration, format, template, slice and saved annotation/mask workflows. Read only the sections needed for the task.
 
-Audio is an independent OpenAI-compatible TTS configuration with model, voice, base URL and speech endpoint; this version does not generate speech or support music/sound-effect models. Reuse existing credentials by omitting key flags. For new credentials use `--api-key-env <name>` or `--api-key-stdin`; never include raw keys in command arguments, chat, or `call --input`. Do not read settings files or decrypt credentials. Saving or listing a model does not prove remote availability.
+- Use Iterlay's local `image slice` operation for contact sheets and sprite grids, after checking the source layout. It preserves the source, saves managed PNGs and adds them to the target board without calling a model. Export failure does not require slicing again.
+- Use returned managed paths for backend operations. Local file imports use `--input`/`--reference`; do not substitute arbitrary filesystem paths for managed assets.
+- In App mode, opening/focusing boards and desktop ZIP export are available. In standalone mode, use `boards show`, `get_board_layout` and explicit file exports; window operations and desktop ZIP export are unavailable. Do not promise a visible canvas or invoke App windows to validate standalone results.
+- Audio currently supports TTS configuration only, not speech, music or sound-effect generation.
 
-## Saved annotation and mask requests
+## Validate and deliver
 
-- Use `iterlay call list_modification_requests --json` and `get_modification_request` to read a user's saved edit brief. Inspect its fixed source version and export the annotation/mask with `iterlay assets export --path <managed-path> --out <local-file>` for visual inspection. Never substitute the currently active canvas version.
-- A needs-input request must be clarified with the user before `clarify_modification_request`. Saving or clarifying does not call a model.
-- Atomically `claim_modification_request` using a unique agent-session owner. The claim token is returned only by this call. Do not print or share it. Lists and detail views intentionally omit it.
-- Execute `edit_image` with boardId, the request's sourcePath, reviewed prompt, modificationRequestId and claimToken. The App validates the claim, carries mask/reference inputs and binds one durable execution key. Do not use the convenience `image edit --input` for this path: it would re-import the fixed source.
-- Wait for the returned task. Pass its actual succeeded `job.id` and managed output paths to `finish_modification_request` with the same requestId and claimToken. Completion appends results once to the original node and notifies its real board. Record errors with the same finish operation; do not fabricate results or auto-retry an unknown paid outcome.
-- `iterlay tasks cancel <id>` cancels a task only before provider submission. A running reply explicitly means remote cancellation and billing were not stopped. Ctrl+C stops waiting only. Unknown is not success: inspect history and provider state before submitting again.
+Export requested results and inspect the physical files. For exact sizes, batches, edits or clipping-sensitive work, read [visual-qa.md](references/visual-qa.md). Board display width is not physical image width, and layout checks do not prove image contents are uncropped.
 
-## Optional command review metadata
+Report the task ID, board ID, runtime/workspace context, exported paths, warnings and any unverified checks. For video, deliver a managed/exported file, not a temporary provider URL. Do not claim standalone results appeared in the App. If a paid output fails acceptance, retain its context; do not submit another paid generation unless already authorized.
 
-`iterlay guard descriptor` reads the bundled HOL Guard contribution source offline. It does not install Guard, enable protection, or grant permissions. Generation, editing, output writes, configuration installation and generic operation calls have different effects. Do not classify every `iterlay call` or `tasks wait --out` as read-only. Guard's global policy remains authoritative; a descriptor does not isolate provider budgets or replace the user's authorization.
+`iterlay guard descriptor` only reads optional bundled command-review metadata; it does not install Guard or grant permissions. Generic calls, configuration and exports may mutate state even when adjacent discovery commands are read-only.
 
-## Validate delivery
+## Verify extended output formats
 
-Generation success is distinct from delivery acceptance. For exact sizes, batches and editing work, read [references/visual-qa.md](references/visual-qa.md). Check actual file dimensions, original-resolution content and corresponding board metadata; a requested size is not proof of output size. `resize_image` affects canvas display width, not physical pixels. Layout checks find node overlaps, not clipped content. Use the bundled validation script when needed.
+`outputFormats` is a local declaration. Only `verifiedOutputFormats` / matching `outputVerification.status=passed` establish a successful real format check for this connection. SVG/GIF must pass verification before normal generation. Configure via `configure_provider` with `outputFormats` and `svgModel`; then call `verify_image_output` with `providerId`, `outputFormat` and `acknowledgeCharges=true` only when the user explicitly authorizes that potentially paid test. Read-only connection checks do not validate generation. Originals are retained in history even when format validation fails. Configuration or credential changes invalidate old evidence. Do not retry uncertain paid verification blindly or claim that a requested format was delivered without checking the result.
 
-When a paid output fails validation, retain the task and board context, report the concrete failure and ask before an additional generation unless the user already authorized it. Do not require another permission for read-only inspection or the work already requested.
+SVG has explicit `svgMode=native|author` per model. Native sends SVG extension fields to the Images endpoint. Author uses the configured `svgModel` through the same provider connection to produce and sanitize actual vector source; `execution.mode=svg-author` identifies this route. It is not native image-model SVG. Switching routes invalidates verification. Never silently fall back between routes or embed a raster in SVG.

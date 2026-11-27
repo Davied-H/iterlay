@@ -131,6 +131,21 @@ describe("video IPC", () => {
     electronMocks.netFetch.mockReset();
   });
 
+  it("drains an in-flight submit before shutdown without starting a new poller", async () => {
+    const harness = makeHarness();
+    let finish!: (task: VideoRemoteTask) => void;
+    harness.service.submit.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const registration = registerVideoIpc(harness as never);
+    const pending = electronMocks.handlers.get("video:start")!({}, { ...input, idempotencyKey: "shutdown-request" }) as Promise<VideoGenerationJob>;
+    await vi.waitFor(() => expect(harness.service.submit).toHaveBeenCalledOnce());
+    const stopping = registration.dispose();
+    finish({ provider: "ark", id: "remote-shutdown", model: input.model, status: "queued", submittedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    const job = await pending;
+    await stopping;
+    expect(harness.jobs.get(job.id)?.remoteTaskId).toBe("remote-shutdown");
+    expect(harness.service.waitForCompletion).not.toHaveBeenCalled();
+  });
+
   it("automatically retries a recoverable poll failure using the same remote task", async () => {
     vi.useFakeTimers();
     const harness = makeHarness();

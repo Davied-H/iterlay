@@ -1065,3 +1065,94 @@
 - 检查：全量测试 2343 通过、3 失败、4 跳过；失败为 assistant-capabilities-settings 开关禁用断言、i18n-coverage 的 29 条文案缺失、license-library-entry 的旧侧栏顺序断言。lint 有 2 条错误，均在 build-assistant-dock-preview.mjs（console/Buffer 全局声明）；未修改这些问题。
 - 备份：旧版位于 `/Users/dong/Library/Caches/Iterlay-install-backups/20261126-142217/Iterlay.app`。Hindsight 连接失败。
 - 下一步：完成授权的推送；父仓库 main 分叉，普通推送预检被 non-fast-forward 拒绝，按技能规则不自动整合远端。
+
+## 2026-11-26 14:54｜CLI 独立 Node 运行时与无桌面服务器
+- 状态：源码实现完成，未提交、未发布、未部署。
+- 目标：仅安装 CLI 即可生成/编辑图片、管理画板，并支持无桌面 Linux 服务托管。
+- 结果：拆出纯 Node 工作区服务；CLI 无 App 时自动启动独立后台，支持 `--standalone`、`serve`、`server stop`、独立图片 Provider 配置、AES-256-GCM 工作区凭据、并发锁、任务持久化与视频重启恢复；桌面 App 继续使用 Electron 后台。文档见 `docs/cli-standalone.md` 与 `cli/README.md`。
+- 验证：`pnpm typecheck`、`pnpm build:electron`、`pnpm build:cli` 通过；84 项针对性 Vitest 通过；macOS 独立 smoke 通过；Node 22.12 Linux ARM64 与 x64 容器 smoke 通过，覆盖生成、编辑、切图、导出、画板、模板、幂等、鉴权、停止和视频恢复。
+- 注意：当前 npm 版本仍为 0.1.70，改动尚未发布；全量测试 2350 通过、3 失败、4 跳过，失败为既有 UI/i18n/入口排序断言；真实付费 Provider、systemd 线上服务及 Windows 安装未验收。
+- 下一步：审阅并提交改动后发布包含 `dist/server.js`、Sharp 与独立运行文档的 npm 包。
+
+## 2026-11-26 15:55｜CLI 配套 Skill 适配 App 联动与独立运行
+- 状态：已完成源码优化与 CLI 分发副本同步；main 未提交、未发布，未更新已安装 Agent 副本。
+- 结果：`using-iterlay` 先选择并保持主机/运行模式/工作区；新增 `references/runtime.md`，统一模型配置、旧后台兼容、任务恢复和独立验收指引；修正格式校验器仅支持 PNG/JPEG 的边界，保留手动调用策略。
+- 验证：16 项安装/迁移/同步测试通过；6 个 Skill 文件与 CLI 副本逐字一致，npm dry-run 均包含；YAML、引用和 diff 检查通过。通用校验器不认识既有 `disable-model-invocation`，该字段单独验证，其余字段及正文经临时兼容副本校验通过。
+- 下一步：随 CLI/App 发布分发；已安装 Agent 可通过集成更新流程获取，新会话加载。
+
+
+## 2026-11-27 09:25｜GPT Relay JPEG与尺寸偏差只读排查
+- 状态：本地原因与证据已核实；未改代码/配置、未提交、未追加付费生成。
+- 结果：Attaché四个JPEG任务均请求1200×2000/jpeg，因上游返回非JPEG被拒；随后PNG四任务成功，三张971×1619、一张897×1752。
+- 原因：兼容Images接口默认声明JPEG，自定义尺寸仅按Provider类型开放，均非上游探测；格式强校验，尺寸未校验，故偏小图片仍标成功。
+- 验证：安装包0.1.70的请求/格式/存储模块与检查模块逐字一致；离线注入fetch确认size与output_format完整发送、解析保留原字节；四张导出与受管原图SHA256相同。
+- 证据：attache-host/outputs/addon-images-2026-11-27/任务与dimension-validation.json；本机history-journal.jsonl。先前“支持JPG”仅代表本地声明，现有真实任务未兑现。
+- 下一步：若继续追查远端，核对中转至模型的参数映射及响应；当前不能区分中转层丢参和实际模型限制。可另行授权本地转JPEG并裁切/缩放，精确尺寸放大不增加原生细节。
+
+
+## 2026-11-27 09:34｜GPT Relay全链路追踪至ChatGPT图片端点
+- 状态：诊断完成；未改业务代码、服务或配置，未提交，未新增付费生成。
+- 结果：Tower实查Sub2API 0.2.25/3489972，八次均OAuth、同名sunburst模型、HTTP200；运行版本源码的离线构造完整保留size=1200x2000及jpeg/png，指向ChatGPT Codex Images端点。
+- 定位：账本已记录上游输出三张971×1619/一张897×1752（两轮相同）；中转不转码/缩放，故偏差在上游返回阶段已存在。中转未验收契约，Iterlay仅拒格式不验尺寸。
+- 验证：NPM及TCP限速未发现正文改写；请求原函数离线执行通过；源码、脱敏八条usage记录与报告在outputs/provider-jpeg-size-trace-2026-11-27/。
+- 更正前次未知：首轮四次本地JPEG失败在Sub2API仍成功记账，每次actual_cost=0.201；未核验OpenAI侧费用。无当次出站TLS原文，不能推断OpenAI内部具体实现或固定像素上限。
+- 下一步：按实际线路能力修订声明、补输出验收与原图恢复；或明确采用本地JPEG转换/尺寸适配。本次均未实施。
+
+
+## 2026-11-27 09:43｜开源Codex生图工具格式与尺寸处理对比
+- 状态：源码调研完成；未改业务代码/配置、未提交，未调用付费生成。
+- 结果：固定提交核对官方Codex及ShalomObongo、nuko、foksa、lgdy88等实现；官方原生size/quality用auto，同类OAuth工具普遍比例入提示词、本地转JPEG，部分提供裁切/留白、保留raw原图及双份尺寸元数据。
+- 验证：阅读实际转换/尺寸验收源码；第三方关于字段被忽略的实测仅注明作者记录，本轮未重跑。lgdy88仅为兼容API客户端，借鉴其5%比例阈值不推断OAuth能力。
+- 方案判断：生成与交付分阶段、保留原图、本地重试处理；971×1619比例误差0.0412%可缩放，897×1752误差14.6689%应明确裁切或留白。方案未实施。
+- 产物：/Users/dong/.agent-reach/research/iterlay-image-output-2026-11-27.md；同目录sources.json固定提交与源码哈希。
+- 下一步：用户决定是否把本地导出与原图恢复机制接入Iterlay。
+
+
+## 2026-11-27 10:40｜原图保留与本地交付落地
+- 状态：源码完成；main未提交、未发布，未替换本机App。既有独立CLI等改动已保留。
+- 结果：先保存原图，独立执行PNG/JPEG/WebP交付；5%比例门槛、裁切/留白、失败本地重试、重启恢复、原图版本链、GC保护及归档重映射。Codex原生auto，兼容中转可选automatic模式。
+- 入口：生成设置「本地交付」、历史待处理重试、CLI image deliver与delivery参数；旧后台能力检查在提交前拒绝，避免忽略参数后付费。
+- 验证：格式错误与编辑计数均实际红→绿；141项不同相关用例通过；typecheck、改动ESLint、diff检查及渲染/Electron/CLI构建通过。全量快照2360通过、3既有失败、4跳过；失败仍为助手开关、旧i18n、侧栏顺序。
+- 实机：四张照片副本导出真实JPEG 1200×2000、原图哈希不变；隔离网页验收JPEG/WebP、失败/重试、版本与刷新恢复，中英390px无溢出；3次本地Mock生成，重试不增调用，没有付费生成。
+- 证据：[验收记录](../outputs/image-delivery-acceptance-2026-11-27/verification.md)；[使用说明](image-output-formats.md)。任务开发后台、浏览器和Mock已停止。
+- 下一步：审阅后按需打包安装到本机App；源码及CLI构建已就绪，当前安装版尚未更新。
+
+## 2026-11-27 13:53｜ATTACHÉ SVG 生成失败诊断
+- 状态：本地原因已核验；上游实际返回格式及费用未核验。仅诊断，未修改业务代码或安装包。
+- 结果：读取引用聊天及任务 attache-logo-svg-20261127-01，确认 GPT Relay / gpt-image-2.6-flare 请求 SVG 后格式校验失败，任务仍为 unknown。
+- 验证：从已安装 ASAR 提取实际模块离线执行，未提供能力覆盖仍按模型名声明 SVG/GIF，构造 output_format=svg 和 svg.model=gpt-6.1-sol；不能代表上游实测支持。
+- 原因：安装版在保存前执行带目标格式的 normalizeGeneratedImage，格式不符即抛普通错误；已提交且无 HTTP 状态的错误被归为 unknown。当前源码已改为保存原图后独立交付，但未安装生效。
+- 注意：没有当次完整 HTTP 请求/响应，不能认定具体返回 PNG，也不能认定中转丢字段；未重复付费生成。
+- 下一步：结合该任务的中转记录确认返回内容与计费，并在后续修复授权下处理能力声明及安装版本。
+
+## 2026-11-27 14:15｜图片输出格式真实验证
+- 状态：源码与构建完成；main 未提交，未替换本机 App。
+- 结果：SVG/GIF 改为显式配置、真实生成验证后放行；记录按连接/模型/作者/凭据版本绑定并失效，App 与 CLI 可查；格式失败保留原图与历史，不自动重试。
+- 验证：新回归已实际红→绿；87 项相关测试通过，typecheck、改动 ESLint、diff 检查及 renderer/Electron/CLI 构建通过；全量 2378 通过、3 既有失败、4 跳过。
+- 实机：隔离网页和打包独立 CLI 均完成配置→验证→普通 SVG 生成；错误 PNG 保留且拦截后续 SVG；390px 布局验收通过。仅 5 次本地 Mock，无付费调用。
+- 证据：[验收说明](../outputs/svg-verification-2026-11-27/verification.md)。浏览器、开发后台、Mock 和测试 CLI 后台已停止。
+- 下一步：打包安装本机 App 后，由用户选择是否对真实上游执行可能收费的格式验证；不自动重试旧 unknown 任务。
+
+## 2026-11-27 14:17｜本机 GPT Relay 真实 SVG 验证
+- 状态：按用户授权完成 1 次真实生成测试，未通过当前安装版 SVG 格式验收；未重复生成。
+- 结果：复用本机 GPT Relay / gpt-image-2.6-flare，作者声明 gpt-6.1-sol；新画板 7a0b3106-44d5-472c-ae91-e94caef65f86，测试为最小蓝圆 SVG。
+- 验证：任务 svg-verify-1952193b-93c2-4a4b-b149-66fcb8d89020 当前 unknown，错误为上游返回的图片格式与 SVG 不一致；无可导出 SVG，旧版未保留原始响应，具体实际格式及费用未核验。
+- 证据：[请求](../outputs/svg-verification-2026-11-27/real-provider-request.json)、[任务结果](../outputs/svg-verification-2026-11-27/real-provider-result.json)。未读取或导出凭据，未更改 Provider 配置。
+- 下一步：需结合上游响应记录或更新可保留原图的客户端继续定位，不能把本次失败直接认定为整条 Provider 不支持 SVG；额外付费生成需明确授权。
+
+## 2026-11-27 14:30｜SVG 实机接续与钥匙串阻塞
+- 状态：进行中，等待用户完成 macOS 钥匙串授权；尚未实现真实 SVG 成功生成。用户已授权继续必要实测直到成功，不盲目重试。
+- 结果：构建并安装含格式验证和原图保留的本机 App；包体审计、ad-hoc 签名校验、ASAR SHA256 一致。旧 App 备份 `/tmp/iterlay-svg-native-fix-20261127/Iterlay.previous.app`。
+- 验证：App 初次启动 status 返回 imageDeliveryVersion=1；随后 settings/get 阻塞，进程采样确认 SecItemCopyMatching/SecKeychainItemCopyContent 等待凭据访问。CLI 验证未通过连接阶段，未发送新生成。
+- 附修：真实格式验证原先被本地 API 固定30秒截断，已延长到10分钟，普通调用仍30秒；新测试实际红→绿，相关11项通过，Electron TS、改动 ESLint、diff检查及 CLI 构建通过。此等待修复尚未再次打包安装。
+- 注意：电脑控制工具拒绝操作 com.apple.SecurityAgent；已请求用户自行在系统弹窗授权，不能绕过。没有读取设置文件、导出凭据或配置第二条模型连接。
+- 下一步：用户回复已允许后，以新CLI连接本机App执行 verify_image_output，保存实际文件并据证据继续修复，最终实测普通生成与导出；不要把本条当作成功。
+
+## 2026-11-27 14:59｜本机 SVG 作者模式修复并实测成功
+- 状态：已修复并安装本机 App，真实验证、普通生成和导出成功；代码未提交。
+- 结果：原生请求实测返回PNG；新增显式native/author路径，复用同一GPT Relay的gpt-6.1-sol生成真正SVG，安全校验且不自动付费回退；配置已设作者模式并通过验证。
+- 验证：新测试实际红→绿，142项相关测试及typecheck/改动ESLint/diff检查通过；renderer/Electron/CLI构建、包体与签名、安装ASAR哈希通过。全量仍有3项既有失败。
+- 实机：任务svg-normal-author-20261127-01导出512×512真实SVG，原生图形无内嵌位图，与受管文件字节一致，渲染目视检查通过；本轮3次授权真实调用，金额未查询。
+- 证据：[验收说明](../outputs/svg-verification-2026-11-27/verification.md)、[示例SVG](../outputs/svg-verification-2026-11-27/real-provider-coffee.svg)。测试服务已清理；正式App后台保留。
+- 注意：成功的是作者模式，不把它宣称为gpt-image原生SVG；旧包备份仍在/tmp/iterlay-svg-native-fix-20261127/Iterlay.previous.app。
+- 下一步：无；若继续原ATTACHÉ Logo套件制作，需回到该任务承接需求。

@@ -1,10 +1,13 @@
-import { normalizeImageOutput } from "../../shared/image-output.js";
+import { automaticImageControls, normalizeImageOutput } from "../../shared/image-output.js";
 import { normalizeGeneratedImage } from "../media/image-artifact.js";
 import { createHash } from "node:crypto";
 import { assertGenerateImageInput } from "../../shared/input-validation.js";
 import { imageProviderCapabilities } from "../../shared/provider-capabilities.js";
 import { createGenerationInputSnapshot } from "../../shared/generation-history.js";
 import { Semaphore } from "../providers/concurrency.js";
+import { deliveryAspectPrompt, deliveryBoardVersions, normalizeImageDelivery } from "../../shared/image-output-delivery.js";
+import { deliverImageJob, generationImageOutputs, originalImageMetadata, requestedImageDelivery, type ImageDeliveryEncoder } from "./image-output-delivery.js";
+import type { RetryImageDeliveryInput } from "../../shared/types.js";
 
 import { GenerateImageInput, GenerateResponse, GenerationJob, ImageGenerationCancelResult, ProviderConfig, ProviderGenerateInput } from "../../shared/types.js";
 
@@ -22,9 +25,7 @@ import { HistoryStore } from "../storage/history-store.js";
 import { type MemoryEventInput } from "../storage/memory-store.js";
 
 import { SceneMediaStore } from "../storage/scene-media-store.js";
-import { SettingsStore } from "../storage/settings-store.js";
-
-import { showGenerationCompletedNotification } from "../system-notification.js";
+import type { SettingsStore } from "../storage/settings-store-core.js";
 
 import type { UnpositionedBoardNode } from "../../shared/types.js";
 import type { ImageProviderAdapter } from "../providers/image-registry.js";
@@ -47,7 +48,9 @@ export interface ImageGenerationDependencies {
   backfillThumbHashes: (imagePaths: string[]) => void;
   createGeneratedBoardNodes: (imagePaths: string[], jobId: string) => Promise<UnpositionedBoardNode[]>;
   boards: BoardStore;
-  analytics: ManagerProductAnalyticsClient;
+  analytics: Pick<ManagerProductAnalyticsClient, "track">;
+  encodeImageDelivery?: ImageDeliveryEncoder;
+  notifyCompleted?: (result: { count: number; workflowMode: GenerateImageInput["workflowMode"]; sceneOnly?: boolean; boardId?: string; imagePaths: string[] }) => void;
 }
 export function createImageGenerationCommand(dependencies: ImageGenerationDependencies) {
   const {
@@ -74,7 +77,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         if (existing.boardId !== input.boardId || existing.requestHash && existing.requestHash !== requestHash
           || !existing.requestHash && (existing.prompt !== input.prompt || input.referenceImages.length > 0)) throw new Error("请求标识已绑定到其他生成参数，请重新发起。");
         if (existing.status !== "succeeded") throw new Error(existing.error || "该请求尚未完成，请查询历史或使用新的请求标识重试。");
-        return { job: existing, images: existing.outputImagePaths.map((imagePath) => ({ path: imagePath, dataUrl: assets.toAssetUrl(imagePath) })) };
+        return { job: existing, warnings: existing.warnings, images: generationImageOutputs(existing, (file) => assets.toAssetUrl(file)) };
       }
     }
     const providerId = input.providerId ?? currentSettings.activeProviderId;
@@ -83,6 +86,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
       throw new Error("请先在设置中添加并保存一个 Provider。");
     }
     input = normalizeImageOutput(input, currentProvider);
+    const automatic = automaticImageControls(currentProvider);
     const capabilities = imageProviderCapabilities(currentProvider);
     if (input.n > capabilities.maxImageCount) throw new Error(`当前模型每次最多生成 ${capabilities.maxImageCount} 张图片。`);
     if (input.workflowMode === "edit" && !capabilities.editing) throw new Error("当前 Provider 不支持图片编辑。");
@@ -167,6 +171,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         style: input.style,
         background: effectiveBackground,
         outputFormat: input.outputFormat,
+        delivery: input.delivery,
         frameCount: input.frameCount,
         frameDurationMs: input.frameDurationMs,
         sceneOnly: input.sceneOnly
@@ -180,19 +185,20 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     control.jobId = jobId;
     if (!input.sceneOnly) await history.addJob(jobBase);
 
+    let savedResult: GenerationJob | undefined;
     try {
       const providerInput: ProviderGenerateInput = {
         clientRequestId: paidProviderClientRequestId(input),
         workflowMode: input.workflowMode,
         useCase: input.useCase,
-        prompt: input.prompt,
+        prompt: deliveryAspectPrompt(input.prompt, input.delivery?.size ?? (automatic && /^\d+x\d+$/u.test(input.size) ? input.size : undefined)),
         model,
-        size: input.size,
+        size: automatic ? "auto" : input.size,
         n: input.n,
-        quality: input.quality,
+        quality: automatic ? "auto" : input.quality,
         style: input.style,
         background: effectiveBackground,
-        outputFormat: input.outputFormat,
+        outputFormat: automatic ? "png" : input.outputFormat,
         frameCount: input.frameCount,
         frameDurationMs: input.frameDurationMs,
         referenceImages: decodedReferences.map((image) => ({
@@ -211,7 +217,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         control.submitted = true;
         return selectedProvider.generate(providerInput, currentProvider, apiKey);
       }, { signal: control.abort.signal });
-      result.images = result.images.map((image) => normalizeGeneratedImage(image, input.outputFormat));
+      result.images = result.images.map((image) => normalizeGeneratedImage(image));
       const completedAt = new Date().toISOString();
       const sceneResults = input.sceneOnly
         ? await sceneMedia.saveGeneration(
@@ -227,23 +233,42 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
             result.images
           )
         : null;
-      const outputImagePaths = sceneResults
+      const originalImagePaths = sceneResults
         ? sceneResults.map((sceneResult) => sceneResult.path)
         : await assets.saveOutputs(jobId, result.images);
-      // 场景媒体不进素材库，无需 thumbhash。
-      if (!input.sceneOnly) backfillThumbHashes(outputImagePaths);
-      const completedJob: GenerationJob = {
+      const originalJob: GenerationJob = {
         ...jobBase,
+        execution: result.execution,
         status: "succeeded",
         completedAt,
-        outputImagePaths,
-        outputMetadata: result.images.map((image) => ({ mimeType: image.mimeType, width: image.width, height: image.height, frameCount: image.frameCount, frameDurationMs: image.frameDurationMs, animationDurationMs: image.animationDurationMs }))
+        outputImagePaths: originalImagePaths,
+        originalImagePaths,
+        originalOutputMetadata: result.images.map(originalImageMetadata),
+        outputMetadata: result.images.map(originalImageMetadata),
+        warnings: result.warnings,
+        generationWarnings: result.warnings ?? [],
+        delivery: { status: "processing", options: requestedImageDelivery(jobBase) ?? {} }
       };
+      savedResult = originalJob;
+      // Commit recoverable originals before touching any pixels or encoding a delivery.
+      if (!input.sceneOnly) await history.updateJob(originalJob);
+      const completedJob = await deliverImageJob(originalJob, result.images, requestedImageDelivery(jobBase), dependencies.encodeImageDelivery, async (images) => {
+        const deliveryId = `${jobId}-delivery-${crypto.randomUUID()}`;
+        if (!input.sceneOnly) return assets.saveOutputs(deliveryId, images);
+        return (await sceneMedia.saveGeneration(input.sceneId!, { jobId: deliveryId, prompt: input.prompt, createdAt: new Date().toISOString(), providerId: currentProvider.id, providerName: currentProvider.name, model }, images)).map((image) => image.path);
+      });
+      const outputImagePaths = completedJob.outputImagePaths;
+      savedResult = completedJob;
+      if (!input.sceneOnly) backfillThumbHashes(outputImagePaths);
       if (!input.sceneOnly) await history.updateJob(completedJob);
       // The renderer may reload while the official request is in flight. Persisting its
       // result here makes the board recoverable even when no renderer awaits the IPC reply.
       if (!input.sceneOnly && input.workflowMode === "generate" && input.boardId) {
-        const generatedNodes = await createGeneratedBoardNodes(outputImagePaths, jobId);
+        const generatedNodes = (await createGeneratedBoardNodes(outputImagePaths, jobId)).map((node, index): UnpositionedBoardNode => {
+          if (node.type !== undefined && node.type !== "image") return node;
+          const versions = deliveryBoardVersions(completedJob, index);
+          return versions ? { ...node, versions, activeVersion: versions.length - 1 } : node;
+        });
         if (input.generationNodeId) {
           await boards.finishGenerationNode(input.boardId, input.generationNodeId, {
             jobId,
@@ -259,7 +284,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         content: input.prompt,
         jobId
       });
-      showGenerationCompletedNotification({
+      dependencies.notifyCompleted?.({
         count: outputImagePaths.length,
         workflowMode: input.workflowMode,
         sceneOnly: input.sceneOnly,
@@ -273,14 +298,18 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
 
       return {
         job: completedJob,
-        images: outputImagePaths.map((filePath) => ({
-          path: filePath,
-          dataUrl: assets.toAssetUrl(filePath)
-        })),
-        warnings: result.warnings,
+        images: generationImageOutputs(completedJob, (file) => assets.toAssetUrl(file)),
+        warnings: completedJob.warnings,
         credits: result.credits
       };
     } catch (error) {
+      if (savedResult) {
+        const warning = `图片已生成并保存，后续处理未完成：${error instanceof Error ? error.message : String(error)}`;
+        const recovered: GenerationJob = { ...savedResult, warnings: [...(savedResult.warnings ?? []), warning],
+          delivery: savedResult.delivery?.status === "processing" ? { ...savedResult.delivery, status: "failed", error: warning } : savedResult.delivery };
+        if (!input.sceneOnly) await history.updateJob(recovered);
+        return { job: recovered, warnings: recovered.warnings, images: generationImageOutputs(recovered, (file) => assets.toAssetUrl(file)) };
+      }
       const normalized = normalizeProviderError(error);
       const cancelled = !control.submitted && control.abort.signal.aborted;
       const unknown = control.submitted && (error instanceof TypeError || normalized.status === undefined);
@@ -342,6 +371,30 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     if (control.submitted) return { status: "running", remoteCancelled: false, jobId: control.jobId, message: "任务已提交到 Provider。本机无法确认远端取消或停止计费，请等待结果或到 Provider 控制台检查。" };
     control.abort.abort(Object.assign(new Error("已取消排队任务，尚未发送到 Provider。"), { name: "GenerationCancelledError" }));
     return { status: "cancelled", remoteCancelled: false, jobId: control.jobId, message: "已取消排队任务，尚未发送到 Provider。" };
+  };
+  const deliveries = new Map<string, Promise<GenerateResponse>>();
+  command.retryDelivery = async (request: RetryImageDeliveryInput): Promise<GenerateResponse> => {
+    if (!request || typeof request.jobId !== "string" || !request.jobId || request.jobId.length > 200) throw new Error("交付任务标识无效。");
+    const options = normalizeImageDelivery(request.delivery);
+    if (deliveries.has(request.jobId)) throw new Error("本地交付正在处理中，请等待当前处理完成。");
+    const task = (async () => {
+      const job = await history.getJob(request.jobId);
+      if (!job || job.status !== "succeeded") throw new Error("请先选择已完成且保留原图的生成任务。");
+      if (job.delivery?.status === "processing") throw new Error("本地交付正在处理中，请等待当前处理完成。");
+      if (!job.originalImagePaths?.length && !job.outputImagePaths.length) throw new Error("任务没有可恢复的原图。");
+      const originalImagePaths = job.originalImagePaths ?? job.outputImagePaths;
+      const originals = await Promise.all(originalImagePaths.map(async (file) => normalizeGeneratedImage({ bytes: await assets.readManagedBytes(file), mimeType: "image/png" })));
+      const processing: GenerationJob = { ...job, originalImagePaths, originalOutputMetadata: originals.map(originalImageMetadata),
+        warnings: job.generationWarnings ?? [], delivery: { status: "processing", options: options ?? job.delivery?.options ?? requestedImageDelivery(job) ?? {} } };
+      await history.updateJob(processing);
+      const result = await deliverImageJob(processing, originals, processing.delivery!.options, dependencies.encodeImageDelivery,
+        (images) => assets.saveOutputs(`${job.id}-delivery-${crypto.randomUUID()}`, images));
+      await history.updateJob(result);
+      backfillThumbHashes(result.outputImagePaths);
+      return { job: result, warnings: result.warnings, images: generationImageOutputs(result, (file) => assets.toAssetUrl(file)) };
+    })();
+    deliveries.set(request.jobId, task);
+    try { return await task; } finally { deliveries.delete(request.jobId); }
   };
   return command;
 }

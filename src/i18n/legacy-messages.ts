@@ -8,6 +8,79 @@ const catalogEntries = Object.keys(zhCN).map((key) => {
 });
 
 const legacyEnglish: Record<string, string> = {
+  "请选择图片文件。": "Please select an image file.",
+  "已按新模型调整：{{ui:0}}": "Adjusted for the new model: {{ui:0}}",
+  "请先在设置中配置视频服务": "Configure a video service in Settings first",
+  "请选择可用的视频模型": "Select an available video model",
+  "未选择服务": "No service selected",
+  "能力以服务商配置为准": "Capabilities depend on the provider configuration",
+  "添加参考视频": "Add reference video",
+  "移除参考视频 {{ui:0}}": "Remove reference video {{ui:0}}",
+  "当前模型不支持参考音频": "The current model does not support reference audio",
+  "输出设置": "Output settings",
+  "费用由服务商结算": "Charges are billed by the provider",
+  "当前模型不支持生成声音": "The current model does not support audio generation",
+  "同步生成环境音或对白": "Generate ambient sound or dialogue",
+  "准备就绪": "Ready",
+  "必需": "Required",
+  "替换{{ui:0}}": "Replace {{ui:0}}",
+  "添加{{ui:0}}": "Add {{ui:0}}",
+  "模型不支持": "Not supported by this model",
+  "点击选择": "Click to select",
+  "正在恢复原任务查询": "Resuming the original task status check",
+  "已生成，正在保存": "Generated, saving",
+  "已等待 {{ui:0}}": "Waiting for {{ui:0}}",
+  "选择画布图片 {{ui:0}}": "Select canvas image {{ui:0}}",
+  "画布中还没有可用视频": "No videos available on the canvas yet",
+  "画布中还没有可用图片": "No images available on the canvas yet",
+  "正在导入…": "Importing…",
+  "上传视频": "Upload video",
+  "素材导入失败，请重试。": "Could not import the asset. Please try again.",
+  "也可以将画布素材连到对应输入点": "You can also connect canvas assets to the corresponding inputs",
+  "SVG 生成方式": "SVG generation method",
+  "原生 SVG 接口": "Native SVG endpoint",
+  "作者模型生成": "Generate with author model",
+  "作者模式使用同一服务的作者模型生成 SVG 源码；原生模式由图片接口返回 SVG。": "Author mode generates SVG source using the author model on this service. Native mode requests SVG from the image endpoint.",
+  "验证输出格式": "Output format to verify",
+  "当前格式已验证": "Format verified",
+  "当前格式验证失败": "Format verification failed",
+  "当前格式尚未验证": "Format not yet verified",
+  "输出格式已验证": "Output format verified",
+  "输出格式验证失败": "Output format verification failed",
+  "已收到结果，但请求的格式未通过验收；原图已保留。": "An output was received but failed format validation. The original was retained.",
+  "验证所选格式（可能收费）": "Verify selected format (may incur charges)",
+  "请先保存 API Key，再验证输出格式。": "Save the API key before verifying an output format.",
+  "勾选仅声明格式；SVG/GIF 须生成验证通过后才能使用。": "Checking a format only declares it. SVG/GIF require a successful generation check before use.",
+  "这会向当前模型提交一次真实文生图请求，可能产生服务商费用或消耗账号额度。测试原图保存在历史中，不加入画板。连接中断或超时也可能已计费，系统不会自动重试。": "This submits one real generation request and may incur provider charges or consume quota. Originals are saved in history, not on the board. Interrupted or timed-out requests may still be billed. There are no automatic retries.",
+  "已生成 · 交付待处理": "Generated · delivery needs attention",
+  "已生成 · 本地处理中": "Generated · processing locally",
+  "格式和尺寸是上游请求，实际输出会重新校验并保留原图。": "Format and size are upstream requests. Actual output is checked and originals are kept.",
+  "文件 {{ui:0}} 尺寸适配": "File {{ui:0}} size fitting",
+  "本地交付": "Local delivery",
+  "保留模型原图，在本地转换格式和尺寸，不会再次调用模型。": "Keep the model original and convert format and size locally. No additional model call.",
+  "交付格式": "Delivery format",
+  "沿用输出格式": "Keep output format",
+  "交付像素（留空保留原尺寸）": "Delivery pixels (blank keeps original size)",
+  "交付像素": "Delivery pixels",
+  "请输入宽x高，单边最多16384且不超过3200万像素。": "Enter width x height, up to 16384 per side and 32 megapixels.",
+  "新尺寸尚未应用。": "The new size has not been applied.",
+  "尺寸适配方式": "Size fitting",
+  "比例接近时缩放": "Scale similar proportions",
+  "裁切填满": "Crop to fill",
+  "完整留白": "Fit with padding",
+  "放大不会增加原生细节；JPEG 的透明区域会铺白底。": "Enlarging adds no native detail. JPEG transparency is flattened onto white.",
+  "上游自动决定原生尺寸与质量；精确像素请设置本地交付。": "The upstream chooses native size and quality. Use local delivery for exact pixels.",
+  "原生输出格式": "Native output format",
+  "上游自动决定尺寸与质量": "Upstream chooses size and quality",
+  "适用于 ChatGPT OAuth 中转；原生尺寸与质量使用自动，精确规格在本地交付中设置。": "For ChatGPT OAuth relays: native size and quality stay automatic; set exact specifications in local delivery.",
+  "模型原图：{{ui:0}}": "Model original: {{ui:0}}",
+  "交付文件：{{ui:0}}": "Delivery file: {{ui:0}}",
+  "生成已完成，原图已保留，本地交付待处理。": "Generation completed and originals are saved. Local delivery needs attention.",
+  "正在本地处理…": "Processing locally…",
+  "重试本地交付": "Retry local delivery",
+  "工作台连接不可用。": "The workbench connection is unavailable.",
+  "原图已保留，请调整交付规格后重试。": "Originals are saved. Adjust the delivery settings and retry.",
+  "本地交付已完成，未调用模型。": "Local delivery completed without calling a model.",
   "修改请求": "Edit requests",
   "项目交付": "Project delivery",
   "已配置": "Configured",
@@ -873,8 +946,12 @@ function localizeDynamicChinese(value: string): string | null {
   if (responseStatus) return `Service responded (HTTP ${responseStatus[1]}).`;
   const checkStatus = /^基础检查未通过（HTTP (\d+)）；网络可达不代表鉴权或模型可用。未提交生成请求。$/u.exec(value);
   if (checkStatus) return `Basic check failed (HTTP ${checkStatus[1]}). Network reachability does not confirm authentication or model availability. No generation request submitted.`;
+  const formatSuccess = /^(PNG|JPEG|WEBP|SVG|GIF) 实际输出已验证；仅适用于当前连接和模型配置。服务商可能已计费。$/u.exec(value);
+  if (formatSuccess) return `${formatSuccess[1]} output verified for this connection and model configuration. Provider charges may apply.`;
+  const formatMismatch = /^上游返回的图片格式与请求的 (PNG|JPEG|WEBP|SVG|GIF) 不一致。$/u.exec(value);
+  if (formatMismatch) return `The returned image does not match the requested ${formatMismatch[1]} format.`;
   const generationFailure = /^(.*) 请求可能已到达服务商并产生费用；未自动重试。$/u.exec(value);
-  if (generationFailure) return `${zhToEn.get(generationFailure[1]) ?? generationFailure[1]} The request may have reached the provider and incurred charges. No automatic retry.`;
+  if (generationFailure) return `${zhToEn.get(generationFailure[1]) ?? localizeDynamicChinese(generationFailure[1]) ?? generationFailure[1]} The request may have reached the provider and incurred charges. No automatic retry.`;
   const connectionFailure = /^(.*) 未提交生成请求。$/u.exec(value);
   if (connectionFailure) return `${zhToEn.get(connectionFailure[1]) ?? connectionFailure[1]} No generation request submitted.`;
   let match = /^(\d+)\s*天$/u.exec(value);

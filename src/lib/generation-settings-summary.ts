@@ -1,4 +1,5 @@
 import type { GenerateImageInput, ProviderConfig } from "@shared/types";
+import { automaticImageControls } from "@shared/image-output";
 
 export const IMAGE_QUALITY_LABELS = {
   auto: "自动质量",
@@ -8,8 +9,8 @@ export const IMAGE_QUALITY_LABELS = {
 } as const;
 
 /** These are the adapters that actually forward the saved quality field. */
-export function providerUsesImageQuality(provider?: Pick<ProviderConfig, "type">): boolean {
-  return provider?.type === "openai-compatible" || provider?.type === "codex-oauth";
+export function providerUsesImageQuality(provider?: Pick<ProviderConfig, "type" | "imageControlMode">): boolean {
+  return !automaticImageControls(provider) && provider?.type === "openai-compatible";
 }
 
 export function generationSettingsSummary(

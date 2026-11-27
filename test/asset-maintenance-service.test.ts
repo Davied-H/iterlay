@@ -1,7 +1,7 @@
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAssetMaintenance } from "../electron/application/asset-maintenance";
-import type { AppSettings, BoardData } from "../shared/types";
+import type { AppSettings, BoardData, GenerationJob } from "../shared/types";
 
 afterEach(() => vi.useRealTimers());
 
@@ -32,6 +32,15 @@ function fixture() {
 }
 
 describe("asset maintenance retention and lifecycle", () => {
+  it("keeps paid-for originals referenced only by a delivered generation job", async () => {
+    const { service, dependencies } = fixture();
+    vi.mocked(dependencies.history.listJobs).mockResolvedValue([{ outputImagePaths: ["converted.jpg"], originalImagePaths: ["provider-original.png"], referenceImagePaths: [] } as unknown as GenerationJob]);
+    try {
+      const paths = await service.referencedAssetPaths();
+      expect(paths.has(path.resolve("provider-original.png"))).toBe(true);
+      expect(paths.has(path.resolve("converted.jpg"))).toBe(true);
+    } finally { service.dispose(); }
+  });
   it("protects current, historical, final, derived, video, delivery, assistant, modification and trash references", async () => {
     vi.useFakeTimers();
     const { service, dependencies } = fixture();

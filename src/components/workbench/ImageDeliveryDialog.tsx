@@ -171,6 +171,9 @@ export function ImageDeliveryDialog({ open, onOpenChange, board, onBoardChanged,
                       <label className="image-delivery-field"><span>{uiText("宽度")}</span><Input type="number" min={1} max={16384} aria-label={uiText("文件 {{ui:0}} 宽度", [index + 1])} value={item.width ?? ""} placeholder={uiText("原始")} onChange={(event) => patchItem(item.id, { width: event.target.value ? Number(event.target.value) : undefined })} /></label>
                       <label className="image-delivery-field"><span>{uiText("高度")}</span><Input type="number" min={1} max={16384} aria-label={uiText("文件 {{ui:0}} 高度", [index + 1])} value={item.height ?? ""} placeholder={uiText("原始")} onChange={(event) => patchItem(item.id, { height: event.target.value ? Number(event.target.value) : undefined })} /></label>
                     </div>
+                    <label className="image-delivery-field"><span>{uiText("尺寸适配方式")}</span><select aria-label={uiText("文件 {{ui:0}} 尺寸适配", [index + 1])} value={item.fit ?? "scale"} onChange={(event) => patchItem(item.id, { fit: event.target.value as ImageDeliveryItem["fit"] })}>
+                      <option value="scale">{uiText("比例接近时缩放")}</option><option value="cover">{uiText("裁切填满")}</option><option value="contain">{uiText("完整留白")}</option>
+                    </select></label>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => setDraft({ ...draft, items: draft.items.filter((file) => file.id !== item.id) })}>{uiText("移除此交付文件")}</Button>
                 </fieldset>;

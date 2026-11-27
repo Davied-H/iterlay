@@ -1,3 +1,5 @@
+import { verifyProviderOutput } from "./application/provider-output-verification.js";
+import { showGenerationCompletedNotification } from "./system-notification.js";
 import { readImageDimensions } from "./media/image-metadata.js";
 import { TemplateStore } from "./storage/template-store.js";
 import { continueWithScreenCapture } from "./application/screen-collaboration.js";
@@ -15,10 +17,13 @@ import { handoffBoardComments } from "./agent-comment-handoff.js";
 import { imageDimensionsFromHeader } from "./media/image-metadata.js";
 import type { PsdLayerInput } from "./media/psd-worker.js";
 import { createImageGenerationCommand } from "./application/image-generation.js";
+import { encodeDeliveryImage } from "./image-delivery.js";
+import { decodeDeliveryToPng, encodeDeliveryWebp } from "./image-delivery-webp.js";
+import { deliveryDimensions } from "../shared/image-output-delivery.js";
 import { registerModificationRequestIpc } from "./modification-request-ipc.js";
 import { registerImageDeliveryIpc } from "./image-delivery-ipc.js";
 import { ImageProviderRegistry } from "./providers/image-registry.js";
-import { checkImageGeneration, checkProviderConnection, localCredentialCheck, newProviderTestResult } from "./providers/diagnostics.js";
+import { checkProviderConnection, localCredentialCheck, newProviderTestResult } from "./providers/diagnostics.js";
 import { registerVideoIpc } from "./video/video-ipc.js";
 export { registerVideoIpc } from "./video/video-ipc.js";
 import { AssetCatalog } from "./application/asset-catalog.js";
@@ -1347,8 +1352,7 @@ export function registerIpc({
       try {
         const apiKey = apiKeyOverride?.trim() || settings.getApiKey(config.id);
         if (options?.mode === "generation") {
-          return await checkImageGeneration(config, options.acknowledgeCharges === true,
-            (input) => getProviderAdapter(config).generate(input, config, apiKey));
+          return await verifyProviderOutput(config, options, apiKeyOverride, { settings, assets, history, getProviderAdapter });
         }
         if (config.type === "codex-oauth") {
           await codexAuth.getAccess(config.id);
@@ -1493,6 +1497,11 @@ export function registerIpc({
     history,
     assets,
     getProviderAdapter,
+    encodeImageDelivery: (bytes, options) => imageTasks.run(() => encodeDeliveryImage(bytes, {
+      id: "local", nodeId: "local", sourceVersion: { imagePath: "local", jobId: "local" }, purpose: "本地交付", relativePath: `image.${options.format === "jpeg" ? "jpg" : options.format}`,
+      format: options.format, ...deliveryDimensions(options.size), fit: options.fit ?? "scale", quality: options.quality
+    }, { createImage: (value) => nativeImage.createFromBuffer(value), createBitmap: (value, size) => nativeImage.createFromBitmap(value, size), webp: encodeDeliveryWebp, decodeToPng: decodeDeliveryToPng })),
+    notifyCompleted: showGenerationCompletedNotification,
     recordMemory,
     sceneMedia,
     backfillThumbHashes,
@@ -1501,6 +1510,7 @@ export function registerIpc({
     analytics
   });
   ipcMain.handle("image:generate", (_event, input: GenerateImageInput) => imageGeneration(input));
+  ipcMain.handle("image:retryDelivery", (_event, input) => imageGeneration.retryDelivery(input));
   ipcMain.handle("image:cancel", (_event, clientTaskId: string) => imageGeneration.cancel(clientTaskId));
 
   ipcMain.handle("sceneMedia:list", async (): Promise<SceneMediaSummary[]> =>

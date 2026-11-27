@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { checkImageGeneration, checkProviderConnection, localCredentialCheck } from "../electron/providers/diagnostics";
 import type { ProviderConfig } from "../shared/types";
+import { GIFEncoder } from "gifenc";
 
 const config: ProviderConfig = {
   id: "image", name: "Test", type: "openai-compatible", baseUrl: "https://example.test/v1",
@@ -10,6 +11,20 @@ const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 
 describe("provider diagnostic evidence and usage boundaries", () => {
+  it("verifies actual GIF animation rather than trusting a MIME label or a static GIF", async () => {
+    const gifConfig: ProviderConfig = { ...config, imageCapabilities: { [config.model]: { outputFormats: ["png", "gif"] } } };
+    for (const frames of [1, 2]) {
+      const encoder = GIFEncoder();
+      for (let i = 0; i < frames; i++) encoder.writeFrame(Uint8Array.from([i % 2]), 1, 1, { palette: [[0, 0, 255], [255, 255, 255]], delay: 200 });
+      encoder.finish();
+      const generate = vi.fn().mockResolvedValue({ images: [{ bytes: Buffer.from(encoder.bytes()), mimeType: "image/png" }] });
+      const result = await checkImageGeneration(gifConfig, true, generate, { outputFormat: "gif" });
+      expect(result.ok).toBe(frames > 1);
+      expect(result.outputVerification?.status).toBe(frames > 1 ? "passed" : "failed");
+      expect(generate).toHaveBeenCalledOnce();
+      expect(generate).toHaveBeenCalledWith(expect.objectContaining({ outputFormat: "gif", size: "512x512", frameCount: 9 }));
+    }
+  });
   it.each(["/images/generations", "/responses"])("never submits generation to %s during a normal check", async (generationEndpoint) => {
     const fetcher = vi.fn().mockResolvedValue(json({ data: [{ id: "image-model" }] }));
     const result = await checkProviderConnection({ ...config, generationEndpoint }, "test-key", "image", fetcher);

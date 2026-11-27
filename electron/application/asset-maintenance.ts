@@ -79,6 +79,7 @@ export function createAssetMaintenance(dependencies: AssetMaintenanceDependencie
     for (const board of allBoards) for (const recipe of board.deliveryRecipes??[]) for (const item of recipe.items) referenced.add(path.resolve(item.sourceVersion.imagePath));
     for (const job of jobs) {
       for (const item of job.outputImagePaths) referenced.add(path.resolve(item));
+      for (const item of job.originalImagePaths ?? []) referenced.add(path.resolve(item));
       for (const item of job.referenceImagePaths) referenced.add(path.resolve(item));
     }
     for (const job of videoJobs) {

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { getProviderImageSizeOptions, providerSupportsCustomImageSize } from "@/lib/provider-image-sizes";
 
 describe("provider image sizes", () => {
+  it("keeps native OAuth sizes automatic and leaves exact pixels to local delivery", () => {
+    expect(getProviderImageSizeOptions({ type: "codex-oauth" }).map((option) => option.value)).toEqual(["auto"]);
+    expect(providerSupportsCustomImageSize({ type: "codex-oauth" })).toBe(false);
+    expect(providerSupportsCustomImageSize({ type: "openai-compatible", imageControlMode: "automatic" })).toBe(false);
+  });
   it("只向官方 Provider 展示其支持的标准尺寸", () => {
     const options = getProviderImageSizeOptions({ type: "official" });
 

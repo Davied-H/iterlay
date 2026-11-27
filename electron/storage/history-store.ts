@@ -56,8 +56,11 @@ export class HistoryStore {
   async failInterruptedJobs(completedAt = new Date().toISOString()): Promise<number> {
     return this.mutations.run(async () => {
       const changed = [...(await this.readJobs()).values()].filter((job) =>
-        (job.status === "running" || job.status === "queued") && !(job.providerId === OFFICIAL_PROVIDER_ID && job.remoteJobId)
-      ).map((job): GenerationJob => job.status === "queued"
+        job.delivery?.status === "processing" || (job.status === "running" || job.status === "queued") && !(job.providerId === OFFICIAL_PROVIDER_ID && job.remoteJobId)
+      ).map((job): GenerationJob => job.delivery?.status === "processing" && job.originalImagePaths?.length
+        ? { ...job, status: "succeeded", outputImagePaths: job.originalImagePaths, outputMetadata: job.originalOutputMetadata,
+          delivery: { ...job.delivery, status: "failed", error: "本地交付被重启中断，原图已保留，可重试本地交付。" } }
+        : job.status === "queued"
         ? { ...job, status: "cancelled", completedAt, error: "应用在任务提交前重启，排队任务已取消，未发送到 Provider。" }
         : { ...job, status: "unknown", completedAt, error: "应用在任务完成前重启，远端结果与费用状态待确认。请先检查 Provider 和历史，避免重复提交。" });
       await this.commit({ version: 1, upsert: changed });

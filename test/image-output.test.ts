@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { GIFEncoder } from "gifenc";
 import { describe, expect, it, vi } from "vitest";
-import { imageOutputCapabilities, normalizeImageOutput } from "../shared/image-output";
+import { imageOutputCapabilities, imageOutputConfigurationKey, normalizeImageOutput } from "../shared/image-output";
 import { assertGenerateImageInput } from "../shared/input-validation";
 import type { GenerateImageInput, GenerationJob, ProviderConfig } from "../shared/types";
 import { Sub2ApiImageProvider } from "../electron/providers/sub2api";
@@ -17,6 +17,10 @@ vi.mock("../electron/system-notification.js", () => ({ showGenerationCompletedNo
 import { createImageGenerationCommand, type ImageGenerationDependencies } from "../electron/application/image-generation";
 
 const provider: ProviderConfig = { id: "formats", name: "Formats", type: "openai-compatible", apiMode: "images", baseUrl: "https://fixture.invalid", generationEndpoint: "/v1/images/generations", referenceEndpoint: "/v1/images/edits", model: "gpt-image-2.6-flare", supportsReferenceImages: true };
+provider.imageCapabilities = { [provider.model]: { outputFormats: ["png", "jpeg", "webp", "svg", "gif"], svgModel: "gpt-6.1-sol" } };
+provider.imageOutputVerifications = { [provider.model]: Object.fromEntries(["svg", "gif"].map((format) => [format, {
+  status: "passed", configurationKey: imageOutputConfigurationKey(provider), checkedAt: new Date().toISOString(), message: "fixture proof"
+}])) };
 const input: GenerateImageInput = { workflowMode: "generate", prompt: "A moving blue dot", model: provider.model, size: "auto", n: 1, referenceImages: [], boardId: "board" };
 const vector = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="paint"><stop offset="0" stop-color="blue"/></linearGradient></defs><circle cx="256" cy="256" r="80" fill="url(#paint)"/></svg>');
 function animation(frames = 9, delay = 200) {
@@ -29,7 +33,7 @@ function animation(frames = 9, delay = 200) {
 describe("Leru-compatible image output", () => {
   it("resolves dated model capabilities, explicit overrides, and excludes unsupported transports", () => {
     expect(imageOutputCapabilities(provider).outputFormats).toEqual(["png", "jpeg", "webp", "svg", "gif"]);
-    expect(imageOutputCapabilities(provider, "gpt-image-2.6-sunburst-2026-11-01").svgModel).toBe("gpt-6.1-sol");
+    expect(imageOutputCapabilities(provider, "gpt-image-2.6-sunburst-2026-11-01").svgModel).toBeUndefined();
     expect(imageOutputCapabilities(provider, "gpt-image-2.5-flare").outputFormats).not.toContain("svg");
     expect(imageOutputCapabilities({ ...provider, apiMode: "responses" }).outputFormats).toEqual(["png"]);
     expect(imageOutputCapabilities({ ...provider, type: "codex-oauth" }).outputFormats).toEqual(["png"]);

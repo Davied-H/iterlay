@@ -18,3 +18,9 @@ export async function resolveIterlayApp(explicitRoot?: string): Promise<{ root: 
   }
   return null;
 }
+
+export function standaloneUserDataPath(): string {
+  if (process.platform === "darwin") return path.join(os.homedir(), "Library", "Application Support", "Iterlay CLI");
+  if (process.platform === "win32") return path.join(process.env.LOCALAPPDATA || os.homedir(), "Iterlay CLI");
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "iterlay");
+}

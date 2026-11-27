@@ -10,7 +10,9 @@ export async function callLocalApi(userDataPath: string, method: string, args: R
   const response = await fetch(`http://127.0.0.1:${info.port}/call`, {
     method: "POST",
     headers: { authorization: `Bearer ${info.token}`, "content-type": "application/json" },
-    signal: AbortSignal.timeout(30_000),
+    // A real format check waits for one provider generation; ending at 30s
+    // would lose its result while the possibly paid request keeps running.
+    signal: AbortSignal.timeout(method === "verify_image_output" ? 10 * 60_000 : 30_000),
     body: JSON.stringify({ method, args })
   });
   const body = await response.json() as { result?: unknown; error?: string };

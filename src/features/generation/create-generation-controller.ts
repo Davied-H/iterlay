@@ -391,13 +391,16 @@ export function createImageGenerationController(dependencies: GenerationControll
       );
       if (isEditSession) {
         // 结果按顺序追加为新版本（n>1 时全部入栈，版本条里翻着对比），激活最新版。
-        const newVersions: ImageVersion[] = produced.map((output) => ({
+        const deliveredVersions: ImageVersion[] = produced.map((output) => ({
           path: output.path,
           dataUrl: output.dataUrl,
           jobId: result.job.id,
           width: output.width,
           height: output.height
         }));
+        const newVersions: ImageVersion[] = produced.flatMap((output, index) => output.original
+          ? [{ path: output.original.path, dataUrl: output.original.dataUrl, jobId: result.job.id, width: output.original.width, height: output.original.height }, deliveredVersions[index]]
+          : [deliveredVersions[index]]);
         // 无论当前在哪个画板，先把新版本落盘到发起画板，保证在途编辑结果始终可恢复
         // （退出编辑 / 退出画板再进来都能看到）；后续自动保存是全量覆盖，内容一致不会重复。
         await api.appendBoardNodeVersions(
@@ -445,18 +448,18 @@ export function createImageGenerationController(dependencies: GenerationControll
         }
         setStatus("编辑完成。");
         iterlayToast.result({
-          count: newVersions.length,
-          title: newVersions.length > 1 ? translateSourceText("已生成 {{ui:0}} 个编辑版本", [newVersions.length]) : translateSourceText("编辑已应用"),
+          count: deliveredVersions.length,
+          title: deliveredVersions.length > 1 ? translateSourceText("已生成 {{ui:0}} 个编辑版本", [deliveredVersions.length]) : translateSourceText("编辑已应用"),
           detail: activeBoardRef.current?.id === originBoard.id ? translateSourceText("新版本已叠加到原图") : translateSourceText("已存入「{{ui:0}}」", [originBoard.name]),
-          previews: newVersions.map((version) => version.dataUrl),
+          previews: deliveredVersions.map((version) => version.dataUrl),
           onNavigate: () => void locateGenerationResult(
             originBoard.id,
-            newVersions.map((version) => version.path)
+            deliveredVersions.map((version) => version.path)
           )
         });
         if (result.warnings?.length) result.warnings.forEach((warning) => toast.warning(warning));
         await refreshHistory();
-        return newVersions.map((version) => ({
+        return deliveredVersions.map((version) => ({
           id: crypto.randomUUID(),
           path: version.path,
           dataUrl: version.dataUrl,
@@ -476,7 +479,11 @@ export function createImageGenerationController(dependencies: GenerationControll
         pending: false,
         source: "generated" as const,
         width: output.width,
-        height: output.height
+        height: output.height,
+        ...(output.original ? { versions: [
+          { path: output.original.path, dataUrl: output.original.dataUrl, jobId: result.job.id, width: output.original.width, height: output.original.height },
+          { path: output.path, dataUrl: output.dataUrl, jobId: result.job.id, width: output.width, height: output.height }
+        ], activeVersion: 1 } : {})
       }));
       if (generationInput.generationNodeId) {
         completedImages = completedImages.map((image) => ({
