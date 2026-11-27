@@ -7,6 +7,7 @@ Read this when choosing a non-default workspace, setting up a fresh machine, con
 - An npm-installed CLI can connect to the local Electron App, reuse its models and credentials, and create results on its canvas.
 - The CLI without an App can run its own Node backend. Standalone npm packages require Node.js >=22.12.0; App-bundled launchers use the App's runtime.
 - Discoverable App installations are preferred by default. `--standalone` forces Node; `serve` runs Node in the foreground. `--standalone` and `--app-path` cannot be combined.
+- Automatic mode reuses an already running backend in the selected workspace, including a source-launched App without a system-installed bundle. Only explicit `--standalone` or `serve` requires Node and rejects an App workspace.
 - App mode can start a hidden App backend. The user need not open a window first. Node mode normally starts a detached backend and keeps asynchronous jobs running after CLI exit.
 
 Use the installed executable's help, not the package version alone, to check for standalone support. Independently distributed CLI and App releases can have different capabilities; an offline tool schema comes from the client bundle, not backend negotiation.

@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { callLocalApi } from "../../electron/local-api-client.js";
 import { resolveIterlayApp } from "./paths.js";
 import { CLI_BACKGROUND_FLAG } from "../../electron/background-session.js";
-export interface RuntimeOptions { userDataPath: string; appRoot?: string; noLaunch?: boolean; standalone?: boolean }
+export interface RuntimeOptions { userDataPath: string; appRoot?: string; noLaunch?: boolean; standalone?: boolean; allowExistingApp?: boolean }
 export async function connect(options: RuntimeOptions): Promise<(method: string, args?: Record<string, unknown>) => Promise<unknown>> {
   const call = (method: string, args: Record<string, unknown> = {}) => callLocalApi(options.userDataPath, method, args);
   let connected = false;
@@ -11,7 +11,7 @@ export async function connect(options: RuntimeOptions): Promise<(method: string,
     if (options.noLaunch) throw error;
   }
   if (connected) {
-    if (options.standalone) {
+    if (options.standalone && !options.allowExistingApp) {
       const status = await call("status") as { runtime?: string };
       if (status?.runtime !== "node") throw new Error("指定工作区连接的是 App 后台，请为 --standalone 选择独立工作区。");
     }

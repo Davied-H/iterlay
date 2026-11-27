@@ -148,7 +148,9 @@ async function main(): Promise<void> {
     const value = { format: get("delivery-format"), size: get("delivery-size"), fit: get("fit"), quality: get("delivery-quality") === undefined ? undefined : Number(get("delivery-quality")) };
     return Object.values(value).some((item) => item !== undefined) ? value : undefined;
   };
-  const runtimeCall = await connect({ userDataPath, appRoot: get("app-path"), standalone, noLaunch: Boolean(flags["no-launch"]) || (!standalone && (Boolean(process.env.ITERLAY_USER_DATA_PATH) || Boolean(get("user-data-path")))) || group === "server" });
+  const runtimeCall = await connect({ userDataPath, appRoot: get("app-path"), standalone,
+    allowExistingApp: !flags.standalone && group !== "serve",
+    noLaunch: Boolean(flags["no-launch"]) || (!standalone && (Boolean(process.env.ITERLAY_USER_DATA_PATH) || Boolean(get("user-data-path")))) || group === "server" });
   let deliverySupported: Promise<boolean> | undefined;
   const requireDelivery = async () => {
     deliverySupported ??= runtimeCall("status").then((status) => record(status).imageDeliveryVersion === 1);

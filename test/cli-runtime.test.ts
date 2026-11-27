@@ -9,6 +9,7 @@ import { build } from "esbuild";
 const exec = promisify(execFile);
 let directory: string, script: string;
 let runtimeArgs: string[];
+let automaticScript: string;
 let generated = 0;
 let lastGenerationArgs: Record<string, unknown>;
 let resolvedBoards = 0;
@@ -43,12 +44,19 @@ beforeAll(async () => {
   // whether the test host happens to have a real desktop App installed.
   runtimeArgs = [script, "--app-path", directory];
   await build({ entryPoints: ['cli/src/main.ts'], bundle: true, platform: 'node', format: 'esm', outfile: script });
+  automaticScript = path.join(directory, 'automatic.mjs');
+  await build({ entryPoints: ['cli/src/main.ts'], bundle: true, platform: 'node', format: 'esm', outfile: automaticScript,
+    define: { 'process.platform': '"linux"' } });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as { port: number };
   await writeFile(path.join(directory, 'local-api.json'), JSON.stringify({ port: address.port, token: 'a'.repeat(32) }));
 });
 afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); });
 describe('CLI subprocess workflow', () => {
+  it('automatically connects to an existing App backend without a discoverable installed App', async () => {
+    const run = await exec(process.execPath, [automaticScript, 'providers', 'show', 'tts', '--user-data-path', directory, '--json']);
+    expect(JSON.parse(run.stdout).data).toMatchObject({ id: 'tts', voice: 'nova' });
+  });
   it('refuses local delivery on an older backend before resolving a board or submitting a paid request', async () => {
     const before = generated, boards = resolvedBoards;
     await expect(exec(process.execPath, [...runtimeArgs, 'image', 'generate', '--prompt', 'never submit', '--delivery-format', 'jpeg', '--user-data-path', directory, '--json'])).rejects.toMatchObject({ stdout: expect.stringContaining('未提交生成请求') });

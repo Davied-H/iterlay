@@ -10,6 +10,13 @@ import { connect } from "../cli/src/runtime.js";
 afterEach(() => { vi.resetAllMocks(); vi.useRealTimers(); });
 
 describe("CLI service connection", () => {
+  it("reuses a running App in automatic mode even when no packaged App was discovered", async () => {
+    mocks.call.mockResolvedValue({ protocolVersion: 1 });
+    const call = await connect({ userDataPath: "/development-workspace", standalone: true, allowExistingApp: true });
+    await call("list_boards");
+    expect(mocks.spawn).not.toHaveBeenCalled();
+    expect(mocks.call.mock.calls.map((args) => args[1])).toEqual(["status", "list_boards"]);
+  });
   it("reuses a running service without launching or foregrounding the App", async () => {
     mocks.call.mockResolvedValue(true);
     const call = await connect({ userDataPath: "/workspace" });
