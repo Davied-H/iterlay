@@ -1156,3 +1156,28 @@
 - 证据：[验收说明](../outputs/svg-verification-2026-11-27/verification.md)、[示例SVG](../outputs/svg-verification-2026-11-27/real-provider-coffee.svg)。测试服务已清理；正式App后台保留。
 - 注意：成功的是作者模式，不把它宣称为gpt-image原生SVG；旧包备份仍在/tmp/iterlay-svg-native-fix-20261127/Iterlay.previous.app。
 - 下一步：无；若继续原ATTACHÉ Logo套件制作，需回到该任务承接需求。
+
+## 2026-11-27 15:33｜最新 CLI、Skill 与 App 本机安装
+- 状态：已完成；当前 main 提交 d1c8f58 与 GitHub 远端 HEAD 一致，按当前工作区构建 0.1.70 ARM64。
+- 结果：更新 `/Applications/Iterlay.app`、`~/.local/bin/iterlay`；安装 using-iterlay 到 Codex、Claude Code、Cursor、WorkBuddy、Gemini CLI，共享目录文件也已一致。
+- 验证：完整 build、包体审计、ad-hoc 签名校验通过；安装 ASAR/CLI/后台 SHA256 与构建匹配，Skill 全部6个文件逐一一致；新登录 shell 可运行 CLI 0.1.70，status 可连接并保留21个画板。
+- 验证：隔离 standalone 后台启动/状态/停止通过，临时数据已清理；未执行付费模型调用，未做可见 App 界面功能测试。
+- 注意：旧 App 备份 `/tmp/iterlay-install-20261127-153225/Iterlay.previous.app`；保留原用户数据，未提交、推送或发布。
+- 下一步：无。
+
+## 2026-11-27 15:55｜SVG 修复代码推送与本机部署
+- 状态：源码提交推送、本机 App/CLI 部署及最终远端 CI 验证全部完成。
+- 结果：功能提交 d1c8f58，最终 main 为 d114a90；包含独立CLI、原图交付恢复、SVG作者/验证，以及交付并发、旧草稿验证回退和随包Sharp修复。
+- 验证：当前目录与暂存源码导出快照均通过check:all（主项目2395项）；后续自动模式修复22项CLI回归、完整隔离浏览器冒烟通过。
+- 部署：0.1.70 ARM64 已更新至 /Applications/Iterlay.app；签名、App/CLI哈希匹配；实际安装路径Sharp编码、独立CLI切图和本地模拟JPEG120×200交付通过；SVG作者模式与已验证状态保留。本轮未新增付费调用。
+- CI：最终run 45961578368为completed/success（2026-11-27 16:00复核），checks与browser-smoke均成功，desktop-smoke按配置跳过。
+- 注意：本地截图/原始响应/排障证据未入库；保留并行会话新增日志，不纳入本次代码提交。
+- 下一步：无；本次未创建新公开版本或发布到npm。
+
+## 2026-11-27 16:10｜README 精简与文档拆分
+- 状态：已完成。
+- 目标：首页聚焦 Coding Agent 安装、手动安装、仅 CLI 安装及已开发功能。
+- 结果：中英文 README 从各 341 行精简至约 80 行；产品故事、创作案例、详细功能、使用与 FAQ、社区与许可证拆为五组双语文档，开发说明沿用已有指南。
+- 验证：14 份文档标点检查、79 个本地链接目标检查、父仓库与应用仓库 diff --check 通过；CLI help 核对命令入口。
+- 注意：明确独立 CLI 源码能力尚未发布 npm，提供仅构建 CLI 的安装路径；未执行安装、模型调用、提交或推送。
+- 下一步：无。
